@@ -91,7 +91,7 @@ These should have capability/evidence-based designs, not placeholder buttons:
 
 - [ ] Isolated worktrees using actual supported OpenCode endpoints; display creation/cleanup ownership and protect dirty worktrees.
 - [ ] Background/multiple tasks and activity inbox, respecting local single-GPU execution limits. Parallel sessions do not imply parallel model capacity.
-- [ ] PARTIAL (0.2.1 source): live skill/agent/tool/MCP inventory; local global/project JSONC editor for tool permissions, skill URLs, npm plugins, remote MCP and default agent with backup/conflict guard. Native save UI and explicit review/diff before saving still need final validation/design.
+- [ ] PARTIAL (0.2.1 source): live skill/agent/tool/MCP inventory; local global/project JSONC editor for tool permissions, skill URLs, npm plugins, remote MCP and default agent with key-level review, backup and conflict guard. Native save UI still needs final validation; full line diff and a plugin marketplace are not implemented.
 - [ ] Git workflow refinements, branch review, per-line comments and GitHub integration through existing authenticated CLI with explicit publication actions.
 - [ ] File/image drag and drop, attachment previews, find in history, export with privacy controls, session fork/branching.
 - [ ] Scheduling/automation only after defining persistence, permission boundaries, duplicate prevention and cancellation. Do not silently auto-start work.

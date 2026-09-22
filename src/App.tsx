@@ -77,7 +77,8 @@ export default function App() {
       } else if (e.key === "Escape") {
         if (store.state.ui.paletteOpen) store.setUi({ paletteOpen: false });
         if (store.state.ui.hostDialogOpen || store.state.ui.remoteFolderOpen) return;
-        if (store.state.ui.settingsOpen) store.setUi({ settingsOpen: false });
+        if (store.state.ui.settingsOpen && !document.querySelector('[data-unsaved-settings="true"]'))
+          store.setUi({ settingsOpen: false });
         if (store.state.ui.confirmDelete) store.setUi({ confirmDelete: null });
       }
     };

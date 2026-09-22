@@ -9,13 +9,14 @@ const DEFAULT_TOOLS = ["bash", "read", "glob", "grep", "edit", "webfetch", "webs
 const asRecord = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const asStrings = (value: unknown): string[] => Array.isArray(value) ? value.filter((x): x is string => typeof x === "string") : [];
 
-export function OpenCodeSettings() {
+export function OpenCodeSettings({onDirtyChange}: {onDirtyChange?: (dirty: boolean) => void}) {
   const s = useAppState();
   const remote = !!store.currentHost();
   const native = "__TAURI_INTERNALS__" in window;
   const [scope, setScope] = useState<Scope>("global");
   const [section, setSection] = useState<Section>("tools");
   const [doc, setDoc] = useState<Document | null>(null);
+  const [pending, setPending] = useState<{content: string; paths: string[]} | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +28,11 @@ export function OpenCodeSettings() {
   const [mcpName, setMcpName] = useState("");
   const [mcpUrl, setMcpUrl] = useState("");
   const directory = scope === "project" ? s.directory : null;
+
+  useEffect(() => {
+    onDirtyChange?.(!!pending);
+    return () => onDirtyChange?.(false);
+  }, [pending, onDirtyChange]);
 
   useEffect(() => {
     if (!s.ui.settingsOpen) return;
@@ -46,7 +52,7 @@ export function OpenCodeSettings() {
 
   useEffect(() => {
     if (!s.ui.settingsOpen) return;
-    setError(""); setNotice(""); setDoc(null);
+    setError(""); setNotice(""); setDoc(null); setPending(null);
     if (!native || remote || (scope === "project" && !directory)) return;
     let live = true;
     void import("@tauri-apps/api/core").then(({invoke}) =>
@@ -60,7 +66,7 @@ export function OpenCodeSettings() {
   }, [s.ui.settingsOpen, scope, directory, native, remote]);
 
   let config: ConfigValue = {};
-  try { config = parseConfig(doc?.content ?? ""); } catch { /* displayed above */ }
+  try { config = parseConfig(pending?.content ?? doc?.content ?? ""); } catch { /* displayed above */ }
   const writable = !!doc && !busy && !remote;
   const save = async (path: (string | number)[], value: unknown) => {
     if (!doc || remote) return false;
@@ -69,17 +75,30 @@ export function OpenCodeSettings() {
       setError("Дождитесь завершения работающего агента перед изменением конфигурации.");
       return false;
     }
-    setBusy(true); setError(""); setNotice("");
+    setError(""); setNotice("");
     try {
-      const content = updateConfig(doc.content, path, value);
-      const {invoke} = await import("@tauri-apps/api/core");
-      const saved = await invoke<Document>("write_opencode_config", {
-        scope, directory, expected: doc.content, content,
-      });
-      setDoc(saved);
-      setNotice("Сохранено с резервной копией. OpenCode применит настройки при следующем запуске сервера.");
+      const content = updateConfig(pending?.content ?? doc.content, path, value);
+      setPending({content, paths: [...new Set([...(pending?.paths ?? []), path.join(".")])]});
       return true;
     } catch (e) { setError(String(e)); return false; }
+  };
+  const applyPending = async () => {
+    if (!doc || !pending || busy || remote) return;
+    if ([...Object.values(store.state.activityStatuses), ...Object.values(store.state.statuses)]
+      .some((status) => status.type === "busy" || status.type === "retry")) {
+      setError("Дождитесь завершения работающего агента перед сохранением.");
+      return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const {invoke} = await import("@tauri-apps/api/core");
+      const saved = await invoke<Document>("write_opencode_config", {
+        scope, directory, expected: doc.content, content: pending.content,
+      });
+      setDoc(saved);
+      setPending(null);
+      setNotice("Сохранено с резервной копией. OpenCode применит настройки при следующем запуске сервера.");
+    } catch (e) { setError(String(e)); }
     finally { setBusy(false); }
   };
   const permissions = asRecord(config.permission);
@@ -91,10 +110,10 @@ export function OpenCodeSettings() {
     .some((status) => status.type === "busy" || status.type === "retry");
   const canEdit = writable && !hasBusySession;
 
-  return <div className="engine-settings">
+  return <div className="engine-settings" data-unsaved-settings={pending ? "true" : undefined}>
     <div className="settings-scope">
       <label>Область конфигурации
-        <select value={scope} onChange={(e) => setScope(e.target.value as Scope)}>
+        <select value={scope} disabled={!!pending || busy} onChange={(e) => setScope(e.target.value as Scope)}>
           <option value="global">На этом Mac · все проекты</option>
           <option value="project" disabled={!s.directory || remote}>Текущий проект</option>
         </select>
@@ -107,6 +126,11 @@ export function OpenCodeSettings() {
     </nav>
     {error && <p role="alert" className="composer-error">{error}</p>}
     {notice && <p role="status" className="settings-notice">{notice}</p>}
+    {pending && <div className="settings-review" role="status">
+      <span><b>К сохранению:</b> {pending.paths.join(", ")}. Проверьте значения ниже; остальные поля и комментарии останутся на месте.</span>
+      <button className="btn" disabled={busy} onClick={() => setPending(null)}>Отменить</button>
+      <button className="btn primary" disabled={!canEdit} onClick={() => void applyPending()}>Применить</button>
+    </div>}
     <div className="engine-content">
       {hasBusySession && <p role="status">Пока агент выполняет задачу, запись конфигурации отключена. Настройки можно просматривать.</p>}
       {section === "tools" && <>

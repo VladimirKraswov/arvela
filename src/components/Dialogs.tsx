@@ -14,6 +14,12 @@ export function SettingsDialog() {
   const [asrKey, setKey] = useState(getAsrKey(asr.endpoint));
   const [asrError, setAsrError] = useState("");
   const [tab, setTab] = useState<"general" | "engine">("general");
+  const [engineDirty, setEngineDirty] = useState(false);
+  const [unsavedWarning, setUnsavedWarning] = useState(false);
+  const close = () => {
+    if (engineDirty) { setUnsavedWarning(true); return; }
+    store.setUi({settingsOpen: false});
+  };
   useEffect(() => {
     if (s.ui.settingsOpen) {
       setEndpoint(s.prefs.localEndpoint ?? s.prefs.endpoint);
@@ -21,15 +27,14 @@ export function SettingsDialog() {
       setKey(getAsrKey(s.prefs.asr?.endpoint ?? ""));
       setAsrError("");
       setTab("general");
+      setUnsavedWarning(false);
     }
   }, [s.ui.settingsOpen, s.prefs.endpoint]);
   if (!s.ui.settingsOpen) return null;
   return (
     <div
       className="modal-overlay"
-      onMouseDown={(e) =>
-        e.target === e.currentTarget && store.setUi({ settingsOpen: false })
-      }
+      onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <div
         className="modal settings-modal"
@@ -42,7 +47,8 @@ export function SettingsDialog() {
           <button className={tab === "general" ? "active" : ""} onClick={() => setTab("general")}>Приложение и диктовка</button>
           <button className={tab === "engine" ? "active" : ""} onClick={() => setTab("engine")}>OpenCode · инструменты и расширения</button>
         </nav>
-        {tab === "engine" ? <OpenCodeSettings /> : <>
+        <div hidden={tab !== "engine"}><OpenCodeSettings onDirtyChange={setEngineDirty} /></div>
+        {tab === "general" && <>
         <label>
           Адрес локального сервера OpenCode
           <input
@@ -156,13 +162,18 @@ export function SettingsDialog() {
           <b>{s.agents.map((a) => a.name).join(", ") || "—"}</b>
         </div>
         </>}
+        {unsavedWarning && <div className="settings-review" role="alert">
+          <span>Есть несохранённые изменения конфигурации OpenCode.</span>
+          <button className="btn" onClick={() => setUnsavedWarning(false)}>Остаться</button>
+          <button className="btn" onClick={() => store.setUi({settingsOpen: false})}>Не сохранять и закрыть</button>
+        </div>}
         <div
           className="btn-row"
           style={{ justifyContent: "flex-end", marginTop: 4 }}
         >
           <button
             className="btn"
-            onClick={() => store.setUi({ settingsOpen: false })}
+            onClick={close}
           >
             Закрыть
           </button>
@@ -180,7 +191,7 @@ export function SettingsDialog() {
                 model: asr.model.trim(),
               });
               setAsrKey(asr.endpoint, asrKey);
-              store.setUi({ settingsOpen: false });
+              close();
               if (endpoint !== (s.prefs.localEndpoint ?? s.prefs.endpoint))
                 void store.connect(endpoint);
             }}
