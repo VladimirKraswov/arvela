@@ -1025,24 +1025,26 @@ class Store {
     variant?: string | null;
   } | null {
     const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
-    const stored =
-      this.state.prefs.modelChoice[dir] ?? this.state.prefs.modelChoice["*"];
-    if (stored && this.state.connectedProviderIds.includes(stored.providerID))
-      return stored;
-    const active = this.state.activeSessionId
-      ? this.state.sessions.find((s) => s.id === this.state.activeSessionId)
-          ?.model
+    const sessionId = this.state.activeSessionId;
+    const sessionChoice = sessionId
+      ? this.state.prefs.modelChoice[`session:${sessionId}`]
       : undefined;
-    if (
-      active?.id &&
-      this.state.connectedProviderIds.includes(active.providerID)
-    ) {
+    if (sessionChoice && this.state.connectedProviderIds.includes(sessionChoice.providerID))
+      return sessionChoice;
+    const active = sessionId
+      ? this.state.sessions.find((s) => s.id === sessionId)?.model
+      : undefined;
+    if (active?.id && this.state.connectedProviderIds.includes(active.providerID)) {
       return {
         providerID: active.providerID,
         modelID: active.id,
         variant: active.variant ?? null,
       };
     }
+    const stored =
+      this.state.prefs.modelChoice[dir] ?? this.state.prefs.modelChoice["*"];
+    if (stored && this.state.connectedProviderIds.includes(stored.providerID))
+      return stored;
     const agent = this.state.agents.find(
       (a) => a.name === this.getAgentChoice(),
     );
@@ -1108,39 +1110,46 @@ class Store {
     variant?: string | null,
   ): void {
     const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
+    const key = this.state.activeSessionId
+      ? `session:${this.state.activeSessionId}`
+      : dir || "*";
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
         modelChoice: {
           ...s.prefs.modelChoice,
-          [dir || "*"]: { providerID, modelID, variant: variant ?? null },
+          [key]: { providerID, modelID, variant: variant ?? null },
         },
       },
     }));
     this.persistPrefs();
   }
 
-  /** Explicit user selection always wins over a legacy session's agent (R2). */
+  /** Explicit selection in this session wins, without changing other sessions. */
   getAgentChoice(): string | null {
     const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "*");
+    const sessionId = this.state.activeSessionId;
+    if (sessionId) {
+      const selected = this.state.prefs.agentChoice[`session:${sessionId}`];
+      if (selected) return selected;
+      const active = this.state.sessions.find((s) => s.id === sessionId)?.agent;
+      if (active) return active;
+    }
     const explicit =
       this.state.prefs.agentChoice[dir] ?? this.state.prefs.agentChoice["*"];
     if (explicit) return explicit;
     if (this.state.configDefaultAgent) return this.state.configDefaultAgent;
-    const active = this.state.activeSessionId
-      ? this.state.sessions.find((s) => s.id === this.state.activeSessionId)
-          ?.agent
-      : undefined;
-    if (active) return active;
     return this.primaryAgentNames()[0] ?? null;
   }
 
   setAgentOverride(dir: string, name: string): void {
-    if (this.isProjectless()) dir = "@chats";
+    const key = this.state.activeSessionId
+      ? `session:${this.state.activeSessionId}`
+      : this.isProjectless() ? "@chats" : dir || "*";
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
-        agentChoice: { ...s.prefs.agentChoice, [dir || "*"]: name },
+        agentChoice: { ...s.prefs.agentChoice, [key]: name },
       },
     }));
     this.persistPrefs();

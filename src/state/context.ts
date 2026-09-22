@@ -31,7 +31,13 @@ export function contextUsage(
           m.tokens.cache?.read ||
           m.tokens.cache?.write),
     ) as AssistantMessage | undefined;
-  const t = latest?.tokens;
+  // A model switch changes tokenization and the context limit. The last usage
+  // measured for a different model is not a valid count for the selected one.
+  const measuredForSelected =
+    !latest || !model ||
+    ((!latest.modelID || latest.modelID === model.id) &&
+      (!latest.providerID || latest.providerID === model.providerID));
+  const t = measuredForSelected ? latest?.tokens : undefined;
   const used = t
     ? t.total ||
       (t.input ?? 0) +
@@ -58,6 +64,6 @@ export function contextUsage(
         : 0,
     auto: config.auto !== false,
     compacting,
-    measuredModel: latest?.modelID,
+    measuredModel: measuredForSelected ? latest?.modelID : undefined,
   };
 }

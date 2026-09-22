@@ -41,8 +41,8 @@ export interface Prefs {
   modelChoice: Record<
     string,
     { providerID: string; modelID: string; variant?: string | null }
-  >; // by directory
-  agentChoice: Record<string, string>; // by directory
+  >; // by directory for new chats, or session:<id> for an existing chat
+  agentChoice: Record<string, string>; // same key scheme as modelChoice
   ptyIds: Record<string, string>; // directory -> shell created by this app (never hijack foreign PTYs)
 }
 

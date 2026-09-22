@@ -203,11 +203,7 @@ export function Composer() {
               store.setModelChoice(
                 providerID,
                 modelID,
-                choice?.variant && variants?.[choice.variant]
-                  ? choice.variant
-                  : variants?.medium
-                    ? "medium"
-                    : null,
+                variants?.medium ? "medium" : null,
               );
             }}
           />

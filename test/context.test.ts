@@ -69,3 +69,20 @@ it("uses completed compacted-turn usage and detects in-flight compaction", () =>
   chat.messages.a.time.completed = 2;
   expect(contextUsage(chat, model).compacting).toBe(false);
 });
+it("does not report a previous model's token usage against the newly selected model's context", () => {
+  const chat = emptySessionChat();
+  chat.messageOrder = ["a"];
+  chat.messages.a = {
+    id: "a",
+    sessionID: "s",
+    role: "assistant",
+    modelID: "flash",
+    providerID: "local-qwen-next",
+    time: { created: 1, completed: 2 },
+    tokens: { total: 100000 },
+  };
+  expect(contextUsage(chat, { ...model, id: "qwen27", providerID: "local-qwen38" })).toMatchObject({
+    used: null,
+    measuredModel: undefined,
+  });
+});

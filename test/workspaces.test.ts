@@ -282,3 +282,52 @@ it("configured models default to Medium when supported, without inventing unsupp
   store.state.providers[0].models.m.variants = {};
   expect(store.getModelChoice().variant).toBeNull();
 });
+
+it("keeps model and effort choices within a session, without changing another session or new chats", () => {
+  store.state = {
+    ...store.state,
+    directory: "/project",
+    connectedProviderIds: ["local-qwen-next", "local-qwen38"],
+    prefs: {
+      ...store.state.prefs,
+      modelChoice: {
+        "/project": { providerID: "local-qwen-next", modelID: "flash", variant: "medium" },
+      },
+    },
+    sessions: [
+      { ...session("ses_flash", "/project"), model: { id: "flash", providerID: "local-qwen-next", variant: "medium" } },
+      { ...session("ses_v100", "/project"), model: { id: "qwen27", providerID: "local-qwen38", variant: "low" } },
+    ],
+    activeSessionId: "ses_v100",
+  };
+  expect(store.getModelChoice()).toEqual({ providerID: "local-qwen38", modelID: "qwen27", variant: "low" });
+  store.setModelChoice("local-qwen38", "qwen27", "xhigh");
+  expect(store.getModelChoice().variant).toBe("xhigh");
+  expect(store.state.prefs.modelChoice["/project"].modelID).toBe("flash");
+  store.state = { ...store.state, activeSessionId: "ses_flash" };
+  expect(store.getModelChoice()).toEqual({ providerID: "local-qwen-next", modelID: "flash", variant: "medium" });
+  store.state = { ...store.state, activeSessionId: null };
+  expect(store.getModelChoice()).toEqual({ providerID: "local-qwen-next", modelID: "flash", variant: "medium" });
+});
+
+it("keeps agent selection per session while preserving the new-chat default", () => {
+  store.state = {
+    ...store.state,
+    directory: "/project",
+    configDefaultAgent: "qwen-build",
+    prefs: { ...store.state.prefs, agentChoice: { "/project": "qwen-build" } },
+    sessions: [
+      { ...session("ses_a", "/project"), agent: "qwen-build" },
+      { ...session("ses_b", "/project"), agent: "qwen-v100-build" },
+    ],
+    activeSessionId: "ses_b",
+  };
+  expect(store.getAgentChoice()).toBe("qwen-v100-build");
+  store.setAgentOverride("/project", "plan");
+  expect(store.getAgentChoice()).toBe("plan");
+  expect(store.state.prefs.agentChoice["/project"]).toBe("qwen-build");
+  store.state = { ...store.state, activeSessionId: "ses_a" };
+  expect(store.getAgentChoice()).toBe("qwen-build");
+  store.state = { ...store.state, activeSessionId: null };
+  expect(store.getAgentChoice()).toBe("qwen-build");
+});
