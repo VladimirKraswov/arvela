@@ -1,4 +1,4 @@
-# OpenCode Desktop — release handoff
+# OpenCode Desktop — DONE
 
 User explicitly authorized direct implementation, final DMG/reinstallation and GitHub creation/push. This supersedes the initial Qwen-only worker and no-push plan. Worker remains idle; its heartbeat is PAUSED. Do not resume it or alter global OpenCode/FreeToken/TinyCAD/user projects.
 
@@ -8,4 +8,4 @@ Canonical installation /Applications/OpenCode Desktop.app; ~/Applications and De
 
 Private GitHub repository created with gh: https://github.com/VladimirKraswov/opencode-desktop. Popup clipping reported at final handoff fixed with a shared viewport-aware portal for selects, context and task menus. Five placement regressions plus live browser 900×620 and native installed-app checks passed. Final DMG rebuilt, verified and reinstalled after this correction. Own Vite1425 and test PTY stopped; OpenCode server untouched.
 
-Remaining only publication: commit branch fix/desktop-acceptance-and-codex-ui, fast-forward main, push, publish v0.1.0 with DMG, verify remote SHA/release and mark DONE.
+DONE: reviewed source/docs/tests committed and pushed to main with gh-created private repository. Release v0.1.0 published at https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.1.0 with final DMG; GitHub asset SHA256 matches the verified installed delivery. App is running from /Applications/OpenCode Desktop.app. Original background worker heartbeat stays PAUSED. No further work is scheduled; actual ASR API setup awaits the user's endpoint/credentials as planned.
