@@ -36,7 +36,9 @@ describe("unifiedDiffLines", () => {
     expect(out.filter((l) => l === "…")).toHaveLength(1);
     // no more than CONTEXT(2) unchanged lines surround each change
     expect(out.indexOf("-l0")).toBeLessThanOrEqual(2);
-    expect(out.some((l) => l.startsWith("l") && !l.startsWith(" "))).toBe(false);
+    expect(out.some((l) => l.startsWith("l") && !l.startsWith(" "))).toBe(
+      false,
+    );
   });
 
   it("does not treat a trailing newline as an extra empty line", () => {

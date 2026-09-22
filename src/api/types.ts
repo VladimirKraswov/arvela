@@ -20,7 +20,14 @@ export interface SessionModel {
   variant?: string | null;
 }
 
+export interface PermissionRule {
+  permission: string;
+  pattern: string;
+  action: "allow" | "ask" | "deny";
+}
+
 export interface Session {
+  permission?: PermissionRule[];
   id: string;
   slug?: string;
   projectID: string;
@@ -57,6 +64,7 @@ export interface UserMessage extends MessageBase {
 }
 
 export interface AssistantMessage extends MessageBase {
+  summary?: boolean;
   role: "assistant";
   agent?: string;
   mode?: string;
@@ -65,6 +73,7 @@ export interface AssistantMessage extends MessageBase {
   variant?: string | null;
   cost?: number;
   tokens?: {
+    total?: number;
     input?: number;
     output?: number;
     reasoning?: number;
@@ -140,7 +149,7 @@ export interface ModelInfo {
     attachment?: boolean;
     input?: { text?: boolean; image?: boolean };
   };
-  limit?: { context?: number; output?: number };
+  limit?: { context?: number; input?: number; output?: number };
   variants?: Record<string, ModelVariantInfo> | null;
   status?: string;
 }
@@ -159,6 +168,8 @@ export interface ProviderResponse {
 }
 
 export interface AgentInfo {
+  model?: { providerID: string; modelID: string };
+  variant?: string;
   name: string;
   description?: string | null;
   mode?: string | null;
@@ -273,6 +284,7 @@ export function normalizeSession(raw: Record<string, unknown>): Session {
       : undefined,
     version: typeof raw.version === "string" ? raw.version : undefined,
     cost: asNumber(raw.cost),
+    permission: raw.permission as PermissionRule[] | undefined,
     tokens: raw.tokens as Session["tokens"],
     summary: raw.summary as Session["summary"],
     time: {
@@ -298,7 +310,12 @@ export function normalizeMessage(raw: Record<string, unknown>): Message | null {
     error: raw.error,
   };
   if (role === "user") {
-    return { ...base, role: "user", agent: asString(raw.agent) || undefined, model: raw.model as UserMessage["model"] };
+    return {
+      ...base,
+      role: "user",
+      agent: asString(raw.agent) || undefined,
+      model: raw.model as UserMessage["model"],
+    };
   }
   return {
     ...base,
@@ -309,6 +326,7 @@ export function normalizeMessage(raw: Record<string, unknown>): Message | null {
     variant: typeof raw.variant === "string" ? raw.variant : null,
     cost: asNumber(raw.cost),
     tokens: raw.tokens as AssistantMessage["tokens"],
+    summary: raw.summary === true,
     finish: typeof raw.finish === "string" ? raw.finish : null,
   };
 }
@@ -322,7 +340,8 @@ export function normalizeStatusType(raw: unknown): SessionStatus {
       return {
         type: "retry",
         attempt: asNumber((raw as Record<string, unknown>).attempt),
-        message: asString((raw as Record<string, unknown>).message) || undefined,
+        message:
+          asString((raw as Record<string, unknown>).message) || undefined,
       };
     case "waiting":
       return { type: "waiting" };

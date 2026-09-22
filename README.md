@@ -1,45 +1,45 @@
 # OpenCode Desktop
 
-Independent desktop client for OpenCode, built with **Tauri 2, React and TypeScript**.
-The intended experience is a polished coding workspace inspired by Codex: project/session sidebar, streaming conversation, inspectable tool activity, changes and terminal panels.
+Нативная оболочка на **Tauri 2 + React + TypeScript** поверх отдельно установленного OpenCode. Движок, история задач, инструменты, модели и разрешения остаются в OpenCode: его можно обновлять независимо от приложения.
 
-**Status:** the core application is implemented and verified against a live OpenCode 1.18.18 server: connect/version gate, projects and sessions with per-directory isolation, streaming chat (text/reasoning/tools/patch), real permissions/questions handling, PTY terminal (xterm.js), session/worktree diff with generated-diff fallback, archive/restore, drafts, themes and keyboard flows. Automated suite: 34 tests + strict typecheck. Milestone-by-milestone reality and evidence live in [ROADMAP.md](ROADMAP.md) and [docs/VERIFICATION.md](docs/VERIFICATION.md); packaged-release status is tracked there, not claimed here.
+Приложение установлено в `/Applications/OpenCode Desktop.app`; в `~/Applications` и на рабочем столе — ярлыки `OpenCode Desktop.app`. Старый `Qwen OpenCode.app` сохранён. Для работы нужен запущенный сервер OpenCode; на этой машине это `http://127.0.0.1:4096`.
 
-## Non-negotiable product requirement
+## Работа
 
-Install OpenCode Desktop **on top of an independently installed OpenCode**. Never embed a fork of the OpenCode engine, replace its CLI, copy its database, or make users reinstall this app for every OpenCode update. OpenCode remains the owner of conversations, providers, models, agent tools, permissions and execution. The desktop owns presentation and its own UI preferences.
+- Выберите проект слева или откройте папку кнопкой `+`.
+- **⌘N** — новая задача, **⌘K** — поиск проектов/задач и команды.
+- Модель и усилие берутся из настроек выбранного агента. Для `qwen-build` на этой машине это **Qwen3.8 Flash Next / Medium**; выбор можно изменить в поле ввода.
+- **Enter** отправляет, **Shift+Enter** добавляет строку. Во время работы доступна остановка, повторная отправка блокируется.
+- **Ctrl+`** — терминал, **⌘⇧R** — изменения и файлы.
+- Меню задачи позволяет переименовать, архивировать или удалить её. Архив можно восстановить.
+- Панель изменений разделяет изменения задачи и рабочую копию Git. Если сервер не сохранил исходный текст, приложение не выдумывает diff.
 
-## Development
+Светлая/тёмная тема и адрес сервера — в настройках слева внизу. Черновики и служебные ID разделены по серверу и проекту. Приложение не запускает и не завершает внешний сервер самостоятельно.
 
-Requirements: Node/npm, Rust/Cargo, platform Tauri prerequisites; OpenCode installed separately.
+## Проверки и разработка
 
 ```sh
 npm ci
-npm test             # vitest: reducer, transport, store regressions, diff util
-npm run dev          # frontend only on http://localhost:1425 (1420 is commonly taken by other tools)
-npm run tauri dev    # native application
+npm test
 npm run build
 cargo check --manifest-path src-tauri/Cargo.toml
-npm run tauri build -- --bundles app
+cargo test --manifest-path src-tauri/Cargo.toml
+npm run dev                            # localhost:1425, не занимает TinyCAD на 1420
+npm run tauri dev
+npm run tauri -- build --bundles app,dmg
 ```
 
-On this particular Mac run Node commands with `env -u NODE_PATH` if global modules interfere. Do not bake machine-specific paths into the app.
+На этом Mac при конфликте глобальных пакетов используйте `env -u NODE_PATH npm …`.
+Локальная сборка не имеет Developer ID/notarization. Архитектура — Apple Silicon.
 
-The existing OpenCode service is normally `http://127.0.0.1:4096`. The app must discover/check it, make connection errors understandable, and support selecting a different local port. It may start an installed `opencode serve` when requested, but must not kill or restart an externally managed server on exit.
+[Проверки и ограничения](docs/VERIFICATION.md) · [Найденные ошибки и исправления](docs/ACCEPTANCE-2026-09-22.md) · [Roadmap](ROADMAP.md) · [Архитектура](docs/ARCHITECTURE.md) · [API](docs/API.md)
 
-## Start here
+Компоновка вдохновлена Codex. Полное совпадение всех возможностей Codex и пиксельная идентичность не заявляются: облачные задачи, worktrees, интеграции, автоматизации и другие расширения перечислены отдельно в roadmap. Базовая оболочка не подменяет возможности модели или движка.
 
-- [Product brief and UI behavior](docs/PRODUCT.md)
-- [Architecture and compatibility boundary](docs/ARCHITECTURE.md)
-- [Detailed roadmap and acceptance criteria](ROADMAP.md)
-- [Development and verification](docs/DEVELOPMENT.md)
-- [OpenCode API contract](docs/API.md)
-- [Agent instructions](AGENTS.md)
-- [Implementation handoff](docs/WORKER_PROMPT.md)
-- [Current task checkpoint](.pi/TASK.md)
+Кружок под полем ввода показывает занятый контекст, полное окно и запас до автоматического сжатия. Рядом — режим доступа для текущего диалога. Во время работы Enter добавляет запрос в очередь; «Скорректировать сейчас» передаёт уточнение на следующий шаг агента, сохраняя выполняющиеся инструменты.
 
-Local run receipts and environment notes belong in `.local/` (Git-ignored). No credentials or conversation transcripts belong in this repository.
+Микрофон добавляет распознанную речь в черновик. В настройках укажите ASR URL `/v1/audio/transcriptions`, модель и, при необходимости, ключ. API должен поддерживать OpenAI-совместимый multipart-запрос. Ключ хранится до закрытия приложения. [Контекст, очередь, доступ и ASR](docs/CONTEXT-QUEUE-VOICE.md).
 
-## References
+## Репозиторий и установщик
 
-Scaffolded using the official [create-tauri-app](https://v2.tauri.app/start/create-project/) React/TypeScript template. The integration contract is the running [OpenCode server API](https://opencode.ai/docs/server/), exposed as `/doc`.
+[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.1.0 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.1.0). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.

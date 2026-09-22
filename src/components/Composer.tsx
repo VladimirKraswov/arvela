@@ -1,3 +1,8 @@
+import { ContextMeter } from "./ContextMeter";
+import { VoiceInput } from "./VoiceInput";
+import { accessOptions, type AccessMode } from "../state/access";
+import { Icon } from "./Icon";
+import { SelectMenu } from "./SelectMenu";
 import { useEffect, useMemo, useRef } from "react";
 import { store, useAppState } from "../state/store";
 
@@ -8,7 +13,11 @@ export function Composer() {
   const choice = store.getModelChoice();
   const providers = store.connectedProvidersWithModels();
   const session = s.sessions.find((x) => x.id === s.activeSessionId) ?? null;
-  const status = session ? (s.chat.sessions[session.id]?.status ?? s.statuses[session.id]) : s.ui.sending ? { type: "busy" as const } : { type: "idle" as const };
+  const status = session
+    ? (s.chat.sessions[session.id]?.status ?? s.statuses[session.id])
+    : s.ui.sending
+      ? { type: "busy" as const }
+      : { type: "idle" as const };
   const running = status?.type === "busy" || status?.type === "retry";
   const connected = s.connection.phase === "connected";
 
@@ -17,7 +26,11 @@ export function Composer() {
     for (const p of providers) {
       for (const m of Object.values(p.models)) {
         if (m.status === "deprecated") continue;
-        out.push({ providerID: p.id, modelID: m.id, label: `${m.name ?? m.id}` });
+        out.push({
+          providerID: p.id,
+          modelID: m.id,
+          label: `${m.name ?? m.id}`,
+        });
       }
     }
     return out;
@@ -41,6 +54,10 @@ export function Composer() {
     const text = store.getDraft();
     // s.ui.sending also blocks a second Enter while the first request awaits acknowledgement.
     if (!text.trim() || s.ui.sending || !connected) return;
+    if (running) {
+      store.enqueuePrompt(text);
+      return;
+    }
     // The store owns the draft lifecycle: on accept it removes exactly the submitted
     // revision; on failure the draft was never touched — nothing to lose or silently resend.
     void store.sendPrompt(text);
@@ -51,96 +68,212 @@ export function Composer() {
       {!connected && (
         <div className="offline-banner" role="alert">
           <span>Disconnected from OpenCode. Drafts and history are kept.</span>
-          <button onClick={() => void store.retryConnection()}>Reconnect</button>
+          <button onClick={() => void store.retryConnection()}>
+            Reconnect
+          </button>
         </div>
       )}
       {connected && s.connection.streamState === "reconnecting" && (
-        <div className="offline-banner" style={{ borderColor: "var(--warn)", color: "var(--warn)" }} role="status">
+        <div
+          className="offline-banner"
+          style={{ borderColor: "var(--warn)", color: "var(--warn)" }}
+          role="status"
+        >
           Reconnecting to live updates…
         </div>
       )}
-      {s.ui.sendError && <div className="composer-error" role="alert">{s.ui.sendError}</div>}
+      {s.ui.sendError && (
+        <div className="composer-error" role="alert">
+          {s.ui.sendError}
+        </div>
+      )}
+      {store.getQueue().length > 0 && (
+        <div className="prompt-queue" aria-label="Очередь запросов">
+          <div className="queue-heading">
+            <b>В очереди · {store.getQueue().length}</b>
+            <span>
+              {store.isQueueArmed()
+                ? "После текущего ответа"
+                : "Приостановлена"}
+            </span>
+            {!store.isQueueArmed() && (
+              <button onClick={() => store.resumeQueue()}>
+                Продолжить очередь
+              </button>
+            )}
+          </div>
+          {store.getQueue().map((item) => (
+            <div className="queued-prompt" key={item.id}>
+              <p>{item.text}</p>
+              <div className="queue-actions">
+                {item.state === "ready" ? (
+                  <>
+                    <button
+                      disabled={!connected || s.ui.sending}
+                      title="Передать уточнение на следующий шаг агента без остановки инструмента"
+                      onClick={() => void store.steerQueued(item.id)}
+                    >
+                      Скорректировать сейчас
+                    </button>
+                    <button
+                      disabled={!!draft.trim()}
+                      onClick={() => store.editQueued(item.id)}
+                    >
+                      Изменить
+                    </button>
+                  </>
+                ) : (
+                  <span>
+                    {item.state === "sending"
+                      ? "Отправляется…"
+                      : "Отправка не подтверждена. Проверьте историю перед повтором."}
+                  </span>
+                )}
+                <button
+                  disabled={item.state === "sending"}
+                  aria-label="Убрать из очереди"
+                  onClick={() => store.removeQueued(item.id)}
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="composer">
         <textarea
           ref={textareaRef}
           aria-label="Message"
-          placeholder={s.directory ? "Describe a task… (Enter to send, Shift+Enter for newline)" : "Select a project first"}
+          placeholder={
+            s.directory
+              ? "Спросите о коде или поручите задачу…"
+              : "Выберите проект, чтобы начать…"
+          }
           value={draft}
           disabled={!s.directory}
           onChange={(e) => store.setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing
+            ) {
               e.preventDefault();
               send();
             }
           }}
         />
         <div className="composer-bar">
-          <select
-            aria-label="Model"
-            disabled={!connected || modelList.length === 0}
+          <SelectMenu
+            label="Модель"
+            disabled={!connected}
             value={choice ? `${choice.providerID}/${choice.modelID}` : ""}
-            onChange={(e) => {
-              const [providerID, ...rest] = e.target.value.split("/");
+            options={modelList.map((m) => ({
+              value: `${m.providerID}/${m.modelID}`,
+              label: m.label,
+              detail: m.providerID,
+            }))}
+            onChange={(value) => {
+              const [providerID, ...rest] = value.split("/");
               const modelID = rest.join("/");
-              // Keep the effort variant only if the newly selected model actually supports it.
-              const info = store.modelInfo(providerID, modelID);
-              const keep = choice?.variant && info?.variants && choice.variant in info.variants ? choice.variant : null;
-              store.setModelChoice(providerID, modelID, keep);
+              const variants = store.modelInfo(providerID, modelID)?.variants;
+              store.setModelChoice(
+                providerID,
+                modelID,
+                choice?.variant && variants?.[choice.variant]
+                  ? choice.variant
+                  : variants?.medium
+                    ? "medium"
+                    : null,
+              );
             }}
-          >
-            {modelList.length === 0 && <option value="">no models</option>}
-            {choice && !modelList.some((m) => m.providerID === choice.providerID && m.modelID === choice.modelID) && (
-              <option value={`${choice.providerID}/${choice.modelID}`}>{choice.modelID}</option>
-            )}
-            {modelList.map((m) => (
-              <option key={`${m.providerID}/${m.modelID}`} value={`${m.providerID}/${m.modelID}`}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Agent"
-            disabled={s.agents.filter((a) => a.mode !== "subagent").length === 0}
-            value={store.getAgentChoice() ?? ""}
-            onChange={(e) => {
-              // Agent choice is applied on session creation and next prompt.
-              const name = e.target.value;
-              const dir = s.directory ?? "*";
-              store.setAgentOverride(dir, name);
-            }}
-          >
-            {store.primaryAgentNames().map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+          />
           {variantOptions.length > 0 && (
-            <select
-              aria-label="Reasoning effort"
+            <SelectMenu
+              label="Усилие рассуждения"
               value={choice?.variant ?? ""}
-              onChange={(e) => choice && store.setModelChoice(choice.providerID, choice.modelID, e.target.value || null)}
-            >
-              <option value="">default effort</option>
-              {variantOptions.map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "По умолчанию" },
+                ...variantOptions.map((v) => ({
+                  value: v,
+                  label: v.charAt(0).toUpperCase() + v.slice(1),
+                })),
+              ]}
+              onChange={(v) =>
+                choice &&
+                store.setModelChoice(
+                  choice.providerID,
+                  choice.modelID,
+                  v || null,
+                )
+              }
+            />
           )}
+          <SelectMenu
+            label="Агент"
+            value={store.getAgentChoice() ?? ""}
+            options={store
+              .primaryAgentNames()
+              .map((name) => ({ value: name, label: name }))}
+            onChange={(name) =>
+              store.setAgentOverride(s.directory ?? "*", name)
+            }
+          />
           <span className="spacer" />
+          <VoiceInput disabled={!s.directory || !connected} />
           {running && session && (
-            <button className="btn small danger" onClick={() => void store.stopSession(session.id)} aria-label="Stop generation">
-              ■ Stop
+            <button
+              className="btn small danger"
+              onClick={() => void store.stopSession(session.id)}
+              aria-label="Stop generation"
+            >
+              <Icon name="stop" size={15} />
             </button>
           )}
           <button
             className="send-btn"
-            aria-label="Send prompt"
-            disabled={!connected || !draft.trim() || s.ui.sending}
+            aria-label={running ? "Добавить в очередь" : "Send prompt"}
+            disabled={
+              !connected || !s.directory || !draft.trim() || s.ui.sending
+            }
             onClick={send}
           >
-            ↑
+            <Icon name={running ? "plus" : "arrow"} size={19} />
           </button>
         </div>
+      </div>
+      <div className="composer-footer">
+        <span>
+          <Icon name="folder" size={13} />
+          {s.directory?.split("/").filter(Boolean).pop() ?? "Проект не выбран"}
+        </span>
+        <SelectMenu
+          label="Режим доступа"
+          disabled={running || s.ui.sending || !connected}
+          value={store.getAccessMode()}
+          options={[
+            ...accessOptions,
+            ...(store.getAccessMode() === "custom"
+              ? [
+                  {
+                    value: "custom",
+                    label: "Свои разрешения",
+                    detail: "Правила этой сессии OpenCode",
+                  },
+                ]
+              : []),
+          ]}
+          onChange={(mode) =>
+            mode !== "custom" && void store.setAccessMode(mode as AccessMode)
+          }
+        />
+        <ContextMeter />
+        <span className="spacer" />
+        <span>
+          Enter ↵{" "}
+          <span className="optional-hint">· Shift+Enter новая строка</span>
+        </span>
       </div>
     </div>
   );

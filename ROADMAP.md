@@ -25,7 +25,7 @@ Acceptance: `tauri dev` launches a useful native window, detects existing OpenCo
 ## M2 — Projects and conversations
 
 - [x] Project list from OpenCode plus native folder picker (dialog plugin); selection stored in app prefs only.
-- [ ] PARTIAL: scoped session list, sorting, recent activity and loading/empty/error states are done; search and rename not implemented.
+- [x] Scoped task list, search via command palette, rename, loading/empty/error states. Rechecked in the independent acceptance pass.
 - [x] Create, select and resume real sessions; history with older-page pagination; per-session drafts. (Proven live incl. reload-restore.)
 - [x] Directory+generation isolation on requests and events; stale results dropped. (Regression tests R1–R5.)
 - [x] Archive/restore via engine API; delete behind an explicit confirmation dialog. (Test R4.)
@@ -44,7 +44,7 @@ Acceptance: two temporary projects have independent session lists and drafts; re
 - [x] Permission card with once/always/reject preserving request IDs. (Unit-tested; this server policy never asked during the live run, so not exercised end-to-end.)
 - [x] Question card: options, multi/custom answers, reject; pending requests re-pulled after reconnect. (Unit-tested; not exercised live.)
 - [x] Distinct status states from server truth; no dead-model guessing.
-- [ ] PARTIAL: output-length/context-overflow and finish reasons are surfaced; an explicit compaction action wired to the engine API is not implemented. No auto-continuation or tool duplication.
+- [x] Output-length/context-overflow are surfaced; command palette exposes the engine compaction action. No automatic tool duplication or continuation.
 - [x] Reducer tests cover parts/deltas, duplicate replay, abort/error/length, permission lifecycle and switch-while-streaming isolation.
 
 Acceptance: use a dedicated fixture, ask for one small code fix + test, observe tool calls live, answer a permission/question if requested, and verify the resulting diff/tests. Abort a separate safe operation. Restart the UI and see the preserved result. Record actual local Qwen model/variant used.
@@ -54,7 +54,7 @@ Acceptance: use a dedicated fixture, ask for one small code fix + test, observe 
 - [ ] PARTIAL: files + session changes tab proven live (badge A, real diff lines, patch-part merge for the 1.18.18 empty-diff quirk, binary fallback); renamed-state mapping unverified.
 - [ ] NOT IMPLEMENTED beyond a basic lazy file-content preview; no highlighting/find/editor handoff.
 - [x] Changed-file list with expandable per-file unified diff, bounded preview. (Live: `+SMOKE42` in the running app.)
-- [ ] NOT IMPLEMENTED: only session-scoped changes are shown; no working-tree comparison view yet.
+- [x] Separate session and working-tree changes; unknown session baselines are labelled honestly, never represented as new files.
 - [ ] PARTIAL: read-only branch chip from `/vcs`; dirty badge and any Git actions not implemented.
 - [ ] PARTIAL: `test/diff.test.ts` covers binary detection and unified diff shape; path-traversal/spaces/pre-existing tests still missing.
 
@@ -65,8 +65,8 @@ Acceptance: fixture changes in multiple files are accurately inspectable in the 
 - [x] Real OpenCode PTY terminal: create/attach/reuse, resize push, explicit close. Live proof `R6_ECHO_42` in xterm (`term-r6.png`).
 - [x] Project-scoped PTY (directory query on every call); xterm passthrough; honest transport errors.
 - [ ] PARTIAL: Ctrl+` toggle/resize and single reused PTY per project (no reconnect duplicates); multiple terminal tabs not implemented.
-- [ ] PARTIAL: new-conversation/refresh/terminal shortcuts and accessible labels exist; command palette and project/session search not implemented.
-- [ ] NOT IMPLEMENTED.
+- [x] Command palette, project/task search, new task, terminal and review shortcuts; native-safe model/effort/agent menus.
+- [ ] Desktop completion notifications are not implemented.
 - [ ] PARTIAL: echo/ANSI and disposal verified live in /tmp/oc-smoke; no unit tests for terminal resize yet.
 
 Acceptance: user can execute and interrupt a local test command, then continue chat while inspecting output and diff. Closing the app does not kill an externally managed server or leave duplicate PTYs created by this app.
@@ -77,10 +77,10 @@ Acceptance: user can execute and interrupt a local test command, then continue c
 - [x] The app never spawns or kills OpenCode processes (externally managed) — verified across all live runs; no config rewrites.
 - [ ] PARTIAL: shell (0.1.0) and engine (1.18.18) versions are displayed separately and reconnect is bounded/handled; no update flow.
 - [x] Reducer/client tests use real 1.18.18 event/patch/question shapes incl. missing/optional fields. No engine upgrade was run.
-- [x] Loopback-only CSP, capabilities limited to core/opener/dialog, safe-href markdown, no secrets logged. (Diagnostic export UI still absent.)
+- [x] Loopback-only WebView CSP, narrow core/opener/dialog capabilities and bounded native ASR command, safe-href markdown, no secrets logged. (Diagnostic export UI still absent.)
 - [ ] PARTIAL: prefs live in a separate local store and OpenCode data is untouched; a prefs schema-migration path is not yet written.
 - [x] `cargo tauri build` clean: bundle + dmg 0.1.0, id `dev.local.opencodedesktop`, README install steps. Unsigned/notarized — stated plainly.
-- [x] Installed to ~/Applications with Desktop symlink after smoke; `Qwen OpenCode.app` preserved.
+- [x] Installed final bundle to /Applications; ~/Applications and Desktop aliases resolve to it. Native chat/PTY/session and draft restoration verified; `Qwen OpenCode.app` preserved.
 - [ ] NOT VERIFIED: launch was via LaunchServices `open` with the server up; restricted-PATH/offline-draft-restore scenario not run.
 
 Acceptance: packaged app opens outside development tooling, connects to existing OpenCode, resumes a test session, and leaves the CLI/service independently usable. Record bundle path, tested versions, test counts and remaining limitations. Local unsigned build must not be described as notarized.
@@ -102,3 +102,11 @@ These should have capability/evidence-based designs, not placeholder buttons:
 ## Completion evidence
 
 Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, commands/results, relevant screenshots or manual steps, and limitations. Update `.pi/TASK.md` at meaningful checkpoints and before compaction. Mark the deliverable done only after M1–M6 acceptance is satisfied; record M7 separately as a backlog rather than claiming complete Codex parity.
+
+## Дополнения при независимой приёмке (2026-09-22)
+
+- [x] Круговой индикатор реального контекста, порог автосжатия и ручное сжатие.
+- [x] Session-scoped режимы доступа OpenCode; существующие правила не теряются молча.
+- [x] Очередь, редактирование/удаление, уточнение текущей задачи на безопасной границе шага.
+- [x] Диктовка, реальная звуковая визуализация, настройки ASR, native multipart adapter.
+- [ ] Подключение предоставленного пользователем ASR API и проверка реального распознавания речи.

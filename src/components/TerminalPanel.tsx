@@ -22,14 +22,26 @@ interface TermDebug {
   term?: Terminal;
 }
 const termDebug: TermDebug | null = import.meta.env.DEV
-  ? { framesIn: 0, bytesIn: 0, textFrames: 0, headerFrames: 0, cursor: -1, bytesSent: 0, wsState: "", ptyId: "", errors: [] }
+  ? {
+      framesIn: 0,
+      bytesIn: 0,
+      textFrames: 0,
+      headerFrames: 0,
+      cursor: -1,
+      bytesSent: 0,
+      wsState: "",
+      ptyId: "",
+      errors: [],
+    }
   : null;
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__ocTermDebug = termDebug;
+if (import.meta.env.DEV)
+  (window as unknown as Record<string, unknown>).__ocTermDebug = termDebug;
 
 /** macOS resolves /tmp and similar symlinks; compare real paths. */
 function samePath(a: string | undefined, b: string): boolean {
   if (!a) return false;
-  const norm = (p: string) => p.replace(/^\/private(?=\/)/, "").replace(/\/+$/, "");
+  const norm = (p: string) =>
+    p.replace(/^\/private(?=\/)/, "").replace(/\/+$/, "");
   return norm(a) === norm(b);
 }
 
@@ -62,17 +74,25 @@ export function TerminalPanel() {
     if (!term || !pty || !dir) return;
     if (resizeTimer.current) window.clearTimeout(resizeTimer.current);
     resizeTimer.current = window.setTimeout(() => {
-      void client.ptyUpdate(pty.id, dir, { size: { rows: term.rows, cols: term.cols } }).catch(() => undefined);
+      void client
+        .ptyUpdate(pty.id, dir, { size: { rows: term.rows, cols: term.cols } })
+        .catch(() => undefined);
     }, 150);
   };
 
   const detachSocket = () => {
     const ws = wsRef.current;
     wsRef.current = null;
-    if (ws && ws.readyState < 2) {
+    if (resizeTimer.current) {
+      window.clearTimeout(resizeTimer.current);
+      resizeTimer.current = null;
+    }
+    if (ws) {
       ws.onclose = null;
+      ws.onopen = null;
+      ws.onerror = null;
       ws.onmessage = null;
-      ws.close();
+      if (ws.readyState < 2) ws.close();
     }
   };
 
@@ -83,10 +103,12 @@ export function TerminalPanel() {
     if (!term || !dir) return;
     setStatus("connecting");
     setError(null);
-    const { token, rejected } = await client.ptyConnectToken(pty.id, dir);
+    const { token } = await client.ptyConnectToken(pty.id, dir);
     if (gen !== genRef.current) return;
     let opened = false;
-    const ws = new WebSocket(client.ptySocketUrl(pty.id, dir, token || undefined));
+    const ws = new WebSocket(
+      client.ptySocketUrl(pty.id, dir, token || undefined),
+    );
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
     if (termDebug) {
@@ -112,6 +134,7 @@ export function TerminalPanel() {
         .catch((e) => termDebug?.errors.push(`ptyUpdate: ${errText(e)}`));
     };
     ws.onmessage = (ev) => {
+      if (gen !== genRef.current) return;
       // Wire protocol verified against OpenCode 1.18.18 (isolated WS probe, 2026-09-22):
       // PTY stdout arrives as WebSocket TEXT frames; binary frames starting with 0x00 carry
       // JSON control messages ({"cursor":N}). Writing every other byte sequence verbatim
@@ -133,7 +156,9 @@ export function TerminalPanel() {
       if (b.length === 0) return;
       if (b[0] === 0) {
         try {
-          const parsed = JSON.parse(new TextDecoder().decode(b.subarray(1))) as { cursor?: unknown };
+          const parsed = JSON.parse(
+            new TextDecoder().decode(b.subarray(1)),
+          ) as { cursor?: unknown };
           if (parsed && typeof parsed.cursor === "number") {
             if (termDebug) {
               termDebug.headerFrames += 1;
@@ -154,10 +179,12 @@ export function TerminalPanel() {
     ws.onclose = () => {
       if (gen !== genRef.current) return;
       wsRef.current = null;
-      if (!opened && rejected) {
-        // The server refused both a ticket and the unauthenticated stream: surface it (R6).
+      if (!opened) {
+        // HTTP ticket validation succeeded, but the stream itself failed.
         setStatus("error");
-        setError("The OpenCode server refused the terminal connection: it rejected the connect ticket and closed the unauthenticated stream.");
+        setError(
+          "The OpenCode server refused the terminal connection: the WebSocket stream did not open.",
+        );
         return;
       }
       setStatus((prev) => (prev === "error" ? "error" : "closed"));
@@ -178,6 +205,7 @@ export function TerminalPanel() {
     setStatus("connecting");
     try {
       fitRef.current?.fit();
+      term.reset();
       let pty: PtyInfo | null = null;
       // Ownership rule: only reuse a shell this app created for this project — never hijack
       // a foreign PTY that happens to exist on the server (R6).
@@ -193,8 +221,14 @@ export function TerminalPanel() {
         if (gen !== genRef.current) return;
       }
       if (!pty) {
-        pty = await client.ptyCreate({ cwd: dir, title: "OpenCode Desktop" }, dir);
-        if (gen !== genRef.current) return;
+        pty = await client.ptyCreate(
+          { cwd: dir, title: "OpenCode Desktop" },
+          dir,
+        );
+        if (gen !== genRef.current) {
+          await client.ptyKill(pty.id, dir);
+          return;
+        }
         store.setPtyId(dir, pty.id);
       }
       await attach(pty, gen);
@@ -229,7 +263,9 @@ export function TerminalPanel() {
         ws.send(bytes);
         if (termDebug) termDebug.bytesSent += bytes.byteLength;
       } else {
-        term.write("\r\n\x1b[31m[terminal detached — press Reconnect]\x1b[0m\r\n");
+        term.write(
+          "\r\n\x1b[31m[terminal detached — press Reconnect]\x1b[0m\r\n",
+        );
       }
     });
     term.onResize(pushSize);
@@ -252,7 +288,7 @@ export function TerminalPanel() {
       ptyRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dir]);
+  }, [dir, client]);
 
   // keep terminal colors in sync with theme switches
   useEffect(() => {
@@ -270,8 +306,10 @@ export function TerminalPanel() {
     if (!pty || !dir) return;
     genRef.current++;
     detachSocket();
+    const gen = genRef.current;
     try {
       await client.ptyKill(pty.id, dir);
+      if (gen !== genRef.current || client !== store.client) return;
       store.setPtyId(dir, null);
       ptyRef.current = null;
       setStatus("closed");
@@ -284,22 +322,48 @@ export function TerminalPanel() {
   return (
     <div className="term-wrap">
       <div className="term-toolbar">
-        <span className="term-title" title={dir ?? ""}>{title}</span>
-        <span className={`status-dot ${status === "open" ? "ok" : status === "connecting" ? "warn" : status === "idle" ? "" : "bad"}`} aria-label={`Terminal ${status}`} />
-        <span className="term-status">{status === "open" ? "connected" : status === "connecting" ? "connecting…" : status === "closed" ? "disconnected" : status === "error" ? "error" : "idle"}</span>
+        <span className="term-title" title={dir ?? ""}>
+          {title}
+        </span>
+        <span
+          className={`status-dot ${status === "open" ? "ok" : status === "connecting" ? "warn" : status === "idle" ? "" : "bad"}`}
+          aria-label={`Terminal ${status}`}
+        />
+        <span className="term-status">
+          {status === "open"
+            ? "connected"
+            : status === "connecting"
+              ? "connecting…"
+              : status === "closed"
+                ? "disconnected"
+                : status === "error"
+                  ? "error"
+                  : "idle"}
+        </span>
         <span style={{ flex: 1 }} />
         {status !== "open" && (
-          <button className="btn small" onClick={() => void start(false)} aria-label="Reconnect terminal">
+          <button
+            className="btn small"
+            onClick={() => void start(false)}
+            aria-label="Reconnect terminal"
+          >
             Reconnect
           </button>
         )}
-        <button className="btn small ghost" onClick={() => void start(true)} aria-label="New terminal session" title="New shell">
-          New
-        </button>
-        <button className="btn small ghost" onClick={() => void kill()} aria-label="Close terminal shell" title="Kill this shell (terminates the process)">
+
+        <button
+          className="btn small ghost"
+          onClick={() => void kill()}
+          aria-label="Close terminal shell"
+          title="Kill this shell (terminates the process)"
+        >
           Kill
         </button>
-        <button className="btn small ghost" onClick={() => store.setLayout({ bottomOpen: false })} aria-label="Hide terminal panel">
+        <button
+          className="btn small ghost"
+          onClick={() => store.setLayout({ bottomOpen: false })}
+          aria-label="Hide terminal panel"
+        >
           ✕
         </button>
       </div>

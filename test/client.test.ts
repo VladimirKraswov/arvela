@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, ConnectionError, DEFAULT_BASE_URL, OpenCodeClient, isAllowedBaseUrl, normalizeBaseUrl } from "../src/api/client";
+import {
+  ApiError,
+  ConnectionError,
+  DEFAULT_BASE_URL,
+  OpenCodeClient,
+  isAllowedBaseUrl,
+  normalizeBaseUrl,
+} from "../src/api/client";
 import { eventStreamUrl } from "../src/api/events";
 
 afterEach(() => {
@@ -19,7 +26,9 @@ describe("endpoint safety", () => {
   });
 
   it("falls back to the default endpoint instead of trusting invalid input", () => {
-    expect(normalizeBaseUrl("  http://127.0.0.1:4096/  ")).toBe("http://127.0.0.1:4096");
+    expect(normalizeBaseUrl("  http://127.0.0.1:4096/  ")).toBe(
+      "http://127.0.0.1:4096",
+    );
     expect(normalizeBaseUrl("http://evil.example.com")).toBe(DEFAULT_BASE_URL);
   });
 
@@ -31,13 +40,20 @@ describe("endpoint safety", () => {
   });
 
   it("scopes the SSE URL to the selected directory", () => {
-    expect(decodeURIComponent(eventStreamUrl("http://127.0.0.1:4096", "/tmp/proj"))).toBe("http://127.0.0.1:4096/event?directory=/tmp/proj");
-    expect(eventStreamUrl("http://127.0.0.1:4096", null)).toBe("http://127.0.0.1:4096/event");
+    expect(
+      decodeURIComponent(eventStreamUrl("http://127.0.0.1:4096", "/tmp/proj")),
+    ).toBe("http://127.0.0.1:4096/event?directory=/tmp/proj");
+    expect(eventStreamUrl("http://127.0.0.1:4096", null)).toBe(
+      "http://127.0.0.1:4096/event",
+    );
   });
 });
 
 function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 describe("OpenCodeClient transport", () => {
@@ -51,15 +67,18 @@ describe("OpenCodeClient transport", () => {
       }),
     );
     const client = new OpenCodeClient();
-    await client.prompt(
-      "ses_1",
-      "/tmp/proj",
-      { model: { providerID: "anthropic", modelID: "claude" }, parts: [{ type: "text", text: "hi" }] },
-    );
+    await client.prompt("ses_1", "/tmp/proj", {
+      model: { providerID: "anthropic", modelID: "claude" },
+      parts: [{ type: "text", text: "hi" }],
+    });
     expect(calls).toHaveLength(1);
-    expect(decodeURIComponent(calls[0].url)).toBe("http://127.0.0.1:4096/session/ses_1/prompt_async?directory=/tmp/proj");
+    expect(decodeURIComponent(calls[0].url)).toBe(
+      "http://127.0.0.1:4096/session/ses_1/prompt_async?directory=/tmp/proj",
+    );
     expect(calls[0].init?.method).toBe("POST");
-    expect(JSON.parse(String(calls[0].init?.body))).toMatchObject({ model: { providerID: "anthropic" } });
+    expect(JSON.parse(String(calls[0].init?.body))).toMatchObject({
+      model: { providerID: "anthropic" },
+    });
   });
 
   it("requires the mandatory diff mode on /vcs/diff (1.18.18 rejects requests without it)", async () => {
@@ -73,9 +92,13 @@ describe("OpenCodeClient transport", () => {
     );
     const client = new OpenCodeClient();
     await client.vcsDiff("/tmp/proj");
-    expect(decodeURIComponent(urls[0])).toBe("http://127.0.0.1:4096/vcs/diff?directory=/tmp/proj&mode=git");
+    expect(decodeURIComponent(urls[0])).toBe(
+      "http://127.0.0.1:4096/vcs/diff?directory=/tmp/proj&mode=git",
+    );
     await client.vcsDiff("/tmp/proj", { mode: "branch", context: 3 });
-    expect(decodeURIComponent(urls[1])).toBe("http://127.0.0.1:4096/vcs/diff?directory=/tmp/proj&mode=branch&context=3");
+    expect(decodeURIComponent(urls[1])).toBe(
+      "http://127.0.0.1:4096/vcs/diff?directory=/tmp/proj&mode=branch&context=3",
+    );
   });
 
   it("surfaces API error details from JSON and plain bodies", async () => {
@@ -84,7 +107,12 @@ describe("OpenCodeClient transport", () => {
       vi.fn(async () => jsonResponse(400, { message: "model not found" })),
     );
     const client = new OpenCodeClient();
-    await expect(client.prompt("ses_x", "/tmp", { model: { providerID: "p", modelID: "m" }, parts: [] })).rejects.toMatchObject({
+    await expect(
+      client.prompt("ses_x", "/tmp", {
+        model: { providerID: "p", modelID: "m" },
+        parts: [],
+      }),
+    ).rejects.toMatchObject({
       name: "ApiError",
       status: 400,
       detail: "model not found",
@@ -108,21 +136,32 @@ describe("OpenCodeClient transport", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_url: string, init?: RequestInit) => {
-        await new Promise((_, rej) => init?.signal?.addEventListener("abort", () => rej(new DOMException("Aborted", "AbortError"))));
+        await new Promise((_, rej) =>
+          init?.signal?.addEventListener("abort", () =>
+            rej(new DOMException("Aborted", "AbortError")),
+          ),
+        );
         return jsonResponse(200, {});
       }),
     );
     const client = new OpenCodeClient();
-    await expect(client.health(ctrl.signal)).rejects.toMatchObject({ name: "AbortError" });
+    await expect(client.health(ctrl.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
   });
 
   it("parses health and normalizes sessions on the way out", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => jsonResponse(200, { healthy: true, version: "1.18.18" })),
+      vi.fn(async () =>
+        jsonResponse(200, { healthy: true, version: "1.18.18" }),
+      ),
     );
     const client = new OpenCodeClient();
-    await expect(client.health()).resolves.toMatchObject({ healthy: true, version: "1.18.18" });
+    await expect(client.health()).resolves.toMatchObject({
+      healthy: true,
+      version: "1.18.18",
+    });
   });
 
   it("rejects unexpected 204 on JSON endpoints", async () => {
@@ -133,4 +172,54 @@ describe("OpenCodeClient transport", () => {
     const client = new OpenCodeClient();
     await expect(client.health()).rejects.toBeInstanceOf(ApiError);
   });
+});
+
+it("uses the documented PTY CSRF header and ticket field; 403 is never silently retried", async () => {
+  const fetcher = vi.fn(async () =>
+    jsonResponse(200, { ticket: "short-lived-test", expires_in: 30 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const client = new OpenCodeClient();
+  expect(await client.ptyConnectToken("pty_test", "/test")).toEqual({
+    token: "short-lived-test",
+    rejected: false,
+  });
+  expect((fetcher.mock.calls as any)[0][1].headers).toMatchObject({
+    "x-opencode-ticket": "1",
+  });
+  fetcher.mockResolvedValue(
+    jsonResponse(403, { message: "Invalid PTY connect token request" }),
+  );
+  await expect(
+    client.ptyConnectToken("pty_test", "/test"),
+  ).rejects.toMatchObject({ status: 403 });
+});
+it("rejects credentials, paths, queries and fragments in endpoint origins", () => {
+  for (const url of [
+    "http://user:secret@localhost:4096",
+    "http://localhost:4096/other",
+    "http://localhost:4096?x=1",
+    "http://localhost:4096#frag",
+  ])
+    expect(isAllowedBaseUrl(url)).toBe(false);
+});
+
+it("returns the server-provided opaque history cursor rather than inventing a message-ID cursor", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response("[]", {
+          headers: {
+            "content-type": "application/json",
+            "x-next-cursor": "opaque-cursor-from-server",
+          },
+        }),
+    ),
+  );
+  const page = await new OpenCodeClient().messages("ses_test", {
+    directory: "/test",
+    limit: 200,
+  });
+  expect(page.before).toBe("opaque-cursor-from-server");
 });

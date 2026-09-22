@@ -2,7 +2,7 @@
 
 ## Mission and scope
 
-Implement the user's OpenCode Desktop: a Codex-inspired native Tauri application over independently installed OpenCode. The user explicitly delegated implementation to Qwen3.8 Flash Next via OpenCode. This is a new standalone project. Work only in this repository and test-owned temporary directories. Preserve other projects, existing OpenCode sessions, global model settings, the inference server and the installed OpenCode CLI.
+Implement the user's OpenCode Desktop: a Codex-inspired native Tauri application over independently installed OpenCode. The user initially delegated implementation to Qwen3.8 Flash Next via OpenCode. On 2026-09-22 the user explicitly reassigned fixes and the Codex-style UI/UX rebuild to the coordinating Codex agent; direct implementation is now authorized. This is a new standalone project. Work only in this repository and test-owned temporary directories. Preserve other projects, existing OpenCode sessions, global model settings, the inference server and the installed OpenCode CLI.
 
 At each new task or resumed/compacted operation, read `.pi/TASK.md`, this file, and the relevant roadmap section. Also read the canonical local model guidance, when present: `~/.pi/agent/operations/QWEN_FLASH_NEXT_GUARDRAILS.md`. Do not copy private credentials into the checkpoint. Missing optional local guidance is not a blocker for other contributors.
 
@@ -22,7 +22,7 @@ At each new task or resumed/compacted operation, read `.pi/TASK.md`, this file, 
 - Existing sessions remain owned by OpenCode. Scope every project-sensitive call and event subscription to the selected directory. Prevent stale events from leaking between projects/sessions.
 - No remote web content with privileged Tauri access; keep capabilities and CSP explicit/minimal before release. Treat tool output, model Markdown and file content as untrusted. Do not log secrets or place auth tokens in URLs. Prefer native proxy/streaming over disabling CORS globally.
 - Never kill an externally managed OpenCode server. No shell interpolation of user-supplied paths. No broad filesystem grants or new exposed LAN listeners as a shortcut.
-- Do not publish, push, delete user sessions, alter global permissions, commit credentials or change other applications. Local commits in this new repository are allowed once checks pass; no destructive Git operations.
+- Do not delete user sessions, alter global permissions, commit credentials or change other applications. Publish/push only under explicit user authorization. Local commits in this new repository are allowed once checks pass; no destructive Git operations. The user explicitly authorized creating a GitHub repository and pushing this project on 2026-09-22; publish the reviewed source/docs/tests and release DMG, excluding private receipts and credentials.
 
 ## Quality bar
 

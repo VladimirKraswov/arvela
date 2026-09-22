@@ -1,25 +1,52 @@
+import type { QueuedPrompt } from "./queue";
+import type { AccessMode } from "./access";
+import type { AsrSettings } from "../voice/asr";
 // Persisted shell preferences. The shell owns theme/layout/directories/drafts;
 // OpenCode owns sessions, models, credentials. No engine data is rewritten here.
 
 export interface Prefs {
+  queues?: Record<string, QueuedPrompt[]>;
+  newAccess?: AccessMode;
+  asr?: AsrSettings;
+  endpointState?: Record<string, Partial<Prefs>>;
+  pinnedProjects?: string[];
   endpoint: string;
   theme: "light" | "dark" | "system";
   selectedDirectory: string | null;
   lastSessionByDir: Record<string, string>;
   drafts: Record<string, string>;
-  layout: { sidebarWidth: number; rightWidth: number; bottomHeight: number; rightOpen: boolean; bottomOpen: boolean; rightTab: "files" | "changes" };
-  modelChoice: Record<string, { providerID: string; modelID: string; variant?: string | null }>; // by directory
+  layout: {
+    sidebarOpen: boolean;
+    sidebarWidth: number;
+    rightWidth: number;
+    bottomHeight: number;
+    rightOpen: boolean;
+    bottomOpen: boolean;
+    rightTab: "files" | "changes";
+  };
+  modelChoice: Record<
+    string,
+    { providerID: string; modelID: string; variant?: string | null }
+  >; // by directory
   agentChoice: Record<string, string>; // by directory
   ptyIds: Record<string, string>; // directory -> shell created by this app (never hijack foreign PTYs)
 }
 
 export const DEFAULT_PREFS: Prefs = {
   endpoint: "http://127.0.0.1:4096",
-  theme: "system",
+  theme: "dark",
   selectedDirectory: null,
   lastSessionByDir: {},
   drafts: {},
-  layout: { sidebarWidth: 260, rightWidth: 380, bottomHeight: 260, rightOpen: false, bottomOpen: false, rightTab: "changes" },
+  layout: {
+    sidebarOpen: true,
+    sidebarWidth: 252,
+    rightWidth: 380,
+    bottomHeight: 260,
+    rightOpen: false,
+    bottomOpen: false,
+    rightTab: "changes",
+  },
   modelChoice: {},
   agentChoice: {},
   ptyIds: {},
@@ -41,6 +68,16 @@ export function loadPrefs(): Prefs {
       modelChoice: parsed.modelChoice ?? {},
       agentChoice: parsed.agentChoice ?? {},
       ptyIds: parsed.ptyIds ?? {},
+      queues: Object.fromEntries(
+        Object.entries(parsed.queues ?? {}).map(([id, list]) => [
+          id,
+          list.map((item) =>
+            item.state === "sending"
+              ? { ...item, state: "uncertain" as const }
+              : item,
+          ),
+        ]),
+      ),
     };
   } catch {
     return { ...DEFAULT_PREFS };
@@ -48,20 +85,65 @@ export function loadPrefs(): Prefs {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
-export function savePrefs(prefs: Prefs): void {
+let pendingPrefs: Prefs | null = null;
+export function flushPrefs(): void {
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      // Keep drafts bounded: newest 200 entries.
-      const keys = Object.keys(prefs.drafts);
-      const drafts = keys.length > 200 ? Object.fromEntries(keys.slice(-200).map((k) => [k, prefs.drafts[k]])) : prefs.drafts;
-      localStorage.setItem(KEY, JSON.stringify({ ...prefs, drafts }));
-    } catch {
-      /* storage full or unavailable — non-fatal */
-    }
-  }, 400);
+  saveTimer = null;
+  const prefs = pendingPrefs;
+  if (!prefs) return;
+  try {
+    const keys = Object.keys(prefs.drafts);
+    const drafts =
+      keys.length > 200
+        ? Object.fromEntries(keys.slice(-200).map((k) => [k, prefs.drafts[k]]))
+        : prefs.drafts;
+    localStorage.setItem(KEY, JSON.stringify({ ...prefs, drafts }));
+    pendingPrefs = null;
+  } catch {
+    /* Keep pending state available for a later retry. */
+  }
+}
+export function savePrefs(prefs: Prefs): void {
+  pendingPrefs = prefs;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushPrefs, 400);
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushPrefs);
+  import.meta.hot?.dispose(() => {
+    flushPrefs();
+    window.removeEventListener("pagehide", flushPrefs);
+  });
 }
 
-export function draftKey(sessionId: string | null, directory: string | null): string {
+export function draftKey(
+  sessionId: string | null,
+  directory: string | null,
+): string {
   return sessionId ?? `new::${directory ?? ""}`;
+}
+
+/** Server-owned IDs and drafts never migrate into another endpoint's workspace. */
+export function switchEndpointPrefs(prefs: Prefs, endpoint: string): Prefs {
+  const { endpointState = {}, ...current } = prefs;
+  const saved = endpointState[endpoint];
+  return {
+    ...DEFAULT_PREFS,
+    theme: prefs.theme,
+    asr: prefs.asr,
+    layout: prefs.layout,
+    ...saved,
+    queues: Object.fromEntries(
+      Object.entries(saved?.queues ?? {}).map(([id, list]) => [
+        id,
+        list.map((item) =>
+          item.state === "sending"
+            ? { ...item, state: "uncertain" as const }
+            : item,
+        ),
+      ]),
+    ),
+    endpoint,
+    endpointState: { ...endpointState, [prefs.endpoint]: current },
+  };
 }

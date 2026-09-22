@@ -14,7 +14,10 @@ const CONTEXT = 2;
  * Above MAX_LINES per side the LCS is skipped and a full replace is emitted —
  * bounded work for pathological inputs.
  */
-export function unifiedDiffLines(before: string | undefined, after: string | undefined): string[] {
+export function unifiedDiffLines(
+  before: string | undefined,
+  after: string | undefined,
+): string[] {
   const a = splitLines(before ?? "");
   const b = splitLines(after ?? "");
   if (a.length === 0 && b.length === 0) return [];
@@ -37,10 +40,16 @@ type Edit = { op: " " | "-" | "+"; line: string };
 function lcsEdits(a: string[], b: string[]): Edit[] {
   const n = a.length;
   const m = b.length;
-  const dp: Uint32Array[] = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+  const dp: Uint32Array[] = Array.from(
+    { length: n + 1 },
+    () => new Uint32Array(m + 1),
+  );
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      dp[i][j] =
+        a[i] === b[j]
+          ? dp[i + 1][j + 1] + 1
+          : Math.max(dp[i + 1][j], dp[i][j + 1]);
     }
   }
   const edits: Edit[] = [];
@@ -68,7 +77,12 @@ function withContext(edits: Edit[]): string[] {
   const keep = new Array<boolean>(edits.length).fill(false);
   edits.forEach((e, idx) => {
     if (e.op === " ") return;
-    for (let k = Math.max(0, idx - CONTEXT); k <= Math.min(edits.length - 1, idx + CONTEXT); k++) keep[k] = true;
+    for (
+      let k = Math.max(0, idx - CONTEXT);
+      k <= Math.min(edits.length - 1, idx + CONTEXT);
+      k++
+    )
+      keep[k] = true;
   });
   const out: string[] = [];
   let skipped = false;
