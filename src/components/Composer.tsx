@@ -1,3 +1,4 @@
+import { HostPicker } from "./WorkspacePicker";
 import { ContextMeter } from "./ContextMeter";
 import { VoiceInput } from "./VoiceInput";
 import { accessOptions, type AccessMode } from "../state/access";
@@ -141,17 +142,22 @@ export function Composer() {
           ))}
         </div>
       )}
+      {s.ui.workspacePreparing && (
+        <div className="workspace-progress" role="status">
+          Подготовка рабочего места чата…
+        </div>
+      )}
       <div className="composer">
         <textarea
           ref={textareaRef}
           aria-label="Message"
           placeholder={
-            s.directory
-              ? "Спросите о коде или поручите задачу…"
-              : "Выберите проект, чтобы начать…"
+            store.isProjectless()
+              ? "Спросите что угодно или поручите задачу…"
+              : "Спросите о коде или поручите задачу…"
           }
           value={draft}
-          disabled={!s.directory}
+          disabled={s.ui.workspacePreparing}
           onChange={(e) => store.setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (
@@ -221,7 +227,7 @@ export function Composer() {
             }
           />
           <span className="spacer" />
-          <VoiceInput disabled={!s.directory || !connected} />
+          <VoiceInput disabled={!connected || s.ui.workspacePreparing} />
           {running && session && (
             <button
               className="btn small danger"
@@ -235,7 +241,11 @@ export function Composer() {
             className="send-btn"
             aria-label={running ? "Добавить в очередь" : "Send prompt"}
             disabled={
-              !connected || !s.directory || !draft.trim() || s.ui.sending
+              !connected ||
+              !draft.trim() ||
+              s.ui.sending ||
+              s.ui.workspacePreparing ||
+              s.ui.runtimeLoading
             }
             onClick={send}
           >
@@ -244,9 +254,27 @@ export function Composer() {
         </div>
       </div>
       <div className="composer-footer">
-        <span>
-          <Icon name="folder" size={13} />
-          {s.directory?.split("/").filter(Boolean).pop() ?? "Проект не выбран"}
+        {!s.activeSessionId ? (
+          <HostPicker />
+        ) : (
+          <span
+            title={`Инструменты выполняются: ${store.hostLabel()} · ${s.directory}`}
+          >
+            <Icon name={store.currentHost() ? "server" : "monitor"} size={13} />
+            {store.hostLabel()}
+          </span>
+        )}
+        <span
+          className="workspace-caption"
+          title={
+            s.directory ??
+            "Для нового чата будет создана отдельная рабочая папка"
+          }
+        >
+          <Icon name={store.isProjectless() ? "chat" : "folder"} size={13} />
+          {store.isProjectless()
+            ? "Без проекта"
+            : s.directory?.split("/").filter(Boolean).pop()}
         </span>
         <SelectMenu
           label="Режим доступа"

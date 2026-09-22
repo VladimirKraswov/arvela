@@ -15,8 +15,17 @@ export function TopBar() {
           <Icon name="sidebar" />
         </button>
       )}
-      <span className="session-title">{session?.title ?? "Новая задача"}</span>
+      <span className="session-title">{session?.title ?? "Новый чат"}</span>
       <span className="spacer" />
+      {store.currentHost() && (
+        <span
+          className="execution-badge"
+          title="Инструменты выполняются на удалённой машине"
+        >
+          <Icon name="server" size={14} />
+          {store.hostLabel()}
+        </span>
+      )}
       {s.ui.vcs?.branch && (
         <span className="branch-label">
           <Icon name="branch" size={14} />
@@ -28,7 +37,8 @@ export function TopBar() {
         aria-label="Терминал"
         aria-pressed={l.bottomOpen}
         title="Терминал · Ctrl+`"
-        onClick={() => store.setLayout({ bottomOpen: !l.bottomOpen })}
+        disabled={s.connection.phase !== "connected" || s.ui.workspacePreparing}
+        onClick={() => void store.toggleTerminal()}
       >
         <Icon name="terminal" />
       </button>

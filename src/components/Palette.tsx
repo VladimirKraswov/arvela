@@ -9,12 +9,12 @@ export function Palette() {
   const close = () => store.setUi({ paletteOpen: false });
   const q = query.trim().toLowerCase();
   const actions = [
-    { name: "Новая задача", icon: "new", run: () => store.newSession() },
+    { name: "Новый чат", icon: "new", run: () => store.newSession() },
     { name: "Открыть папку", icon: "folder", run: () => pickFolder() },
     {
       name: "Терминал",
       icon: "terminal",
-      run: () => store.setLayout({ bottomOpen: !s.prefs.layout.bottomOpen }),
+      run: () => store.toggleTerminal(),
     },
     {
       name: "Изменения и файлы",
@@ -36,9 +36,7 @@ export function Palette() {
         ]
       : []),
   ];
-  const dirs = [...new Set(s.projects.map((p) => p.worktree))].filter(
-    (p) => p !== "/",
-  );
+  const dirs = store.projectDirectories();
   const rows = [
     ...actions.map((a) => ({ ...a, detail: "Действие" })),
     ...dirs.map((dir) => ({

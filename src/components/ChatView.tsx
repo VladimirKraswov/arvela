@@ -1,3 +1,4 @@
+import { WorkspacePicker } from "./WorkspacePicker";
 import { useEffect, useMemo, useRef } from "react";
 import { store, useAppState } from "../state/store";
 import {
@@ -57,11 +58,12 @@ export function ChatView() {
             <div className="welcome-mark">
               <span>⌁</span>
             </div>
-            <h1>Что будем создавать?</h1>
-            <p>
-              {s.directory
-                ? s.directory.split("/").filter(Boolean).pop()
-                : "Выберите проект и начните новую задачу"}
+            <h1>С чего начнём?</h1>
+            <WorkspacePicker />
+            <p className="welcome-context">
+              {store.isProjectless()
+                ? "Задайте вопрос или поручите любую задачу"
+                : "Работа с файлами выбранного проекта"}
             </p>
           </div>
         )}

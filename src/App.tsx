@@ -1,3 +1,4 @@
+import { HostDialogs } from "./components/HostDialogs";
 import { store, useAppState, applyTheme } from "./state/store";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
@@ -62,9 +63,10 @@ export default function App() {
         store.setLayout({ rightOpen: !store.state.prefs.layout.rightOpen });
       } else if (e.key === "`" && (e.ctrlKey || (mod && e.shiftKey))) {
         e.preventDefault();
-        store.setLayout({ bottomOpen: !store.state.prefs.layout.bottomOpen });
+        void store.toggleTerminal();
       } else if (e.key === "Escape") {
         if (store.state.ui.paletteOpen) store.setUi({ paletteOpen: false });
+        if (store.state.ui.hostDialogOpen || store.state.ui.remoteFolderOpen) return;
         if (store.state.ui.settingsOpen) store.setUi({ settingsOpen: false });
         if (store.state.ui.confirmDelete) store.setUi({ confirmDelete: null });
       }
@@ -174,6 +176,7 @@ export default function App() {
       </div>
       {s.ui.paletteOpen && <Palette />}
       <SettingsDialog />
+      <HostDialogs />
       <DeleteConfirm />
       <Toast />
     </div>

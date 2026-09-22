@@ -1,3 +1,11 @@
+import {
+  connectSsh,
+  prepareChat,
+  remoteKey,
+  hostHeaders,
+  validRemote,
+  type RemoteHost,
+} from "../native/hosts";
 import { contextUsage, type CompactionConfig } from "./context";
 import { accessRules, accessMode, type AccessMode } from "./access";
 import { newMessageId, type QueuedPrompt } from "./queue";
@@ -69,6 +77,10 @@ export interface ConnectionState {
 }
 
 export interface UiState {
+  remoteFolderOpen: boolean;
+  hostDialogOpen: boolean;
+  workspacePreparing: boolean;
+  runtimeLoading: boolean;
   sessionListLoading: boolean;
   sessionListError: string | null;
   historyLoading: boolean;
@@ -139,6 +151,10 @@ function initialState(): AppState {
     olderExhausted: {},
     historyCursors: {},
     ui: {
+      remoteFolderOpen: false,
+      hostDialogOpen: false,
+      workspacePreparing: false,
+      runtimeLoading: false,
       sessionListLoading: false,
       sessionListError: null,
       historyLoading: false,
@@ -166,6 +182,8 @@ class Store {
   private statusSequence = 0;
   private statusVersions = new Map<string, number>();
   private historyGeneration = 0;
+  private hostGeneration = 0;
+  private workspacePromise: Promise<boolean> | null = null;
   private queueArmed = new Set<string>();
   private queueLocks = new Set<string>();
   private accessChanging = false;
@@ -191,6 +209,20 @@ class Store {
   ): void {
     const p = typeof patch === "function" ? patch(this.state) : patch;
     this.state = { ...this.state, ...p, rev: this.state.rev + 1 };
+    if (p.sessions || p.archivedSessions) {
+      const managed = new Set(this.state.prefs.projectlessDirectories ?? []);
+      const index = new Map(
+        (this.state.prefs.projectlessSessions ?? []).map((x) => [x.id, x]),
+      );
+      for (const x of [...(p.sessions ?? []), ...(p.archivedSessions ?? [])]) {
+        if (managed.has(x.directory)) index.set(x.id, x);
+      }
+      this.state.prefs = {
+        ...this.state.prefs,
+        projectlessSessions: [...index.values()],
+      };
+      this.persistPrefs();
+    }
     for (const l of this.listeners) l();
   }
 
@@ -214,7 +246,9 @@ class Store {
   /** Idempotent: concurrent calls (e.g. React StrictMode double-mount) share one attempt. */
   connect(endpoint?: string): Promise<boolean> {
     if (!endpoint && this.connectPromise) return this.connectPromise;
-    const p = this.doConnect(endpoint);
+    const p = endpoint
+      ? this.connectLocal(endpoint)
+      : this.connectHost(this.state.prefs.activeHost ?? "local");
     if (!endpoint) {
       this.connectPromise = p;
       void p.finally(() => {
@@ -224,7 +258,97 @@ class Store {
     return p;
   }
 
-  private async doConnect(endpoint?: string): Promise<boolean> {
+  currentHost(): RemoteHost | undefined {
+    return this.state.prefs.remoteHosts?.find(
+      (h) => h.id === this.state.prefs.activeHost,
+    );
+  }
+  hostLabel(): string {
+    return this.currentHost()?.name ?? "Этот компьютер";
+  }
+  async connectLocal(endpoint: string): Promise<boolean> {
+    this.hostGeneration++;
+    this.mutate((s) => ({
+      prefs: { ...s.prefs, activeHost: "local", localEndpoint: endpoint },
+    }));
+    return this.doConnect(endpoint, endpoint);
+  }
+  async connectHost(id: string): Promise<boolean> {
+    const request = ++this.hostGeneration;
+    const host = this.state.prefs.remoteHosts?.find((h) => h.id === id);
+    if (id !== "local" && !host) {
+      this.patchUi({ toast: "Подключение не найдено." });
+      return false;
+    }
+    this.connectionGeneration++;
+    this.directoryGeneration++;
+    this.streamAbort?.abort();
+    this.queueArmed.clear();
+    this.mutate((s) => ({
+      prefs: {
+        ...s.prefs,
+        activeHost: id,
+        localEndpoint:
+          s.prefs.localEndpoint ??
+          (s.prefs.workspaceKey?.startsWith("ssh:")
+            ? DEFAULT_PREFS.endpoint
+            : s.prefs.endpoint),
+      },
+      connection: {
+        ...s.connection,
+        phase: "connecting",
+        error: null,
+        streamState: "idle",
+      },
+      ui: { ...s.ui, sending: false, workspacePreparing: false },
+    }));
+    this.persistPrefs();
+    try {
+      const endpoint = host
+        ? await connectSsh(host)
+        : (this.state.prefs.localEndpoint ?? DEFAULT_PREFS.endpoint);
+      if (request !== this.hostGeneration) return false;
+      return await this.doConnect(endpoint, host ? remoteKey(host) : endpoint);
+    } catch (e) {
+      if (request === this.hostGeneration)
+        this.mutate((s) => ({
+          connection: {
+            ...s.connection,
+            phase: "disconnected",
+            error: errText(e),
+          },
+        }));
+      return false;
+    }
+  }
+  saveRemoteHost(host: RemoteHost): void {
+    if (!validRemote(host)) throw new Error("Некорректный SSH-адрес или порт.");
+    this.mutate((s) => ({
+      prefs: {
+        ...s.prefs,
+        remoteHosts: [
+          ...(s.prefs.remoteHosts ?? []).filter((h) => h.id !== host.id),
+          host,
+        ],
+      },
+    }));
+    this.persistPrefs();
+  }
+  removeRemoteHost(id: string): void {
+    if (id === this.state.prefs.activeHost) return;
+    this.mutate((s) => ({
+      prefs: {
+        ...s.prefs,
+        remoteHosts: s.prefs.remoteHosts?.filter((h) => h.id !== id),
+      },
+    }));
+    this.persistPrefs();
+  }
+
+  private async doConnect(
+    endpoint?: string,
+    workspaceKey?: string,
+  ): Promise<boolean> {
     const requested =
       endpoint?.trim().replace(/\/+$/, "") ?? this.client.baseUrl;
     if (!isAllowedBaseUrl(requested)) {
@@ -239,8 +363,15 @@ class Store {
     this.directoryGeneration++;
     this.streamAbort?.abort();
     this.streamAbort = null;
-    if (requested !== this.client.baseUrl) {
-      const prefs = switchEndpointPrefs(this.state.prefs, requested);
+    const key = workspaceKey ?? requested;
+    if (
+      requested !== this.client.baseUrl ||
+      key !== (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
+    ) {
+      const prefs =
+        key === (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
+          ? { ...this.state.prefs, endpoint: requested }
+          : switchEndpointPrefs(this.state.prefs, requested, key);
       this.client = new OpenCodeClient(requested);
       this.mutate({
         prefs,
@@ -268,6 +399,7 @@ class Store {
       });
       this.persistPrefs();
     }
+    this.client.headers = hostHeaders(key);
     const client = this.client;
     this.mutate((s) => ({
       connection: {
@@ -298,6 +430,7 @@ class Store {
       if (gen !== this.connectionGeneration) return false;
       if (this.state.directory)
         await this.setDirectory(this.state.directory, { restoreSession: true });
+      else await this.setDirectory(null);
       return true;
     } catch (e) {
       if (gen === this.connectionGeneration)
@@ -317,6 +450,7 @@ class Store {
     const gen = this.directoryGeneration,
       client = this.client,
       directory = this.state.directory;
+    this.patchUi({ runtimeLoading: true });
     try {
       const [prov, agents, config] = await Promise.all([
         client.providers(undefined, directory),
@@ -338,6 +472,9 @@ class Store {
         this.patchUi({
           toast: `Could not load model/agent list: ${errText(e)}`,
         });
+    } finally {
+      if (gen === this.directoryGeneration && client === this.client)
+        this.patchUi({ runtimeLoading: false });
     }
   }
 
@@ -380,6 +517,12 @@ class Store {
     const trimmed = dir.trim();
     if (!trimmed) return;
     this.mutate((s) => ({
+      prefs: {
+        ...s.prefs,
+        pinnedProjects: [
+          ...new Set([...(s.prefs.pinnedProjects ?? []), trimmed]),
+        ],
+      },
       projects: [
         ...s.projects.filter((p) => p.worktree !== trimmed),
         { id: `local:${trimmed}`, worktree: trimmed, vcs: null, sandboxes: [] },
@@ -400,21 +543,40 @@ class Store {
       directory,
       sessions: [],
       archivedSessions: [],
-      activeSessionId: directory
-        ? (s.prefs.lastSessionByDir[directory] ?? null)
-        : null,
+      activeSessionId:
+        directory && opts.restoreSession
+          ? s.prefs.lastSessionByDir[directory] || null
+          : null,
       statuses: {},
-      prefs: { ...s.prefs, selectedDirectory: directory },
-      ui: { ...s.ui, vcs: null, sessionListError: null },
+      prefs: {
+        ...s.prefs,
+        selectedDirectory: directory,
+        newChatMode:
+          !directory || this.isProjectlessDirectory(directory)
+            ? "projectless"
+            : "project",
+      },
+      ui: {
+        ...s.ui,
+        vcs: null,
+        sessionListError: null,
+        sendError: null,
+        historyError: null,
+        historyLoading: false,
+        sessionListLoading: false,
+      },
     }));
     this.persistPrefs();
-    if (!directory) return;
-    void this.loadRuntimeMetadata();
+    const metadata = this.loadRuntimeMetadata();
+    if (!directory) {
+      await metadata;
+      return;
+    }
 
     void this.client.vcs(directory).then((vcs) => {
       if (gen === this.directoryGeneration) this.patchUi({ vcs });
     });
-    await this.refreshSessions();
+    await Promise.all([this.refreshSessions(), metadata]);
     if (gen !== this.directoryGeneration) return;
     if (
       !opts.restoreSession &&
@@ -447,6 +609,7 @@ class Store {
       ]);
       if (!current()) return;
       const visible = sessions.filter((s) => !s.parentID);
+      this.rememberChatListing(directory, visible);
       this.mutate({
         sessions: visible.filter((s) => !s.time.archived),
         archivedSessions: visible.filter((s) => s.time.archived),
@@ -557,9 +720,109 @@ class Store {
     }
   }
 
+  isProjectlessDirectory(dir: string): boolean {
+    const root = this.state.prefs.projectlessRoot;
+    return (
+      (this.state.prefs.projectlessDirectories ?? []).includes(dir) ||
+      (!!root && (dir === root || dir.startsWith(root + "/")))
+    );
+  }
+  isProjectless(): boolean {
+    return (
+      !this.state.directory || this.isProjectlessDirectory(this.state.directory)
+    );
+  }
+  projectDirectories(): string[] {
+    return [
+      ...new Set([
+        ...this.state.projects.map((p) => p.worktree),
+        ...(this.state.prefs.pinnedProjects ?? []),
+        ...(this.state.directory ? [this.state.directory] : []),
+      ]),
+    ].filter((p) => p && p !== "/" && !this.isProjectlessDirectory(p));
+  }
+  chatSessions(archived = false): Session[] {
+    return (this.state.prefs.projectlessSessions ?? [])
+      .filter((x) => Boolean(x.time.archived) === archived)
+      .sort((a, b) => b.time.updated - a.time.updated);
+  }
+  async openChat(session: Session): Promise<void> {
+    if (session.directory !== this.state.directory)
+      await this.setDirectory(session.directory);
+    // setDirectory may have been superseded by a user's later selection.
+    if (this.state.directory === session.directory)
+      await this.selectSession(session.id);
+  }
+  private rememberChatListing(directory: string, sessions: Session[]): void {
+    if (!this.isProjectlessDirectory(directory)) return;
+    this.mutate((s) => ({
+      prefs: {
+        ...s.prefs,
+        projectlessSessions: [
+          ...(s.prefs.projectlessSessions ?? []).filter(
+            (x) => x.directory !== directory,
+          ),
+          ...sessions,
+        ],
+      },
+    }));
+    this.persistPrefs();
+  }
+  async ensureChatWorkspace(): Promise<boolean> {
+    if (this.state.connection.phase !== "connected") return false;
+    if (this.state.directory) return true;
+    if (this.workspacePromise) return this.workspacePromise;
+    const gen = this.directoryGeneration,
+      client = this.client,
+      host = this.currentHost();
+    this.patchUi({ workspacePreparing: true, sendError: null });
+    const p = (async () => {
+      try {
+        const paths = await client.paths();
+        if (gen !== this.directoryGeneration || client !== this.client)
+          return false;
+        const workspace = await prepareChat(host, paths.home);
+        if (gen !== this.directoryGeneration || client !== this.client)
+          return false;
+        const draft = this.getDraft();
+        this.mutate((s) => ({
+          prefs: {
+            ...s.prefs,
+            projectlessRoot: workspace.root,
+            projectlessDirectories: [
+              ...new Set([
+                ...(s.prefs.projectlessDirectories ?? []),
+                workspace.directory,
+              ]),
+            ],
+            drafts: {
+              ...s.prefs.drafts,
+              [draftKey(null, workspace.directory)]: draft,
+            },
+          },
+        }));
+        const nextGen = this.directoryGeneration + 1;
+        await this.setDirectory(workspace.directory);
+        return nextGen === this.directoryGeneration && client === this.client;
+      } catch (e) {
+        if (gen === this.directoryGeneration && client === this.client)
+          this.patchUi({ sendError: errText(e) });
+        return false;
+      } finally {
+        if (client === this.client) this.patchUi({ workspacePreparing: false });
+      }
+    })();
+    this.workspacePromise = p;
+    try {
+      return await p;
+    } finally {
+      if (this.workspacePromise === p) this.workspacePromise = null;
+    }
+  }
+
   async newSession(): Promise<void> {
     // Composer targets the "new conversation" slot; the session is created lazily on first send.
-    await this.selectSession(null);
+    await this.setDirectory(null);
   }
 
   async createSessionNow(title?: string): Promise<Session | null> {
@@ -608,11 +871,17 @@ class Store {
       const updated = await this.client.updateSession(
         session.id,
         { title },
-        this.state.directory,
+        session.directory,
       );
       if (gen !== this.directoryGeneration) return;
       this.mutate((s) => ({
         sessions: s.sessions.map((x) => (x.id === updated.id ? updated : x)),
+        prefs: {
+          ...s.prefs,
+          projectlessSessions: s.prefs.projectlessSessions?.map((x) =>
+            x.id === updated.id ? updated : x,
+          ),
+        },
       }));
     } catch (e) {
       if (gen !== this.directoryGeneration) return;
@@ -626,19 +895,25 @@ class Store {
       const updated = await this.client.updateSession(
         session.id,
         { time: { archived: Date.now() } },
-        this.state.directory,
+        session.directory,
       );
       if (gen !== this.directoryGeneration) return;
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
-        archivedSessions: [
-          updated,
-          ...s.archivedSessions.filter((x) => x.id !== session.id),
-        ],
+        archivedSessions:
+          updated.directory === s.directory
+            ? [
+                updated,
+                ...s.archivedSessions.filter((x) => x.id !== session.id),
+              ]
+            : s.archivedSessions,
         activeSessionId:
           s.activeSessionId === session.id ? null : s.activeSessionId,
         prefs: {
           ...s.prefs,
+          projectlessSessions: s.prefs.projectlessSessions?.map((x) =>
+            x.id === updated.id ? updated : x,
+          ),
           lastSessionByDir:
             s.directory && s.prefs.lastSessionByDir[s.directory] === session.id
               ? { ...s.prefs.lastSessionByDir, [s.directory]: "" }
@@ -659,17 +934,27 @@ class Store {
       const updated = await this.client.updateSession(
         session.id,
         { time: { archived: 0 } },
-        this.state.directory,
+        session.directory,
       );
       if (gen !== this.directoryGeneration) return;
       this.mutate((s) => ({
         archivedSessions: s.archivedSessions.filter((x) => x.id !== session.id),
-        sessions: s.sessions.some((x) => x.id === session.id)
-          ? s.sessions
-          : [
-              { ...updated, time: { ...updated.time, archived: undefined } },
-              ...s.sessions,
-            ],
+        prefs: {
+          ...s.prefs,
+          projectlessSessions: s.prefs.projectlessSessions?.map((x) =>
+            x.id === updated.id
+              ? { ...updated, time: { ...updated.time, archived: undefined } }
+              : x,
+          ),
+        },
+        sessions:
+          updated.directory !== s.directory ||
+          s.sessions.some((x) => x.id === session.id)
+            ? s.sessions
+            : [
+                { ...updated, time: { ...updated.time, archived: undefined } },
+                ...s.sessions,
+              ],
       }));
       this.patchUi({ toast: "Session restored" });
     } catch (e) {
@@ -681,21 +966,24 @@ class Store {
   async deleteSession(session: Session): Promise<void> {
     const gen = this.directoryGeneration;
     try {
-      await this.client.deleteSession(session.id, this.state.directory);
+      await this.client.deleteSession(session.id, session.directory);
       if (gen !== this.directoryGeneration) return;
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
         archivedSessions: s.archivedSessions.filter((x) => x.id !== session.id),
         activeSessionId:
           s.activeSessionId === session.id ? null : s.activeSessionId,
+        ui: { ...s.ui, confirmDelete: null },
         prefs: {
           ...s.prefs,
+          projectlessSessions: s.prefs.projectlessSessions?.filter(
+            (x) => x.id !== session.id,
+          ),
           lastSessionByDir:
             s.directory && s.prefs.lastSessionByDir[s.directory] === session.id
               ? { ...s.prefs.lastSessionByDir, [s.directory]: "" }
               : s.prefs.lastSessionByDir,
         },
-        ui: { ...s.ui, confirmDelete: null },
       }));
       this.persistPrefs();
       this.patchUi({ toast: "Session deleted permanently" });
@@ -712,7 +1000,7 @@ class Store {
     modelID: string;
     variant?: string | null;
   } | null {
-    const dir = this.state.directory ?? "";
+    const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
     const stored =
       this.state.prefs.modelChoice[dir] ?? this.state.prefs.modelChoice["*"];
     if (stored && this.state.connectedProviderIds.includes(stored.providerID))
@@ -738,7 +1026,12 @@ class Store {
       agent?.model &&
       this.state.connectedProviderIds.includes(agent.model.providerID)
     ) {
-      return { ...agent.model, variant: agent.variant ?? null };
+      return {
+        ...agent.model,
+        variant:
+          agent.variant ??
+          this.defaultVariant(agent.model.providerID, agent.model.modelID),
+      };
     }
     const configured = this.state.configModel?.split("/");
     if (
@@ -749,22 +1042,40 @@ class Store {
       return {
         providerID: configured[0],
         modelID: configured.slice(1).join("/"),
-        variant: null,
+        variant: this.defaultVariant(
+          configured[0],
+          configured.slice(1).join("/"),
+        ),
       };
     }
     const defaults = this.state.providerDefaults;
     if (defaults) {
       for (const [pid, mid] of Object.entries(defaults)) {
         if (this.state.connectedProviderIds.includes(pid))
-          return { providerID: pid, modelID: mid, variant: null };
+          return {
+            providerID: pid,
+            modelID: mid,
+            variant: this.defaultVariant(pid, mid),
+          };
       }
     }
     for (const pid of this.state.connectedProviderIds) {
       const provider = this.state.providers.find((p) => p.id === pid);
       const first = provider && Object.values(provider.models)[0];
-      if (first) return { providerID: pid, modelID: first.id, variant: null };
+      if (first)
+        return {
+          providerID: pid,
+          modelID: first.id,
+          variant: this.defaultVariant(pid, first.id),
+        };
     }
     return null;
+  }
+
+  private defaultVariant(providerID: string, modelID: string): string | null {
+    return this.modelInfo(providerID, modelID)?.variants?.medium
+      ? "medium"
+      : null;
   }
 
   setModelChoice(
@@ -772,7 +1083,7 @@ class Store {
     modelID: string,
     variant?: string | null,
   ): void {
-    const dir = this.state.directory ?? "";
+    const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
@@ -787,7 +1098,7 @@ class Store {
 
   /** Explicit user selection always wins over a legacy session's agent (R2). */
   getAgentChoice(): string | null {
-    const dir = this.state.directory ?? "*";
+    const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "*");
     const explicit =
       this.state.prefs.agentChoice[dir] ?? this.state.prefs.agentChoice["*"];
     if (explicit) return explicit;
@@ -801,6 +1112,7 @@ class Store {
   }
 
   setAgentOverride(dir: string, name: string): void {
+    if (this.isProjectless()) dir = "@chats";
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
@@ -844,6 +1156,16 @@ class Store {
   // ---------- execution ----------
 
   async sendPrompt(text: string): Promise<boolean> {
+    if (
+      this.state.connection.phase !== "connected" ||
+      !text.trim() ||
+      this.state.ui.sending ||
+      this.state.ui.workspacePreparing ||
+      this.state.ui.runtimeLoading
+    )
+      return false;
+    if (!this.state.directory && !(await this.ensureChatWorkspace()))
+      return false;
     const directory = this.state.directory;
     if (
       !directory ||
@@ -923,6 +1245,11 @@ class Store {
       this.mutate((s) => {
         const drafts = { ...s.prefs.drafts };
         if (drafts[slotKey] === text) delete drafts[slotKey];
+        if (
+          this.isProjectlessDirectory(directory) &&
+          drafts[draftKey(null, null)] === text
+        )
+          delete drafts[draftKey(null, null)];
         const prev = s.chat.sessions[target] ?? emptySessionChat();
         const chat: ChatRootState = {
           ...s.chat,
@@ -1383,6 +1710,7 @@ class Store {
     this.streamAbort = ctrl;
     void runEventStream({
       url: eventStreamUrl(this.client.baseUrl, directory),
+      headers: this.client.headers,
       signal: ctrl.signal,
       onEvent: (event: ServerEvent) => {
         if (gen !== this.directoryGeneration) return; // stale project events must not leak
@@ -1419,6 +1747,7 @@ class Store {
       ]);
       if (gen !== this.directoryGeneration || journal.length >= 20000) return;
       const visible = sessions.filter((s) => !s.parentID);
+      this.rememberChatListing(directory, visible);
       this.mutate((s) => {
         // Authoritative reconciliation (R4): the server's status list replaces any
         // locally accumulated busy state; sessions absent from it are idle again.
@@ -1517,6 +1846,12 @@ class Store {
 
   setUi(patch: Partial<UiState>): void {
     this.patchUi(patch);
+  }
+
+  async toggleTerminal(): Promise<void> {
+    const next = !this.state.prefs.layout.bottomOpen;
+    if (next && !(await this.ensureChatWorkspace())) return;
+    this.setLayout({ bottomOpen: next });
   }
 
   setLayout(patch: Partial<Prefs["layout"]>): void {

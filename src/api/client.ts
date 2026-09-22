@@ -45,7 +45,7 @@ export class ConnectionError extends Error {
   }
 }
 
-/** Only plain-HTTP loopback endpoints are allowed by design (local-only release boundary). */
+/** Only loopback endpoints: native SSH forwards remote engines without broadening WebView network access. */
 export function isAllowedBaseUrl(raw: string): boolean {
   let url: URL;
   try {
@@ -84,6 +84,7 @@ type Query = Record<string, string | number | boolean | undefined | null>;
 export class OpenCodeClient {
   baseUrl: string;
   private timeoutMs: number;
+  headers: Record<string, string> = {};
 
   constructor(baseUrl: string = DEFAULT_BASE_URL, timeoutMs = 20000) {
     this.baseUrl = normalizeBaseUrl(baseUrl);
@@ -139,6 +140,7 @@ export class OpenCodeClient {
       const res = await fetch(this.buildUrl(path, opts.query), {
         method,
         headers: {
+          ...this.headers,
           ...(opts.body !== undefined
             ? { "Content-Type": "application/json" }
             : {}),
@@ -227,6 +229,10 @@ export class OpenCodeClient {
         sandboxes: Array.isArray(p.sandboxes) ? (p.sandboxes as string[]) : [],
       })),
     );
+  }
+
+  paths(directory?: string | null): Promise<{home: string; directory: string; worktree: string}> {
+    return this.request("GET", "/path", { query: { directory } });
   }
 
   vcs(directory: string, signal?: AbortSignal): Promise<VcsInfo | null> {

@@ -457,7 +457,7 @@ export function RightPanel() {
       <div className="panel-body">
         {!s.directory ? (
           <div className="panel-note">
-            Select a project to browse its files and changes.
+            Файлы появятся после начала чата. Можно работать без проекта или выбрать папку.
           </div>
         ) : layout.rightTab === "changes" ? (
           <ChangesTab

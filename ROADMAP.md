@@ -95,7 +95,7 @@ These should have capability/evidence-based designs, not placeholder buttons:
 - [ ] Git workflow refinements, branch review, per-line comments and GitHub integration through existing authenticated CLI with explicit publication actions.
 - [ ] File/image drag and drop, attachment previews, find in history, export with privacy controls, session fork/branching.
 - [ ] Scheduling/automation only after defining persistence, permission boundaries, duplicate prevention and cancellation. Do not silently auto-start work.
-- [ ] Optional remote OpenCode support with authentication/TLS/explicit endpoint trust. Local-only is the first release boundary.
+- [x] Remote OpenCode through native SSH tunnels, strict host keys, in-memory API password, per-host preferences. See docs/WORKSPACES.md. Direct arbitrary HTTPS endpoints and Keychain persistence remain future work.
 - [ ] Browser preview as isolated content without Tauri privileges; optional worktree-aware dev-server handling.
 - [ ] Windows/Linux packaging when tested; cloud proprietary functionality only through a real supported service. Document unsupported features plainly.
 
@@ -110,3 +110,12 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Очередь, редактирование/удаление, уточнение текущей задачи на безопасной границе шага.
 - [x] Диктовка, реальная звуковая визуализация, настройки ASR, native multipart adapter.
 - [ ] Подключение предоставленного пользователем ASR API и проверка реального распознавания речи.
+
+## M8 — Optional projects and execution hosts (0.2.0)
+
+- [x] New Chat opens a project-optional start screen; project search and explicit projectless choice.
+- [x] Separate workspace directory per projectless chat; real tools/PTY/history/drafts/access/context work without Git.
+- [x] Local versus SSH host selection; server-scoped project picker, native local folder picker, explicit remote path entry.
+- [x] SSH tunnel lifecycle and authentication; generation guards and server identity independent of ephemeral port.
+- [x] Regression coverage for new-chat, workspace failure, duplicate send, stale SSH handshake and host isolation.
+- [x] Final packaged-native local/SSH chat, tools, PTY, archive/restore, relaunch and installation recorded in VERIFICATION.

@@ -1,5 +1,32 @@
 # Verification record
 
+## Optional projects and SSH execution — 0.2.0, 2026-09-22
+
+### Automated checks and final package
+
+- `env -u NODE_PATH npm test`: **83/83 passed**, preserving the previous 68 tests and adding 15 workspace/host regressions. Covers lazy per-chat workspace creation, duplicate submissions, failed/stale preparations, new-chat versus resume, stable SSH identity, local/remote drafts and PTY isolation, failed remote never falling back to Mac, late handshakes, auth non-persistence, deleted-session reconciliation, non-Git folders and Medium defaults.
+- TypeScript + Vite production build, `cargo check`, `cargo fmt`, `git diff --check`: passed. `cargo test --lib`: **5/5 passed**, including SSH argument validation, mandatory known-host verification and workspace traversal/injection rejection.
+- Final `env -u NODE_PATH npm run tauri build -- --bundles app,dmg`: passed. `hdiutil verify`: **VALID**.
+- Installed `/Applications/OpenCode Desktop.app` reports **0.2.0**, and its executable matches the final build. Existing `~/Applications` and Desktop links still resolve correctly; the old Qwen launcher is preserved. Previous installed version backed up locally.
+- Executable SHA256: `2564a5754e5f2b0cd077d2aa71c264848abd43336ef3489b65e6da358445c194`.
+- DMG SHA256: `752dab42bb118d9f0591a801257ab2281c0e767c0f1d298fb22962a1d166d26c`. A matching copy is in Downloads.
+
+### Real native acceptance
+
+These were actual packaged Tauri UI actions with OpenCode 1.18.18, not only unit tests. Inference checks used local Qwen3.8 Flash Next / Medium sequentially, in app-owned test directories. No user project was modified.
+
+- New Chat opens an enabled composer, optional project picker and explicit projectless choice. Local and remote execution selectors are independent of project selection; local project menus list actual server projects.
+- Opening the terminal before sending a prompt creates a separate managed workspace. Real xterm `pwd; uname -s` showed its Mac path and Darwin. A subsequent UI prompt invoked the real read tool in that workspace and returned the exact fixture marker `LOCAL_PROJECTLESS_FILE_020`.
+- Context meter for that chat showed **9208/131072**, compaction threshold **81920**, remaining **72712**. Medium was confirmed by UI and actual message metadata. Automatic compaction uses the unchanged existing OpenCode configuration; no extra long-context inference was forced for this release.
+- A temporary, isolated OpenCode instance on a POSIX SSH host exercised the actual native tunnel and API Basic authentication: HTTP, streamed chat and PTY all worked. Terminal output showed the remote directory, Linux and the remote host. The real remote read tool returned `REMOTE_PROJECTLESS_FILE_020`; context showed **8159/131072**.
+- Remote project selection accepted the real server directory through its path dialog; a nonexistent server path was rejected by the file API. It did not open a Mac folder picker. Returning to Local restored local project/history/model state without remote entries leaking across hosts.
+- Local projectless chat archive and restore worked through the native UI. Its history survived app exit, final installation and relaunch. The installed final build displayed the prior read result and context usage, opened a fresh projectless terminal, and reported app **0.2.0**, engine **1.18.18**, SSE **open** in settings.
+- Temporary remote engine, its temporary data/config, forwarding connection, remote test workspace and test connection profile were removed. Test PTYs were closed. The independently managed local OpenCode server remained healthy and was not restarted. The app is left on New Chat / this computer.
+
+### Scope and remaining limitations
+
+See [workspace/host contract](WORKSPACES.md). The remote engine must already exist and serve its API on remote loopback; Desktop owns only its SSH connection. SSH requires a working key and known host. API passwords are memory-only with standard HTTP user `opencode`; no Keychain persistence/custom HTTP username yet. Managed chat folders are not a filesystem sandbox. This Apple Silicon build is not Developer ID notarized. Full Codex feature/pixel parity, cloud execution and Windows remote workspace creation are not claimed.
+
 ## Window dragging hotfix — 0.1.1, 2026-09-22
 
 - Root cause: the custom titlebar invoked `start_dragging` without the required capability; bare drag regions also excluded their nested label/spacer hit targets. See [Tauri window guidance](https://v2.tauri.app/learn/window-customization/).

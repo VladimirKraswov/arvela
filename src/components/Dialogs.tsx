@@ -6,13 +6,15 @@ import { DEFAULT_BASE_URL } from "../api/client";
 
 export function SettingsDialog() {
   const s = useAppState();
-  const [endpoint, setEndpoint] = useState(s.prefs.endpoint);
+  const [endpoint, setEndpoint] = useState(
+    s.prefs.localEndpoint ?? s.prefs.endpoint,
+  );
   const [asr, setAsr] = useState(s.prefs.asr ?? defaultAsr);
   const [asrKey, setKey] = useState(getAsrKey(asr.endpoint));
   const [asrError, setAsrError] = useState("");
   useEffect(() => {
     if (s.ui.settingsOpen) {
-      setEndpoint(s.prefs.endpoint);
+      setEndpoint(s.prefs.localEndpoint ?? s.prefs.endpoint);
       setAsr(s.prefs.asr ?? defaultAsr);
       setKey(getAsrKey(s.prefs.asr?.endpoint ?? ""));
       setAsrError("");
@@ -43,6 +45,14 @@ export function SettingsDialog() {
             placeholder={DEFAULT_BASE_URL}
           />
         </label>
+        <button
+          className="btn"
+          onClick={() => {
+            store.setUi({ settingsOpen: false, hostDialogOpen: true });
+          }}
+        >
+          Удалённые компьютеры…
+        </button>
         <div className="row">
           <span>Оформление</span>
           <select
@@ -162,7 +172,8 @@ export function SettingsDialog() {
               });
               setAsrKey(asr.endpoint, asrKey);
               store.setUi({ settingsOpen: false });
-              if (endpoint !== s.prefs.endpoint) void store.connect(endpoint);
+              if (endpoint !== (s.prefs.localEndpoint ?? s.prefs.endpoint))
+                void store.connect(endpoint);
             }}
           >
             Сохранить и подключиться
@@ -233,60 +244,62 @@ export function Toast() {
 
 export function ConnectionGate() {
   const s = useAppState();
-  const [endpoint, setEndpoint] = useState(s.prefs.endpoint);
+  const remote = store.currentHost();
+  const [endpoint, setEndpoint] = useState(
+    s.prefs.localEndpoint ?? s.prefs.endpoint,
+  );
   if (s.connection.phase === "connected") return null;
   return (
     <div className="gate" role="alert" aria-live="polite">
       <h2>
         {s.connection.phase === "connecting"
-          ? "Connecting to OpenCode…"
-          : s.connection.phase === "incompatible"
-            ? "Version compatibility warning"
-            : "Cannot reach OpenCode server"}
+          ? "Подключение к OpenCode…"
+          : `Нет подключения · ${store.hostLabel()}`}
       </h2>
       <p>
-        {s.connection.phase === "connecting" ? (
-          "Looking for the local OpenCode service."
-        ) : s.connection.phase === "incompatible" ? (
-          (s.connection.error ??
-          "The installed OpenCode version is outside the tested range.")
+        {remote ? (
+          <>
+            Проверьте SSH-доступ и сервер OpenCode на {remote.target}. Задачи не
+            будут запускаться на этом Mac вместо удалённой машины.
+          </>
         ) : (
           <>
-            OpenCode Desktop talks to an already running{" "}
-            <code>opencode serve</code> on loopback. Start it separately (for
-            example <code>opencode serve --port 4096</code>), then retry. This
-            app never kills or replaces an externally managed server.
+            Запустите локальный{" "}
+            <code>opencode serve --hostname 127.0.0.1 --port 4096</code> и
+            повторите подключение. Движок устанавливается и обновляется отдельно
+            от приложения.
           </>
         )}
       </p>
-      {s.connection.error && s.connection.phase === "disconnected" && (
-        <p style={{ color: "var(--err)" }}>{s.connection.error}</p>
+      {s.connection.error && (
+        <p className="composer-error">{s.connection.error}</p>
       )}
-      <label
-        style={{
-          fontSize: 12,
-          color: "var(--text-dim)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 5,
-        }}
-      >
-        Endpoint
-        <input
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-          spellCheck={false}
-        />
-      </label>
+      {remote ? (
+        <button
+          className="btn"
+          onClick={() => store.setUi({ hostDialogOpen: true })}
+        >
+          Настроить подключение / ввести пароль
+        </button>
+      ) : (
+        <label>
+          Адрес локального сервера
+          <input
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+            spellCheck={false}
+          />
+        </label>
+      )}
       <div className="btn-row" style={{ justifyContent: "flex-end" }}>
         <button
           className="btn"
-          onClick={() => void store.connect(endpoint)}
           disabled={s.connection.phase === "connecting"}
+          onClick={() =>
+            void (remote ? store.retryConnection() : store.connect(endpoint))
+          }
         >
-          {s.connection.phase === "connecting"
-            ? "Retrying…"
-            : "Retry connection"}
+          Повторить подключение
         </button>
       </div>
     </div>

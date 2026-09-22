@@ -197,7 +197,7 @@ export function TerminalPanel() {
     setError(null);
     if (!dir) {
       setStatus("error");
-      setError("Select a project before opening its terminal.");
+      setError("Начните чат или откройте терминал снова для подготовки рабочей папки.");
       return;
     }
     const term = termRef.current;

@@ -2040,3 +2040,275 @@ kbd {
   max-height: calc(100vh - 72px);
   overflow-y: auto;
 }
+
+/* New chat: project is optional; execution host is an independent choice. */
+.workspace-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 4px 0 12px;
+}
+.workspace-choice > small {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.workspace-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  padding: 7px 10px;
+  font-size: 15px;
+  max-width: 460px;
+}
+.workspace-trigger:hover,
+.host-trigger:hover {
+  background: var(--bg-sunken);
+}
+.workspace-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.welcome .welcome-context {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+.workspace-popover,
+.host-popover {
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: auto;
+}
+.workspace-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px 11px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 5px;
+  color: var(--text-dim);
+}
+.workspace-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--text);
+  box-shadow: none;
+  padding: 2px;
+  outline: none;
+  font-size: 13px;
+}
+.workspace-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+}
+.workspace-option:hover,
+.workspace-option:focus-visible {
+  background: var(--bg-sunken);
+}
+.workspace-option > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workspace-option small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11px;
+  margin-top: 3px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-options {
+  max-height: 280px;
+  overflow: auto;
+}
+.picker-section {
+  padding: 11px 10px 5px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+.picker-add {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  margin-top: 5px;
+}
+.picker-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 0 10px 8px;
+}
+.host-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  padding: 4px 5px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.host-trigger span {
+  max-width: 165px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-host {
+  padding: 2px 15px 7px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-host .host-trigger {
+  width: 100%;
+  font-size: 11px;
+}
+.sidebar-host .host-trigger > span {
+  flex: 1;
+  text-align: left;
+}
+.execution-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 7px;
+  color: var(--text-dim);
+  font-size: 11px;
+  max-width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.composer-footer {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.workspace-caption {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-progress {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 0 10px 8px;
+}
+.chat-index-item {
+  width: 100%;
+  padding-right: 8px;
+}
+.host-dialog {
+  width: min(520px, calc(100vw - 40px));
+  max-height: 85vh;
+  overflow: auto;
+}
+.dialog-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.dialog-heading h3 {
+  margin: 0;
+}
+.dialog-description {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 15px 0;
+}
+.host-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.host-dialog .row {
+  gap: 12px;
+  align-items: start;
+}
+.host-dialog .row label {
+  flex: 1;
+  min-width: 0;
+}
+.host-dialog .row .port-input {
+  flex: 0 0 120px;
+}
+.host-dialog input {
+  width: 100%;
+  font-size: 13px;
+}
+.host-dialog .btn-row {
+  justify-content: flex-end;
+}
+.connection-help {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 5px 0 17px;
+  line-height: 1.5;
+}
+.connection-help summary {
+  cursor: pointer;
+}
+.connection-help code {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 7px;
+  font-size: 11px;
+  user-select: text;
+}
+.saved-hosts {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 4px;
+}
+.saved-hosts > div:not(.picker-section) {
+  display: flex;
+  align-items: center;
+}
+.saved-hosts > div > button:first-child {
+  flex: 1;
+  text-align: left;
+  border: 0;
+  background: none;
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.saved-hosts > div > button:first-child:hover {
+  background: var(--bg-sunken);
+}
+.saved-hosts small {
+  display: block;
+  color: var(--text-faint);
+  margin-top: 3px;
+}

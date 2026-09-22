@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, string> = {
+  monitor: "M3 3h18v13H3zM12 16v5M8 21h8",
+  server: "M3 3h18v7H3zM3 14h18v7H3zM7 6h.01M7 17h.01M16 6h2M16 17h2",
   mic: "M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8",
   plus: "M12 5v14M5 12h14",
   new: "M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7M16 3l5 5M10 14l2-6 7-7 5 5-7 7z",

@@ -6,6 +6,7 @@ import type { ServerEvent } from "./types";
 
 export interface EventStreamOptions {
   url: string;
+  headers?: Record<string, string>;
   signal: AbortSignal;
   onEvent: (event: ServerEvent) => void;
   onState: (
@@ -22,7 +23,7 @@ export async function runEventStream(opts: EventStreamOptions): Promise<void> {
     opts.onState(attempt === 0 ? "connecting" : "reconnecting");
     try {
       const res = await fetch(opts.url, {
-        headers: { Accept: "text/event-stream" },
+        headers: { ...opts.headers, Accept: "text/event-stream" },
         signal: opts.signal,
         cache: "no-store",
       });

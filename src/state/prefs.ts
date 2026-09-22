@@ -1,3 +1,5 @@
+import type { RemoteHost } from "../native/hosts";
+import type { Session } from "../api/types";
 import type { QueuedPrompt } from "./queue";
 import type { AccessMode } from "./access";
 import type { AsrSettings } from "../voice/asr";
@@ -5,6 +7,16 @@ import type { AsrSettings } from "../voice/asr";
 // OpenCode owns sessions, models, credentials. No engine data is rewritten here.
 
 export interface Prefs {
+  // Stable server identity is independent of an ephemeral SSH forwarding port.
+  workspaceKey?: string;
+  activeHost?: string;
+  localEndpoint?: string;
+  remoteHosts?: RemoteHost[];
+  projectlessDirectories?: string[];
+  projectlessSessions?: Session[];
+  projectlessRoot?: string;
+  newChatMode?: "project" | "projectless";
+
   queues?: Record<string, QueuedPrompt[]>;
   newAccess?: AccessMode;
   asr?: AsrSettings;
@@ -124,9 +136,13 @@ export function draftKey(
 }
 
 /** Server-owned IDs and drafts never migrate into another endpoint's workspace. */
-export function switchEndpointPrefs(prefs: Prefs, endpoint: string): Prefs {
+export function switchEndpointPrefs(
+  prefs: Prefs,
+  endpoint: string,
+  workspaceKey = endpoint,
+): Prefs {
   const { endpointState = {}, ...current } = prefs;
-  const saved = endpointState[endpoint];
+  const saved = endpointState[workspaceKey];
   return {
     ...DEFAULT_PREFS,
     theme: prefs.theme,
@@ -144,6 +160,13 @@ export function switchEndpointPrefs(prefs: Prefs, endpoint: string): Prefs {
       ]),
     ),
     endpoint,
-    endpointState: { ...endpointState, [prefs.endpoint]: current },
+    workspaceKey,
+    activeHost: prefs.activeHost,
+    localEndpoint: prefs.localEndpoint,
+    remoteHosts: prefs.remoteHosts,
+    endpointState: {
+      ...endpointState,
+      [prefs.workspaceKey ?? prefs.endpoint]: current,
+    },
   };
 }

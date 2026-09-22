@@ -1,6 +1,6 @@
 [package]
 name = "opencode-desktop"
-version = "0.1.1"
+version = "0.2.0"
 description = "Independent desktop client for OpenCode"
 authors = ["OpenCode Desktop contributors"]
 edition = "2021"
