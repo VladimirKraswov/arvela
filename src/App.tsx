@@ -1,51 +1,165 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { store, useAppState, applyTheme } from "./state/store";
+import { Sidebar } from "./components/Sidebar";
+import { TopBar } from "./components/TopBar";
+import { ChatView } from "./components/ChatView";
+import { Composer } from "./components/Composer";
+import { RightPanel } from "./components/RightPanel";
+import { ConnectionGate, DeleteConfirm, SettingsDialog, Toast } from "./components/Dialogs";
+import { TerminalPanel } from "./components/TerminalPanel";
+import { useEffect } from "react";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+/** Pointer-drag horizontal splitter: initial width follows movementX, clamped. */
+function startResize(opts: { initial: number; min: number; max: number; apply: (px: number) => void }) {
+  let current = opts.initial;
+  const move = (e: PointerEvent) => {
+    current = Math.min(opts.max, Math.max(opts.min, current + e.movementX));
+    opts.apply(current);
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+export default function App() {
+  const s = useAppState();
+
+  useEffect(() => {
+    // Sequential startup: connect() only touches projects after health succeeded.
+    // connect() is idempotent, so a StrictMode double-invoke shares one attempt.
+    applyTheme(store.state.prefs.theme);
+    void store.connect();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "n" && !e.shiftKey) {
+        e.preventDefault();
+        void store.newSession();
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        store.setLayout({ rightOpen: !store.state.prefs.layout.rightOpen });
+      } else if (e.key === "`" && (e.ctrlKey || (mod && e.shiftKey))) {
+        e.preventDefault();
+        store.setLayout({ bottomOpen: !store.state.prefs.layout.bottomOpen });
+      } else if (e.key === "Escape") {
+        if (store.state.ui.settingsOpen) store.setUi({ settingsOpen: false });
+        if (store.state.ui.confirmDelete) store.setUi({ confirmDelete: null });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const layout = s.prefs.layout;
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="app-shell">
+      <div className="titlebar">
+        <span className="app-name">OpenCode Desktop</span>
+        <span className="spacer" />
+        <ConnPill />
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+      <div className="app-body">
+        <Sidebar />
+        <div
+          className="resizer-v"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          onPointerDown={(e) => {
+            (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+            startResize({ initial: layout.sidebarWidth, min: 180, max: 420, apply: (px) => store.setLayout({ sidebarWidth: px }) });
+          }}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+        <div className="center-col">
+          <TopBar />
+          <div className="center-main">
+            <div className="chat-col">
+              {s.connection.phase === "connected" || s.connection.phase === "connecting" ? (
+                <>
+                  <ChatView />
+                  <Composer />
+                </>
+              ) : (
+                <ConnectionGate />
+              )}
+            </div>
+            {layout.rightOpen && (
+              <>
+                <div
+                  className="resizer-v"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize review panel"
+                  onPointerDown={(e) => {
+                    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                    startResize({ initial: layout.rightWidth, min: 240, max: 720, apply: (px) => store.setLayout({ rightWidth: px }) });
+                  }}
+                />
+                <RightPanel />
+              </>
+            )}
+          </div>
+          {layout.bottomOpen && (
+            <>
+              <div
+                className="resizer-h"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize terminal panel"
+                onPointerDown={(e) => {
+                  (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                  const initial = layout.bottomHeight;
+                  let current = initial;
+                  const move = (ev: PointerEvent) => {
+                    current = Math.min(600, Math.max(90, current - ev.movementY));
+                    store.setLayout({ bottomHeight: current });
+                  };
+                  const up = () => {
+                    window.removeEventListener("pointermove", move);
+                    window.removeEventListener("pointerup", up);
+                  };
+                  window.addEventListener("pointermove", move);
+                  window.addEventListener("pointerup", up);
+                }}
+              />
+              <div className="bottom-panel" style={{ height: layout.bottomHeight }}>
+                <TerminalPanel />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <SettingsDialog />
+      <DeleteConfirm />
+      <Toast />
+    </div>
   );
 }
 
-export default App;
+function ConnPill() {
+  const s = useAppState();
+  const { phase, streamState, version } = s.connection;
+  const streamOk = streamState === "open" || (streamState === "idle" && !s.directory);
+  const cls = phase === "connected" ? (streamOk ? "ok" : "warn") : phase === "connecting" ? "warn" : "bad";
+  const label =
+    phase === "connected"
+      ? streamOk
+        ? `OpenCode ${version}`
+        : `OpenCode ${version} · reconnecting`
+      : phase === "connecting"
+        ? "Connecting…"
+        : phase === "incompatible"
+          ? "Incompatible version"
+          : "Disconnected";
+  return (
+    <button className="conn-pill" onClick={() => store.setUi({ settingsOpen: true })} title={s.connection.error ?? s.connection.endpoint} aria-label={`Connection: ${label}`}>
+      <span className={`conn-dot ${cls}`} />
+      {label}
+    </button>
+  );
+}

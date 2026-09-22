@@ -3,7 +3,7 @@
 Independent desktop client for OpenCode, built with **Tauri 2, React and TypeScript**.
 The intended experience is a polished coding workspace inspired by Codex: project/session sidebar, streaming conversation, inspectable tool activity, changes and terminal panels.
 
-**Status:** official Tauri starter initialized; the application features described below are a development brief, not completed features. Implementation is delegated to the local Qwen3.8 Flash Next through OpenCode. Update this status as milestones actually pass.
+**Status:** the core application is implemented and verified against a live OpenCode 1.18.18 server: connect/version gate, projects and sessions with per-directory isolation, streaming chat (text/reasoning/tools/patch), real permissions/questions handling, PTY terminal (xterm.js), session/worktree diff with generated-diff fallback, archive/restore, drafts, themes and keyboard flows. Automated suite: 34 tests + strict typecheck. Milestone-by-milestone reality and evidence live in [ROADMAP.md](ROADMAP.md) and [docs/VERIFICATION.md](docs/VERIFICATION.md); packaged-release status is tracked there, not claimed here.
 
 ## Non-negotiable product requirement
 
@@ -15,7 +15,8 @@ Requirements: Node/npm, Rust/Cargo, platform Tauri prerequisites; OpenCode insta
 
 ```sh
 npm ci
-npm run dev          # frontend only; native APIs require Tauri or explicit development mocks
+npm test             # vitest: reducer, transport, store regressions, diff util
+npm run dev          # frontend only on http://localhost:1425 (1420 is commonly taken by other tools)
 npm run tauri dev    # native application
 npm run build
 cargo check --manifest-path src-tauri/Cargo.toml
