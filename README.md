@@ -42,4 +42,4 @@ npm run tauri -- build --bundles app,dmg
 
 ## Репозиторий и установщик
 
-[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.1.0 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.1.0). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.1.1 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.1.1). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.

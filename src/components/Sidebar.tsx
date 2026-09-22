@@ -52,7 +52,7 @@ export function Sidebar() {
       style={{ width: s.prefs.layout.sidebarWidth }}
       aria-label="Проекты и задачи"
     >
-      <div className="sidebar-brand" data-tauri-drag-region>
+      <div className="sidebar-brand" data-tauri-drag-region="deep">
         <Icon name="code" size={21} />
         <strong>OpenCode</strong>
         <span className="spacer" />

@@ -1,3 +1,4 @@
+import { version as appVersion } from "../../package.json";
 import { defaultAsr, getAsrKey, setAsrKey, validateAsr } from "../voice/asr";
 import { useEffect, useState } from "react";
 import { store, useAppState } from "../state/store";
@@ -118,7 +119,7 @@ export function SettingsDialog() {
         </div>
         <div className="kv">
           <span>Версия приложения</span>
-          <b>0.1.0</b>
+          <b>{appVersion}</b>
         </div>
         <div className="kv">
           <span>Подключение</span>

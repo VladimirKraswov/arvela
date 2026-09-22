@@ -5,7 +5,7 @@ export function TopBar() {
     l = s.prefs.layout,
     session = s.sessions.find((x) => x.id === s.activeSessionId);
   return (
-    <header className="topbar" data-tauri-drag-region>
+    <header className="topbar" data-tauri-drag-region="deep">
       {!l.sidebarOpen && (
         <button
           className="icon-btn"

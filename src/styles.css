@@ -1170,6 +1170,11 @@ button:focus-visible,
   padding: 0 14px;
   font-size: 15px;
 }
+/* Prevent selecting window-chrome text while dragging the native titlebar. */
+.native [data-tauri-drag-region] {
+  user-select: none;
+  -webkit-user-select: none;
+}
 .native .sidebar-brand {
   height: 76px;
   padding-top: 27px;
