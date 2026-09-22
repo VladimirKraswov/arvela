@@ -83,6 +83,14 @@ pub fn write_opencode_config(
         return Err("Конфигурация слишком велика".into());
     }
     let path = config_path(&scope, directory.as_deref())?;
+    write_at(&path, &expected, &content)?;
+    Ok(ConfigDocument {
+        path: path.display().to_string(),
+        content,
+    })
+}
+
+fn write_at(path: &Path, expected: &str, content: &str) -> Result<(), String> {
     let current = read_at(&path)?;
     if current != expected {
         return Err(
@@ -118,8 +126,41 @@ pub fn write_opencode_config(
         let _ = fs::remove_file(&temp);
     }
     result?;
-    Ok(ConfigDocument {
-        path: path.display().to_string(),
-        content,
-    })
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refuses_stale_writes_and_keeps_original_backup() {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "ocdesktop-config-test-{}-{stamp}",
+            std::process::id()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("opencode.jsonc");
+        let original = "{\n  // keep this comment\n  \"plugin\": []\n}\n";
+        fs::write(&path, original).unwrap();
+        assert!(write_at(&path, "stale", "{}").is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), original);
+        write_at(&path, original, "{\"plugin\":[\"example\"]}\n").unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "{\"plugin\":[\"example\"]}\n"
+        );
+        let backups: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains("backup-"))
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(fs::read_to_string(backups[0].path()).unwrap(), original);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }

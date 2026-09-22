@@ -253,7 +253,7 @@ export function Composer() {
               <Icon name="stop" size={14} />
             </button>
           )}
-          <button
+          {(!running || !!draft.trim()) && <button
             className="send-btn"
             aria-label={running ? "Добавить в очередь" : "Send prompt"}
             disabled={
@@ -266,7 +266,7 @@ export function Composer() {
             onClick={send}
           >
             <Icon name={running ? "plus" : "arrow"} size={19} />
-          </button>
+          </button>}
           </div>
         </div>
       </div>
