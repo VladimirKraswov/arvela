@@ -5,6 +5,18 @@ import { store, useAppState } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
 export const pickFolder = pickProjectFolder;
+
+function ActivityMark({ id, pending = false }: { id: string; pending?: boolean }) {
+  const status = store.activityStatus(id);
+  if (status?.type === "busy" || status?.type === "retry")
+    return <span className="session-spinner" role="status" aria-label="Задача выполняется" />;
+  if (pending || status?.type === "waiting")
+    return <span className="pending-dot" aria-label="Требуется ответ">!</span>;
+  if (store.isUnread(id))
+    return <span className="unread-dot" role="status" aria-label="Задача завершена, результат не прочитан" />;
+  return null;
+}
+
 export function Sidebar() {
   const s = useAppState();
   const [archived, setArchived] = useState(false),
@@ -18,6 +30,8 @@ export function Sidebar() {
     .sort(
       (a, b) =>
         Number(b === s.directory) - Number(a === s.directory) ||
+        Number(store.hasRunningInDirectory(b)) - Number(store.hasRunningInDirectory(a)) ||
+        Number(store.hasUnreadInDirectory(b)) - Number(store.hasUnreadInDirectory(a)) ||
         Number(b.startsWith("/Volumes/")) - Number(a.startsWith("/Volumes/")) ||
         a.localeCompare(b),
     );
@@ -88,6 +102,7 @@ export function Sidebar() {
                 >
                   <Icon name="chat" size={15} />
                   <span className="title">{chat.title}</span>
+                  <ActivityMark id={chat.id} />
                 </button>
               ))}
             {store.chatSessions().length > 8 && (
@@ -132,6 +147,12 @@ export function Sidebar() {
           >
             <Icon name="folder" size={17} />
             <span>{dir.split("/").filter(Boolean).pop()}</span>
+            {store.hasRunningInDirectory(dir) && (
+              <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />
+            )}
+            {store.hasUnreadInDirectory(dir) && (
+              <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />
+            )}
             {dir === s.directory && <Icon name="down" size={13} />}
           </button>
         ))}
@@ -182,7 +203,6 @@ export function Sidebar() {
           </div>
         )}
         {sessions.map((sess) => {
-          const st = s.chat.sessions[sess.id]?.status ?? s.statuses[sess.id];
           const pending = store.pendingInteraction(sess.id);
           return (
             <div className="session-row-wrap" key={sess.id}>
@@ -199,14 +219,7 @@ export function Sidebar() {
               >
                 <Icon name="chat" size={15} />
                 <span className="title">{sess.title}</span>
-                {(st?.type === "busy" || st?.type === "retry") && (
-                  <span className="busy-dot" aria-label="Задача выполняется" />
-                )}
-                {pending.permissions.length + pending.questions.length > 0 && (
-                  <span className="pending-dot" title="Требуется ответ">
-                    •
-                  </span>
-                )}
+                <ActivityMark id={sess.id} pending={pending.permissions.length + pending.questions.length > 0} />
               </button>
               {archived ? (
                 <button

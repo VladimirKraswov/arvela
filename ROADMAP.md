@@ -91,7 +91,7 @@ These should have capability/evidence-based designs, not placeholder buttons:
 
 - [ ] Isolated worktrees using actual supported OpenCode endpoints; display creation/cleanup ownership and protect dirty worktrees.
 - [ ] Background/multiple tasks and activity inbox, respecting local single-GPU execution limits. Parallel sessions do not imply parallel model capacity.
-- [ ] Skill/agent/tool/MCP inventory and settings with correct server APIs, validation and a review of config changes before saving.
+- [ ] PARTIAL (0.2.1 source): live skill/agent/tool/MCP inventory; local global/project JSONC editor for tool permissions, skill URLs, npm plugins, remote MCP and default agent with backup/conflict guard. Native save UI and explicit review/diff before saving still need final validation/design.
 - [ ] Git workflow refinements, branch review, per-line comments and GitHub integration through existing authenticated CLI with explicit publication actions.
 - [ ] File/image drag and drop, attachment previews, find in history, export with privacy controls, session fork/branching.
 - [ ] Scheduling/automation only after defining persistence, permission boundaries, duplicate prevention and cancellation. Do not silently auto-start work.
@@ -109,7 +109,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Session-scoped режимы доступа OpenCode; существующие правила не теряются молча.
 - [x] Очередь, редактирование/удаление, уточнение текущей задачи на безопасной границе шага.
 - [x] Диктовка, реальная звуковая визуализация, настройки ASR, native multipart adapter.
-- [ ] Подключение предоставленного пользователем ASR API и проверка реального распознавания речи.
+- [x] GigaAM v3 CPU on CT 201 configured as local default; health and OpenAI multipart endpoint tested, including a short Russian synthetic speech sample. Native microphone UI acceptance pending 0.2.1 installation.
 
 ## M8 — Optional projects and execution hosts (0.2.0)
 
@@ -119,3 +119,10 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] SSH tunnel lifecycle and authentication; generation guards and server identity independent of ephemeral port.
 - [x] Regression coverage for new-chat, workspace failure, duplicate send, stale SSH handshake and host isolation.
 - [x] Final packaged-native local/SSH chat, tools, PTY, archive/restore, relaunch and installation recorded in VERIFICATION.
+
+## M9 — Completion attention (0.2.1, pending native delivery)
+
+- [x] Source: spinner for busy/retry sessions and projects; yellow dot only for a completed result not yet viewed; separate pending-request marker.
+- [x] Source: global event monitoring across projectless chats and projects, unread state scoped by server and persisted; focus/scroll/open transitions clear unread, and a fixed system chime fires once per unattended completion.
+- [x] Source: reconnect reconciles previously busy sessions, duplicate events do not repeat sounds, deleted/archived sessions clear attention; focused regression tests cover these transitions.
+- [ ] After the currently running OpenCode NInfer task finishes and is reviewed, verify 0.2.1 in a packaged native app, build DMG, install without stopping the OpenCode server, and publish the verified release.

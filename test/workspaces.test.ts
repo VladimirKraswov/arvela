@@ -8,6 +8,7 @@ vi.mock("../src/native/hosts", async (original) => ({
   ...native,
 }));
 vi.mock("../src/api/events", () => ({
+  globalEventStreamUrl: () => "http://localhost/global/event",
   eventStreamUrl: () => "http://localhost/event",
   runEventStream: vi.fn(() => Promise.resolve()),
 }));

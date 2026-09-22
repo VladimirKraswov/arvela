@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { accessRules, accessMode } from "../src/state/access";
 import { newMessageId } from "../src/state/queue";
 vi.mock("../src/api/events", () => ({
+  globalEventStreamUrl: () => "http://localhost/global/event",
   eventStreamUrl: () => "",
   runEventStream: vi.fn(() => Promise.resolve()),
 }));

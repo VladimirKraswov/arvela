@@ -8,7 +8,8 @@ import {
 } from "../src/voice/asr";
 afterEach(() => vi.unstubAllGlobals());
 it("validates exact ASR endpoint and prevents key reuse at another host", () => {
-  expect(validateAsr(defaultAsr)).toBeTruthy();
+  expect(validateAsr(defaultAsr)).toBeNull();
+  expect(validateAsr({...defaultAsr, endpoint: ""})).toBeTruthy();
   expect(
     validateAsr({
       ...defaultAsr,
@@ -49,7 +50,7 @@ it("posts audio as multipart and parses text, without leaking the key into persi
     ),
   ).toBe("Привет");
   const req = fetch.mock.calls[0][1];
-  expect(req.body.get("model")).toBe("whisper-1");
+  expect(req.body.get("model")).toBe("gigaam-v3-e2e-rnnt");
   expect(req.body.get("file").name).toBe("dictation.m4a");
   expect(req.headers.Authorization).toBe("Bearer fixture-key");
   expect(JSON.stringify(settings)).not.toContain("fixture-key");

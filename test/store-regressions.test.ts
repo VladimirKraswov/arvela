@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({ stream: null as any }));
 vi.mock("../src/api/events", () => ({
+  globalEventStreamUrl: () => "http://localhost/global/event",
   eventStreamUrl: () => "http://127.0.0.1:4096/event",
   runEventStream: vi.fn((opts) => {
     captured.stream = opts;

@@ -3,6 +3,7 @@ import { defaultAsr, getAsrKey, setAsrKey, validateAsr } from "../voice/asr";
 import { useEffect, useState } from "react";
 import { store, useAppState } from "../state/store";
 import { DEFAULT_BASE_URL } from "../api/client";
+import { OpenCodeSettings } from "./OpenCodeSettings";
 
 export function SettingsDialog() {
   const s = useAppState();
@@ -12,12 +13,14 @@ export function SettingsDialog() {
   const [asr, setAsr] = useState(s.prefs.asr ?? defaultAsr);
   const [asrKey, setKey] = useState(getAsrKey(asr.endpoint));
   const [asrError, setAsrError] = useState("");
+  const [tab, setTab] = useState<"general" | "engine">("general");
   useEffect(() => {
     if (s.ui.settingsOpen) {
       setEndpoint(s.prefs.localEndpoint ?? s.prefs.endpoint);
       setAsr(s.prefs.asr ?? defaultAsr);
       setKey(getAsrKey(s.prefs.asr?.endpoint ?? ""));
       setAsrError("");
+      setTab("general");
     }
   }, [s.ui.settingsOpen, s.prefs.endpoint]);
   if (!s.ui.settingsOpen) return null;
@@ -29,12 +32,17 @@ export function SettingsDialog() {
       }
     >
       <div
-        className="modal"
+        className="modal settings-modal"
         role="dialog"
         aria-label="Настройки"
         aria-modal="true"
       >
         <h3>Настройки</h3>
+        <nav className="engine-tabs" aria-label="Раздел настроек">
+          <button className={tab === "general" ? "active" : ""} onClick={() => setTab("general")}>Приложение и диктовка</button>
+          <button className={tab === "engine" ? "active" : ""} onClick={() => setTab("engine")}>OpenCode · инструменты и расширения</button>
+        </nav>
+        {tab === "engine" ? <OpenCodeSettings /> : <>
         <label>
           Адрес локального сервера OpenCode
           <input
@@ -147,6 +155,7 @@ export function SettingsDialog() {
           <span>Агенты</span>
           <b>{s.agents.map((a) => a.name).join(", ") || "—"}</b>
         </div>
+        </>}
         <div
           className="btn-row"
           style={{ justifyContent: "flex-end", marginTop: 4 }}
@@ -157,7 +166,7 @@ export function SettingsDialog() {
           >
             Закрыть
           </button>
-          <button
+          {tab === "general" && <button
             className="btn primary"
             onClick={() => {
               const problem = asr.endpoint.trim() ? validateAsr(asr) : null;
@@ -177,7 +186,7 @@ export function SettingsDialog() {
             }}
           >
             Сохранить и подключиться
-          </button>
+          </button>}
         </div>
       </div>
     </div>

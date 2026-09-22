@@ -21,7 +21,8 @@ import {
   isAllowedBaseUrl,
   OpenCodeClient,
 } from "../api/client";
-import { eventStreamUrl, runEventStream } from "../api/events";
+import { eventStreamUrl, globalEventStreamUrl, runEventStream, type GlobalEvent } from "../api/events";
+import { completionChime } from "../native/sound";
 import type {
   AgentInfo,
   ModelInfo,
@@ -103,6 +104,7 @@ export interface AppState {
   archivedSessions: Session[];
   activeSessionId: string | null;
   statuses: Record<string, SessionStatus>;
+  activityStatuses: Record<string, SessionStatus>;
   chat: ChatRootState;
   providers: ProviderInfo[];
   connectedProviderIds: string[];
@@ -140,6 +142,7 @@ function initialState(): AppState {
       ? (prefs.lastSessionByDir[prefs.selectedDirectory] ?? null)
       : null,
     statuses: {},
+    activityStatuses: {},
     chat: emptyChatRoot(),
     providers: [],
     connectedProviderIds: [],
@@ -176,6 +179,9 @@ class Store {
   client = new OpenCodeClient(this.state.prefs.endpoint);
   private listeners = new Set<() => void>();
   private streamAbort: AbortController | null = null;
+  private globalAbort: AbortController | null = null;
+  private activityDirectories = new Map<string, string>();
+  private conversationAtBottom = true;
   private directoryGeneration = 0;
   private saveTimerQueued = false;
   private connectionGeneration = 0;
@@ -194,6 +200,7 @@ class Store {
     this.connectionGeneration++;
     this.directoryGeneration++;
     this.streamAbort?.abort();
+    this.globalAbort?.abort();
     this.queueArmed.clear();
   }
 
@@ -283,6 +290,7 @@ class Store {
     this.connectionGeneration++;
     this.directoryGeneration++;
     this.streamAbort?.abort();
+    this.globalAbort?.abort();
     this.queueArmed.clear();
     this.mutate((s) => ({
       prefs: {
@@ -363,6 +371,8 @@ class Store {
     this.directoryGeneration++;
     this.streamAbort?.abort();
     this.streamAbort = null;
+    this.globalAbort?.abort();
+    this.globalAbort = null;
     const key = workspaceKey ?? requested;
     if (
       requested !== this.client.baseUrl ||
@@ -372,6 +382,8 @@ class Store {
         key === (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
           ? { ...this.state.prefs, endpoint: requested }
           : switchEndpointPrefs(this.state.prefs, requested, key);
+      if (key !== (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint))
+        this.activityDirectories.clear();
       this.client = new OpenCodeClient(requested);
       this.mutate({
         prefs,
@@ -381,6 +393,7 @@ class Store {
         sessions: [],
         archivedSessions: [],
         statuses: {},
+        activityStatuses: {},
         chat: emptyChatRoot(),
         providers: [],
         connectedProviderIds: [],
@@ -431,6 +444,8 @@ class Store {
       if (this.state.directory)
         await this.setDirectory(this.state.directory, { restoreSession: true });
       else await this.setDirectory(null);
+      if (gen !== this.connectionGeneration) return false;
+      this.startGlobalStream(client, gen);
       return true;
     } catch (e) {
       if (gen === this.connectionGeneration)
@@ -609,6 +624,9 @@ class Store {
       ]);
       if (!current()) return;
       const visible = sessions.filter((s) => !s.parentID);
+      for (const item of visible) this.activityDirectories.set(item.id, directory);
+      for (const [id, status] of Object.entries(statuses))
+        this.observeSessionStatus(id, status, directory);
       this.rememberChatListing(directory, visible);
       this.mutate({
         sessions: visible.filter((s) => !s.time.archived),
@@ -625,7 +643,10 @@ class Store {
   // ---------- session selection / history ----------
 
   async selectSession(sessionId: string | null): Promise<void> {
-    if (sessionId === this.state.activeSessionId) return;
+    if (sessionId === this.state.activeSessionId) {
+      this.markReadIfViewing();
+      return;
+    }
     const directory = this.state.directory;
     this.mutate((s) => ({
       activeSessionId: sessionId,
@@ -641,6 +662,7 @@ class Store {
     if (!this.state.chat.sessions[sessionId]) {
       await this.loadHistory(sessionId, directory);
     }
+    if (!this.state.ui.historyError) this.markReadIfViewing();
     void this.drainQueue();
   }
 
@@ -898,6 +920,7 @@ class Store {
         session.directory,
       );
       if (gen !== this.directoryGeneration) return;
+      this.clearUnread(session.id);
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
         archivedSessions:
@@ -968,6 +991,7 @@ class Store {
     try {
       await this.client.deleteSession(session.id, session.directory);
       if (gen !== this.directoryGeneration) return;
+      this.forgetActivity(session.id);
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
         archivedSessions: s.archivedSessions.filter((x) => x.id !== session.id),
@@ -1181,10 +1205,7 @@ class Store {
     const client = this.client;
     const selected = this.state.activeSessionId;
     const sentAtStatus = this.statusSequence;
-    const status = selected
-      ? (this.state.chat.sessions[selected]?.status ??
-        this.state.statuses[selected])
-      : null;
+    const status = selected ? this.activityStatus(selected) : null;
     if (status?.type === "busy" || status?.type === "retry") return false;
     const slotKey = draftKey(this.state.activeSessionId, directory);
     const model = this.getModelChoice();
@@ -1372,9 +1393,7 @@ class Store {
   }
 
   isRunning(id = this.state.activeSessionId): boolean {
-    const status = id
-      ? (this.state.chat.sessions[id]?.status ?? this.state.statuses[id])
-      : null;
+    const status = id ? this.activityStatus(id) : null;
     return status?.type === "busy" || status?.type === "retry";
   }
 
@@ -1747,6 +1766,9 @@ class Store {
       ]);
       if (gen !== this.directoryGeneration || journal.length >= 20000) return;
       const visible = sessions.filter((s) => !s.parentID);
+      for (const item of visible) this.activityDirectories.set(item.id, directory);
+      for (const [id, status] of Object.entries(statuses))
+        this.observeSessionStatus(id, status, directory);
       this.rememberChatListing(directory, visible);
       this.mutate((s) => {
         // Authoritative reconciliation (R4): the server's status list replaces any
@@ -1796,6 +1818,16 @@ class Store {
   }
 
   private handleEvent(event: ServerEvent): void {
+    if ((event.type === "session.status" || event.type === "session.idle" || event.type === "session.error") &&
+        typeof event.properties?.sessionID === "string") {
+      this.observeSessionStatus(
+        event.properties.sessionID,
+        event.type === "session.status"
+          ? ((event.properties.status as SessionStatus) ?? { type: "idle" })
+          : { type: "idle" },
+        this.state.directory ?? undefined,
+      );
+    }
     if (
       event.type === "session.status" &&
       typeof event.properties?.sessionID === "string"
@@ -1840,6 +1872,160 @@ class Store {
       for (const l of this.listeners) l();
     }
     if (event.type === "session.status") void this.drainQueue();
+  }
+
+  activityStatus(id: string): SessionStatus | undefined {
+    return this.state.activityStatuses[id] ??
+      this.state.chat.sessions[id]?.status ?? this.state.statuses[id];
+  }
+
+  isUnread(id: string): boolean {
+    return Boolean(this.state.prefs.unreadSessions?.[id]);
+  }
+
+  hasUnreadInDirectory(directory: string): boolean {
+    return Object.values(this.state.prefs.unreadSessions ?? {})
+      .some((item) => item.directory === directory);
+  }
+
+  hasRunningInDirectory(directory: string): boolean {
+    return Object.entries(this.state.activityStatuses).some(([id, status]) =>
+      this.activityDirectories.get(id) === directory &&
+      (status.type === "busy" || status.type === "retry"));
+  }
+
+  private isViewing(id: string): boolean {
+    return this.state.activeSessionId === id &&
+      this.conversationAtBottom && !this.state.ui.historyLoading &&
+      typeof document !== "undefined" && !document.hidden && document.hasFocus();
+  }
+
+  setConversationAtBottom(atBottom: boolean): void {
+    if (this.conversationAtBottom === atBottom) return;
+    this.conversationAtBottom = atBottom;
+    if (atBottom) this.markReadIfViewing();
+  }
+
+  markReadIfViewing(): void {
+    const id = this.state.activeSessionId;
+    if (!id || !this.isViewing(id) || !this.isUnread(id)) return;
+    this.clearUnread(id);
+  }
+
+  private clearUnread(id: string): void {
+    if (!this.isUnread(id)) return;
+    const unread = { ...this.state.prefs.unreadSessions };
+    delete unread[id];
+    this.mutate((s) => ({ prefs: { ...s.prefs, unreadSessions: unread } }));
+    this.persistPrefs();
+  }
+
+  private observeSessionStatus(id: string, status: SessionStatus, directory?: string): void {
+    if (directory) this.activityDirectories.set(id, directory);
+    const previous = this.activityStatus(id);
+    const wasRunning = previous?.type === "busy" || previous?.type === "retry";
+    const running = status.type === "busy" || status.type === "retry";
+    const finished = wasRunning && !running && status.type === "idle";
+    if (previous?.type === status.type && !running) return;
+    let unread = this.state.prefs.unreadSessions;
+    if (running && unread?.[id]) {
+      unread = { ...unread };
+      delete unread[id];
+    } else if (finished && !this.isViewing(id)) {
+      unread = { ...unread, [id]: {
+        time: Date.now(), directory: directory ?? this.activityDirectories.get(id),
+      } };
+      if (Object.keys(unread).length > 500)
+        unread = Object.fromEntries(Object.entries(unread)
+          .sort((a, b) => a[1].time - b[1].time).slice(-500));
+    }
+    const changedUnread = unread !== this.state.prefs.unreadSessions;
+    this.mutate((s) => ({
+      activityStatuses: { ...s.activityStatuses, [id]: status },
+      ...(changedUnread
+        ? { prefs: { ...s.prefs, unreadSessions: unread } }
+        : {}),
+    }));
+    if (changedUnread) this.persistPrefs();
+    if (finished && !this.isViewing(id)) void completionChime().catch(() => {});
+  }
+
+  private startGlobalStream(client: OpenCodeClient, generation: number): void {
+    const ctrl = new AbortController();
+    this.globalAbort = ctrl;
+    let opened = false;
+    void runEventStream<GlobalEvent>({
+      url: globalEventStreamUrl(client.baseUrl),
+      headers: client.headers,
+      signal: ctrl.signal,
+      onEvent: ({ directory, payload }) => {
+        if (generation !== this.connectionGeneration || client !== this.client ||
+            !payload || typeof payload.type !== "string") return;
+        if (payload.type === "session.updated" && payload.properties?.info) {
+          const info = payload.properties.info as Session;
+          if (info.id && info.directory) this.activityDirectories.set(info.id, info.directory);
+          if (info.id && info.time?.archived) this.clearUnread(info.id);
+        }
+        const id = payload.properties?.sessionID;
+        if (typeof id !== "string") return;
+        if (payload.type === "session.deleted") {
+          this.forgetActivity(id);
+          return;
+        }
+        if (payload.type === "session.status" || payload.type === "session.idle" || payload.type === "session.error") {
+          this.observeSessionStatus(id,
+            payload.type === "session.status"
+              ? ((payload.properties.status as SessionStatus) ?? { type: "idle" })
+              : { type: "idle" },
+            directory);
+        }
+      },
+      onState: (state) => {
+        if (generation !== this.connectionGeneration || client !== this.client) return;
+        if (state === "open") {
+          if (opened) void this.reconcileBackgroundActivity(client, generation);
+          opened = true;
+        }
+      },
+    });
+  }
+
+  private forgetActivity(id: string): void {
+    this.activityDirectories.delete(id);
+    const unreadSessions = { ...this.state.prefs.unreadSessions };
+    delete unreadSessions[id];
+    const activityStatuses = { ...this.state.activityStatuses };
+    delete activityStatuses[id];
+    this.mutate((s) => ({
+      activityStatuses,
+      sessions: s.sessions.filter((item) => item.id !== id),
+      archivedSessions: s.archivedSessions.filter((item) => item.id !== id),
+      prefs: {
+        ...s.prefs,
+        unreadSessions,
+        projectlessSessions: s.prefs.projectlessSessions?.filter((item) => item.id !== id),
+      },
+    }));
+    this.persistPrefs();
+  }
+
+  private async reconcileBackgroundActivity(client: OpenCodeClient, generation: number) {
+    const directories = new Set<string>();
+    for (const [id, status] of Object.entries(this.state.activityStatuses))
+      if (status.type === "busy" || status.type === "retry") {
+        const dir = this.activityDirectories.get(id);
+        if (dir) directories.add(dir);
+      }
+    for (const dir of directories) {
+      try {
+        const statuses = await client.sessionStatuses(dir);
+        if (generation !== this.connectionGeneration || client !== this.client) return;
+        for (const [id, status] of Object.entries(this.state.activityStatuses))
+          if (this.activityDirectories.get(id) === dir &&
+              (status.type === "busy" || status.type === "retry"))
+            this.observeSessionStatus(id, statuses[id] ?? { type: "idle" }, dir);
+      } catch { /* Keep prior state until a confirmed server status arrives. */ }
+    }
   }
 
   // ---------- ui helpers ----------

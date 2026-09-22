@@ -35,3 +35,26 @@ it("parses LF and split CRLF events and stops cleanly", async () => {
   expect(events.map((x) => x.type)).toEqual(["a", "b"]);
   vi.unstubAllGlobals();
 });
+
+it("accepts the OpenCode global event envelope with its directory", async () => {
+  const ctrl = new AbortController();
+  const events: any[] = [];
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(
+    new ReadableStream({ start(c) {
+      c.enqueue(new TextEncoder().encode(
+        'data: {"directory":"/work/a","payload":{"type":"session.status","properties":{"sessionID":"ses_a","status":{"type":"idle"}}}}\n\n',
+      ));
+      c.close();
+    } }),
+  )));
+  await runEventStream({
+    url: "http://localhost/global/event",
+    signal: ctrl.signal,
+    onState: () => {},
+    onEvent: (event) => { events.push(event); ctrl.abort(); },
+  });
+  expect(events).toEqual([{ directory: "/work/a", payload: {
+    type: "session.status", properties: { sessionID: "ses_a", status: { type: "idle" } },
+  } }]);
+  vi.unstubAllGlobals();
+});

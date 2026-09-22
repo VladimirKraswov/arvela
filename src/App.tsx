@@ -50,6 +50,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const markRead = () => store.markReadIfViewing();
+    window.addEventListener("focus", markRead);
+    document.addEventListener("visibilitychange", markRead);
+    return () => {
+      window.removeEventListener("focus", markRead);
+      document.removeEventListener("visibilitychange", markRead);
+    };
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === "k") {

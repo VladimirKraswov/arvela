@@ -29,14 +29,24 @@ export function ChatView() {
   const lastEventAt = slot?.lastEventAt ?? 0;
 
   useEffect(() => {
+    stickRef.current = true;
+    store.setConversationAtBottom(true);
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [sessionId]);
+
+  useEffect(() => {
     const el = scrollRef.current;
-    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
+    if (el && stickRef.current) {
+      el.scrollTop = el.scrollHeight;
+      store.setConversationAtBottom(true);
+    }
   }, [messages.length, lastEventAt, lastPending, lastQuestion]);
 
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
     stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    store.setConversationAtBottom(stickRef.current);
   };
 
   const streamBroken =

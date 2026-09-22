@@ -5,8 +5,8 @@ export interface AsrSettings {
   language: string;
 }
 export const defaultAsr: AsrSettings = {
-  endpoint: "",
-  model: "whisper-1",
+  endpoint: "http://192.168.31.59:8080/api/asr/v1/audio/transcriptions",
+  model: "gigaam-v3-e2e-rnnt",
   language: "ru",
 };
 let secret = "",

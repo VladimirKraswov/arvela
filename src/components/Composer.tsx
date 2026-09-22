@@ -171,6 +171,22 @@ export function Composer() {
           }}
         />
         <div className="composer-bar">
+          <div className="composer-controls-left">
+            <button className="composer-plus" aria-label="Открыть команды" title="Команды и действия" onClick={() => store.setUi({paletteOpen: true})}>
+              <Icon name="plus" size={19} />
+            </button>
+            <SelectMenu
+              label="Режим доступа"
+              disabled={running || s.ui.sending || !connected}
+              value={store.getAccessMode()}
+              options={[
+                ...accessOptions,
+                ...(store.getAccessMode() === "custom" ? [{value: "custom", label: "Свои разрешения", detail: "Правила этой сессии OpenCode"}] : []),
+              ]}
+              onChange={(mode) => mode !== "custom" && void store.setAccessMode(mode as AccessMode)}
+            />
+          </div>
+          <div className="composer-controls-right">
           <SelectMenu
             label="Модель"
             disabled={!connected}
@@ -226,15 +242,15 @@ export function Composer() {
               store.setAgentOverride(s.directory ?? "*", name)
             }
           />
-          <span className="spacer" />
           <VoiceInput disabled={!connected || s.ui.workspacePreparing} />
           {running && session && (
             <button
-              className="btn small danger"
+              className="stop-btn"
               onClick={() => void store.stopSession(session.id)}
               aria-label="Stop generation"
+              title="Остановить ответ"
             >
-              <Icon name="stop" size={15} />
+              <Icon name="stop" size={14} />
             </button>
           )}
           <button
@@ -251,6 +267,7 @@ export function Composer() {
           >
             <Icon name={running ? "plus" : "arrow"} size={19} />
           </button>
+          </div>
         </div>
       </div>
       <div className="composer-footer">
@@ -276,26 +293,6 @@ export function Composer() {
             ? "Без проекта"
             : s.directory?.split("/").filter(Boolean).pop()}
         </span>
-        <SelectMenu
-          label="Режим доступа"
-          disabled={running || s.ui.sending || !connected}
-          value={store.getAccessMode()}
-          options={[
-            ...accessOptions,
-            ...(store.getAccessMode() === "custom"
-              ? [
-                  {
-                    value: "custom",
-                    label: "Свои разрешения",
-                    detail: "Правила этой сессии OpenCode",
-                  },
-                ]
-              : []),
-          ]}
-          onChange={(mode) =>
-            mode !== "custom" && void store.setAccessMode(mode as AccessMode)
-          }
-        />
         <ContextMeter />
         <span className="spacer" />
         <span>

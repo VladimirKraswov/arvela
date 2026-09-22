@@ -2,7 +2,7 @@ import type { RemoteHost } from "../native/hosts";
 import type { Session } from "../api/types";
 import type { QueuedPrompt } from "./queue";
 import type { AccessMode } from "./access";
-import type { AsrSettings } from "../voice/asr";
+import { defaultAsr, type AsrSettings } from "../voice/asr";
 // Persisted shell preferences. The shell owns theme/layout/directories/drafts;
 // OpenCode owns sessions, models, credentials. No engine data is rewritten here.
 
@@ -16,6 +16,8 @@ export interface Prefs {
   projectlessSessions?: Session[];
   projectlessRoot?: string;
   newChatMode?: "project" | "projectless";
+  // Completion attention belongs to this server and survives app restarts.
+  unreadSessions?: Record<string, { time: number; directory?: string }>;
 
   queues?: Record<string, QueuedPrompt[]>;
   newAccess?: AccessMode;
@@ -47,6 +49,7 @@ export interface Prefs {
 export const DEFAULT_PREFS: Prefs = {
   endpoint: "http://127.0.0.1:4096",
   theme: "dark",
+  asr: defaultAsr,
   selectedDirectory: null,
   lastSessionByDir: {},
   drafts: {},
@@ -74,6 +77,7 @@ export function loadPrefs(): Prefs {
     return {
       ...DEFAULT_PREFS,
       ...parsed,
+      asr: parsed.asr?.endpoint?.trim() ? parsed.asr : defaultAsr,
       layout: { ...DEFAULT_PREFS.layout, ...(parsed.layout ?? {}) },
       lastSessionByDir: parsed.lastSessionByDir ?? {},
       drafts: parsed.drafts ?? {},

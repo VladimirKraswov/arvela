@@ -1,5 +1,7 @@
 mod asr;
+mod config;
 mod hosts;
+mod sound;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -8,7 +10,10 @@ pub fn run() {
             asr::transcribe_audio,
             hosts::ssh_aliases,
             hosts::prepare_chat_workspace,
-            hosts::connect_ssh
+            hosts::connect_ssh,
+            config::read_opencode_config,
+            config::write_opencode_config,
+            sound::completion_chime
         ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

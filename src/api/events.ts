@@ -4,11 +4,16 @@
 
 import type { ServerEvent } from "./types";
 
-export interface EventStreamOptions {
+export interface GlobalEvent {
+  directory?: string;
+  payload: ServerEvent;
+}
+
+export interface EventStreamOptions<T = ServerEvent> {
   url: string;
   headers?: Record<string, string>;
   signal: AbortSignal;
-  onEvent: (event: ServerEvent) => void;
+  onEvent: (event: T) => void;
   onState: (
     state: "connecting" | "open" | "reconnecting" | "closed" | "error",
     detail?: string,
@@ -16,7 +21,7 @@ export interface EventStreamOptions {
   maxBackoffMs?: number;
 }
 
-export async function runEventStream(opts: EventStreamOptions): Promise<void> {
+export async function runEventStream<T = ServerEvent>(opts: EventStreamOptions<T>): Promise<void> {
   const maxBackoff = opts.maxBackoffMs ?? 15000;
   let attempt = 0;
   while (!opts.signal.aborted) {
@@ -52,8 +57,10 @@ export async function runEventStream(opts: EventStreamOptions): Promise<void> {
           const data = dataLines.join("\n");
           if (!data) continue;
           try {
-            const parsed = JSON.parse(data) as ServerEvent;
-            if (parsed && typeof parsed.type === "string") opts.onEvent(parsed);
+            const parsed = JSON.parse(data) as ServerEvent | GlobalEvent;
+            if (parsed && (typeof (parsed as ServerEvent).type === "string" ||
+                typeof (parsed as GlobalEvent).payload?.type === "string"))
+              opts.onEvent(parsed as T);
           } catch {
             // Malformed frame: ignore, resync on next frame.
           }
@@ -89,4 +96,8 @@ export function eventStreamUrl(
   const url = new URL(baseUrl + "/event");
   if (directory) url.searchParams.set("directory", directory);
   return url.toString();
+}
+
+export function globalEventStreamUrl(baseUrl: string): string {
+  return baseUrl + "/global/event";
 }
