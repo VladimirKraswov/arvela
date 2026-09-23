@@ -11,6 +11,7 @@
 - The final rebuilt native app repeated that scenario: after a second V100 read-tool response (`dark`), the project row showed unread; returning through that row restored the answer and cleared the dot without a separate session click. No duplicate GPU jobs were run.
 - Final `npm run tauri -- build --bundles app,dmg` completed for the fixed source; `hdiutil verify` reported **VALID**. DMG SHA256: `387826b644f8d199024b9e6e2716364852f167b3387f8d00eceaddaa977ae4c2`; executable SHA256: `c7cc170b52d6c6c859ee492bb47c3e615045fbf59df5d1e4b7383d910977b497`.
 - Backed up installed 0.2.0 locally, installed 0.2.1 to `/Applications/OpenCode Desktop.app`, and copied the same DMG to `~/Downloads`. Installed executable hash matches the bundle. The `~/Applications` and Desktop aliases still resolve to it; `Qwen OpenCode.app` remains present. The installed app displayed **0.2.1**, OpenCode **1.18.18**, connection **connected**, SSE **open**, and the configured GigaAM endpoint. The pre-existing benchmark conversation and context meter survived installation. The OpenCode server remained healthy on `127.0.0.1:4096`.
+- Source commit `471e78082072ee152c931e61e8617f16573b18d9` was pushed. [GitHub release v0.2.1](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.1) points at that commit; GitHub reports the uploaded DMG SHA256 matching the local artifact.
 
 
 ## Optional projects and SSH execution — 0.2.0, 2026-09-22
