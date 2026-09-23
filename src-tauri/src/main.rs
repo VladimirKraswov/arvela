@@ -2,5 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    opencode_desktop_lib::run()
+    if std::env::args().nth(1).as_deref() == Some("--computer-mcp") {
+        if let Err(error) = opencode_desktop_lib::computer::mcp_main() {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    } else {
+        opencode_desktop_lib::run()
+    }
 }

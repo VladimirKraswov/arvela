@@ -1,6 +1,17 @@
-# OpenCode Desktop — project conversation tree 0.2.2 (DONE)
+# OpenCode Desktop 0.2.3 — accepted locally; publication remaining
 
-Latest owner request: independent expandable projects with their own sessions and Recent at the bottom. Implemented server-scoped expanded groups, per-project caches, global recents/archive pagination, SSE reconciliation, retry/loading states and background session actions. Tests105/105; TypeScript/Vite and native app/DMG build passed. Native acceptance verified GPU Mesh's six sessions, multiple expanded groups without navigation/draft loss, collapse persistence, new chat per project, archive listing and imported history. Installed0.2.2 at /Applications/OpenCode Desktop.app; candidate/installed hashes match; DMG verified and copied to Downloads. Previous app/preferences backed up under ~/.local/share/opencode-desktop/backups/. Same external OpenCode process stayed healthy, no inference/config changes. User's IgorPC chat restored, draft empty, GPU Mesh expanded. Source and DMG publication v0.2.2 authorized by owner; do not restart completed heartbeat. See docs/VERIFICATION.md.
+Scope: project remove/restore, task handoff with important full-history context, and native Mac computer control with independent cursor. User authorized implementation, installation and GitHub publication. Read AGENTS.md and the local Qwen guardrails on resume. Do not restart external OpenCode, change model defaults or resume the completed heartbeat.
+
+Implemented and independently accepted:
+- Remove/restore projects without deleting data; server-scoped preferences. Native hide/restore passed.
+- Handoff UI selects host/project/session, prepares editable context from an isolated tool-disabled full-history fork, archives/cancels only that fork, sends once or appends recipient draft. Real Qwen packet retained all eight early control facts, source unchanged; exactly one recipient message and reply; no parallel inference. UI fallback is intentional; no model-invoked cross-session discovery tool.
+- Cua Driver 0.28.2 signed/notarized separately installed with user-approved Accessibility/Screen Recording. MCP proxy exposes 22 window-scoped background tools, preserves images, adds structured result text for OpenCode, simplifies exact-window schemas, gates every call, and provides emergency revoke. Explicit Connect recovers a revoked runtime; model tools never restart it or bypass other denials.
+- Real Qwen controlled owned TextEdit note and independently verified CUA_BACKGROUND_OK_5729. Physical pointer stayed (1050,-1013), agent cursor (416,355). Owned sessions archived and note removed from user space into ignored .local artifacts. Other-Space input is a documented driver limitation. No foreground/desktop/remote/browser-profile controls.
+
+Final source tests: 126 frontend and 15 Rust pass, fmt/diff checks and full Tauri release build pass. An earlier concurrent-build run timed out in unchanged R3; full isolated rerun passed without weakened assertions or timeout changes.
+Final installed /Applications/OpenCode Desktop.app is 0.2.3; aliases and Downloads DMG retained. hdiutil verify and executable/DMG hashes match .local/install-0.2.3.json and docs/VERIFICATION.md. Final native reconnect after emergency stop passed; both grants shown, 22-tools MCP contract/permission check passed via installed binary. IgorPC restored with empty composer. All model/ASR/host/access configuration retained. OpenCode PID27982 remains unchanged. Backup path in .local/handoff-backup-path. Private evidence .local/computer-acceptance.json, installed-mcp-acceptance.json and handoff-*.
+
+Remaining: commit/push reviewed source/docs/tests, publish v0.2.3 DMG with .local/release-0.2.3.md, verify remote asset SHA256, then record DONE. Do not rebuild or repeat GPU tests without a new defect.
 
 ## Latest follow-up — 2026-09-23, model access (DONE)
 

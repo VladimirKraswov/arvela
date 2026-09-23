@@ -128,7 +128,7 @@ export interface PromptPartInput {
 
 export interface PromptRequest {
   messageID?: string;
-  model: { providerID: string; modelID: string };
+  model?: { providerID: string; modelID: string };
   agent?: string;
   variant?: string;
   parts: Array<TextPartInput | PromptPartInput>;
@@ -320,6 +320,7 @@ export function normalizeMessage(raw: Record<string, unknown>): Message | null {
   return {
     ...base,
     role: "assistant",
+    parentID: typeof raw.parentID === "string" ? raw.parentID : undefined,
     agent: asString(raw.agent) || undefined,
     modelID: asString(raw.modelID) || undefined,
     providerID: asString(raw.providerID) || undefined,

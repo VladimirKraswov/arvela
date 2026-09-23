@@ -1,3 +1,4 @@
+import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
 import { useEffect, useState } from "react";
 import type { Session } from "../api/types";
@@ -104,6 +105,7 @@ export function Sidebar() {
             >
               Переименовать
             </button>
+            <button onClick={() => { setMenu(null); store.setUi({ handoffSource: sess }); }}>Передать задание…</button>
             <button
               onClick={() => {
                 void store.archiveSession(sess);
@@ -127,6 +129,7 @@ export function Sidebar() {
     );
   };
   const recent = s.recentSessionList;
+  const visibleRecent = recent.sessions.filter((session) => !store.isProjectHidden(session.directory));
   return (
     <aside
       className="sidebar"
@@ -189,6 +192,7 @@ export function Sidebar() {
                 {!expanded && store.hasUnreadInDirectory(dir) && <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />}
               </button>
               <button className="project-new icon-btn" aria-label={`Новый чат в ${name}`} title="Новый чат в проекте" onClick={() => void store.setDirectory(dir)}><Icon name="plus" size={15} /></button>
+              <ProjectActions directory={dir} />
             </div>
             {expanded && <div className="project-sessions" aria-label={`Сессии ${name}`}>
               {sessions.slice(0, shown).map((sess) => row(sess, dir))}
@@ -204,18 +208,19 @@ export function Sidebar() {
         })}
         {dirs.length > 7 && <button className="show-more" onClick={() => setAll(!all)}>{all ? "Меньше проектов" : `Все проекты (${dirs.length})`}</button>}
         {dirs.length === 0 && <button className="project-empty" onClick={() => void pickFolder()}>Открыть папку проекта<Icon name="plus" size={16} /></button>}
+        <RemovedProjects />
         <section className="recent-sessions" aria-label={archived ? "Архив" : "Недавние"}>
           <div className="section-label task-heading">
             <span>{archived ? "Архив" : "Недавние"}</span>
             <button className={`icon-btn${archived ? " on" : ""}`} title={archived ? "Показать недавние" : "Архив всех проектов"} aria-label={archived ? "Показать недавние" : "Показать архив"} onClick={() => { setArchived(!archived); setRecentCount(8); }}><Icon name="archive" size={15} /></button>
           </div>
-          {recent.archived === archived && recent.sessions.slice(0, recentCount).map((sess) => row(sess, "recent", true))}
+          {recent.archived === archived && visibleRecent.slice(0, recentCount).map((sess) => row(sess, "recent", true))}
           {recent.loading && <div className="empty-hint" role="status">Загрузка…</div>}
           {recent.error && <div className="empty-hint" role="alert">Не удалось загрузить сессии. <button title={recent.error} onClick={() => void store.loadRecentSessions(archived)}>Повторить</button></div>}
-          {recent.loaded && !recent.loading && !recent.error && recent.sessions.length === 0 && <div className="empty-hint">{archived ? "Архив пуст" : "Здесь появятся ваши недавние чаты"}</div>}
-          {(recent.sessions.length > recentCount || recent.hasMore) && <button className="show-more" disabled={recent.loading} onClick={() => {
+          {recent.loaded && !recent.loading && !recent.error && visibleRecent.length === 0 && <div className="empty-hint">{archived ? "Архив пуст" : "Здесь появятся ваши недавние чаты"}</div>}
+          {(visibleRecent.length > recentCount || recent.hasMore) && <button className="show-more" disabled={recent.loading} onClick={() => {
             setRecentCount(recentCount + 20);
-            if (recentCount + 20 >= recent.sessions.length && recent.hasMore) void store.loadRecentSessions(archived, true);
+            if (recentCount + 20 >= visibleRecent.length && recent.hasMore) void store.loadRecentSessions(archived, true);
           }}>Показать ещё</button>}
         </section>
       </div>

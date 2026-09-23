@@ -136,3 +136,20 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Recent root sessions across projects and projectless workspaces, paginated global archive with restore.
 - [x] Background SSE updates, stale-response protection, retry/loading states, exact directory filtering and session list pagination.
 - [x] Native acceptance and installation of 0.2.2 (see VERIFICATION).
+
+## M11 — Project removal and explicit session handoff (0.2.3)
+
+- [x] Remove/restore project entries without deleting folders or sessions; server-scoped persistence and recent filtering.
+- [x] Select recipient across projects/projectless workspaces and configured local/SSH servers, searchable/paginated.
+- [x] Prepare an editable task packet from full available source history in an isolated, tool-disabled fork; archive on completion and cancel only that fork.
+- [x] Recipient profile/directory preserved, append-only draft mode, busy/permission guards, single send and uncertain-acknowledgement handling.
+- [x] Native acceptance and release installation (see VERIFICATION).
+- [ ] Model-invoked automatic discovery/delegation tool; this release implements the user-authorized UI workflow.
+
+## M12 — Background computer control (0.2.3)
+
+- [x] Separately installed signed Cua Driver with native settings/status/onboarding controls.
+- [x] MCP proxy with window-scoped tools, background delivery, read-only permission checks and shared disable gate; emergency revoke.
+- [x] JSONC-preserving MCP configuration and OpenCode skill, local-host guard, unchanged model/provider/access settings.
+- [x] Native permission onboarding, live tool/vision/overlay acceptance and final installation.
+- [ ] Foreground/desktop control, remote desktop and explicit browser-profile integration; excluded from this release.

@@ -26,6 +26,9 @@ export function TopBar() {
           {store.hostLabel()}
         </span>
       )}
+      {session && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected"} onClick={() => store.setUi({ handoffSource: session })}>
+        <Icon name="handoff" size={17} /><span>Передать</span>
+      </button>}
       {s.ui.vcs?.branch && (
         <span className="branch-label">
           <Icon name="branch" size={14} />

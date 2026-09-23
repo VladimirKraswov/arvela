@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, string> = {
+  handoff: "M4 16V9a3 3 0 0 1 3-3h12m-5-5 5 5-5 5M4 20h.01",
   monitor: "M3 3h18v13H3zM12 16v5M8 21h8",
   server: "M3 3h18v7H3zM3 14h18v7H3zM7 6h.01M7 17h.01M16 6h2M16 17h2",
   mic: "M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8",

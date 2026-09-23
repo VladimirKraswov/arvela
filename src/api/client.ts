@@ -243,12 +243,12 @@ export class OpenCodeClient {
   }
 
   // ---- Sessions ----
-  async recentSessions(archived = false, cursor?: number): Promise<{
+  async recentSessions(archived = false, cursor?: number, filter: { search?: string; directory?: string } = {}): Promise<{
     sessions: Session[]; cursor: number | null;
   }> {
     let next: number | null = null;
     const rows = await this.request<Array<Record<string, unknown>>>("GET", "/experimental/session", {
-      query: { roots: true, archived, limit: 20, cursor },
+      query: { roots: true, archived, limit: 20, cursor, ...filter },
       onResponse: (res) => {
         const value = res.headers.get("x-next-cursor");
         if (value && Number.isFinite(Number(value))) next = Number(value);

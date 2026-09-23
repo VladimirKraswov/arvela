@@ -233,3 +233,13 @@ it("loads root recent sessions across projects with archive mode and cursor pagi
   expect(Object.fromEntries(url.searchParams)).toEqual({ roots: "true", archived: "true", limit: "20", cursor: "789" });
   expect(result.cursor).toBe(456); expect(result.sessions[0].id).toBe("ses_recent");
 });
+
+
+it("retains the parent request ID needed to associate a preparation answer with its prompt", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(200, [{
+    info: { id: "msg_answer", sessionID: "ses_fork", role: "assistant", parentID: "msg_request", finish: "stop", time: { created: 1, completed: 2 } },
+    parts: [{ id: "part_answer", messageID: "msg_answer", sessionID: "ses_fork", type: "text", text: "handoff" }],
+  }])));
+  const page = await new OpenCodeClient().messages("ses_fork", { directory: "/fixture" });
+  expect(page.messages[0].info).toMatchObject({ parentID: "msg_request", finish: "stop", time: { completed: 2 } });
+});

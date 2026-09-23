@@ -92,3 +92,31 @@ it("retries a failed project load and can request sessions beyond the first 50",
   api.listSessions.mockResolvedValue([session("b", "/work/b")]); await store.loadProjectSessions("/work/b", { more: true });
   expect(api.listSessions).toHaveBeenLastCalledWith("/work/b", { limit: 100 }); expect(store.state.projectSessionLists["/work/b"].hasMore).toBe(false);
 });
+
+it("removes a project from the list without changing its current session or touching server data, and restores it", async () => {
+  store.state.prefs.pinnedProjects = ["/work/a", "/work/b"];
+  store.state.prefs.drafts = { "/work/a": "keep me" };
+  const del = vi.spyOn(api, "deleteSession");
+  store.removeProject("/work/a");
+  expect(store.projectDirectories()).not.toContain("/work/a"); expect(store.isProjectHidden("/work/a")).toBe(true);
+  expect(store.state.activeSessionId).toBe("/work/a"); expect(store.state.prefs.drafts["/work/a"]).toBe("keep me");
+  await store.refreshProjects(); expect(store.projectDirectories()).not.toContain("/work/a"); expect(del).not.toHaveBeenCalled();
+  store.restoreProject("/work/a"); expect(store.projectDirectories()).toContain("/work/a");
+});
+
+it("keeps hidden projects host-scoped and adding the folder explicitly restores it", async () => {
+  store.removeProject("/work/a");
+  await store.connectLocal("http://127.0.0.1:4097"); expect(store.isProjectHidden("/work/a")).toBe(false);
+  await store.connectLocal("http://127.0.0.1:4096"); expect(store.isProjectHidden("/work/a")).toBe(true);
+  await store.addProjectDirectory("/work/a"); expect(store.isProjectHidden("/work/a")).toBe(false);
+});
+
+it("appends handoff drafts only to the recipient host/session, preserving existing text and source draft", () => {
+  store.state.prefs.drafts = { source: "source draft", target: "local target" };
+  store.state.prefs.endpointState = { remote: { drafts: { target: "remote target" } } };
+  store.saveHandoffDraft("remote", session("target", "/other"), "handoff");
+  expect(store.state.prefs.drafts.target).toBe("local target"); expect(store.state.prefs.drafts.source).toBe("source draft");
+  expect(store.state.prefs.endpointState.remote.drafts.target).toBe("remote target\n\nhandoff");
+  store.saveHandoffDraft(store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, session("target"), "local handoff");
+  expect(store.state.prefs.drafts.target).toBe("local target\n\nlocal handoff");
+});

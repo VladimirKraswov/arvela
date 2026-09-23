@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { store, useAppState } from "../state/store";
 import { DEFAULT_BASE_URL } from "../api/client";
 import { OpenCodeSettings } from "./OpenCodeSettings";
+import { ComputerSettings } from "./ComputerSettings";
 
 export function SettingsDialog() {
   const s = useAppState();
@@ -13,7 +14,7 @@ export function SettingsDialog() {
   const [asr, setAsr] = useState(s.prefs.asr ?? defaultAsr);
   const [asrKey, setKey] = useState(getAsrKey(asr.endpoint));
   const [asrError, setAsrError] = useState("");
-  const [tab, setTab] = useState<"general" | "engine">("general");
+  const [tab, setTab] = useState<"general" | "engine" | "computer">("general");
   const [engineDirty, setEngineDirty] = useState(false);
   const [unsavedWarning, setUnsavedWarning] = useState(false);
   const close = () => {
@@ -46,8 +47,10 @@ export function SettingsDialog() {
         <nav className="engine-tabs" aria-label="Раздел настроек">
           <button className={tab === "general" ? "active" : ""} onClick={() => setTab("general")}>Приложение и диктовка</button>
           <button className={tab === "engine" ? "active" : ""} onClick={() => setTab("engine")}>OpenCode · инструменты и расширения</button>
+          <button className={tab === "computer" ? "active" : ""} onClick={() => setTab("computer")}>Управление компьютером</button>
         </nav>
         <div hidden={tab !== "engine"}><OpenCodeSettings onDirtyChange={setEngineDirty} /></div>
+        {tab === "computer" && <ComputerSettings />}
         {tab === "general" && <>
         <label>
           Адрес локального сервера OpenCode

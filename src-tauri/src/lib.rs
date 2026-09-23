@@ -1,4 +1,5 @@
 mod asr;
+pub mod computer;
 mod config;
 mod hosts;
 mod sound;
@@ -13,7 +14,10 @@ pub fn run() {
             hosts::connect_ssh,
             config::read_opencode_config,
             config::write_opencode_config,
-            sound::completion_chime
+            sound::completion_chime,
+            computer::computer_status,
+            computer::computer_set_enabled,
+            computer::computer_action
         ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

@@ -93,6 +93,7 @@ export interface UiState {
   settingsOpen: boolean;
   paletteOpen: boolean;
   confirmDelete: Session | null;
+  handoffSource: Session | null;
   toast: string | null;
 }
 
@@ -173,6 +174,7 @@ function initialState(): AppState {
       settingsOpen: false,
       paletteOpen: false,
       confirmDelete: null,
+      handoffSource: null,
       toast: null,
     },
     rev: 0,
@@ -376,6 +378,7 @@ class Store {
     }
     this.queueArmed.clear();
     const gen = ++this.connectionGeneration;
+    this.patchUi({ handoffSource: null });
     this.mutate({ projectSessionLists: {}, recentSessionList: emptyRecentList() });
     this.directoryGeneration++;
     this.streamAbort?.abort();
@@ -620,7 +623,10 @@ class Store {
   private indexSidebarEvent(event: ServerEvent): void {
     if (["session.created", "session.updated"].includes(event.type)) {
       const info = event.properties?.info as Session | undefined;
-      if (info?.id && info.directory && info.time) this.updateSidebarSession(info);
+      if (info?.id && info.directory && info.time) {
+        this.updateSidebarSession(info);
+        if (info.time.archived) this.clearUnread(info.id);
+      }
     }
     if (event.type === "session.deleted") {
       const id = event.properties?.sessionID ?? (event.properties?.info as Session | undefined)?.id;
@@ -641,12 +647,35 @@ class Store {
     }
   }
 
+  isProjectHidden(directory: string): boolean {
+    return this.state.prefs.hiddenProjects?.includes(directory) ?? false;
+  }
+
+  removeProject(directory: string): void {
+    // This is a workspace-list operation, never a filesystem/session deletion.
+    this.mutate((s) => ({ prefs: { ...s.prefs,
+      hiddenProjects: [...new Set([...(s.prefs.hiddenProjects ?? []), directory])],
+      pinnedProjects: s.prefs.pinnedProjects?.filter((dir) => dir !== directory),
+      expandedProjects: { ...s.prefs.expandedProjects, [directory]: false },
+    } }));
+    this.persistPrefs();
+  }
+
+  restoreProject(directory: string): void {
+    this.mutate((s) => ({ prefs: { ...s.prefs,
+      hiddenProjects: s.prefs.hiddenProjects?.filter((dir) => dir !== directory),
+      pinnedProjects: [...new Set([...(s.prefs.pinnedProjects ?? []), directory])],
+    } }));
+    this.persistPrefs();
+  }
+
   async addProjectDirectory(dir: string): Promise<void> {
     const trimmed = dir.trim();
     if (!trimmed) return;
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
+        hiddenProjects: s.prefs.hiddenProjects?.filter((path) => path !== trimmed),
         pinnedProjects: [
           ...new Set([...(s.prefs.pinnedProjects ?? []), trimmed]),
         ],
@@ -883,13 +912,28 @@ class Store {
         ...(this.state.prefs.pinnedProjects ?? []),
         ...(this.state.directory ? [this.state.directory] : []),
       ]),
-    ].filter((p) => p && p !== "/" && !this.isProjectlessDirectory(p));
+    ].filter((p) => p && p !== "/" && !this.isProjectlessDirectory(p) && !this.isProjectHidden(p));
   }
   chatSessions(archived = false): Session[] {
     return (this.state.prefs.projectlessSessions ?? [])
       .filter((x) => Boolean(x.time.archived) === archived)
       .sort((a, b) => b.time.updated - a.time.updated);
   }
+  saveHandoffDraft(key: string, session: Session, text: string): void {
+    this.mutate((s) => {
+      const append = (prefs: Partial<Prefs>) => ({ ...prefs, drafts: { ...prefs.drafts,
+        [session.id]: [prefs.drafts?.[session.id], text].filter(Boolean).join("\n\n"),
+      } });
+      const prefs = key === (s.prefs.workspaceKey ?? s.prefs.endpoint)
+        ? { ...s.prefs, ...append(s.prefs) }
+        : { ...s.prefs, endpointState: { ...s.prefs.endpointState,
+          [key]: append(s.prefs.endpointState?.[key] ?? {}),
+        } };
+      return { prefs };
+    });
+    this.persistPrefs();
+  }
+
   async openChat(session: Session): Promise<void> {
     if (session.directory !== this.state.directory)
       await this.setDirectory(session.directory);

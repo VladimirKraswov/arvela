@@ -1,3 +1,4 @@
+import { HandoffDialog } from "./components/HandoffDialog";
 import { HostDialogs } from "./components/HostDialogs";
 import { store, useAppState, applyTheme } from "./state/store";
 import { Sidebar } from "./components/Sidebar";
@@ -188,6 +189,7 @@ export default function App() {
       {s.ui.paletteOpen && <Palette />}
       <SettingsDialog />
       <HostDialogs />
+      <HandoffDialog />
       <DeleteConfirm />
       <Toast />
     </div>

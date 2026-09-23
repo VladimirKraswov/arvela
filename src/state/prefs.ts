@@ -24,6 +24,7 @@ export interface Prefs {
   asr?: AsrSettings;
   endpointState?: Record<string, Partial<Prefs>>;
   pinnedProjects?: string[];
+  hiddenProjects?: string[];
   expandedProjects?: Record<string, boolean>;
   endpoint: string;
   theme: "light" | "dark" | "system";
