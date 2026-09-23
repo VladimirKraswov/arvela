@@ -126,5 +126,5 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Source: global event monitoring across projectless chats and projects, unread state scoped by server and persisted; focus/scroll/open transitions clear unread, and a fixed system chime fires once per unattended completion.
 - [x] Source: reconnect reconciles previously busy sessions, duplicate events do not repeat sounds, deleted/archived sessions clear attention; focused regression tests cover these transitions.
 - [x] Native finding: project-row restoration now loads the session history if needed and clears unread when the completed answer is visible; regression test added.
-- [x] V100 baseline Qwen3.8-27B added alongside Flash Next with its own context/output profile and coding agent; Flash Next remains default. NInfer held after the independent quality review.
+- [x] V100 Qwen3.8-27B added alongside Flash Next with its own context/output profile and coding agent; Flash Next remains default. The initial HOLD is superseded by the 2026-09-23 corrected NInfer deployment and client acceptance; see LOCAL-MODELS and VERIFICATION.
 - [x] NInfer task finished and its raw measurements were reviewed; native 0.2.1 candidate passed settings, V100 chat, attention and re-open checks. DMG verified and 0.2.1 installed; GitHub publication is recorded in VERIFICATION.

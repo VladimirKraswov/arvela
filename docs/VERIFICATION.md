@@ -1,6 +1,32 @@
 # Verification record
 
+## V100 NInfer migration — configuration only, 2026-09-23
+
+This supersedes the deployment decision in the older 0.2.1 acceptance entry below.
+The app binary remains 0.2.1; only the external model/agent configuration changed.
+
+- The corrected NInfer fork now serves `local-qwen38/qwen-v100`: NVFP4, context262144,
+  Vision, MTP4, prefill2048. Production startup/restart and sole GPU ownership passed.
+- Model and agent JSONC/Markdown were backed up; Flash Next provider/default and
+  existing sessions were preserved. The native model picker displayed both Flash
+  Next and **Qwen3.8 27B NVFP4 (NInfer · V100)** after metadata reload.
+- Real OpenCode `read`/`write`/`bash` task: 8/8 independent tests passed after its fix,
+  test file unchanged. Serving logs confirmed Medium8192 and Low2048 thinking
+  budgets, with the actual OpenCode response ceiling32000.
+- Corrected quality smoke suite:107/108 first attempts; code51/51, tools11/11 and
+  Vision10/10. One exact string-reversal error remains. This does not prove broad
+  quality parity. Old clock/seed/retry methodology errors are documented in the
+  [fork report](https://github.com/VladimirKraswov/ninfer-v100/tree/master/deploy/v100/results/2026-09-23).
+- Cold226022-token input plus image passed scattered-fact/OCR checks and completed
+  normally in604.43s. Old active Qwen GGUF/projector and standalone llama.cpp were
+  removed after client acceptance; unrelated archives and CPU services were retained.
+- No app source change, repackaging or duplicate GPU inference was needed. Current
+  limits, compaction threshold and operation are in [LOCAL-MODELS.md](LOCAL-MODELS.md).
+
 ## Completion attention, settings and V100 model — 0.2.1, 2026-09-23
+
+Historical release-time decision; superseded by the migration entry above. The
+old aggregate quality figures also had scorer/seed/retry methodology problems.
 
 - Independently recalculated all six context-bucket decode medians and the 225K-token cold probe from the raw llama.cpp/NInfer JSONL files. NInfer reached 262144 context and 1.42–1.95× decode, but the 116-case quality suite was 113/116 versus 116/116 for llama.cpp. A code error and fine-detail Vision error reproduced, so NInfer remains stopped and `llama-v100.service` remains healthy. See [model profile and decision](LOCAL-MODELS.md).
 - Added live V100 profile `local-qwen38/qwen-v100` through the separate `127.0.0.1:18021` SSH tunnel. `/v1/models` reports `qwen-v100` and 262144 context; OpenCode `/provider` shows V100 and Flash Next simultaneously. A short OpenCode test request recorded assistant `providerID=local-qwen38`, `modelID=qwen-v100`, `variant=medium`, while global `model` and `default_agent` remain Flash Next/`qwen-build`.

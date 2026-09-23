@@ -1,4 +1,26 @@
-# OpenCode Desktop — 0.2.1 activity, settings, ASR (DONE)
+# OpenCode Desktop — external V100 profile migrated (DONE)
+
+## Current checkpoint — 2026-09-23, NInfer migration
+
+The owner explicitly requested a NInfer fork, corrections and full replacement of
+the active V100 llama.cpp deployment. This supersedes the historical HOLD below.
+NInfer fork `VladimirKraswov/ninfer-v100` now runs as `ninfer-v100.service` on VM5100,
+262144 context, NVFP4 v2, MTP4, prefill2048, KVint8, Vision. Service start/restart
+passed. Old active GGUF/projector, standalone llama.cpp/runtime transfer and unit
+were removed after acceptance; unrelated MIMIR/Gemma archives and CPU services stay.
+The dormant MIMIR GPU unit is guarded against simultaneous startup.
+
+OpenCode V100 ID/tunnel preserved; UI name updated, thinking budgets Low2048,
+Medium8192 and XHigh24576. Real read/write/bash acceptance: independently8/8 tests,
+unchanged test file. Medium/Low forwarding verified in server logs; OpenCode caps
+output at32000. Native0.2.1 picker shows NInfer and Flash Next; Flash Next default
+and original user conversation retained. No new app build/release is needed.
+Fork qualification107/108 smoke cases with one exact string error; cold226022-token
+Vision/retrieval test passed. See docs/LOCAL-MODELS.md and docs/VERIFICATION.md for
+current evidence and old benchmark methodology corrections. No active work remains
+on Desktop; do not re-enable the completed heartbeat.
+
+## Historical 0.2.1 delivery checkpoint
 
 Owner request: while a task runs show a spinner; after it finishes away from the visible, focused conversation show a yellow unread dot and one completion chime; clear it when the result is opened/read. Preserve this across projectless/project navigation, reconnect and app restart. User explicitly requires waiting for the currently running OpenCode task before packaging or replacing the installed app, reviewing that task's final work, then building DMG and updating the app.
 
