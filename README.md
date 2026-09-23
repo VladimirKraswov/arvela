@@ -43,4 +43,6 @@ npm run tauri -- build --bundles app,dmg
 
 ## Репозиторий и установщик
 
-[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.2.0 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.0). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.2.1 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.1). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+
+Параметры двух локальных моделей и решение по V100/NInfer описаны в [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md).

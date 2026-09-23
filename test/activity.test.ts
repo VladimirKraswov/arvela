@@ -78,6 +78,18 @@ it("shows work in progress, then unread completion only after leaving and clears
   expect(store.state.prefs.unreadSessions?.ses_a).toBeUndefined();
 });
 
+it("clears unread when a project row restores an already visible completed session", async () => {
+  await store.setDirectory("/work/a");
+  await store.selectSession("ses_a");
+  status("ses_a", "/work/a", "busy");
+  await store.setDirectory("/work/b");
+  status("ses_a", "/work/a", "idle");
+  expect(store.isUnread("ses_a")).toBe(true);
+  await store.setDirectory("/work/a", { restoreSession: true });
+  expect(store.state.activeSessionId).toBe("ses_a");
+  expect(store.isUnread("ses_a")).toBe(false);
+});
+
 it("does not flag a completion being watched, but preserves one finished while window is unfocused", async () => {
   await store.setDirectory("/work/a");
   await store.selectSession("ses_a");

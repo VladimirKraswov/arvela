@@ -125,4 +125,6 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Source: spinner for busy/retry sessions and projects; yellow dot only for a completed result not yet viewed; separate pending-request marker.
 - [x] Source: global event monitoring across projectless chats and projects, unread state scoped by server and persisted; focus/scroll/open transitions clear unread, and a fixed system chime fires once per unattended completion.
 - [x] Source: reconnect reconciles previously busy sessions, duplicate events do not repeat sounds, deleted/archived sessions clear attention; focused regression tests cover these transitions.
-- [ ] After the currently running OpenCode NInfer task finishes and is reviewed, verify 0.2.1 in a packaged native app, build DMG, install without stopping the OpenCode server, and publish the verified release.
+- [x] Native finding: project-row restoration now loads the session history if needed and clears unread when the completed answer is visible; regression test added.
+- [x] V100 baseline Qwen3.8-27B added alongside Flash Next with its own context/output profile and coding agent; Flash Next remains default. NInfer held after the independent quality review.
+- [x] NInfer task finished and its raw measurements were reviewed; native 0.2.1 candidate passed settings, V100 chat, attention and re-open checks. DMG verified and 0.2.1 installed; GitHub publication is recorded in VERIFICATION.

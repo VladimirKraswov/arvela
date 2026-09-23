@@ -1,5 +1,18 @@
 # Verification record
 
+## Completion attention, settings and V100 model — 0.2.1, 2026-09-23
+
+- Independently recalculated all six context-bucket decode medians and the 225K-token cold probe from the raw llama.cpp/NInfer JSONL files. NInfer reached 262144 context and 1.42–1.95× decode, but the 116-case quality suite was 113/116 versus 116/116 for llama.cpp. A code error and fine-detail Vision error reproduced, so NInfer remains stopped and `llama-v100.service` remains healthy. See [model profile and decision](LOCAL-MODELS.md).
+- Added live V100 profile `local-qwen38/qwen-v100` through the separate `127.0.0.1:18021` SSH tunnel. `/v1/models` reports `qwen-v100` and 262144 context; OpenCode `/provider` shows V100 and Flash Next simultaneously. A short OpenCode test request recorded assistant `providerID=local-qwen38`, `modelID=qwen-v100`, `variant=medium`, while global `model` and `default_agent` remain Flash Next/`qwen-build`.
+- Source checks after the project-row unread fix: 97/97 frontend tests, frontend build, six Rust tests and `git diff --check` passed. The test covers returning via the project row, where the completed session becomes visible without another session-row click.
+- In the packaged native 0.2.1 candidate, the model picker displayed both local GPUs. Selecting V100 changed the context meter to 262144/196608 threshold without borrowing the prior Flash Next token usage; switching back restored Flash Next's 131072 context and its measured usage. The V100-specific `qwen-v100-build` agent and Medium option appeared in the composer.
+- Native settings showed live tools, skills, plugin, MCP and agent sections. In a disposable project, changing `permission.bash` through the UI created a backup, preserved a JSONC comment and unrelated field, and showed the saved value. A second staged edit was rejected after an external file change, proving stale-write protection. The installed GigaAM ASR endpoint/model/language appeared in the native 0.2.1 candidate settings.
+- A real V100 chat in the disposable project called the `read` tool and answered `deny` from that file. While another chat was visible, the project row indicated the running task and then showed a yellow unread dot after completion. Opening the specific session cleared the dot. Native review found that returning via the project row displayed the answer but left the dot; this was fixed in source and is covered by a new regression test.
+- The final rebuilt native app repeated that scenario: after a second V100 read-tool response (`dark`), the project row showed unread; returning through that row restored the answer and cleared the dot without a separate session click. No duplicate GPU jobs were run.
+- Final `npm run tauri -- build --bundles app,dmg` completed for the fixed source; `hdiutil verify` reported **VALID**. DMG SHA256: `387826b644f8d199024b9e6e2716364852f167b3387f8d00eceaddaa977ae4c2`; executable SHA256: `c7cc170b52d6c6c859ee492bb47c3e615045fbf59df5d1e4b7383d910977b497`.
+- Backed up installed 0.2.0 locally, installed 0.2.1 to `/Applications/OpenCode Desktop.app`, and copied the same DMG to `~/Downloads`. Installed executable hash matches the bundle. The `~/Applications` and Desktop aliases still resolve to it; `Qwen OpenCode.app` remains present. The installed app displayed **0.2.1**, OpenCode **1.18.18**, connection **connected**, SSE **open**, and the configured GigaAM endpoint. The pre-existing benchmark conversation and context meter survived installation. The OpenCode server remained healthy on `127.0.0.1:4096`.
+
+
 ## Optional projects and SSH execution — 0.2.0, 2026-09-22
 
 ### Automated checks and final package

@@ -601,6 +601,13 @@ class Store {
       // keep "new conversation" state by default; do not auto-open old sessions
     }
     this.startEventStream(directory, gen);
+    if (opts.restoreSession && this.state.activeSessionId) {
+      const restored = this.state.activeSessionId;
+      if (!this.state.chat.sessions[restored])
+        await this.loadHistory(restored, directory);
+      if (gen !== this.directoryGeneration) return;
+      if (!this.state.ui.historyError) this.markReadIfViewing();
+    }
   }
 
   /**
