@@ -223,3 +223,13 @@ it("returns the server-provided opaque history cursor rather than inventing a me
   });
   expect(page.before).toBe("opaque-cursor-from-server");
 });
+
+it("loads root recent sessions across projects with archive mode and cursor pagination", async () => {
+  const fetcher = vi.fn(async () => new Response(JSON.stringify([{ id: "ses_recent", directory: "/work/b", title: "Recent", time: { created: 1, updated: 456 } }]), { headers: { "content-type": "application/json", "x-next-cursor": "456" } }));
+  vi.stubGlobal("fetch", fetcher);
+  const result = await new OpenCodeClient().recentSessions(true, 789);
+  const url = new URL(String(fetcher.mock.calls[0][0]));
+  expect(url.pathname).toBe("/experimental/session");
+  expect(Object.fromEntries(url.searchParams)).toEqual({ roots: "true", archived: "true", limit: "20", cursor: "789" });
+  expect(result.cursor).toBe(456); expect(result.sessions[0].id).toBe("ses_recent");
+});

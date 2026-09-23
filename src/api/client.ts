@@ -243,6 +243,20 @@ export class OpenCodeClient {
   }
 
   // ---- Sessions ----
+  async recentSessions(archived = false, cursor?: number): Promise<{
+    sessions: Session[]; cursor: number | null;
+  }> {
+    let next: number | null = null;
+    const rows = await this.request<Array<Record<string, unknown>>>("GET", "/experimental/session", {
+      query: { roots: true, archived, limit: 20, cursor },
+      onResponse: (res) => {
+        const value = res.headers.get("x-next-cursor");
+        if (value && Number.isFinite(Number(value))) next = Number(value);
+      },
+    });
+    return { sessions: rows.map(normalizeSession), cursor: next };
+  }
+
   listSessions(
     directory: string | null,
     opts: { limit?: number; signal?: AbortSignal } = {},

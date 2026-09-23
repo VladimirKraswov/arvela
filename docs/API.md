@@ -11,6 +11,7 @@ Useful verified paths (schemas must be checked before use):
 | Health and events | `GET /global/health`, `/global/event`, `/event` |
 | Projects | `GET /project`, `/project/current`, `/path`, `/vcs`, `/vcs/status` |
 | Sessions | `GET/POST /session`, `GET /session/status`, `GET/PATCH /session/{sessionID}` |
+| Global recent/archive | `GET /experimental/session?roots=true&archived=false&limit=20`; `x-next-cursor` header → `cursor` query |
 | History | `GET /session/{sessionID}/message` with optional `limit`/`before` |
 | Execution | `POST /session/{sessionID}/prompt_async`, `/abort`, `/summarize` |
 | Model and agent choices | `GET /provider`, `/agent` |

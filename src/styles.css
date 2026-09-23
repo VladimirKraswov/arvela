@@ -1277,7 +1277,7 @@ kbd {
   font-size: 13px;
   text-align: left;
 }
-.project-row span {
+.project-row .project-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2375,3 +2375,18 @@ kbd {
   color: var(--text-faint);
   margin-top: 3px;
 }
+
+/* Independent, expandable project conversation groups. */
+.project-heading { position: relative; }
+.project-heading .project-row { padding-right: 30px; gap: 7px; }
+.project-row > svg { flex-shrink: 0; }
+.project-new { position: absolute; right: 3px; top: 5px; opacity: 0; }
+.project-heading:hover .project-new, .project-heading:focus-within .project-new { opacity: 1; }
+.project-sessions { margin: 2px 0 8px 19px; padding-left: 7px; border-left: 1px solid var(--border); }
+.project-sessions .session-item { padding-left: 8px; }
+.project-sessions .session-item > svg { display: none; }
+.project-sessions .empty-hint { margin: 0; padding: 8px; font-size: 12px; }
+.session-project { display: block; color: var(--text-faint); font-size: 11px; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; }
+.recent-sessions { margin-top: 18px; }
+.recent-sessions .session-item { align-items: center; }
+.session-row-wrap:focus-within .task-menu { opacity: 1; }

@@ -128,3 +128,11 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Native finding: project-row restoration now loads the session history if needed and clears unread when the completed answer is visible; regression test added.
 - [x] V100 Qwen3.8-27B added alongside Flash Next with its own context/output profile and coding agent; Flash Next remains default. The initial HOLD is superseded by the 2026-09-23 corrected NInfer deployment and client acceptance; see LOCAL-MODELS and VERIFICATION.
 - [x] NInfer task finished and its raw measurements were reviewed; native 0.2.1 candidate passed settings, V100 chat, attention and re-open checks. DMG verified and 0.2.1 installed; GitHub publication is recorded in VERIFICATION.
+
+## M10 — Project conversation tree (0.2.2)
+
+- [x] Independently expandable project groups with their own session lists; expansion does not navigate away from a conversation or reset its draft.
+- [x] Expansion preferences scoped to the selected server and preserved on restart. New chat button per project.
+- [x] Recent root sessions across projects and projectless workspaces, paginated global archive with restore.
+- [x] Background SSE updates, stale-response protection, retry/loading states, exact directory filtering and session list pagination.
+- [x] Native acceptance and installation of 0.2.2 (see VERIFICATION).

@@ -1,5 +1,16 @@
 # Verification record
 
+## Expandable project sidebar — 0.2.2, 2026-09-23
+
+- `env -u NODE_PATH npm test`: **105/105** tests pass, including the original store regressions. New coverage: independent expansion without navigation/draft/SSE changes, persistence on reconnect, directory/subagent filtering, events received during slow snapshots, host isolation, recent pagination, background project actions and retry/load-more. Existing attention/queue/history/model tests still pass.
+- `env -u NODE_PATH npm run tauri build -- --bundles app,dmg`: TypeScript, Vite and native release build pass. Native source unchanged except package version. Existing chunk-size advisory remains.
+- Native macOS candidate: GPU Mesh expands into all six imported sessions. A second project can remain expanded while IgorPC stays selected. A temporary unsent draft survived collapse/re-expand and was then cleared. Blogger Scout and IgorPC opened their real imported history. Project “+” starts a new draft in that project without creating/sending a server request; returning to the existing session works.
+- Collapsed GPU Mesh remained collapsed after quitting/reopening the candidate; expanded state persisted into the installed app. Recent sessions appear below projects, and switching to the global archive lists archived sessions with restore controls. Archive/restore mutations are unit tested in this revision; no user session was archived/deleted during native acceptance.
+- Installed `/Applications/OpenCode Desktop.app` **0.2.2** after checking OpenCode had no running sessions. Previous bundle and WebKit preferences backed up locally. Installed executable SHA256 matches the tested candidate (`13ffa0e9f92a211571e8f895513f45b7cb8b10fe82dd1e8d74f66352839a16e2`). OpenCode process stayed unchanged and healthy at 1.18.18; no inference request or model configuration change.
+- Installed UI shows expanded GPU Mesh, all six sessions and the restored IgorPC history with an empty composer. Existing Applications/Desktop aliases retained. DMG copied to Downloads and passed `hdiutil verify`; SHA256 `a7cdbb9e42dc65ce986a5f220c1b1b67f536863007872691074d9560a49106b2`.
+- Cross-project recent/archive API is verified against OpenCode1.18.18 `/experimental/session`. Unsupported future/older versions show a retryable list error. Apple Silicon ad-hoc local build; no notarization claim.
+
+
 ## V100 NInfer migration — configuration only, 2026-09-23
 
 This supersedes the deployment decision in the older 0.2.1 acceptance entry below.

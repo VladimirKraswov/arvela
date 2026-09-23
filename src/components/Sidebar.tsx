@@ -1,5 +1,5 @@
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Session } from "../api/types";
 import { store, useAppState } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
@@ -25,27 +25,108 @@ export function Sidebar() {
     [title, setTitle] = useState(""),
     [all, setAll] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null);
-  const dirs = store
-    .projectDirectories()
-    .sort(
-      (a, b) =>
-        Number(b === s.directory) - Number(a === s.directory) ||
-        Number(store.hasRunningInDirectory(b)) - Number(store.hasRunningInDirectory(a)) ||
-        Number(store.hasUnreadInDirectory(b)) - Number(store.hasUnreadInDirectory(a)) ||
-        Number(b.startsWith("/Volumes/")) - Number(a.startsWith("/Volumes/")) ||
-        a.localeCompare(b),
+  const projectName = (dir: string) => dir.split("/").filter(Boolean).pop() ?? dir;
+  const pinned = s.prefs.pinnedProjects ?? [];
+  const dirs = store.projectDirectories().sort((a, b) => {
+    const ai = pinned.indexOf(a), bi = pinned.indexOf(b);
+    return (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi) ||
+      Number(b.startsWith("/Volumes/")) - Number(a.startsWith("/Volumes/")) ||
+      projectName(a).localeCompare(projectName(b)) || a.localeCompare(b);
+  });
+  const [shownByProject, setShownByProject] = useState<Record<string, number>>({});
+  const [recentCount, setRecentCount] = useState(8);
+  const expandedKey = JSON.stringify(dirs.filter((dir) => store.isProjectExpanded(dir)));
+  const hostKey = s.prefs.workspaceKey ?? s.prefs.endpoint;
+  useEffect(() => {
+    if (s.connection.phase === "connected") void store.loadRecentSessions(archived);
+  }, [s.connection.phase, hostKey, archived]);
+  useEffect(() => {
+    if (s.connection.phase === "connected") {
+      for (const dir of JSON.parse(expandedKey) as string[]) void store.loadProjectSessions(dir);
+    }
+  }, [s.connection.phase, hostKey, expandedKey]);
+  useEffect(() => { setMenu(null); setRename(null); setShownByProject({}); setRecentCount(8); }, [hostKey]);
+  const row = (sess: Session, prefix: string, recent = false) => {
+    const rowKey = `${prefix}:${sess.id}`;
+    const isArchived = Boolean(sess.time.archived);
+    const pending = store.pendingInteraction(sess.id);
+    return (
+      <div className="session-row-wrap" key={rowKey}>
+        <button
+          className={`session-item${s.activeSessionId === sess.id ? " active" : ""}`}
+          onClick={() => {
+            setMenu(null);
+            if (!isArchived) void store.openChat(sess);
+          }}
+          title={sess.title}
+        >
+          <Icon name="chat" size={15} />
+          <span className="title">{sess.title}{recent && <small className="session-project">{store.isProjectlessDirectory(sess.directory) ? "Без проекта" : projectName(sess.directory)}</small>}</span>
+          <ActivityMark id={sess.id} pending={pending.permissions.length + pending.questions.length > 0} />
+        </button>
+        {isArchived ? (
+          <button
+            className="task-menu"
+            aria-label={`Восстановить ${sess.title}`}
+            onClick={() => void store.unarchiveSession(sess)}
+          >
+            <Icon name="refresh" size={15} />
+          </button>
+        ) : (
+          <button
+            className="task-menu"
+            aria-label={`Действия: ${sess.title}`}
+            onClick={(event) => {
+              setMenuAnchor(event.currentTarget);
+              setMenu(menu === rowKey ? null : rowKey);
+            }}
+          >
+            <Icon name="dots" size={16} />
+          </button>
+        )}
+        {menu === rowKey && (
+          <FloatingPopover
+            anchor={menuAnchor}
+            className="task-popover"
+            role="menu"
+            label="Действия задачи"
+            width={180}
+            placement="bottom"
+            align="end"
+            onClose={() => setMenu(null)}
+          >
+            <button
+              onClick={() => {
+                setRename(sess);
+                setTitle(sess.title);
+                setMenu(null);
+              }}
+            >
+              Переименовать
+            </button>
+            <button
+              onClick={() => {
+                void store.archiveSession(sess);
+                setMenu(null);
+              }}
+            >
+              В архив
+            </button>
+            <button
+              className="danger-text"
+              onClick={() => {
+                store.setUi({ confirmDelete: sess });
+                setMenu(null);
+              }}
+            >
+              Удалить…
+            </button>
+          </FloatingPopover>
+        )}
+      </div>
     );
-  const projectless = store.isProjectless();
-  const sessions = [
-    ...(projectless
-      ? store.chatSessions(archived)
-      : archived
-        ? s.archivedSessions
-        : s.sessions),
-  ].sort((a, b) => b.time.updated - a.time.updated);
-  const currentName = !projectless
-    ? s.directory?.split("/").filter(Boolean).pop()
-    : null;
+  };
+  const recent = s.recentSessionList;
   return (
     <aside
       className="sidebar"
@@ -82,207 +163,61 @@ export function Sidebar() {
         <HostPicker compact />
       </div>
       <div className="sidebar-scroll">
-        {!projectless && store.chatSessions().length > 0 && (
-          <>
-            <div className="section-label">
-              <span>Чаты без проекта</span>
-            </div>
-            {store
-              .chatSessions()
-              .slice(0, 8)
-              .map((chat) => (
-                <button
-                  key={chat.id}
-                  className="session-item chat-index-item"
-                  onClick={() => {
-                    setArchived(false);
-                    void store.openChat(chat);
-                  }}
-                  title={chat.title}
-                >
-                  <Icon name="chat" size={15} />
-                  <span className="title">{chat.title}</span>
-                  <ActivityMark id={chat.id} />
-                </button>
-              ))}
-            {store.chatSessions().length > 8 && (
-              <button
-                className="show-more"
-                onClick={() => void store.newSession()}
-              >
-                Все чаты ({store.chatSessions().length})
-              </button>
-            )}
-          </>
-        )}
-
         <div className="section-label">
           <span>Проекты</span>
-          <button
-            className="icon-btn"
-            aria-label="Добавить проект"
-            title="Открыть папку"
-            onClick={() => void pickFolder()}
-          >
-            <Icon name="plus" size={16} />
-          </button>
-          <button
-            className="icon-btn"
-            aria-label="Обновить проекты"
-            onClick={() => void store.refreshProjects()}
-          >
-            <Icon name="refresh" size={14} />
-          </button>
+          <button className="icon-btn" aria-label="Добавить проект" title="Открыть папку" onClick={() => void pickFolder()}><Icon name="plus" size={16} /></button>
+          <button className="icon-btn" aria-label="Обновить проекты" onClick={() => {
+            void store.refreshProjects();
+            for (const dir of dirs) if (store.isProjectExpanded(dir)) void store.loadProjectSessions(dir, { force: true });
+            void store.loadRecentSessions(archived);
+          }}><Icon name="refresh" size={14} /></button>
         </div>
-        {(all ? dirs : dirs.slice(0, 7)).map((dir) => (
-          <button
-            key={dir}
-            className={`project-row${dir === s.directory ? " selected" : ""}`}
-            title={dir}
-            onClick={() => {
-              setArchived(false);
-              setMenu(null);
-              void store.setDirectory(dir, { restoreSession: true });
-            }}
-          >
-            <Icon name="folder" size={17} />
-            <span>{dir.split("/").filter(Boolean).pop()}</span>
-            {store.hasRunningInDirectory(dir) && (
-              <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />
-            )}
-            {store.hasUnreadInDirectory(dir) && (
-              <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />
-            )}
-            {dir === s.directory && <Icon name="down" size={13} />}
-          </button>
-        ))}
-        {dirs.length > 7 && (
-          <button className="show-more" onClick={() => setAll(!all)}>
-            {all ? "Свернуть" : `Все проекты (${dirs.length})`}
-          </button>
-        )}
-        {dirs.length === 0 && (
-          <button className="project-empty" onClick={() => void pickFolder()}>
-            Открыть папку проекта
-            <Icon name="plus" size={16} />
-          </button>
-        )}
-        <div className="section-label task-heading">
-          <span title={s.directory ?? ""}>
-            {archived
-              ? "Архив"
-              : currentName
-                ? `Задачи · ${currentName}`
-                : "Чаты без проекта"}
-          </span>
-          <button
-            className={`icon-btn${archived ? " on" : ""}`}
-            title="Архив"
-            aria-label="Показать архив"
-            onClick={() => setArchived(!archived)}
-          >
-            <Icon name="archive" size={15} />
-          </button>
-        </div>
-        {s.ui.sessionListLoading && <div className="empty-hint">Загрузка…</div>}
-        {s.ui.sessionListError && (
-          <div className="empty-hint" role="alert">
-            {s.ui.sessionListError}
-            <button onClick={() => void store.refreshSessions()}>
-              Повторить
-            </button>
-          </div>
-        )}
-        {!s.ui.sessionListLoading && sessions.length === 0 && (
-          <div className="empty-hint">
-            {archived
-              ? "Архив пуст"
-              : s.directory
-                ? "Здесь появятся ваши задачи"
-                : "Начните новый чат — проект необязателен"}
-          </div>
-        )}
-        {sessions.map((sess) => {
-          const pending = store.pendingInteraction(sess.id);
-          return (
-            <div className="session-row-wrap" key={sess.id}>
-              <button
-                className={`session-item${s.activeSessionId === sess.id ? " active" : ""}`}
-                onClick={() => {
-                  setMenu(null);
-                  if (!archived)
-                    void (projectless
-                      ? store.openChat(sess)
-                      : store.selectSession(sess.id));
-                }}
-                title={sess.title}
-              >
-                <Icon name="chat" size={15} />
-                <span className="title">{sess.title}</span>
-                <ActivityMark id={sess.id} pending={pending.permissions.length + pending.questions.length > 0} />
+        {(all ? dirs : dirs.slice(0, 7)).map((dir) => {
+          const expanded = store.isProjectExpanded(dir);
+          const list = s.projectSessionLists[dir];
+          const sessions = list?.sessions.filter((session) => !session.time.archived) ?? [];
+          const shown = shownByProject[dir] ?? 8;
+          const name = projectName(dir);
+          return <section className="project-group" key={dir} aria-label={`Проект ${name}`}>
+            <div className="project-heading">
+              <button className={`project-row${dir === s.directory ? " selected" : ""}`} title={dir} aria-label={name} aria-expanded={expanded}
+                onClick={() => { setMenu(null); store.toggleProject(dir); }}>
+                <Icon name={expanded ? "down" : "chevron"} size={12} />
+                <Icon name="folder" size={17} />
+                <span className="project-name">{name}</span>
+                {!expanded && store.hasRunningInDirectory(dir) && <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />}
+                {!expanded && store.hasUnreadInDirectory(dir) && <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />}
               </button>
-              {archived ? (
-                <button
-                  className="task-menu"
-                  aria-label={`Восстановить ${sess.title}`}
-                  onClick={() => void store.unarchiveSession(sess)}
-                >
-                  <Icon name="refresh" size={15} />
-                </button>
-              ) : (
-                <button
-                  className="task-menu"
-                  aria-label={`Действия: ${sess.title}`}
-                  onClick={(event) => {
-                    setMenuAnchor(event.currentTarget);
-                    setMenu(menu === sess.id ? null : sess.id);
-                  }}
-                >
-                  <Icon name="dots" size={16} />
-                </button>
-              )}
-              {menu === sess.id && (
-                <FloatingPopover
-                  anchor={menuAnchor}
-                  className="task-popover"
-                  role="menu"
-                  label="Действия задачи"
-                  width={180}
-                  placement="bottom"
-                  align="end"
-                  onClose={() => setMenu(null)}
-                >
-                  <button
-                    onClick={() => {
-                      setRename(sess);
-                      setTitle(sess.title);
-                      setMenu(null);
-                    }}
-                  >
-                    Переименовать
-                  </button>
-                  <button
-                    onClick={() => {
-                      void store.archiveSession(sess);
-                      setMenu(null);
-                    }}
-                  >
-                    В архив
-                  </button>
-                  <button
-                    className="danger-text"
-                    onClick={() => {
-                      store.setUi({ confirmDelete: sess });
-                      setMenu(null);
-                    }}
-                  >
-                    Удалить…
-                  </button>
-                </FloatingPopover>
-              )}
+              <button className="project-new icon-btn" aria-label={`Новый чат в ${name}`} title="Новый чат в проекте" onClick={() => void store.setDirectory(dir)}><Icon name="plus" size={15} /></button>
             </div>
-          );
+            {expanded && <div className="project-sessions" aria-label={`Сессии ${name}`}>
+              {sessions.slice(0, shown).map((sess) => row(sess, dir))}
+              {list?.loading && <div className="empty-hint" role="status">Загрузка…</div>}
+              {list?.error && <div className="empty-hint" role="alert">Не удалось загрузить сессии. <button title={list.error} onClick={() => void store.loadProjectSessions(dir, { force: true })}>Повторить</button></div>}
+              {list?.loaded && !list.loading && !list.error && sessions.length === 0 && <button className="project-empty" onClick={() => void store.setDirectory(dir)}>Начать первый чат</button>}
+              {(sessions.length > shown || list?.hasMore) && <button className="show-more" disabled={list?.loading} onClick={() => {
+                setShownByProject((prev) => ({ ...prev, [dir]: shown + 20 }));
+                if (shown + 20 >= sessions.length && list?.hasMore) void store.loadProjectSessions(dir, { more: true });
+              }}>Ещё сессии</button>}
+            </div>}
+          </section>;
         })}
+        {dirs.length > 7 && <button className="show-more" onClick={() => setAll(!all)}>{all ? "Меньше проектов" : `Все проекты (${dirs.length})`}</button>}
+        {dirs.length === 0 && <button className="project-empty" onClick={() => void pickFolder()}>Открыть папку проекта<Icon name="plus" size={16} /></button>}
+        <section className="recent-sessions" aria-label={archived ? "Архив" : "Недавние"}>
+          <div className="section-label task-heading">
+            <span>{archived ? "Архив" : "Недавние"}</span>
+            <button className={`icon-btn${archived ? " on" : ""}`} title={archived ? "Показать недавние" : "Архив всех проектов"} aria-label={archived ? "Показать недавние" : "Показать архив"} onClick={() => { setArchived(!archived); setRecentCount(8); }}><Icon name="archive" size={15} /></button>
+          </div>
+          {recent.archived === archived && recent.sessions.slice(0, recentCount).map((sess) => row(sess, "recent", true))}
+          {recent.loading && <div className="empty-hint" role="status">Загрузка…</div>}
+          {recent.error && <div className="empty-hint" role="alert">Не удалось загрузить сессии. <button title={recent.error} onClick={() => void store.loadRecentSessions(archived)}>Повторить</button></div>}
+          {recent.loaded && !recent.loading && !recent.error && recent.sessions.length === 0 && <div className="empty-hint">{archived ? "Архив пуст" : "Здесь появятся ваши недавние чаты"}</div>}
+          {(recent.sessions.length > recentCount || recent.hasMore) && <button className="show-more" disabled={recent.loading} onClick={() => {
+            setRecentCount(recentCount + 20);
+            if (recentCount + 20 >= recent.sessions.length && recent.hasMore) void store.loadRecentSessions(archived, true);
+          }}>Показать ещё</button>}
+        </section>
       </div>
       <div className="sidebar-footer">
         <button

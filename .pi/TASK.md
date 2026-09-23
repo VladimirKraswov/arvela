@@ -1,4 +1,6 @@
-# OpenCode Desktop — external V100 profile migrated (DONE)
+# OpenCode Desktop — project conversation tree 0.2.2 (DONE)
+
+Latest owner request: independent expandable projects with their own sessions and Recent at the bottom. Implemented server-scoped expanded groups, per-project caches, global recents/archive pagination, SSE reconciliation, retry/loading states and background session actions. Tests105/105; TypeScript/Vite and native app/DMG build passed. Native acceptance verified GPU Mesh's six sessions, multiple expanded groups without navigation/draft loss, collapse persistence, new chat per project, archive listing and imported history. Installed0.2.2 at /Applications/OpenCode Desktop.app; candidate/installed hashes match; DMG verified and copied to Downloads. Previous app/preferences backed up under ~/.local/share/opencode-desktop/backups/. Same external OpenCode process stayed healthy, no inference/config changes. User's IgorPC chat restored, draft empty, GPU Mesh expanded. Source and DMG publication v0.2.2 authorized by owner; do not restart completed heartbeat. See docs/VERIFICATION.md.
 
 ## Latest follow-up — 2026-09-23, model access (DONE)
 

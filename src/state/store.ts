@@ -23,6 +23,7 @@ import {
 } from "../api/client";
 import { eventStreamUrl, globalEventStreamUrl, runEventStream, type GlobalEvent } from "../api/events";
 import { completionChime } from "../native/sound";
+import { emptySidebarList, emptyRecentList, mergeSidebarSessions, type SidebarList, type RecentList } from "./sidebar";
 import type {
   AgentInfo,
   ModelInfo,
@@ -102,6 +103,8 @@ export interface AppState {
   directory: string | null;
   sessions: Session[];
   archivedSessions: Session[];
+  projectSessionLists: Record<string, SidebarList>;
+  recentSessionList: RecentList;
   activeSessionId: string | null;
   statuses: Record<string, SessionStatus>;
   activityStatuses: Record<string, SessionStatus>;
@@ -138,6 +141,8 @@ function initialState(): AppState {
     directory: prefs.selectedDirectory,
     sessions: [],
     archivedSessions: [],
+    projectSessionLists: {},
+    recentSessionList: emptyRecentList(),
     activeSessionId: prefs.selectedDirectory
       ? (prefs.lastSessionByDir[prefs.selectedDirectory] ?? null)
       : null,
@@ -195,6 +200,9 @@ class Store {
   private accessChanging = false;
   private compactLocks = new Set<string>();
   private historyJournals = new Set<ServerEvent[]>();
+  private sidebarJournals = new Set<Map<string, Session | null>>();
+  private sidebarRequests = new Map<string, number>();
+  private recentRequest = 0;
 
   dispose(): void {
     this.connectionGeneration++;
@@ -368,6 +376,7 @@ class Store {
     }
     this.queueArmed.clear();
     const gen = ++this.connectionGeneration;
+    this.mutate({ projectSessionLists: {}, recentSessionList: emptyRecentList() });
     this.directoryGeneration++;
     this.streamAbort?.abort();
     this.streamAbort = null;
@@ -392,6 +401,8 @@ class Store {
         projects: [],
         sessions: [],
         archivedSessions: [],
+        projectSessionLists: {},
+        recentSessionList: emptyRecentList(),
         statuses: {},
         activityStatuses: {},
         chat: emptyChatRoot(),
@@ -515,6 +526,108 @@ class Store {
 
   // ---------- projects / directories ----------
 
+  isProjectExpanded(directory: string): boolean {
+    return this.state.prefs.expandedProjects?.[directory] ?? this.state.directory === directory;
+  }
+
+  toggleProject(directory: string): void {
+    const expanded = !this.isProjectExpanded(directory);
+    this.mutate((s) => ({ prefs: { ...s.prefs,
+      expandedProjects: { ...s.prefs.expandedProjects, [directory]: expanded },
+    } }));
+    this.persistPrefs();
+    // Expanding the tree must not change the conversation, draft or event stream.
+    if (expanded) void this.loadProjectSessions(directory);
+  }
+
+  async loadProjectSessions(directory: string, opts: { force?: boolean; more?: boolean } = {}): Promise<void> {
+    if (this.state.connection.phase !== "connected") return;
+    const previous = this.state.projectSessionLists[directory] ?? emptySidebarList();
+    if (!opts.force && (previous.loading || (previous.loaded && !opts.more))) return;
+    const request = (this.sidebarRequests.get(directory) ?? 0) + 1;
+    this.sidebarRequests.set(directory, request);
+    const client = this.client, generation = this.connectionGeneration;
+    const limit = previous.limit + (opts.more ? 50 : 0);
+    const journal = new Map<string, Session | null>();
+    this.sidebarJournals.add(journal);
+    const current = () => client === this.client && generation === this.connectionGeneration &&
+      this.sidebarRequests.get(directory) === request;
+    this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
+      [directory]: { ...previous, loading: true, error: null, limit },
+    } }));
+    try {
+      const [sessions, statuses] = await Promise.all([
+        client.listSessions(directory, { limit }), client.sessionStatuses(directory),
+      ]);
+      if (!current()) return;
+      const scoped = mergeSidebarSessions(sessions, journal).filter((s) => s.directory === directory);
+      for (const session of scoped) this.activityDirectories.set(session.id, directory);
+      for (const [id, status] of Object.entries(statuses))
+        if (!this.activityStatus(id)) this.observeSessionStatus(id, status, directory);
+      this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
+        [directory]: { sessions: scoped, loaded: true, loading: false, error: null, limit,
+          hasMore: sessions.length >= limit },
+      } }));
+    } catch (e) {
+      if (current()) this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
+        [directory]: { ...s.projectSessionLists[directory], loading: false, error: errText(e) },
+      } }));
+    } finally { this.sidebarJournals.delete(journal); }
+  }
+
+  async loadRecentSessions(archived = false, more = false): Promise<void> {
+    if (this.state.connection.phase !== "connected") return;
+    const previous = this.state.recentSessionList;
+    if (more && (!previous.cursor || previous.loading || previous.archived !== archived)) return;
+    const client = this.client, generation = this.connectionGeneration, request = ++this.recentRequest;
+    const journal = new Map<string, Session | null>();
+    this.sidebarJournals.add(journal);
+    const current = () => client === this.client && generation === this.connectionGeneration && request === this.recentRequest;
+    this.mutate({ recentSessionList: { ...(previous.archived === archived ? previous : emptyRecentList()),
+      archived, loading: true, error: null },
+    });
+    try {
+      const page = await client.recentSessions(archived, more ? previous.cursor ?? undefined : undefined);
+      if (!current()) return;
+      const sessions = mergeSidebarSessions([...(more ? previous.sessions : []), ...page.sessions], journal)
+        .filter((s) => Boolean(s.time.archived) === archived);
+      for (const session of sessions) this.activityDirectories.set(session.id, session.directory);
+      this.mutate({ recentSessionList: { ...this.state.recentSessionList, sessions, loaded: true,
+        loading: false, cursor: page.cursor, hasMore: page.cursor !== null },
+      });
+    } catch (e) {
+      if (current()) this.mutate({ recentSessionList: { ...this.state.recentSessionList,
+        loading: false, error: errText(e) },
+      });
+    } finally { this.sidebarJournals.delete(journal); }
+  }
+
+  private updateSidebarSession(session: Session | null, id = session?.id): void {
+    if (!id) return;
+    for (const journal of this.sidebarJournals) journal.set(id, session);
+    const change = new Map([[id, session]]);
+    this.mutate((s) => ({
+      projectSessionLists: Object.fromEntries(Object.entries(s.projectSessionLists).map(([dir, list]) => [dir, {
+        ...list, sessions: mergeSidebarSessions(list.sessions, change).filter((x) => x.directory === dir),
+      }])),
+      recentSessionList: { ...s.recentSessionList,
+        sessions: mergeSidebarSessions(s.recentSessionList.sessions, change)
+          .filter((x) => Boolean(x.time.archived) === s.recentSessionList.archived),
+      },
+    }));
+  }
+
+  private indexSidebarEvent(event: ServerEvent): void {
+    if (["session.created", "session.updated"].includes(event.type)) {
+      const info = event.properties?.info as Session | undefined;
+      if (info?.id && info.directory && info.time) this.updateSidebarSession(info);
+    }
+    if (event.type === "session.deleted") {
+      const id = event.properties?.sessionID ?? (event.properties?.info as Session | undefined)?.id;
+      if (typeof id === "string") this.updateSidebarSession(null, id);
+    }
+  }
+
   async refreshProjects(): Promise<void> {
     if (this.state.connection.phase !== "connected") return;
     try {
@@ -566,6 +679,8 @@ class Store {
       prefs: {
         ...s.prefs,
         selectedDirectory: directory,
+        expandedProjects: directory && !this.isProjectlessDirectory(directory) && !opts.restoreSession
+          ? { ...s.prefs.expandedProjects, [directory]: true } : s.prefs.expandedProjects,
         newChatMode:
           !directory || this.isProjectlessDirectory(directory)
             ? "projectless"
@@ -885,6 +1000,7 @@ class Store {
       this.mutate((s) => ({
         sessions: [session, ...s.sessions.filter((x) => x.id !== session.id)],
       }));
+      this.updateSidebarSession(session);
       await this.selectSession(session.id);
       return session;
     } catch (e) {
@@ -895,14 +1011,15 @@ class Store {
   }
 
   async renameSession(session: Session, title: string): Promise<void> {
-    const gen = this.directoryGeneration;
+    const gen = this.connectionGeneration, client = this.client;
     try {
-      const updated = await this.client.updateSession(
+      const updated = await client.updateSession(
         session.id,
         { title },
         session.directory,
       );
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
+      this.updateSidebarSession(updated);
       this.mutate((s) => ({
         sessions: s.sessions.map((x) => (x.id === updated.id ? updated : x)),
         prefs: {
@@ -913,21 +1030,22 @@ class Store {
         },
       }));
     } catch (e) {
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
       this.patchUi({ toast: `Rename failed: ${errText(e)}` });
     }
   }
 
   async archiveSession(session: Session): Promise<void> {
-    const gen = this.directoryGeneration;
+    const gen = this.connectionGeneration, client = this.client;
     try {
-      const updated = await this.client.updateSession(
+      const updated = await client.updateSession(
         session.id,
         { time: { archived: Date.now() } },
         session.directory,
       );
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
       this.clearUnread(session.id);
+      this.updateSidebarSession(updated);
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
         archivedSessions:
@@ -945,28 +1063,29 @@ class Store {
             x.id === updated.id ? updated : x,
           ),
           lastSessionByDir:
-            s.directory && s.prefs.lastSessionByDir[s.directory] === session.id
-              ? { ...s.prefs.lastSessionByDir, [s.directory]: "" }
+            s.prefs.lastSessionByDir[session.directory] === session.id
+              ? { ...s.prefs.lastSessionByDir, [session.directory]: "" }
               : s.prefs.lastSessionByDir,
         },
       }));
       this.persistPrefs();
       this.patchUi({ toast: "Session archived" });
     } catch (e) {
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
       this.patchUi({ toast: `Archive failed: ${errText(e)}` });
     }
   }
 
   async unarchiveSession(session: Session): Promise<void> {
-    const gen = this.directoryGeneration;
+    const gen = this.connectionGeneration, client = this.client;
     try {
-      const updated = await this.client.updateSession(
+      const updated = await client.updateSession(
         session.id,
         { time: { archived: 0 } },
         session.directory,
       );
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
+      this.updateSidebarSession(updated);
       this.mutate((s) => ({
         archivedSessions: s.archivedSessions.filter((x) => x.id !== session.id),
         prefs: {
@@ -988,16 +1107,16 @@ class Store {
       }));
       this.patchUi({ toast: "Session restored" });
     } catch (e) {
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
       this.patchUi({ toast: `Restore failed: ${errText(e)}` });
     }
   }
 
   async deleteSession(session: Session): Promise<void> {
-    const gen = this.directoryGeneration;
+    const gen = this.connectionGeneration, client = this.client;
     try {
-      await this.client.deleteSession(session.id, session.directory);
-      if (gen !== this.directoryGeneration) return;
+      await client.deleteSession(session.id, session.directory);
+      if (gen !== this.connectionGeneration || client !== this.client) return;
       this.forgetActivity(session.id);
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
@@ -1011,15 +1130,15 @@ class Store {
             (x) => x.id !== session.id,
           ),
           lastSessionByDir:
-            s.directory && s.prefs.lastSessionByDir[s.directory] === session.id
-              ? { ...s.prefs.lastSessionByDir, [s.directory]: "" }
+            s.prefs.lastSessionByDir[session.directory] === session.id
+              ? { ...s.prefs.lastSessionByDir, [session.directory]: "" }
               : s.prefs.lastSessionByDir,
         },
       }));
       this.persistPrefs();
       this.patchUi({ toast: "Session deleted permanently" });
     } catch (e) {
-      if (gen !== this.directoryGeneration) return;
+      if (gen !== this.connectionGeneration || client !== this.client) return;
       this.patchUi({ toast: `Delete failed: ${errText(e)}` });
     }
   }
@@ -1834,6 +1953,7 @@ class Store {
   }
 
   private handleEvent(event: ServerEvent): void {
+    this.indexSidebarEvent(event);
     if ((event.type === "session.status" || event.type === "session.idle" || event.type === "session.error") &&
         typeof event.properties?.sessionID === "string") {
       this.observeSessionStatus(
@@ -1977,12 +2097,13 @@ class Store {
       onEvent: ({ directory, payload }) => {
         if (generation !== this.connectionGeneration || client !== this.client ||
             !payload || typeof payload.type !== "string") return;
+        this.indexSidebarEvent(payload);
         if (payload.type === "session.updated" && payload.properties?.info) {
           const info = payload.properties.info as Session;
           if (info.id && info.directory) this.activityDirectories.set(info.id, info.directory);
           if (info.id && info.time?.archived) this.clearUnread(info.id);
         }
-        const id = payload.properties?.sessionID;
+        const id = payload.properties?.sessionID ?? (payload.properties?.info as Session | undefined)?.id;
         if (typeof id !== "string") return;
         if (payload.type === "session.deleted") {
           this.forgetActivity(id);
@@ -1999,7 +2120,12 @@ class Store {
       onState: (state) => {
         if (generation !== this.connectionGeneration || client !== this.client) return;
         if (state === "open") {
-          if (opened) void this.reconcileBackgroundActivity(client, generation);
+          if (opened) {
+            void this.reconcileBackgroundActivity(client, generation);
+            void this.loadRecentSessions(this.state.recentSessionList.archived);
+            for (const dir of this.projectDirectories())
+              if (this.isProjectExpanded(dir)) void this.loadProjectSessions(dir, { force: true });
+          }
           opened = true;
         }
       },
@@ -2007,6 +2133,7 @@ class Store {
   }
 
   private forgetActivity(id: string): void {
+    this.updateSidebarSession(null, id);
     this.activityDirectories.delete(id);
     const unreadSessions = { ...this.state.prefs.unreadSessions };
     delete unreadSessions[id];
