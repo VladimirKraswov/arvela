@@ -1,5 +1,22 @@
 # OpenCode Desktop — external V100 profile migrated (DONE)
 
+## Latest follow-up — 2026-09-23, model access (DONE)
+
+Owner cancelled OpenAI setup. Existing DeepSeek key verified by successful short
+requests to both listed models. No OpenAI key was created or reused from Codex.
+Configured opencode.ai + subdomains on the owner's server VPN (CT250), not the
+unused local Mac proxy. Fresh Mac requests exit through Finland; geographic error
+is gone on fresh OpenCode CLI connections, but Zen still returns FreeTierError403.
+Seven auto-listed free models were unusable. No saved Zen key or active browser
+login; the owner authorized hiding models when access could not be obtained.
+Disabled only provider opencode via global config, preserving defaults and all
+other fields, with backup. Waited for idle and verified no PTYs before config
+cache reload. OpenCode process and VPN tunnel processes were not restarted.
+Installed native picker now has exactly four models: two DeepSeek, Flash Next,
+and V100 NInfer. Original chat and Flash Next selection preserved. No app rebuild.
+Private probe/backup receipts are in .local/model-access; public summary is in
+docs/LOCAL-MODELS.md. Do not re-enable the completed heartbeat.
+
 ## Current checkpoint — 2026-09-23, NInfer migration
 
 The owner explicitly requested a NInfer fork, corrections and full replacement of
