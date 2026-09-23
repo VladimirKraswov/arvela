@@ -17,7 +17,9 @@
 - Installed executable matches the built candidate: SHA256 `4c1b9eeaa22e5e991ff3c990e4d60c6df46bc73f78069fb96e9bd2a5fd84354d`. `hdiutil verify` passed; the same DMG is in Downloads: SHA256 `3c304fcaf1334db32ca68012ee6f966ceb1d23d843a100e48732e68bea0ab34c`.
 - Final native settings correctly showed the revoked driver as **Не готово**. Explicit Connect recovered it and displayed **Включено / Подключён**, Accessibility and Screen Recording **Разрешена**. A separate MCP handshake against the installed binary verified 22 tools, required exact-window schemas, permission checks under `com.trycua.driver`, and model-visible structured results. No additional inference was needed.
 - Settings fit the native window; IgorPC was restored with an empty composer. ASR, model/provider/default/permission fields and chat history were preserved. Existing session/PTY scopes were checked idle before replacement; external OpenCode PID27982 stayed healthy at 1.18.18 without restart.
-- Desktop remains an Apple Silicon ad-hoc local build; the separately installed Cua Driver has its own Developer ID signature. No Desktop notarization claim. Release target: [v0.2.3](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.3).
+- Desktop remains an Apple Silicon ad-hoc local build; the separately installed Cua Driver has its own Developer ID signature. No Desktop notarization claim. Published release: [v0.2.3](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.3).
+
+- Release tag `v0.2.3` points to source commit `abf4e2e7b846f261d7aa4cc9d4f18b6ab5215f0c`; GitHub asset digest matches the local DMG SHA256 above. Subsequent checkpoint-only documentation commit records publication and does not alter the packaged source.
 
 ## Project removal and task handoff — 0.2.3, 2026-09-23
 

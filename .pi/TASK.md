@@ -1,4 +1,4 @@
-# OpenCode Desktop 0.2.3 — accepted locally; publication remaining
+# OpenCode Desktop 0.2.3 — DONE
 
 Scope: project remove/restore, task handoff with important full-history context, and native Mac computer control with independent cursor. User authorized implementation, installation and GitHub publication. Read AGENTS.md and the local Qwen guardrails on resume. Do not restart external OpenCode, change model defaults or resume the completed heartbeat.
 
@@ -11,7 +11,7 @@ Implemented and independently accepted:
 Final source tests: 126 frontend and 15 Rust pass, fmt/diff checks and full Tauri release build pass. An earlier concurrent-build run timed out in unchanged R3; full isolated rerun passed without weakened assertions or timeout changes.
 Final installed /Applications/OpenCode Desktop.app is 0.2.3; aliases and Downloads DMG retained. hdiutil verify and executable/DMG hashes match .local/install-0.2.3.json and docs/VERIFICATION.md. Final native reconnect after emergency stop passed; both grants shown, 22-tools MCP contract/permission check passed via installed binary. IgorPC restored with empty composer. All model/ASR/host/access configuration retained. OpenCode PID27982 remains unchanged. Backup path in .local/handoff-backup-path. Private evidence .local/computer-acceptance.json, installed-mcp-acceptance.json and handoff-*.
 
-Remaining: commit/push reviewed source/docs/tests, publish v0.2.3 DMG with .local/release-0.2.3.md, verify remote asset SHA256, then record DONE. Do not rebuild or repeat GPU tests without a new defect.
+Source commit abf4e2e7b846f261d7aa4cc9d4f18b6ab5215f0c pushed to main; v0.2.3 release published and tag verified against that commit. Remote asset SHA256 matches the installed/downloaded DMG (3c304fcaf1334db32ca68012ee6f966ceb1d23d843a100e48732e68bea0ab34c). Release: https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.3. No required work remains in this deliverable. Do not rebuild, repeat GPU tests, or restart the completed heartbeat without a new request.
 
 ## Latest follow-up — 2026-09-23, model access (DONE)
 
