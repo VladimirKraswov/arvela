@@ -100,6 +100,9 @@ export interface MessagePart {
   sessionID: string;
   messageID: string;
   type: string;
+  mime?: string;
+  filename?: string;
+  url?: string;
   text?: string;
   tool?: string;
   callID?: string;
@@ -147,7 +150,7 @@ export interface ModelInfo {
     reasoning?: boolean;
     toolcall?: boolean;
     attachment?: boolean;
-    input?: { text?: boolean; image?: boolean };
+    input?: { text?: boolean; image?: boolean; audio?: boolean; video?: boolean; pdf?: boolean };
   };
   limit?: { context?: number; input?: number; output?: number };
   variants?: Record<string, ModelVariantInfo> | null;

@@ -187,3 +187,11 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Russian capture diagnostics distinguish permission, missing and unavailable devices; canceled startup never opens a later capture request.
 - [x] Regression tests for refusal/cancellation and release-artifact signature/entitlement/usage-description check.
 - [x] Installed native capture/cancel acceptance, strict package verification and preserved configuration (see VERIFICATION).
+
+## M17 — Attachments and CPU helper (0.2.8)
+
+- [x] File picker, drag/drop and clipboard files; large pasted text as a file; reload-safe attachment drafts scoped to host/directory/session.
+- [x] Route by live model input capabilities; direct images and supported media, PDF/video/audio conversion on isolated CT205 with GigaAM transcription for sound.
+- [x] Loopback SSH tunnel with dynamic CT address, restricted source IP, helper endpoint/status in Desktop settings; OpenCode MCP connections remain separately configurable.
+- [x] Explicit size, context and queue limits; failures retain draft and never silently discard unsupported content.
+- [x] Packaged app, native helper/status and picker draft, real browser-to-OpenCode PDF roundtrip, source checks and installation (see VERIFICATION). Native picker automation did not complete selection of the intended fixture; this is recorded as a verification limit.

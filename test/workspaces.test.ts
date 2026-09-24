@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import "fake-indexeddb/auto";
 const native = vi.hoisted(() => ({
   prepareChat: vi.fn(),
   connectSsh: vi.fn(),
@@ -108,6 +109,39 @@ it("the first projectless send creates an isolated workspace and routes the real
   expect(store.chatSessions().map((s: any) => s.id)).toEqual(["ses_chat"]);
   expect(store.projectDirectories()).not.toContain("/home/test/chats/one");
   expect(store.state.prefs.drafts["new::"]).toBeUndefined();
+});
+it("sends a file part with the prompt and removes only accepted attachments", async () => {
+  const { attachmentDrafts, attachmentScope } = await import("../src/attachments/drafts");
+  store.state.directory = "/project";
+  store.state.activeSessionId = "ses_file";
+  store.state.sessions = [session("ses_file", "/project")];
+  store.state.providers = [{ id: "p", models: { m: { id: "m", providerID: "p", capabilities: { input: { text: true, image: true } } } } }];
+  store.setModelChoice("p", "m", "medium");
+  store.setDraft("review this");
+  const scope = attachmentScope(store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, "/project", "ses_file");
+  const [file] = await attachmentDrafts.add(scope, [new File(["hello"], "notes.txt", { type: "text/plain" })]);
+  expect(await store.sendPrompt("review this", [file])).toBe(true);
+  expect(store.client.prompt).toHaveBeenCalledWith("ses_file", "/project", expect.objectContaining({ parts: [
+    { type: "text", text: "review this" }, expect.objectContaining({ type: "file", mime: "text/plain", filename: "notes.txt" }),
+  ] }));
+  expect(attachmentDrafts.snapshot(scope)).toEqual([]);
+  expect(store.getDraft()).toBe("");
+});
+it("keeps an attachment and text draft after a failed send", async () => {
+  const { attachmentDrafts, attachmentScope } = await import("../src/attachments/drafts");
+  store.state.directory = "/project";
+  store.state.activeSessionId = "ses_failure";
+  store.state.sessions = [session("ses_failure", "/project")];
+  store.state.providers = [{ id: "p", models: { m: { id: "m", providerID: "p", capabilities: { input: { text: true } } } } }];
+  store.setModelChoice("p", "m", "medium");
+  store.setDraft("keep this");
+  const scope = attachmentScope(store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, "/project", "ses_failure");
+  const [file] = await attachmentDrafts.add(scope, [new File(["hello"], "notes.txt", { type: "text/plain" })]);
+  vi.mocked(store.client.prompt).mockRejectedValueOnce(new Error("server unavailable"));
+  expect(await store.sendPrompt("keep this", [file])).toBe(false);
+  expect(attachmentDrafts.snapshot(scope).map(x => x.name)).toEqual(["notes.txt"]);
+  expect(store.getDraft()).toBe("keep this");
+  expect(store.state.ui.sendError).toContain("server unavailable");
 });
 it("workspace preparation guards double Enter and cannot send after a project switch", async () => {
   const pending = defer();

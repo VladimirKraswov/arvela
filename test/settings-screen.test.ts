@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_PREFS } from "../src/state/prefs";
-const fake = vi.hoisted(() => ({ state: {} as any, setUi: vi.fn(), setAsr: vi.fn(), setAppearance: vi.fn(), setTheme: vi.fn(), connect: vi.fn() }));
+const fake = vi.hoisted(() => ({ state: {} as any, setUi: vi.fn(), setAsr: vi.fn(), setHelperEndpoint: vi.fn(), setAppearance: vi.fn(), setTheme: vi.fn(), connect: vi.fn() }));
 vi.mock('../src/state/store', () => ({ useAppState: () => fake.state, store: { ...fake, hostLabel: () => "Этот компьютер" } }));
 vi.mock('../src/components/OpenCodeSettings', () => ({ OpenCodeSettings: ({ section, onDirtyChange }: any) => createElement('button', { onClick: () => onDirtyChange(true) }, `Изменить ${section}`) }));
 vi.mock('../src/components/ComputerSettings', () => ({ ComputerSettings: () => createElement('p', {}, 'Cua Driver') }));
@@ -42,4 +42,16 @@ it("keeps edited ASR fields across navigation and prevents accidental exit on Es
 it("retains staged engine changes across settings sections and guards host navigation", () => {
   click('Инструменты'); click('Изменить tools'); click('Общее'); click('Управлять…'); expect(fake.setUi).not.toHaveBeenCalled();
   expect(document.querySelector('[role="alert"]')).not.toBeNull(); click('Не сохранять и выйти'); expect(fake.setUi).toHaveBeenCalledWith({ settingsOpen: false, hostDialogOpen: true });
+});
+it("offers the private helper separately from ASR and MCP and validates its loopback address", () => {
+  click('Сервисы помощника');
+  expect(document.body.textContent).toContain('GigaAM ASR');
+  input('Адрес помощника', 'http://192.168.31.54:8080');
+  click('Сохранить');
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain('локальный');
+  expect(fake.setHelperEndpoint).not.toHaveBeenCalled();
+  input('Адрес помощника', 'http://127.0.0.1:18109');
+  click('Сохранить');
+  expect(fake.setHelperEndpoint).toHaveBeenCalledWith('http://127.0.0.1:18109');
+  expect(fake.setAsr).not.toHaveBeenCalled();
 });

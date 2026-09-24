@@ -8,12 +8,14 @@ import { OpenCodeSettings, type EngineSection } from "./OpenCodeSettings";
 import { ComputerSettings } from "./ComputerSettings";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
+import { DEFAULT_HELPER_ENDPOINT, helperHealth, validHelperEndpoint, type HelperHealth } from "../attachments/helper";
 
 export const SETTINGS_SECTIONS = [
   { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Подключение к OpenCode и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
   { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Курсор агента, Cua Driver и разрешения macOS", keywords: "запись экрана универсальный доступ мышь" },
+  { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
   { id: "tools", title: "Инструменты", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
   { id: "skills", title: "Навыки", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
   { id: "plugins", title: "Плагины", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
@@ -73,12 +75,14 @@ export function SettingsScreen() {
   const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
   const [endpoint, setEndpoint] = useState(s.prefs.localEndpoint ?? s.prefs.endpoint);
   const [asr, setAsr] = useState(s.prefs.asr ?? defaultAsr), [key, setKey] = useState(getAsrKey(asr.endpoint));
+  const [helper, setHelper] = useState(s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT), [helperStatus, setHelperStatus] = useState<HelperHealth | null>(null), [testingHelper, setTestingHelper] = useState(false);
   const [savedKey, setSavedKey] = useState(key);
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [connecting, setConnecting] = useState(false);
   const content = useRef<HTMLDivElement>(null), back = useRef<HTMLButtonElement>(null), stay = useRef<HTMLButtonElement>(null);
   const localDirty = endpoint !== (s.prefs.localEndpoint ?? s.prefs.endpoint);
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
-  const dirty = engineDirty || localDirty || voiceDirty;
+  const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
+  const dirty = engineDirty || localDirty || voiceDirty || helperDirty;
   const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
   const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
   const navigate = (id: Section) => { setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
@@ -109,7 +113,7 @@ export function SettingsScreen() {
     </aside>
     <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
       <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1><p>{query.trim() ? `Результаты для «${query.trim()}»` : selected.description}</p></header>
-      {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения подключения, диктовки или OpenCode. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
+      {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения подключения, диктовки, помощника или OpenCode. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
         {section === "general" && <>
           <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Адрес независимо запущенного сервера на этом Mac."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
@@ -130,6 +134,12 @@ export function SettingsScreen() {
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
         {section === "computer" && <ComputerSettings/>}
+        {section === "helper" && <>
+          <p className="settings-intro">CPU-помощник в контейнере Proxmox подготавливает вложения для выбранной модели. Если модель поддерживает формат, файл идёт напрямую. Иначе помощник извлекает текст, кадры и звук. Аудио распознаёт отдельный GigaAM ASR из раздела «Диктовка».</p>
+          <Group title="Подключение"><Row title="Локальный адрес помощника" description="SSH-туннель на этом Mac; удалённый адрес контейнера сюда не вводится."><input aria-label="Адрес помощника" spellCheck={false} value={helper} onChange={event => { setHelper(event.target.value); setHelperStatus(null); }}/></Row><Row title="Состояние"><span>{helperStatus?.ok ? `Работает · версия ${helperStatus.version}` : "Проверка не выполнялась"}</span></Row><Row title="Доступные сервисы"><span>{helperStatus?.services.join(", ") || "—"}</span></Row></Group>
+          <p className="settings-muted">MCP-подключения OpenCode настраиваются отдельно в разделе «MCP-серверы». Файлы не хранятся в контейнере после обработки.</p>
+          <div className="settings-actions"><button className="btn" disabled={testingHelper} onClick={async () => { setError(""); setNotice(""); setTestingHelper(true); try { setHelperStatus(await helperHealth(helper.trim())); setNotice("Помощник доступен."); } catch (problem) { setHelperStatus(null); setError(problem instanceof Error ? problem.message : String(problem)); } finally { setTestingHelper(false); } }}>{testingHelper ? "Проверка…" : "Проверить подключение"}</button><button className="btn primary" disabled={!helperDirty} onClick={() => { const next = helper.trim().replace(/\/$/, ""); if (!validHelperEndpoint(next)) { setError("Укажите локальный HTTP-адрес без пути и учётных данных."); return; } store.setHelperEndpoint(next); setHelper(next); setError(""); setNotice("Адрес помощника сохранён."); }}>Сохранить</button></div>
+        </>}
         {section === "about" && <Group title="Состояние приложения"><Row title="OpenCode Desktop"><span>{appVersion}</span></Row><Row title="Версия OpenCode"><span>{s.connection.version ?? "—"}</span></Row><Row title="Подключение"><span>{s.connection.phase === "connected" ? "Подключено" : s.connection.phase}</span></Row><Row title="Поток событий"><span>{s.connection.streamState}</span></Row><Row title="Подключённые провайдеры"><span>{s.connectedProviderIds.length}</span></Row><Row title="Агенты"><span>{s.agents.map(a => a.name).join(", ") || "—"}</span></Row></Group>}
       </>}
       <div hidden={!!query.trim() || !isEngine(section)}>{engineVisited && <OpenCodeSettings section={engineSection} onDirtyChange={setEngineDirty}/>}</div>

@@ -11,6 +11,7 @@ import { useAppState } from "../state/store";
 import { Markdown } from "./Markdown";
 import { CopyButton } from "./CopyButton";
 import { MessageEdit } from "./MessageEdit";
+import { Icon } from "./Icon";
 import { actionCountLabel, answerText, finalAnswer, stepCountLabel, turnMetrics, visibleParts } from "../chat/turns";
 import { exactTime, messageTime } from "../chat/time";
 export { Markdown } from "./Markdown";
@@ -284,16 +285,19 @@ function describeError(error: unknown): string {
 
 export function UserMessageView({ message }: { message: UserMessage }) {
   const s = useAppState();
-  const parts = messageParts(s, message.sessionID, message.id).filter(
+  const allParts = messageParts(s, message.sessionID, message.id);
+  const parts = allParts.filter(
     (p) => p.type === "text" && !p.synthetic && !p.ignored,
   );
+  const files = allParts.filter(p => p.type === "file" && !p.ignored);
   const text = parts
     .map((p) => p.text ?? "")
     .join("\n")
     .trim();
-  if (!text) return null;
+  if (!text && !files.length) return null;
   return <div className="user-message" data-scroll-anchor={`message:${message.id}`}>
-    <div className="msg-user">{text}</div>
+    {text && <div className="msg-user">{text}</div>}
+    {files.length > 0 && <div className="message-file-list">{files.map(file => <span className="message-file" key={file.id}><Icon name="file" size={15}/>{file.filename || "Вложение"}</span>)}</div>}
     <div className="message-footer"><MessageTimestamp value={message.time.created}/><CopyButton text={text} label="Копировать сообщение" compact/><MessageEdit message={message} text={text}/></div>
   </div>;
 }

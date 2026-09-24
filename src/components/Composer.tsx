@@ -4,12 +4,35 @@ import { VoiceInput } from "./VoiceInput";
 import { accessOptions, type AccessMode } from "../state/access";
 import { Icon } from "./Icon";
 import { SelectMenu } from "./SelectMenu";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { store, useAppState } from "../state/store";
+import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../attachments/drafts";
+import { LARGE_PASTE_THRESHOLD, pastedTextFile } from "../attachments/prepare";
+
+function AttachmentChip({ file, onRemove, disabled }: { file: DraftAttachment; onRemove: () => void; disabled: boolean }) {
+  const [preview, setPreview] = useState("");
+  useEffect(() => {
+    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.mime)) return;
+    const url = URL.createObjectURL(file.blob);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return <div className="attachment-chip">
+    {preview ? <img src={preview} alt=""/> : <Icon name="file" size={18}/>}
+    <span title={file.name}>{file.name}</span><small>{file.size < 1024 * 1024 ? `${Math.max(1, Math.ceil(file.size / 1024))} КБ` : `${(file.size / 1024 / 1024).toFixed(1)} МБ`}</small>
+    <button type="button" disabled={disabled} aria-label={`Убрать ${file.name}`} onClick={onRemove}><Icon name="close" size={14}/></button>
+  </div>;
+}
 
 export function Composer() {
   const s = useAppState();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [attachmentProgress, setAttachmentProgress] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const scope = attachmentScope(s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId);
+  const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
   const choice = store.getModelChoice();
   const providers = store.connectedProvidersWithModels();
@@ -21,6 +44,27 @@ export function Composer() {
       : { type: "idle" as const };
   const running = status?.type === "busy" || status?.type === "retry";
   const connected = s.connection.phase === "connected";
+
+  useEffect(() => { void attachmentDrafts.ensure(scope).catch(error => setAttachmentError(String(error))); }, [scope]);
+  const addFiles = (files: File[]) => {
+    if (!files.length) return;
+    if (s.ui.sending) { setAttachmentError("Дождитесь подтверждения текущего запроса, затем добавьте файлы."); return; }
+    setAttachmentError("");
+    void attachmentDrafts.add(scope, files).catch(error => setAttachmentError(error instanceof Error ? error.message : String(error)));
+  };
+  useEffect(() => {
+    const over = (event: DragEvent) => {
+      if (!Array.from(event.dataTransfer?.types ?? []).includes("Files")) return;
+      event.preventDefault(); setDragging(true);
+    };
+    const drop = (event: DragEvent) => {
+      if (!Array.from(event.dataTransfer?.types ?? []).includes("Files")) return;
+      event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer?.files ?? []));
+    };
+    const leave = (event: DragEvent) => { if (!event.relatedTarget) setDragging(false); };
+    window.addEventListener("dragover", over); window.addEventListener("drop", drop); window.addEventListener("dragleave", leave);
+    return () => { window.removeEventListener("dragover", over); window.removeEventListener("drop", drop); window.removeEventListener("dragleave", leave); };
+  });
 
   const modelList = useMemo(() => {
     const out: { providerID: string; modelID: string; label: string }[] = [];
@@ -54,14 +98,16 @@ export function Composer() {
   const send = () => {
     const text = store.getDraft();
     // s.ui.sending also blocks a second Enter while the first request awaits acknowledgement.
-    if (!text.trim() || s.ui.sending || !connected) return;
+    if ((!text.trim() && !attachments.length) || s.ui.sending || !connected) return;
     if (running) {
+      if (attachments.length) { setAttachmentError("Вложения можно отправить после завершения текущего ответа. Они сохранены в черновике."); return; }
       store.enqueuePrompt(text);
       return;
     }
     // The store owns the draft lifecycle: on accept it removes exactly the submitted
     // revision; on failure the draft was never touched — nothing to lose or silently resend.
-    void store.sendPrompt(text);
+    setAttachmentError("");
+    void store.sendPrompt(text, attachments, setAttachmentProgress);
   };
 
   return (
@@ -88,6 +134,8 @@ export function Composer() {
           {s.ui.sendError}
         </div>
       )}
+      {attachmentError && <div className="composer-error" role="alert">{attachmentError}</div>}
+      {attachmentProgress && <div className="workspace-progress" role="status">{attachmentProgress}</div>}
       {store.getQueue().length > 0 && (
         <div className="prompt-queue" aria-label="Очередь запросов">
           <div className="queue-heading">
@@ -147,7 +195,9 @@ export function Composer() {
           Подготовка рабочего места чата…
         </div>
       )}
-      <div className="composer">
+      <div className={`composer ${dragging ? "composer-drop-target" : ""}`}>
+        {dragging && <div className="composer-drop-label">Перетащите файлы сюда</div>}
+        {attachments.length > 0 && <div className="attachment-list" aria-label="Вложения">{attachments.map(file => <AttachmentChip key={file.id} file={file} disabled={s.ui.sending} onRemove={() => void attachmentDrafts.remove(scope, [file.id])}/>)}</div>}
         <textarea
           ref={textareaRef}
           aria-label="Message"
@@ -159,6 +209,13 @@ export function Composer() {
           value={draft}
           disabled={s.ui.workspacePreparing}
           onChange={(e) => store.setDraft(e.target.value)}
+          onPaste={event => {
+            const files = Array.from(event.clipboardData.files);
+            if (!files.length) files.push(...Array.from(event.clipboardData.items).filter(item => item.kind === "file").map(item => item.getAsFile()).filter((file): file is File => !!file));
+            if (files.length) { event.preventDefault(); addFiles(files); return; }
+            const value = event.clipboardData.getData("text/plain");
+            if (value.length >= LARGE_PASTE_THRESHOLD) { event.preventDefault(); addFiles([pastedTextFile(value)]); }
+          }}
           onKeyDown={(e) => {
             if (
               e.key === "Enter" &&
@@ -175,6 +232,8 @@ export function Composer() {
             <button className="composer-plus" aria-label="Открыть команды" title="Команды и действия" onClick={() => store.setUi({paletteOpen: true})}>
               <Icon name="plus" size={19} />
             </button>
+            <input ref={fileInputRef} type="file" multiple hidden disabled={s.ui.sending} aria-label="Выбрать файлы" onChange={event => { addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }}/>
+            <button className="composer-plus" type="button" disabled={s.ui.sending} aria-label="Приложить файлы" title="Приложить файлы" onClick={() => fileInputRef.current?.click()}><Icon name="file" size={18}/></button>
             <SelectMenu
               label="Режим доступа"
               disabled={running || s.ui.sending || !connected}
@@ -249,12 +308,12 @@ export function Composer() {
               <Icon name="stop" size={14} />
             </button>
           )}
-          {(!running || !!draft.trim()) && <button
+          {(!running || !!draft.trim() || attachments.length > 0) && <button
             className="send-btn"
             aria-label={running ? "Добавить в очередь" : "Send prompt"}
             disabled={
               !connected ||
-              !draft.trim() ||
+              (!draft.trim() && !attachments.length) ||
               s.ui.sending ||
               s.ui.workspacePreparing ||
               s.ui.runtimeLoading

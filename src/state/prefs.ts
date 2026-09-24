@@ -4,6 +4,7 @@ import type { Session } from "../api/types";
 import type { QueuedPrompt } from "./queue";
 import type { AccessMode } from "./access";
 import { defaultAsr, type AsrSettings } from "../voice/asr";
+import { DEFAULT_HELPER_ENDPOINT } from "../attachments/helper";
 // Persisted shell preferences. The shell owns theme/layout/directories/drafts;
 // OpenCode owns sessions, models, credentials. No engine data is rewritten here.
 
@@ -24,6 +25,7 @@ export interface Prefs {
   queues?: Record<string, QueuedPrompt[]>;
   newAccess?: AccessMode;
   asr?: AsrSettings;
+  helperEndpoint?: string;
   endpointState?: Record<string, Partial<Prefs>>;
   pinnedProjects?: string[];
   hiddenProjects?: string[];
@@ -55,6 +57,7 @@ export const DEFAULT_PREFS: Prefs = {
   endpoint: "http://127.0.0.1:4096",
   theme: "dark",
   asr: defaultAsr,
+  helperEndpoint: DEFAULT_HELPER_ENDPOINT,
   selectedDirectory: null,
   lastSessionByDir: {},
   drafts: {},
@@ -155,9 +158,11 @@ export function switchEndpointPrefs(
   const saved = endpointState[workspaceKey];
   return {
     ...DEFAULT_PREFS,
-    asr: prefs.asr,
     layout: prefs.layout,
     ...saved,
+    // The CPU helper and speech recognizer belong to this Mac, not an OpenCode workspace.
+    asr: prefs.asr,
+    helperEndpoint: prefs.helperEndpoint,
     // Appearance belongs to the app, not to a cached remote workspace.
     theme: prefs.theme,
     appearance: normalizeAppearance(prefs.appearance),

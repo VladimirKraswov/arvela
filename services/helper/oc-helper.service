@@ -1,0 +1,24 @@
+[Unit]
+Description=OpenCode Desktop private media helper
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+WorkingDirectory=/opt/opencode-helper
+Environment=HELPER_ALLOWED_CLIENT=192.168.31.2
+ExecStart=/usr/bin/python3 /opt/opencode-helper/server.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/opt/opencode-helper
+MemoryMax=3G
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

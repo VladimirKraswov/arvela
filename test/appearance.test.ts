@@ -33,6 +33,13 @@ it("applies independent font/width/spacing variables and clears a custom accent 
   expect(style.getPropertyValue("--chat-width")).toBe("1060px"); expect(style.getPropertyValue("--chat-line-height")).toBe("1.85");
   applyAppearance(DEFAULT_APPEARANCE); expect(style.getPropertyValue("--accent")).toBe(""); expect(style.getPropertyValue("--accent-fill")).toBe(""); expect(style.getPropertyValue("--chat-font-size")).toBe("14px");
 });
+it("keeps the CPU helper address global when switching OpenCode servers", () => {
+  const current = { ...DEFAULT_PREFS, helperEndpoint: "http://127.0.0.1:18109", endpointState: { remote: { helperEndpoint: "http://127.0.0.1:18107" } } };
+  const remote = switchEndpointPrefs(current, "http://127.0.0.1:5000", "remote");
+  expect(remote.helperEndpoint).toBe("http://127.0.0.1:18109");
+  const back = switchEndpointPrefs(remote, DEFAULT_PREFS.endpoint);
+  expect(back.helperEndpoint).toBe("http://127.0.0.1:18109");
+});
 it("keeps arbitrary accent labels and filled buttons legible in both themes", () => {
   for (const color of ["#ffffff", "#000000", "#5599ee", "#e3b341", "#9b83ee", "#4caa86", "#e78060"]) for (const dark of [true, false]) {
     const a = accentColors(color, dark); expect(contrast(a.ink, dark ? "#202020" : "#ffffff")).toBeGreaterThanOrEqual(4.5); expect(contrast(a.fill, a.on)).toBeGreaterThanOrEqual(4.5);

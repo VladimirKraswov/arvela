@@ -11,6 +11,9 @@ import { contextUsage, type CompactionConfig } from "./context";
 import { accessRules, accessMode, type AccessMode } from "./access";
 import { newMessageId, type QueuedPrompt } from "./queue";
 import type { AsrSettings } from "../voice/asr";
+import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../attachments/drafts";
+import { prepareAttachments } from "../attachments/prepare";
+import { DEFAULT_HELPER_ENDPOINT } from "../attachments/helper";
 // Central application store: connection lifecycle, project/session selection,
 // chat state driven by the pure stream reducer, and command actions.
 // Designed to be testable: Tauri is only touched through theme/window niceties.
@@ -1425,21 +1428,22 @@ class Store {
 
   // ---------- execution ----------
 
-  async sendPrompt(text: string): Promise<boolean> {
+  async sendPrompt(text: string, attachments: DraftAttachment[] = [], onProgress: (label: string) => void = () => {}): Promise<boolean> {
     if (
       this.state.connection.phase !== "connected" ||
-      !text.trim() ||
+      (!text.trim() && !attachments.length) ||
       this.state.ui.sending ||
       this.state.ui.workspacePreparing ||
       this.state.ui.runtimeLoading
     )
       return false;
+    const initialScope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.state.directory, this.state.activeSessionId);
     if (!this.state.directory && !(await this.ensureChatWorkspace()))
       return false;
     const directory = this.state.directory;
     if (
       !directory ||
-      !text.trim() ||
+      (!text.trim() && !attachments.length) ||
       this.state.ui.sending ||
       this.accessChanging
     )
@@ -1463,7 +1467,10 @@ class Store {
       return false;
     }
     const agent = this.getAgentChoice();
-    const trimmed = text.trim();
+    const trimmed = text.trim() || "Проанализируй приложенные файлы.";
+    const modelInfo = this.modelInfo(model.providerID, model.modelID);
+    if (attachments.length && !modelInfo) { this.patchUi({ sendError: "Выбранная модель больше не доступна." }); return false; }
+    let scope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, selected);
     const sameContext = () =>
       gen === this.directoryGeneration &&
       this.state.directory === directory &&
@@ -1471,6 +1478,12 @@ class Store {
     this.patchUi({ sending: true, sendError: null });
     let sessionId = this.state.activeSessionId;
     try {
+      if (attachments.length && scope !== initialScope) await attachmentDrafts.move(initialScope, scope);
+      const parts = attachments.length && modelInfo
+        ? await prepareAttachments(attachments, modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress)
+        : [];
+      if (!sameContext() || this.state.activeSessionId !== selected)
+        throw new Error("Чат изменился во время подготовки вложений. Вложения остались в черновике.");
       if (!sessionId) {
         const created = await client.createSession({
           directory,
@@ -1498,14 +1511,23 @@ class Store {
           },
         }));
         this.persistPrefs();
+        if (attachments.length) {
+          const nextScope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, created.id);
+          await attachmentDrafts.move(scope, nextScope);
+          scope = nextScope;
+        }
       }
       const target = sessionId;
       await client.prompt(target, directory, {
         model: { providerID: model.providerID, modelID: model.modelID },
         agent: agent ?? undefined,
         variant: model.variant ?? undefined,
-        parts: [{ type: "text", text: trimmed }],
+        parts: [{ type: "text", text: trimmed }, ...parts],
       });
+      if (attachments.length) {
+        try { await attachmentDrafts.remove(scope, attachments.map(file => file.id)); }
+        catch { this.patchUi({ toast: "Запрос отправлен, но вложения не удалось убрать из черновика. Удалите их вручную перед следующим запросом." }); }
+      }
       if (!sameContext()) return true;
       // Accepted: clear only the exact draft revision we submitted, in its original slot.
       // Anything typed while awaiting acknowledgement stays untouched (R5).
@@ -1540,6 +1562,7 @@ class Store {
       if (sameContext()) this.patchUi({ sendError: errText(e) });
       return false;
     } finally {
+      onProgress("");
       if (this.client === client) {
         this.patchUi({ sending: false });
         void this.drainQueue();
@@ -1694,6 +1717,10 @@ class Store {
 
   setAsr(settings: AsrSettings) {
     this.mutate((s) => ({ prefs: { ...s.prefs, asr: settings } }));
+    this.persistPrefs();
+  }
+  setHelperEndpoint(endpoint: string) {
+    this.mutate((s) => ({ prefs: { ...s.prefs, helperEndpoint: endpoint } }));
     this.persistPrefs();
   }
   /** Dictation is bound to its original draft even if navigation occurs meanwhile. */
