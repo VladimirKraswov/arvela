@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { store } from "../state/store";
 import { draftKey } from "../state/prefs";
 import { defaultAsr, transcribeAudio, validateAsr } from "../voice/asr";
+import { captureErrorMessage } from "../voice/captureError";
 import { Icon } from "./Icon";
 
 export function VoiceInput({ disabled }: { disabled: boolean }) {
@@ -71,6 +72,8 @@ export function VoiceInput({ disabled }: { disabled: boolean }) {
       const audio = new AudioContext();
       context.current = audio;
       await audio.resume();
+      // Cancellation while Web Audio starts must not open a later permission prompt.
+      if (epoch !== operation.current) return;
       const input = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true },
         video: false,
@@ -161,7 +164,7 @@ export function VoiceInput({ disabled }: { disabled: boolean }) {
       if (epoch === operation.current) {
         cleanup();
         setPhase("idle");
-        setError(e instanceof Error ? e.message : String(e));
+        setError(captureErrorMessage(e));
       }
     }
   };

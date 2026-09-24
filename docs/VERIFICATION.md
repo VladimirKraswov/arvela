@@ -1,5 +1,15 @@
 # Verification record
 
+## Microphone permission repair — 0.2.7, 2026-09-24
+
+- Reproduced owner's English WebKit capture refusal in installed 0.2.6. The macOS microphone switch was already ON and NSMicrophoneUsageDescription was present. TCC at 17:25 explicitly denied capture because Hardened Runtime required the missing `com.apple.security.device.audio-input` entitlement. Existing ad-hoc code requirement also differed after the prior update. No TCC database edits or global permission resets.
+- Added the single audio-input entitlement to the signed bundle; retained Hardened Runtime and normal OS consent. Capture failures now explain local permission/device problems in Russian. A canceled AudioContext startup cannot make a later getUserMedia call; late granted streams are stopped without transcription.
+- 171/171 frontend tests pass, including 4 new capture/cancellation regressions. TypeScript/Vite production build passes. New `scripts/verify-macos.py` checks the actual bundle's strict signature, signed audio-input entitlement and microphone usage description; rejects the installed 0.2.6 artifact as expected. Final Tauri app+DMG build, strict codesign, signed-entitlement check and hdiutil verification passed.
+
+- Installed `/Applications/OpenCode Desktop.app` 0.2.7. Native microphone click produced a running timer and sound-level canvas; cancel returned to the microphone button without error or ASR submission. The existing microphone grant was usable. This verifies actual capture/start/cancel; speech-to-transcript was not repeated in this fix.
+- All 26 preferences categories, drafts and global OpenCode configuration compared unchanged. All 26 remembered scopes were idle before installation. External OpenCode PID 27982 and the four pre-existing MCP processes remained alive; engine 1.18.18 healthy. Backup: `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.6-before-0.2.7-20260924-173755`. Private receipts: `.local/microphone-0.2.7/`.
+- Installed executable SHA256: `c68e60ce6b9eb8563732f3085eaca6b6203173878db498dbc0c0434ba460d666`. Downloads DMG SHA256: `143b48f24f9d47dbf9cd33e85f9b4e40b0186b3667e652dd34f2af8c0cdc1602`. Hardened Runtime remains enabled; local ad-hoc signature, no Developer ID/notarization.
+
 ## Settings and appearance — 0.2.6, 2026-09-24
 
 - Replaced the modal/tab layout with a full-window screen: searchable sections, independent navigation/content scrolling, grouped settings rows, back/Escape and Cmd+, keyboard access. The conversation remains mounted but inert/hidden, preserving its draft, stream and reading state. Completion behind settings remains unread until the visible chat is viewed.

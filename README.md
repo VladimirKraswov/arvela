@@ -48,6 +48,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npm run dev                            # localhost:1425, не занимает TinyCAD на 1420
 npm run tauri dev
 npm run tauri -- build --bundles app,dmg --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}'
+python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode Desktop.app"
 ```
 
 На этом Mac при конфликте глобальных пакетов используйте `env -u NODE_PATH npm …`.
@@ -63,7 +64,7 @@ npm run tauri -- build --bundles app,dmg --config '{"bundle":{"macOS":{"signingI
 
 ## Репозиторий и установщик
 
-[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.2.6 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.6). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [Релиз 0.2.7 и DMG для Apple Silicon](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.7). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
 
 Параметры двух локальных моделей и решение по V100/NInfer описаны в [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md).
 

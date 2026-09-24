@@ -180,3 +180,10 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Separate connection/ASR saves, staged JSONC edits retained across sections with exit protection; original backup/conflict logic retained.
 - [x] Unit and browser acceptance, including maximum fonts at the minimum native window size; no model inference.
 - [x] Final native installation and package verification (see VERIFICATION).
+
+## M16 — Native microphone permission repair (0.2.7)
+
+- [x] Signed macOS audio-input entitlement, retaining Hardened Runtime and normal system consent.
+- [x] Russian capture diagnostics distinguish permission, missing and unavailable devices; canceled startup never opens a later capture request.
+- [x] Regression tests for refusal/cancellation and release-artifact signature/entitlement/usage-description check.
+- [x] Installed native capture/cancel acceptance, strict package verification and preserved configuration (see VERIFICATION).
