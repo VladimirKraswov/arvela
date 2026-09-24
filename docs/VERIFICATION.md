@@ -10,6 +10,8 @@
 - Native installed acceptance: settings search/Cmd+, separate font changes and blue accent, live preview, actual SQLite persistence, reset to original neutral/dark defaults. Staged bash permission stayed pending across Appearance navigation and exit protection; discarded without writing the config (hash unchanged). Existing GigaAM endpoint/model/language retained. Cua Driver0.28.2 remains enabled, connected, with both grants. About confirms Desktop0.2.6 and OpenCode1.18.18 connected/open. Original Compute Mesh and empty composer restored; final screen intentionally shows Appearance.
 - Final Tauri app+DMG build, strict ad-hoc codesign and hdiutil checksum verification passed. Installed `/Applications/OpenCode Desktop.app`, executable SHA256 `87bd0855e095b0354d7f4174c5b713336221e760aac8c07ac4ee59e7eba934f1`. Downloads DMG SHA256 `7ad462b508845224d828c6c0589949efea868f7d16a0e830a65b5487e1c291e9`. Backup: `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.5-before-0.2.6-20260924-165520`. Not Developer ID signed/notarized.
 - All25scopes idle before replacement. OpenCode27982 and all four existing MCP processes unchanged. Fourteen preference categories including all5drafts, models/agents/ASR/hosts/layout/selection/theme compared unchanged; only the new default appearance field was added. No prompts/inference or server restart. Owned fixture4314/Vite1425 and browser14 closed.
+- Source/tag `e0b2324f9dfe2a508e3f629afd286012c8061f82` pushed and [v0.2.6](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.6) published; remote asset digest matches the verified Downloads/installed receipt.
+
 
 ## Cohesive assistant output — 0.2.5, 2026-09-24
 

@@ -1,8 +1,8 @@
-# OpenCode Desktop 0.2.6 — VERIFIED, PUBLICATION PENDING
+# OpenCode Desktop 0.2.6 — DONE
 
 Full-page settings/navigation/search and app-global appearance implemented. Theme/accent/HEX, independent fonts, width/spacing, preview/reset, persistence/migration, explicit connection/ASR saves and retained JSONC staged edits/exit guards. 167tests, frontend and native release build pass. Browser both themes/max fonts at900x620, actual24pxchat/22pxcode, reload/draft/scroll2368.5 verified. Native installed0.2.6 verified palette/fonts+SQLite/reset, staging/exit/discard/hash unchanged, GigaAM, Cua grants/connected, search and Cmd+,. Original Compute Mesh preserved with empty draft; final UI shows Appearance for user. All14preference categories unchanged,5drafts intact, new appearance defaults14/14/12 neutraldark. Engine27982 and four original MCPs retained, all25scopes idle preinstall, no inference. Private receipts .local/settings-0.2.6; owned browser14/fixture4314/Vite1425 closed.
 
-Installed /Applications/OpenCode Desktop.app, signed ad-hoc/strict verified, DMG hdiutil valid. Backup ~/.local/share/opencode-desktop/backups/0.2.5-before-0.2.6-20260924-165520. Executable87bd0855e095b0354d7f4174c5b713336221e760aac8c07ac4ee59e7eba934f1, DownloadsDMG7ad462b508845224d828c6c0589949efea868f7d16a0e830a65b5487e1c291e9. Remaining: commit/push reviewedsource/docs/tests, createv0.2.6 fullSHA + DownloadsDMG using .local/settings-0.2.6/release.md, verifyremoteasset, markDONE. No further testing/build required unless new changes.
+Installed /Applications/OpenCode Desktop.app, signed ad-hoc/strict verified, DMG hdiutil valid. Backup ~/.local/share/opencode-desktop/backups/0.2.5-before-0.2.6-20260924-165520. Executable87bd0855e095b0354d7f4174c5b713336221e760aac8c07ac4ee59e7eba934f1, DownloadsDMG7ad462b508845224d828c6c0589949efea868f7d16a0e830a65b5487e1c291e9. Source e0b2324f9dfe2a508e3f629afd286012c8061f82 pushed; v0.2.6 published, tag and remote DMG digest match. Release https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.6. All work complete; no further testing/build or automation without a new request.
 
 # OpenCode Desktop 0.2.5 — DONE
 
