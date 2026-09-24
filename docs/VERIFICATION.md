@@ -24,6 +24,32 @@
   `cargo fmt --check`, `cargo check --all-targets`, **29/29** Rust tests.
   The six skipped cases are opt-in live suites, run separately on Igor's machine
   with isolated test engines and a DeepSeek key outside the repository.
+- The final Linux build from the same source commit passed **280 passed / 6
+  skipped** frontend tests and **31/31** Rust tests on Igor's Ubuntu 24.04
+  x86_64 machine. Its `.deb` reports package `open-code-desktop`, version
+  `0.2.9`, architecture `amd64`, and the expected GTK/WebKit dependencies.
+  A fresh Xvfb launch displayed a real `OpenCode Desktop` window at 1360×900.
+  Debian SHA256:
+  `b8690c93a7a372e39ea8937875a8b4c20c611ca75b0b4f0bc1432491bf057f69`.
+- The final Mac `.app` and `.dmg` passed `scripts/verify-macos.py` (signature,
+  Hardened Runtime audio-input entitlement and microphone usage text) and
+  `hdiutil verify`. DMG SHA256:
+  `f5c38b32d4541757503f88a6dc2d22cf2e5d2bfd5c5e3e904a1edce858777741`;
+  executable SHA256:
+  `4f67e7b0344b3466173d237aa8657314d54480ce4034b4e3f0b800f3292a0d98`.
+  `/Applications/OpenCode Desktop.app` now reports 0.2.9 and its executable hash
+  matches the candidate. The previous 0.2.8 app is backed up at
+  `~/.local/share/opencode-desktop/backups/0.2.8-before-0.2.9-20260925-015339/`.
+  The identical DMG is in Downloads. The installed UI reopened with OpenCode
+  1.18.18 healthy and local Pi settings intact; three coordinator test chats
+  were deleted, while user chats and the independent OpenCode server remained.
+- Source commits `6b5d05e` (Igor/Claude direct CLI refactor) and `91f19b2`
+  (coordinator native acceptance) are on main. [Release v0.2.9](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.9)
+  contains both OS packages: GitHub reports exactly the two SHA256 digests
+  above, and the tag resolves to `91f19b2`. Igor's marker-verified clean test
+  checkout and the isolated DeepSeek test key were removed after publication.
+  This is an Apple Silicon ad-hoc signed build, without Developer ID
+  notarization. Windows remains unbuilt and untested.
 
 The sections below record earlier review stages; their interim “source only”
 and “Mac not checked” labels describe those stages, not the final 0.2.9 result.

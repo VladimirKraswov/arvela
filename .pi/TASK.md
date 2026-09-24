@@ -1,4 +1,34 @@
-# OpenCode Desktop 0.2.9 — coordinator review follow-up — IN REVIEW (not released)
+# OpenCode Desktop 0.2.9 — DONE (released 2026-09-25)
+
+Igor's direct Claude Code CLI refactor, the Pi backend, and separate Linux/Mac
+variants were reviewed and completed by the Mac coordinator. OpenCode remains
+the default; Pi is optional per project/chat, local only, with separate settings,
+verified model access, guarded tools, LSP and two-way context handoff. Project
+and recent lists include both engines. The Mac uses only the owner's local Qwen
+models; no DeepSeek or OpenAI model was added there.
+
+Final acceptance: native Pi `PI_FINAL_OK` and OpenCode `OC_FINAL_OK` chats on Mac;
+both local Qwen Pi model checks passed with nonempty replies; Pi TypeScript/Rust
+LSP shown ready. Installed 0.2.9 in `/Applications/OpenCode Desktop.app`, with
+previous 0.2.8 backed up under
+`~/.local/share/opencode-desktop/backups/0.2.8-before-0.2.9-20260925-015339/`.
+The independent OpenCode server 1.18.18, existing user chats and local model
+services were preserved. Three coordinator-owned test chats were removed.
+
+Mac: 280 frontend tests passed / 6 opt-in live skipped, 29 Rust passed,
+signature/microphone capability and `hdiutil verify` passed. DMG SHA256
+`f5c38b32d4541757503f88a6dc2d22cf2e5d2bfd5c5e3e904a1edce858777741`.
+Linux Ubuntu 24.04 x86_64: same frontend result, 31 Rust passed, package
+metadata and real Xvfb window passed. DEB SHA256
+`b8690c93a7a372e39ea8937875a8b4c20c611ca75b0b4f0bc1432491bf057f69`.
+Both GitHub release v0.2.9 assets have matching remote digests. Source commits
+`6b5d05e` and `91f19b2` pushed; release tag points to `91f19b2`. Windows is
+not built or tested; macOS is ad-hoc signed without Developer ID notarization.
+Igor's marker-verified, clean test-owned checkout and test key were removed
+after publication; his other projects, services and user configuration remain.
+Details: `docs/VERIFICATION.md`, `docs/PI-ENGINE.md`, `docs/PLATFORMS.md`.
+
+# OpenCode Desktop 0.2.9 — coordinator review follow-up — historical pre-release checkpoint
 
 Twenty coordinator findings re-checked against the code and fixed where real.
 Headlines: existing chats keep their engine when a folder default changes
