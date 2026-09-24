@@ -39,14 +39,15 @@ export function Sidebar() {
   const [recentCount, setRecentCount] = useState(8);
   const expandedKey = JSON.stringify(dirs.filter((dir) => store.isProjectExpanded(dir)));
   const hostKey = s.prefs.workspaceKey ?? s.prefs.endpoint;
+  const localPi = (s.prefs.activeHost ?? "local") === "local" && Boolean(s.piHealth?.install.installed);
   useEffect(() => {
-    if (s.connection.phase === "connected") void store.loadRecentSessions(archived);
-  }, [s.connection.phase, hostKey, archived]);
+    if (s.connection.phase === "connected" || localPi) void store.loadRecentSessions(archived);
+  }, [s.connection.phase, hostKey, archived, localPi]);
   useEffect(() => {
-    if (s.connection.phase === "connected") {
+    if (s.connection.phase === "connected" || localPi) {
       for (const dir of JSON.parse(expandedKey) as string[]) void store.loadProjectSessions(dir);
     }
-  }, [s.connection.phase, hostKey, expandedKey]);
+  }, [s.connection.phase, hostKey, expandedKey, localPi]);
   useEffect(() => { setMenu(null); setRename(null); setShownByProject({}); setRecentCount(8); }, [hostKey]);
   const row = (sess: Session, prefix: string, recent = false) => {
     const rowKey = `${prefix}:${sess.id}`;

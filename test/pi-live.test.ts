@@ -77,6 +77,10 @@ let counter = 0;
  * the ones the Rust reader also follows: split on \n only, strip a trailing \r.
  */
 const nodeBridge: PiBridge = {
+  prepareChatWorkspace: async () => {
+    const directory = mkdtempSync(join(tmpdir(), "pi-live-projectless-"));
+    return { directory, root: tmpdir() };
+  },
   detect: async () => ({
     installed: Boolean(PI),
     path: PI,

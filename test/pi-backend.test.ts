@@ -52,6 +52,7 @@ const bridge: PiBridge = {
     missing: [],
   }),
   probeDirectory: async () => "/tmp/probe",
+  prepareChatWorkspace: async () => ({ directory: "/tmp/pi-chat", root: "/tmp" }),
   liveSessions: async () => opened.map((o) => `${o.directory}\u0000${o.sessionId}`),
   subscribe: (handler) => {
     handlers.push(handler);

@@ -53,7 +53,7 @@ export function TopBar() {
           <span>В Pi</span>
         </button>
       )}
-      {session && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected" || !store.backend.capabilities.fork} onClick={() => store.setUi({ handoffSource: session })}>
+      {session && engineId !== PI_BACKEND_ID && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected" || !store.backend.capabilities.fork} onClick={() => store.setUi({ handoffSource: session })}>
         <Icon name="handoff" size={17} /><span>Передать</span>
       </button>}
       {s.ui.vcs?.branch && (
@@ -62,7 +62,7 @@ export function TopBar() {
           {s.ui.vcs.branch}
         </span>
       )}
-      <button
+      {engineId !== PI_BACKEND_ID && <button
         className={`icon-btn${l.bottomOpen ? " on" : ""}`}
         aria-label="Терминал"
         aria-pressed={l.bottomOpen}
@@ -71,8 +71,8 @@ export function TopBar() {
         onClick={() => void store.toggleTerminal()}
       >
         <Icon name="terminal" />
-      </button>
-      <button
+      </button>}
+      {engineId !== PI_BACKEND_ID && <button
         className={`icon-btn review-button${l.rightOpen ? " on" : ""}`}
         aria-label="Изменения и файлы"
         aria-pressed={l.rightOpen}
@@ -80,7 +80,7 @@ export function TopBar() {
       >
         <Icon name="panel" size={17} />
         <span>Изменения</span>
-      </button>
+      </button>}
     </header>
   );
 }

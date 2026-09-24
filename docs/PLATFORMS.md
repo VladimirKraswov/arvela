@@ -11,14 +11,14 @@
 | Артефакт | `.deb` | `.app` + `.dmg` | **нет** |
 | Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | отсутствует намеренно |
 | Команда | `npm run build:linux` | `npm run build:macos` | — |
-| Собрано и запущено | да, в этом чекауте | нет (нужен Mac) | нет |
+| Собрано и запущено | да, на Ubuntu 24.04 | да, на Mac владельца | нет |
 | Оконный хром | системный заголовок GTK | overlay-светофор macOS | — |
 | Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | — |
 | Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | — |
 | Звук завершения | `canberra-gtk-play` → `paplay` → `pw-play` | `afplay` + `Glass.aiff` | таблица пуста |
 | Управление компьютером (Cua Driver) | недоступно, сообщается в настройках | да | — |
-| Движок Pi | проверен вживую (0.85.1) | не проверялся здесь | — |
-| LSP для Pi | typescript + rust проверены | зависит от установленных серверов | — |
+| Движок Pi | проверен вживую (0.85.1) | проверен в нативном приложении с локальной Qwen | — |
+| LSP для Pi | typescript + rust проверены | TypeScript и Rust показаны как «готов» | — |
 | Каталог конфигурации OpenCode | `$XDG_CONFIG_HOME` → `$HOME/.config` | `$HOME/.config` | — |
 | Данные приложения | `$XDG_DATA_HOME` → `$HOME/.local/share` | `$HOME/.local/share` | — |
 

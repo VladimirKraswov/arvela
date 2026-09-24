@@ -70,6 +70,7 @@ export interface PiBridge {
   liveSessions(): Promise<string[]>;
   setupLsp(extraPaths?: string[]): Promise<LspSetup>;
   probeDirectory(): Promise<string>;
+  prepareChatWorkspace(): Promise<{ directory: string; root: string }>;
   subscribe(handler: (envelope: PiEnvelope) => void): () => void;
 }
 
@@ -105,6 +106,7 @@ const unavailableBridge: PiBridge = {
     throw new Error(UNAVAILABLE);
   },
   probeDirectory: async () => "",
+  prepareChatWorkspace: async () => { throw new Error(UNAVAILABLE); },
   subscribe: () => () => {},
 };
 
@@ -128,6 +130,7 @@ function tauriBridge(): PiBridge {
     setupLsp: async (extraPaths) =>
       (await core()).invoke("pi_setup_lsp", { extraPaths: extraPaths ?? [] }),
     probeDirectory: async () => (await core()).invoke("pi_probe_directory"),
+    prepareChatWorkspace: async () => (await core()).invoke("pi_prepare_chat_workspace", { id: crypto.randomUUID() }),
     subscribe: (handler) => {
       let stop: (() => void) | undefined;
       let disposed = false;

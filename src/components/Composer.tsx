@@ -103,18 +103,13 @@ export function Composer() {
     }[] = [];
     if (isPi) {
       // Pi keeps its own catalog; OpenCode providers must not leak into it.
-      // Catalog membership is not proof of access, so say so rather than
-      // presenting every bundled entry as usable.
+      // Only models which answered a real request are selectable here.
       for (const m of store.piModelOptions())
         out.push({
           providerID: m.providerID,
           modelID: m.modelID,
           label: m.label,
-          detail: m.verified
-            ? "проверена"
-            : m.source === "custom"
-              ? "свой идентификатор · доступ не проверен"
-              : "каталог Pi · доступ не проверен",
+          detail: "проверена",
         });
       return out;
     }
@@ -129,7 +124,7 @@ export function Composer() {
       }
     }
     return out;
-  }, [providers, isPi, s.piHealth]);
+  }, [providers, isPi, s.piHealth, s.prefs.pi?.verifiedModels, s.prefs.pi?.verifiedModel]);
 
   const variantOptions = useMemo(() => {
     if (!choice || isPi) return [];
@@ -164,13 +159,15 @@ export function Composer() {
     <div className="composer-wrap">
       {!connected && (
         <div className="offline-banner" role="alert">
-          <span>Disconnected from OpenCode. Drafts and history are kept.</span>
-          <button onClick={() => void store.retryConnection()}>
-            Reconnect
+          <span>{isPi
+            ? "Pi не найден. Проверьте путь к Pi в настройках; черновики и история сохранены."
+            : "Нет связи с OpenCode. Черновики и история сохранены."}</span>
+          <button onClick={() => void (isPi ? store.refreshPiInstall() : store.retryConnection())}>
+            Проверить снова
           </button>
         </div>
       )}
-      {connected && s.connection.streamState === "reconnecting" && (
+      {connected && !isPi && s.connection.streamState === "reconnecting" && (
         <div
           className="offline-banner"
           style={{ borderColor: "var(--warn)", color: "var(--warn)" }}
@@ -325,8 +322,10 @@ export function Composer() {
           />
           <SelectMenu
             label="Модель"
-            disabled={!connected}
-            value={choice ? `${choice.providerID}/${choice.modelID}` : ""}
+            disabled={!connected || (isPi && modelList.length === 0)}
+            value={isPi && modelList.length === 0
+              ? "Проверьте модель в настройках Pi"
+              : choice ? `${choice.providerID}/${choice.modelID}` : ""}
             options={modelList.map((m) => ({
               value: `${m.providerID}/${m.modelID}`,
               label: m.label,
@@ -364,7 +363,7 @@ export function Composer() {
               }
             />
           )}
-          <SelectMenu
+          {!isPi && <SelectMenu
             label="Агент"
             value={store.getAgentChoice() ?? ""}
             options={store
@@ -373,7 +372,7 @@ export function Composer() {
             onChange={(name) =>
               store.setAgentOverride(s.directory ?? "*", name)
             }
-          />
+          />}
           <VoiceInput disabled={!connected || s.ui.workspacePreparing} />
           {running && session && (
             <button

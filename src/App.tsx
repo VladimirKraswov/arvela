@@ -51,7 +51,7 @@ export default function App() {
     // connect() is idempotent, so a StrictMode double-invoke shares one attempt.
     applyTheme(store.state.prefs.theme);
     void store.connect();
-    // Cheap `--version` probe: the engine picker must know whether Pi exists.
+    // Detect Pi and hydrate its no-session model catalog for a restored chat.
     void store.refreshPiInstall();
   }, []);
 

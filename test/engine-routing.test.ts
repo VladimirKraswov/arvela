@@ -39,6 +39,10 @@ const piBridge: PiBridge = {
   },
   request: async (_key, command: any) => {
     if (command.type === "prompt") piPrompts.push(command);
+    if (command.type === "get_available_models")
+      return { type: "response", success: true, data: { models: [
+        { id: "deepseek-v4-flash", provider: "deepseek", name: "DeepSeek V4 Flash", input: ["text"] },
+      ] } };
     if (command.type === "get_entries")
       return { type: "response", success: true, data: { entries: [] } };
     return { type: "response", success: true, data: {} };
@@ -53,6 +57,7 @@ const piBridge: PiBridge = {
     missing: [],
   }),
   probeDirectory: async () => "/tmp/probe",
+  prepareChatWorkspace: async () => ({ directory: "/tmp/pi-chat-test", root: "/tmp" }),
   liveSessions: async () => [],
   subscribe: (_handler: (e: PiEnvelope) => void) => () => {},
 };
@@ -89,6 +94,10 @@ beforeEach(async () => {
       state: null,
       error: "",
     },
+    prefs: {
+      ...store.state.prefs,
+      pi: { ...store.state.prefs.pi, verifiedModels: { "deepseek/deepseek-v4-flash": 1 } },
+    },
   };
   store.piInstalled = true;
   vi.spyOn(store.client, "vcs").mockResolvedValue(null);
@@ -98,6 +107,9 @@ beforeEach(async () => {
   vi.spyOn(store.client, "pendingQuestions").mockResolvedValue([]);
   vi.spyOn(store.client, "messages").mockResolvedValue({ messages: [] });
   await store.setDirectory("/test/A");
+  // Directory restore can replace the provider snapshot; keep this fixture
+  // independent of whichever real provider the host has configured.
+  store.state.connectedProviderIds = ["local"];
 });
 
 it("keeps OpenCode as the engine for a folder that never chose one", async () => {
@@ -113,6 +125,52 @@ it("keeps OpenCode as the engine for a folder that never chose one", async () =>
   expect(piPrompts).toEqual([]);
 });
 
+it("offers Pi models only after a real access check and keeps evidence per model", async () => {
+  store.state.prefs.pi.verifiedModels = {};
+  store.state.prefs.pi.verifiedModel = undefined;
+  store.state.piHealth.models.push({
+    id: "qwen-v100", provider: "local-qwen-v100", name: "Qwen V100", input: ["text", "image"],
+  });
+  expect(store.piModelOptions()).toEqual([]);
+  expect(store.getModelChoice("pi")).toBeNull();
+  const check = vi.spyOn(store.pi(), "checkAccess").mockResolvedValue("Модель ответила.");
+  expect((await store.checkPiModelAccess("local-qwen-v100/qwen-v100")).ok).toBe(true);
+  expect(check).toHaveBeenCalled();
+  expect(store.piModelOptions().map((m: any) => `${m.providerID}/${m.modelID}`))
+    .toEqual(["local-qwen-v100/qwen-v100"]);
+  expect(store.getModelChoice("pi")?.modelID).toBe("qwen-v100");
+  check.mockRejectedValueOnce(new Error("provider unavailable"));
+  expect((await store.checkPiModelAccess("local-qwen-v100/qwen-v100")).ok).toBe(false);
+  expect(store.piModelOptions()).toEqual([]);
+});
+
+it("creates a projectless Pi chat without needing a live OpenCode server", async () => {
+  await store.setDirectory(null);
+  store.setSessionEngine(null, "pi");
+  store.state.connection.phase = "disconnected";
+  expect(store.engineIdFor()).toBe("pi");
+  expect(await store.sendPrompt("PI_PROJECTLESS_OK")).toBe(true);
+  expect(store.state.directory).toBe("/tmp/pi-chat-test");
+  expect(store.engineIdFor()).toBe("pi");
+  expect(piPrompts.at(-1)?.message).toBe("PI_PROJECTLESS_OK");
+  expect(store.state.ui.sending).toBe(false);
+});
+
+it("rehydrates Pi models on app startup instead of requiring Settings first", async () => {
+  store.state.piHealth = null;
+  store.piInstalled = false;
+  await store.refreshPiInstall();
+  expect(store.piInstalled).toBe(true);
+  expect(store.piModelOptions().map((m: any) => m.modelID)).toEqual(["deepseek-v4-flash"]);
+});
+
+it("uses the selected Pi model's own context window", () => {
+  store.state.piHealth.models[0].contextWindow = 131072;
+  store.setProjectEngine("/test/A", "pi");
+  store.setModelChoice("deepseek", "deepseek-v4-flash", null);
+  expect(store.contextInfo()).toMatchObject({ limit: 131072, auto: false });
+});
+
 it("routes a folder set to Pi through the Pi engine only", async () => {
   store.setProjectEngine("/test/A", "pi");
   const openCodePrompt = vi.spyOn(store.client, "prompt").mockResolvedValue(undefined);
@@ -120,6 +178,7 @@ it("routes a folder set to Pi through the Pi engine only", async () => {
   expect(await store.sendPrompt("посчитай")).toBe(true);
   expect(piPrompts).toHaveLength(1);
   expect(piPrompts[0].message).toBe("посчитай");
+  expect(store.state.ui.sending).toBe(false);
   // OpenCode must not see the prompt at all.
   expect(openCodePrompt).not.toHaveBeenCalled();
   expect(openCodeCreate).not.toHaveBeenCalled();
@@ -215,6 +274,11 @@ it("lets a Pi chat run while the OpenCode server is unreachable", async () => {
   expect(store.engineReady("opencode")).toBe(false);
   expect(await store.sendPrompt("работай")).toBe(true);
   expect(piPrompts).toHaveLength(1);
+});
+
+it("does not route Pi onto a remote OpenCode workspace", () => {
+  store.state.prefs.activeHost = "igor";
+  expect(store.engineReady("pi")).toBe(false);
 });
 
 it("still refuses to send to OpenCode while it is unreachable", async () => {

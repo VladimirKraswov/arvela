@@ -6,9 +6,10 @@ export function ContextMeter() {
   const [open, setOpen] = useState(false);
   const s = useAppState(),
     c = store.contextInfo();
+  const isPi = store.engineIdFor() === "pi";
   const n = (x: number | null) =>
     x === null ? "—" : x.toLocaleString("ru-RU");
-  const title = `Контекст: ${n(c.used)} / ${n(c.limit)} токенов. ${c.auto ? `До автосжатия: ${n(c.remaining)}. Порог: ${n(c.threshold)}.` : "Автосжатие отключено в OpenCode."}`;
+  const title = `Контекст: ${n(c.used)} / ${n(c.limit)} токенов. ${isPi ? "Данные Pi обновляются после ответа." : c.auto ? `До автосжатия: ${n(c.remaining)}. Порог: ${n(c.threshold)}.` : "Автосжатие отключено в OpenCode."}`;
   return (
     <div className="context-meter">
       <button ref={ref} className="context-trigger" aria-label={title} title={title}
@@ -54,20 +55,21 @@ export function ContextMeter() {
             {n(c.used)} / {n(c.limit)}
           </b>
         </div>
-        <div className="kv">
-          <span>До автосжатия</span>
-          <b>{c.auto ? n(c.remaining) : "Отключено"}</b>
-        </div>
-        <div className="kv">
-          <span>Порог сжатия</span>
-          <b>{n(c.threshold)}</b>
-        </div>
-        <p>
-          Последние данные OpenCode. Во время генерации счётчик обновляется
-          после отчёта движка. История сохраняется, рабочий контекст сжимается
-          автоматически.
+        {!isPi && <>
+          <div className="kv">
+            <span>До автосжатия</span>
+            <b>{c.auto ? n(c.remaining) : "Отключено"}</b>
+          </div>
+          <div className="kv">
+            <span>Порог сжатия</span>
+            <b>{n(c.threshold)}</b>
+          </div>
+        </>}
+        <p>{isPi
+          ? "Последние данные Pi. Во время генерации счётчик обновляется после отчёта движка."
+          : "Последние данные OpenCode. Во время генерации счётчик обновляется после отчёта движка. История сохраняется, рабочий контекст сжимается автоматически."}
         </p>
-        <button
+        {!isPi && <button
           className="btn small"
           disabled={!s.activeSessionId || store.isRunning() || c.compacting}
           onClick={() =>
@@ -75,7 +77,7 @@ export function ContextMeter() {
           }
         >
           Сжать сейчас
-        </button>
+        </button>}
       </FloatingPopover>}
     </div>
   );

@@ -43,6 +43,8 @@ export interface PiSettings {
   customModel?: string;
   /** `provider/model` that answered a real request; evidence, not a promise. */
   verifiedModel?: string;
+  /** Models that answered a real Pi request, keyed by provider/model. */
+  verifiedModels?: Record<string, number>;
   /**
    * Absolute paths to language servers, tried before the built-in candidates.
    * Needed on macOS, where an app launched from Finder inherits neither

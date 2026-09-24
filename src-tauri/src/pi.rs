@@ -367,6 +367,15 @@ pub async fn pi_probe_directory() -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Create a local projectless workspace for Pi without consulting the OpenCode
+/// server. The shared helper validates the app-generated id and confines the
+/// directory to the app's own chats root.
+#[tauri::command]
+pub async fn pi_prepare_chat_workspace(id: String) -> Result<crate::hosts::Workspace, String> {
+    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+    crate::hosts::prepare_chat_workspace(id, None, home).await
+}
+
 /// Writes the extension and its server list into the app's own directory and
 /// reports which servers were not found, so the UI can say so plainly.
 /// `extra_paths` are absolute language-server paths configured by the user.

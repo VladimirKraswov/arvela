@@ -42,6 +42,7 @@ import {
   engineForDirectory,
   engineForSession,
   modelScope,
+  piAvailability,
   type EngineId,
 } from "./engines";
 import { completionChime } from "../native/sound";
@@ -386,7 +387,7 @@ class Store {
    */
   engineReady(id: EngineId = this.engineIdFor()): boolean {
     return id === PI_BACKEND_ID
-      ? this.piInstalled
+      ? this.piInstalled && piAvailability(this.state.prefs).available
       : this.state.connection.phase === "connected";
   }
 
@@ -408,6 +409,7 @@ class Store {
 
   /** Pi chats for a folder; empty when Pi is not installed or not selected. */
   private async piListFor(directory: string): Promise<Session[]> {
+    if (!piAvailability(this.state.prefs).available) return [];
     const anyPiHere =
       this.engineIdForDirectory(directory) === PI_BACKEND_ID ||
       Object.values(this.state.prefs.piSessions ?? {}).some(
@@ -601,8 +603,14 @@ class Store {
         this.piInstalled = install.installed;
         this.mutate({});
       }
+      // A restored Pi chat or projectless Pi composer needs its model catalog
+      // immediately. A version-only probe leaves the picker empty until the
+      // user happens to visit Settings. This is a no-session metadata read,
+      // not a model request or an inference job.
+      if (install.installed) await this.refreshPiHealth();
     } catch {
       this.piInstalled = false;
+      this.mutate({});
     }
   }
 
@@ -995,30 +1003,35 @@ class Store {
   }
 
   async loadProjectSessions(directory: string, opts: { force?: boolean; more?: boolean } = {}): Promise<void> {
-    if (this.state.connection.phase !== "connected") return;
+    const openCodeUp = this.state.connection.phase === "connected";
+    const localPi = this.piInstalled && piAvailability(this.state.prefs).available;
+    if (!openCodeUp && !localPi) return;
     const previous = this.state.projectSessionLists[directory] ?? emptySidebarList();
     if (!opts.force && (previous.loading || (previous.loaded && !opts.more))) return;
     const request = (this.sidebarRequests.get(directory) ?? 0) + 1;
     this.sidebarRequests.set(directory, request);
-    const backend = this.backend, generation = this.connectionGeneration;
+    const generation = this.connectionGeneration;
     const limit = previous.limit + (opts.more ? 50 : 0);
     const journal = new Map<string, Session | null>();
     this.sidebarJournals.add(journal);
-    const current = () => backend === this.backend && generation === this.connectionGeneration &&
+    const current = () => generation === this.connectionGeneration &&
       this.sidebarRequests.get(directory) === request;
     this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
       [directory]: { ...previous, loading: true, error: null, limit },
     } }));
     try {
-      const [sessions, statuses] = await Promise.all([
-        backend.listSessions(directory, { limit }), backend.sessionStatuses(directory),
+      const [openCodeSessions, statuses, piSessions] = await Promise.all([
+        openCodeUp ? this.engine(DEFAULT_ENGINE).listSessions(directory, { limit }) : Promise.resolve([]),
+        openCodeUp ? this.engine(DEFAULT_ENGINE).sessionStatuses(directory) : Promise.resolve({} as Record<string, SessionStatus>),
+        this.piListFor(directory),
       ]);
+      const sessions = [...openCodeSessions, ...piSessions];
       if (!current()) return;
       for (const session of sessions) {
         const latest = journal.has(session.id) ? journal.get(session.id) : session;
         if (latest) this.rememberActivitySession(latest);
       }
-      await this.reconcileUnreadSessions(directory);
+      if (openCodeUp) await this.reconcileUnreadSessions(directory);
       if (!current()) return;
       const attention = [...this.activitySessions.values()].filter(x => this.isUnread(x.id) && x.directory === directory);
       const scoped = mergeSidebarSessions([...attention, ...sessions], journal).filter((s) => s.directory === directory);
@@ -1026,7 +1039,7 @@ class Store {
         if (!this.activityStatus(id)) this.observeSessionStatus(id, status, directory);
       this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
         [directory]: { sessions: scoped, loaded: true, loading: false, error: null, limit,
-          hasMore: sessions.length >= limit },
+          hasMore: openCodeSessions.length >= limit },
       } }));
     } catch (e) {
       if (current()) this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
@@ -1036,21 +1049,30 @@ class Store {
   }
 
   async loadRecentSessions(archived = false, more = false): Promise<void> {
-    if (this.state.connection.phase !== "connected") return;
+    const openCodeUp = this.state.connection.phase === "connected";
+    const localPi = this.piInstalled && piAvailability(this.state.prefs).available;
+    if (!openCodeUp && !localPi) return;
     const previous = this.state.recentSessionList;
     if (more && (!previous.cursor || previous.loading || previous.archived !== archived)) return;
-    const backend = this.backend, generation = this.connectionGeneration, request = ++this.recentRequest;
+    const generation = this.connectionGeneration, request = ++this.recentRequest;
     const journal = new Map<string, Session | null>();
     this.sidebarJournals.add(journal);
-    const current = () => backend === this.backend && generation === this.connectionGeneration && request === this.recentRequest;
+    const current = () => generation === this.connectionGeneration && request === this.recentRequest;
     this.mutate({ recentSessionList: { ...(previous.archived === archived ? previous : emptyRecentList()),
       archived, loading: true, error: null },
     });
     try {
-      const page = await backend.recentSessions(archived, more ? previous.cursor ?? undefined : undefined);
+      const [page, piPage] = await Promise.all([
+        openCodeUp
+          ? this.engine(DEFAULT_ENGINE).recentSessions(archived, more ? previous.cursor ?? undefined : undefined)
+          : Promise.resolve({ sessions: [] as Session[], cursor: null }),
+        localPi
+          ? this.pi().recentSessions(archived)
+          : Promise.resolve({ sessions: [] as Session[], cursor: null }),
+      ]);
       if (!current()) return;
-      for (const session of page.sessions) this.rememberActivitySession(session);
-      const sessions = mergeSidebarSessions([...(more ? previous.sessions : []), ...page.sessions], journal)
+      for (const session of [...page.sessions, ...piPage.sessions]) this.rememberActivitySession(session);
+      const sessions = mergeSidebarSessions([...(more ? previous.sessions : []), ...page.sessions, ...piPage.sessions], journal)
         .filter((s) => Boolean(s.time.archived) === archived);
       this.mutate({ recentSessionList: { ...this.state.recentSessionList, sessions, loaded: true,
         loading: false, cursor: page.cursor, hasMore: page.cursor !== null },
@@ -1186,15 +1208,18 @@ class Store {
       },
     }));
     this.persistPrefs();
-    const metadata = this.loadRuntimeMetadata();
+    const metadata = this.state.connection.phase === "connected"
+      ? this.loadRuntimeMetadata()
+      : Promise.resolve();
     if (!directory) {
       await metadata;
       return;
     }
 
-    void this.backend.vcs(directory).then((vcs) => {
-      if (gen === this.directoryGeneration) this.patchUi({ vcs });
-    });
+    if (this.state.connection.phase === "connected")
+      void this.backend.vcs(directory).then((vcs) => {
+        if (gen === this.directoryGeneration) this.patchUi({ vcs });
+      });
     await Promise.all([this.refreshSessions(), metadata]);
     if (gen !== this.directoryGeneration) return;
     if (
@@ -1431,9 +1456,14 @@ class Store {
     this.persistPrefs();
   }
   async ensureChatWorkspace(): Promise<boolean> {
-    if (this.state.connection.phase !== "connected") return false;
     if (this.state.directory) return true;
-    if (!this.backend.capabilities.projectlessChat) {
+    const desiredEngine = this.newChatEngine();
+    if (!this.engineReady(desiredEngine)) return false;
+    if (desiredEngine === PI_BACKEND_ID && this.currentHost()) {
+      this.patchUi({ sendError: "Pi работает только на этом компьютере. Выберите локальное выполнение." });
+      return false;
+    }
+    if (!this.engine(desiredEngine).capabilities.projectlessChat) {
       this.patchUi({ sendError: "Этот агент требует выбранного проекта." });
       return false;
     }
@@ -1444,10 +1474,14 @@ class Store {
     this.patchUi({ workspacePreparing: true, sendError: null });
     const p = (async () => {
       try {
-        const paths = await backend.paths();
-        if (gen !== this.directoryGeneration || backend !== this.backend)
-          return false;
-        const workspace = await prepareChat(host, paths.home);
+        const workspace = desiredEngine === PI_BACKEND_ID
+          ? await piBridge().prepareChatWorkspace()
+          : await (async () => {
+              const paths = await backend.paths();
+              if (gen !== this.directoryGeneration || backend !== this.backend)
+                throw new Error("Выбор рабочего места изменился.");
+              return prepareChat(host, paths.home);
+            })();
         if (gen !== this.directoryGeneration || backend !== this.backend)
           return false;
         const draft = this.getDraft();
@@ -1455,6 +1489,9 @@ class Store {
           prefs: {
             ...s.prefs,
             projectlessRoot: workspace.root,
+            projectEngine: desiredEngine === PI_BACKEND_ID
+              ? { ...s.prefs.projectEngine, [workspace.directory]: PI_BACKEND_ID }
+              : s.prefs.projectEngine,
             projectlessDirectories: [
               ...new Set([
                 ...(s.prefs.projectlessDirectories ?? []),
@@ -1776,15 +1813,13 @@ class Store {
    * Pi's model resolution.
    *
    * Pi's bundled catalog is *not* the list of models an account can use: it can
-   * both miss models the account has (a custom id such as `deepseek/deepseek-flash`,
-   * which Pi accepts with a warning and runs fine) and list models the account
-   * cannot reach. So catalog membership is evidence, never a gate:
+   * both miss accessible custom models and list models the account cannot reach.
+   * A successful short request is the gate for the chat picker and prompts:
    *
    *   per-chat / per-folder choice  →  explicit custom model  →  configured
    *   default  →  first catalog entry
    *
-   * Only an actual request proves access; that is what `checkPiModelAccess`
-   * does, and its result is what the UI marks as verified.
+   * `checkPiModelAccess` records that evidence per model.
    */
   private piModelChoice(directory: string | null): {
     providerID: string;
@@ -1793,17 +1828,13 @@ class Store {
   } | null {
     const models = this.state.piHealth?.models ?? [];
     const custom = parseModelId(this.state.prefs.pi?.customModel);
+    const verified = (choice: { providerID: string; modelID: string }) => {
+      const id = `${choice.providerID}/${choice.modelID}`;
+      return this.state.prefs.pi?.verifiedModel === id ||
+        Boolean(this.state.prefs.pi?.verifiedModels?.[id]);
+    };
     const usable = (choice: { providerID: string; modelID: string } | undefined) => {
-      if (!choice?.providerID || !choice.modelID) return undefined;
-      const inCatalog = models.some(
-        (m) => m.provider === choice.providerID && m.id === choice.modelID,
-      );
-      const isCustom =
-        custom &&
-        custom.providerID === choice.providerID &&
-        custom.modelID === choice.modelID;
-      // With no catalog at all we cannot contradict the user's choice either.
-      return inCatalog || isCustom || !models.length ? choice : undefined;
+      return choice?.providerID && choice.modelID && verified(choice) ? choice : undefined;
     };
     const sessionId = this.state.activeSessionId;
     const keys = [
@@ -1815,18 +1846,18 @@ class Store {
       const stored = usable(this.state.prefs.modelChoice[key]);
       if (stored) return stored;
     }
-    if (custom)
+    if (custom && verified(custom))
       return { ...custom, variant: this.state.prefs.pi?.thinking ?? null };
     const configured = usable(parseModelId(this.state.prefs.pi?.model) ?? undefined);
     if (configured)
       return { ...configured, variant: this.state.prefs.pi?.thinking ?? null };
-    const first = models[0];
+    const first = models.find((m) => verified({ providerID: m.provider, modelID: m.id }));
     return first
       ? { providerID: first.provider, modelID: first.id, variant: null }
       : null;
   }
 
-  /** Models offered for Pi: its catalog plus any explicitly pinned custom id. */
+  /** Only models with a successful access check belong in the chat picker. */
   piModelOptions(): {
     providerID: string;
     modelID: string;
@@ -1835,6 +1866,7 @@ class Store {
     verified: boolean;
   }[] {
     const verified = this.state.prefs.pi?.verifiedModel;
+    const verifiedModels = this.state.prefs.pi?.verifiedModels ?? {};
     type Option = {
       providerID: string;
       modelID: string;
@@ -1847,7 +1879,7 @@ class Store {
       modelID: m.id,
       label: m.name ?? m.id,
       source: "catalog",
-      verified: verified === `${m.provider}/${m.id}`,
+      verified: verified === `${m.provider}/${m.id}` || Boolean(verifiedModels[`${m.provider}/${m.id}`]),
     }));
     const custom = parseModelId(this.state.prefs.pi?.customModel);
     if (custom && !out.some((m) => m.providerID === custom.providerID && m.modelID === custom.modelID))
@@ -1855,17 +1887,16 @@ class Store {
         ...custom,
         label: custom.modelID,
         source: "custom",
-        verified: verified === `${custom.providerID}/${custom.modelID}`,
+        verified: verified === `${custom.providerID}/${custom.modelID}` || Boolean(verifiedModels[`${custom.providerID}/${custom.modelID}`]),
       });
-    return out;
+    return out.filter((model) => model.verified);
   }
 
   setPiCustomModel(value: string): void {
     const parsed = parseModelId(value);
     this.setPiSettings({
       customModel: parsed ? `${parsed.providerID}/${parsed.modelID}` : undefined,
-      // A new pin invalidates the previous access evidence.
-      verifiedModel: undefined,
+      // Preserve evidence for other models when changing the custom id.
     });
   }
 
@@ -1874,8 +1905,8 @@ class Store {
    * see whether the provider answers. A configured model proves nothing about
    * credentials, endpoint or entitlement.
    */
-  async checkPiModelAccess(): Promise<{ ok: boolean; detail: string }> {
-    const choice = this.getModelChoice(PI_BACKEND_ID);
+  async checkPiModelAccess(modelId?: string): Promise<{ ok: boolean; detail: string }> {
+    const choice = modelId ? parseModelId(modelId) : this.getModelChoice(PI_BACKEND_ID);
     if (!choice)
       return { ok: false, detail: "Модель для Pi не выбрана." };
     const id = `${choice.providerID}/${choice.modelID}`;
@@ -1884,14 +1915,17 @@ class Store {
         await piBridge().probeDirectory().catch(() => ""),
         choice,
       );
-      this.setPiSettings({ verifiedModel: id });
+      this.setPiSettings({
+        verifiedModel: id,
+        verifiedModels: { ...this.state.prefs.pi?.verifiedModels, [id]: Date.now() },
+      });
       return { ok: true, detail };
     } catch (e) {
+      const verifiedModels = { ...this.state.prefs.pi?.verifiedModels };
+      delete verifiedModels[id];
       this.setPiSettings({
-        verifiedModel:
-          this.state.prefs.pi?.verifiedModel === id
-            ? undefined
-            : this.state.prefs.pi?.verifiedModel,
+        verifiedModel: this.state.prefs.pi?.verifiedModel === id ? undefined : this.state.prefs.pi?.verifiedModel,
+        verifiedModels,
       });
       return { ok: false, detail: errText(e) };
     }
@@ -2199,7 +2233,7 @@ class Store {
       return false;
     } finally {
       onProgress("");
-      if (this.backend === backend) {
+      if (this.engineStillActive(backend)) {
         this.patchUi({ sending: false });
         void this.drainQueue();
       }
@@ -2313,13 +2347,16 @@ class Store {
 
   contextInfo() {
     const choice = this.getModelChoice();
+    const isPi = this.engineIdFor() === PI_BACKEND_ID;
     const chat = this.state.activeSessionId
       ? this.state.chat.sessions[this.state.activeSessionId]
       : undefined;
     return contextUsage(
       chat,
-      choice && this.modelInfo(choice.providerID, choice.modelID),
-      this.state.compaction,
+      choice && (isPi
+        ? piModelInfo(this.state.piHealth, choice)
+        : this.modelInfo(choice.providerID, choice.modelID)),
+      isPi ? { auto: false } : this.state.compaction,
     );
   }
 
@@ -3118,6 +3155,7 @@ function piModelInfo(
     } as unknown as ModelInfo;
   return {
     id: model.id,
+    providerID: model.provider,
     name: model.name ?? model.id,
     attachment: (model.input ?? []).includes("image"),
     reasoning: Boolean(model.reasoning),

@@ -68,6 +68,29 @@ it("paginates recent sessions across projects and projectless directories withou
   expect(store.state.recentSessionList.hasMore).toBe(false);
 });
 
+it("shows Pi chats alongside OpenCode chats in projects and recent history", async () => {
+  const pi = session("chat-pi", "/work/b", 4);
+  store.piInstalled = true;
+  store.state.prefs.piSessions = {
+    "chat-pi": { id: pi.id, directory: pi.directory, title: "Pi task", created: 1, updated: 4 },
+  };
+  vi.spyOn(store.pi(), "listSessions").mockResolvedValue([{ ...pi, title: "Pi task", projectID: "pi" }]);
+  api.listSessions.mockResolvedValue([session("oc", "/work/b", 3)]);
+  await store.loadProjectSessions("/work/b");
+  expect(store.state.projectSessionLists["/work/b"].sessions.map((s: any) => s.id))
+    .toEqual(["chat-pi", "oc"]);
+
+  api.recentSessions.mockResolvedValue({ sessions: [session("oc", "/work/b", 3)], cursor: null });
+  await store.loadRecentSessions();
+  expect(store.state.recentSessionList.sessions.map((s: any) => s.id))
+    .toEqual(["chat-pi", "oc"]);
+
+  store.state.connection.phase = "disconnected";
+  await store.loadRecentSessions();
+  expect(store.state.recentSessionList.sessions.map((s: any) => s.id))
+    .toEqual(["chat-pi"]);
+});
+
 it("updates rename/archive/restore/delete on a non-active project and in recent sessions", async () => {
   const b = session("b", "/work/b"); api.listSessions.mockResolvedValue([b]);
   await store.loadProjectSessions("/work/b"); api.recentSessions.mockResolvedValue({ sessions: [b], cursor: null }); await store.loadRecentSessions();

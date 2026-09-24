@@ -5,6 +5,7 @@ export function DeleteConfirm() {
   const s = useAppState();
   const sess = s.ui.confirmDelete;
   if (!sess) return null;
+  const engine = store.isPiSession(sess.id) ? "Pi" : "OpenCode";
   return (
     <div
       className="modal-overlay"
@@ -22,7 +23,7 @@ export function DeleteConfirm() {
             lineHeight: 1.6,
           }}
         >
-          “{sess.title}” and its full history will be removed from OpenCode.
+          “{sess.title}” and its full history will be removed from {engine}.
           This cannot be undone. If you only want to hide it, use <b>Archive</b>{" "}
           instead.
         </p>

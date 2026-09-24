@@ -38,6 +38,7 @@ import { piBridge, type PiInstall, type PiSessionFile } from "./native";
 import {
   isDialogMethod,
   type PiCommand,
+  type PiAssistantMessage,
   type PiEntry,
   type PiEnvelope,
   type PiEvent,
@@ -246,6 +247,7 @@ export class PiBackend implements AgentBackend {
       program: this.host.choice(directory).program,
     });
     try {
+      let assistant: PiAssistantMessage | undefined;
       const settled = new Promise<string>((resolve, reject) => {
         const timer = setTimeout(
           () => reject(new Error("Модель не ответила за 60 с.")),
@@ -254,10 +256,20 @@ export class PiBackend implements AgentBackend {
         const stop = this.bridge.subscribe((envelope) => {
           if (envelope.key !== opened.key) return;
           const payload = envelope.payload as PiEvent;
+          if (payload.type === "message_end" && payload.message?.role === "assistant")
+            assistant = payload.message as PiAssistantMessage;
           if (payload.type === "agent_settled") {
             clearTimeout(timer);
             stop();
-            resolve("Модель ответила на тестовый запрос.");
+            const text = assistant?.content
+              ?.filter((part) => part.type === "text")
+              .map((part) => String("text" in part ? part.text : ""))
+              .join("")
+              .trim();
+            if (!text || assistant?.stopReason === "error" || assistant?.stopReason === "aborted")
+              reject(new Error("Pi завершил проверку без ответа модели."));
+            else
+              resolve("Модель ответила на тестовый запрос.");
           }
           if (payload.type === "pi_exited") {
             clearTimeout(timer);
@@ -327,9 +339,16 @@ export class PiBackend implements AgentBackend {
     return out;
   }
 
-  async recentSessions(): Promise<{ sessions: Session[]; cursor: number | null }> {
-    // Pi has no cross-directory index; the sidebar merges per-project listings.
-    return { sessions: [], cursor: null };
+  async recentSessions(archived = false): Promise<{ sessions: Session[]; cursor: number | null }> {
+    // Pi has no server-side cross-directory index. The app owns the metadata
+    // for every Pi chat, including its directory and archive state.
+    return {
+      sessions: Object.values(this.host.meta.all())
+        .filter((meta) => Boolean(meta.archived) === archived)
+        .map(sessionOf)
+        .sort((a, b) => b.time.updated - a.time.updated),
+      cursor: null,
+    };
   }
 
   async getSession(sessionID: string, directory: string | null): Promise<Session> {

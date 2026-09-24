@@ -31,6 +31,12 @@ it("prefers the per-chat override over the folder preference", () => {
   expect(engineForSession(prefs, null, "/work")).toBe("pi");
 });
 
+it("uses the chosen engine for a new chat without a project, but keeps old chats on OpenCode", () => {
+  const prefs = { newChatEngine: "pi" };
+  expect(engineForSession(prefs, null, null)).toBe("pi");
+  expect(engineForSession(prefs, "ses_existing", null)).toBe("opencode");
+});
+
 it("never reinterprets existing OpenCode chats when the folder later switches to Pi", () => {
   // The dangerous case: a project full of OpenCode history, then the user sets
   // the folder default to Pi. Those chats have no sessionEngine entry, and if

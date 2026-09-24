@@ -1,5 +1,33 @@
 # Verification record
 
+## Coordinator macOS acceptance — 0.2.9, 2026-09-25
+
+- Pi 0.85.1 was detected at `/opt/homebrew/bin/pi`. Its model catalog was
+  populated on startup, before opening Settings. Short direct requests to
+  `local-qwen/qwen38-flash-next` and `local-qwen-v100/qwen-v100` both returned
+  the requested text; the app then verified both independently with a nonempty
+  response and showed only those two models in the Pi picker. No cloud model
+  was configured on the Mac. The 5090 Flash Next remains OpenCode's default.
+- The app-owned Pi LSP extension found TypeScript Language Server 6.0.1 and
+  rust-analyzer 1.96.0 as «готов». Global `~/.pi` configuration was not edited.
+  A native Pi projectless chat returned `PI_FINAL_OK`; its context meter showed
+  **10 195 / 131 072** tokens and the composer remained usable after completion.
+  A separate native OpenCode projectless chat returned `OC_FINAL_OK` with the
+  existing local Flash Next, and the new-chat default was restored to OpenCode.
+- Native review found and fixed two defects before release: projectless Pi
+  routing previously required an OpenCode workspace, and Pi chats were absent
+  from cross-project «Недавние». The project list and recent history now merge
+  both engines; Pi history remains visible when the OpenCode server is down.
+  OpenCode-only agent, terminal, changes and edit controls are hidden in Pi;
+  Pi's context meter uses its own model window.
+- Final source checks: `tsc --noEmit`, **280 passed / 6 skipped** frontend tests,
+  `cargo fmt --check`, `cargo check --all-targets`, **29/29** Rust tests.
+  The six skipped cases are opt-in live suites, run separately on Igor's machine
+  with isolated test engines and a DeepSeek key outside the repository.
+
+The sections below record earlier review stages; their interim “source only”
+and “Mac not checked” labels describe those stages, not the final 0.2.9 result.
+
 ## Coordinator review follow-up — 0.2.9, 2026-09-25 (source only, not released)
 
 Twenty coordinator findings were re-checked against the code; the real ones were
@@ -40,7 +68,9 @@ fixed and each is backed by a test or a measurement.
 - **Readiness is measured, not assumed.** "Проверить доступ" sends one minimal
   real request in an ephemeral session. **Measured in the built app:** with
   `deepseek/deepseek-flash` pinned — a model absent from Pi's catalog — it
-  reported «Подтверждён · Модель ответила на тестовый запрос».
+  reported «Подтверждён · Модель ответила на тестовый запрос». The Mac review
+  now requires an actual nonempty assistant response (not just `agent_settled`)
+  and offers only separately verified models in the chat picker.
 - **Capability probes leave nothing behind**: they run with `--no-session` and no
   extensions, and any `probe-*` transcript from an older build is filtered out of
   the chat list.

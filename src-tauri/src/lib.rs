@@ -29,7 +29,8 @@ pub fn run() {
             pi::pi_sessions,
             pi::pi_live_sessions,
             pi::pi_setup_lsp,
-            pi::pi_probe_directory
+            pi::pi_probe_directory,
+            pi::pi_prepare_chat_workspace
         ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

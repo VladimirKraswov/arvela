@@ -99,6 +99,10 @@ These should have capability/evidence-based designs, not placeholder buttons:
 - [ ] Browser preview as isolated content without Tauri privileges; optional worktree-aware dev-server handling.
 - [x] Linux packaging: `.deb` built and smoke-tested on Ubuntu 24.04 (0.2.9), with a platform-neutral
       Tauri config plus reviewed per-OS overlays. See `docs/PLATFORMS.md`.
+- [x] Pi as a second local engine in 0.2.9: separate settings and model verification,
+      per-project/per-chat choice, projectless chats, guarded tools, LSP, history
+      alongside OpenCode and explicit two-way handoff. Native Mac and Linux
+      acceptance is recorded in `docs/VERIFICATION.md`.
 - [ ] Windows packaging: extension points named in `docs/PLATFORMS.md`, nothing built or tested.
 - [ ] Cloud proprietary functionality only through a real supported service. Document unsupported features plainly.
 

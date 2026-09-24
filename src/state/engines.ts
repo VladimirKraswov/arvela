@@ -47,12 +47,13 @@ export function engineForDirectory(
  *   explicit per-chat override  →  Pi session metadata exists  →  OpenCode
  */
 export function engineForSession(
-  prefs: Pick<Prefs, "projectEngine" | "sessionEngine" | "piSessions">,
+  prefs: Pick<Prefs, "projectEngine" | "sessionEngine" | "piSessions" | "newChatEngine">,
   sessionId: string | null,
   directory: string | null,
 ): EngineId {
   // No chat yet: this is the composer for a new one, so the folder decides.
-  if (!sessionId) return engineForDirectory(prefs, directory);
+  if (!sessionId)
+    return directory ? engineForDirectory(prefs, directory) : prefs.newChatEngine ?? DEFAULT_ENGINE;
   const override = prefs.sessionEngine?.[sessionId];
   if (override) return override;
   // Pi owns a transcript for this id: that is durable, app-owned evidence.

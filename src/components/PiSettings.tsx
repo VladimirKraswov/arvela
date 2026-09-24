@@ -47,6 +47,7 @@ export function PiSettings() {
   const [error, setError] = useState("");
   const [lsp, setLsp] = useState<{ servers: string[]; missing: string[] } | null>(null);
   const [access, setAccess] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [checkingModel, setCheckingModel] = useState("");
   const [custom, setCustom] = useState(settings.customModel ?? "");
   const [extension, setExtension] = useState("");
   const [serverPath, setServerPath] = useState("");
@@ -80,6 +81,17 @@ export function PiSettings() {
   // The toggle must describe reality: without an installed extension there is
   // nothing to enable, whatever the stored preference says.
   const lspInstalled = lspExtensions.some((path) => path.endsWith("lsp-extension.ts"));
+  const checkModel = async (id: string) => {
+    setBusy(true);
+    setCheckingModel(id);
+    setAccess(null);
+    try {
+      setAccess(await store.checkPiModelAccess(id));
+    } finally {
+      setCheckingModel("");
+      setBusy(false);
+    }
+  };
 
   return (
     <section className="pi-settings" aria-label="Pi">
@@ -153,7 +165,7 @@ export function PiSettings() {
         </Row>
         <Row
           title="Доступ к выбранной модели"
-          description="Настроенная модель — это ещё не доступ. Проверка отправляет один минимальный запрос и показывает, что ответил провайдер."
+          description="Настроенная модель — это ещё не доступ. Проверяйте нужные модели ниже: каждая проверка отправляет один минимальный запрос. В чате доступны только проверенные модели."
         >
           <span>
             {access
@@ -168,18 +180,13 @@ export function PiSettings() {
         <div className="btn-row">
           <button
             className="btn"
-            disabled={busy || !install?.installed}
-            onClick={async () => {
-              setBusy(true);
-              setAccess(null);
-              try {
-                setAccess(await store.checkPiModelAccess());
-              } finally {
-                setBusy(false);
-              }
+            disabled={busy || !install?.installed || !store.getModelChoice("pi")}
+            onClick={() => {
+              const choice = store.getModelChoice("pi");
+              if (choice) void checkModel(`${choice.providerID}/${choice.modelID}`);
             }}
           >
-            Проверить доступ
+            Проверить выбранную модель
           </button>
         </div>
       </Group>
@@ -201,8 +208,14 @@ export function PiSettings() {
         <p className="handoff-note">
           Встроенный каталог Pi — это не список доступных вашему аккаунту
           моделей: он может и не знать вашу модель, и перечислять те, к которым
-          нет доступа. Доступ подтверждает только реальная проверка выше.
+          нет доступа. В выборе чата появятся только модели, ответившие на проверку.
         </p>
+        {custom.trim() && <div className="btn-row">
+          <button className="btn" disabled={busy || !install?.installed || !/^[^/]+\/.+/.test(custom.trim())}
+            onClick={() => { store.setPiCustomModel(custom); void checkModel(custom.trim()); }}>
+            {checkingModel === custom.trim() ? "Проверка…" : "Проверить свою модель"}
+          </button>
+        </div>}
         {health?.models.length ? (
           <div className="pi-model-list">
             {health.models.map((m) => (
@@ -218,6 +231,12 @@ export function PiSettings() {
                   {m.reasoning ? " · рассуждение" : ""}
                   {(m.input ?? []).includes("image") ? " · изображения" : ""}
                 </b>
+                <button className="btn" disabled={busy || !install?.installed}
+                  onClick={() => void checkModel(`${m.provider}/${m.id}`)}>
+                  {checkingModel === `${m.provider}/${m.id}` ? "Проверка…" :
+                    settings.verifiedModels?.[`${m.provider}/${m.id}`] || settings.verifiedModel === `${m.provider}/${m.id}`
+                      ? "Проверена · повторить" : "Проверить"}
+                </button>
               </div>
             ))}
           </div>

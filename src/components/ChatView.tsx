@@ -101,7 +101,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
       redraw(n => n + 1);
     }
   };
-  const broken = ['reconnecting','error','closed'].includes(s.connection.streamState);
+  const broken = store.engineIdFor() !== 'pi' && ['reconnecting','error','closed'].includes(s.connection.streamState);
   // Provenance must be visible: a handed-over chat never pretends the earlier
   // turns were its own.
   const origin = store.handoffOrigin(sessionId);
