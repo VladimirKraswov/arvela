@@ -167,7 +167,17 @@ export class OpenCodeClient {
       }
       if (opts.allow204) return undefined as T;
       opts.onResponse?.(res);
-      return (await res.json()) as T;
+      try {
+        return (await res.json()) as T;
+      } catch {
+        // The server answered, but not with the documented JSON body. Reporting
+        // this as "cannot reach the server" would send the user hunting the
+        // wrong problem (and hide a real API incompatibility).
+        throw new ApiError(
+          res.status,
+          `OpenCode returned a malformed response for ${method} ${path}`,
+        );
+      }
     } catch (e) {
       if (e instanceof ApiError) throw e;
       if (opts.signal?.aborted) throw opts.signal.reason ?? e;

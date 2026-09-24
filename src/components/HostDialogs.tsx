@@ -259,7 +259,7 @@ export function HostDialogs() {
             }}
           >
             <p className="dialog-description">
-              Папка на {store.hostLabel()}. Папки этого Mac здесь не
+              Папка на {store.hostLabel()}. Папки этого компьютера здесь не
               используются.
             </p>
             <label>

@@ -17,8 +17,13 @@ Never import OpenCode internal database schemas or maintain a fork of its engine
 ## Boundaries
 
 - `src/api/`: contract types, transport facade, response validation, API version/capability normalization.
+- `src/agent/`: the backend-neutral `AgentBackend` contract, its capability flags and the descriptor registry. OpenCode (`src/agent/opencode.ts`) is the default and the only implementation; see `docs/AGENT-BACKENDS.md`. The state layer calls only this contract, so another agent runtime is an added implementation rather than a UI/state rewrite. PTY, `/mcp` and the JSONC config editor are deliberately outside the contract and reach the OpenCode client through `asOpenCodeClient`, which returns null for any other backend.
+- `src/agent/pi/`: the Pi engine — RPC protocol types, a pure translator from Pi's event vocabulary into this app's own event model, the `AgentBackend` implementation and the native bridge. Pi is a local CLI driven over its documented JSONL RPC mode; see `docs/PI-ENGINE.md`.
+- `src/state/engines.ts`: which engine drives a folder or chat (per-chat override → folder preference → OpenCode). Pure and unit-tested; the absence of an entry *is* the migration for pre-existing projects and chats.
 - `src/state/`: selected project/session, normalized message store, stream reducer, pending permissions/questions, drafts; unit-testable without Tauri.
 - `src/components/` and feature folders: workspace chrome, projects/sessions, conversation/composer, review/files, terminal, settings.
+- `src/native/`: the thin Tauri bridges (SSH tunnels, chime, chat workspaces) plus host-platform detection. Platform detection drives presentation only — window-chrome insets, the modifier-key label and OS-specific help text. Feature availability is decided by `AgentBackend.capabilities`, never by the host OS.
+- `src-tauri/src/pi.rs`: Pi process ownership — absolute-path launch, one child per (directory, session), strict JSONL framing, extension dialogs surfaced to the UI with default-deny on timeout, and every child killed on app exit.
 - `src-tauri/`: native dialog/opener integrations and the bounded ASR multipart command. OpenCode HTTP/SSE/WebSocket stays in the WebView; ASR uses a native request because the configured speech service may be outside the loopback CSP. Never an arbitrary command executor exposed to rendered content.
 - `test/`: fixtures, API contract/event tests, component tests; test-owned repositories for any integration edits.
 
@@ -37,3 +42,20 @@ Reuse externally managed OpenCode without claiming process ownership. If the app
 ## Independent updates
 
 Record shell and detected server versions separately. Feature detection and adapter tests must tolerate additive fields/missing optional capabilities. Missing required endpoints cause a compatibility message with versions, not data migration. Updating the app touches only its own bundle/preferences. Updating the OpenCode CLI does not require changing the model, engine or existing session database.
+
+## Host platforms
+
+macOS and Linux are two separately configured build variants of the same codebase
+(`docs/PLATFORMS.md`). The shared Tauri config is platform-neutral; each variant adds
+only its own window chrome, bundle targets and signing/entitlement settings, so a
+Linux bundle can never pick up macOS chrome or entitlements. Per-OS preference paths
+are resolved in one place (`src-tauri/src/paths.rs`): Linux honours `XDG_CONFIG_HOME`
+/ `XDG_DATA_HOME` when they are absolute, macOS keeps `$HOME/.config` and
+`$HOME/.local/share` byte-for-byte so an installed release keeps its data. Windows is
+an unimplemented extension point, not a shipped variant. Platform-specific pieces are
+narrow and explicit: the completion chime picks the first installed system player from
+an absolute-path table (`afplay` on macOS, `canberra-gtk-play`/`paplay`/`pw-play` on
+Linux) and silently does nothing when none is present; only macOS reserves space for
+overlay window controls; the Cua Driver computer-control integration is macOS-only and
+reports itself unavailable elsewhere without disabling any other tool. `ssh` is always
+launched from an absolute path, never resolved through PATH.

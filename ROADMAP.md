@@ -97,7 +97,10 @@ These should have capability/evidence-based designs, not placeholder buttons:
 - [ ] Scheduling/automation only after defining persistence, permission boundaries, duplicate prevention and cancellation. Do not silently auto-start work.
 - [x] Remote OpenCode through native SSH tunnels, strict host keys, in-memory API password, per-host preferences. See docs/WORKSPACES.md. Direct arbitrary HTTPS endpoints and Keychain persistence remain future work.
 - [ ] Browser preview as isolated content without Tauri privileges; optional worktree-aware dev-server handling.
-- [ ] Windows/Linux packaging when tested; cloud proprietary functionality only through a real supported service. Document unsupported features plainly.
+- [x] Linux packaging: `.deb` built and smoke-tested on Ubuntu 24.04 (0.2.9), with a platform-neutral
+      Tauri config plus reviewed per-OS overlays. See `docs/PLATFORMS.md`.
+- [ ] Windows packaging: extension points named in `docs/PLATFORMS.md`, nothing built or tested.
+- [ ] Cloud proprietary functionality only through a real supported service. Document unsupported features plainly.
 
 ## Completion evidence
 

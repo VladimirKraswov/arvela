@@ -1,3 +1,4 @@
+import { modKeyLabel } from "../native/platform";
 import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
 import { useEffect, useState } from "react";
@@ -155,11 +156,11 @@ export function Sidebar() {
           }}
         >
           <Icon name="new" />
-          Новый чат<kbd>⌘ N</kbd>
+          Новый чат<kbd>{modKeyLabel()} N</kbd>
         </button>
         <button onClick={() => store.setUi({ paletteOpen: true })}>
           <Icon name="search" />
-          Поиск<kbd>⌘ K</kbd>
+          Поиск<kbd>{modKeyLabel()} K</kbd>
         </button>
       </nav>
       <div className="sidebar-host">

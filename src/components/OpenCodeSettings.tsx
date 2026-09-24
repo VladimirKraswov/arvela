@@ -113,7 +113,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
     <div className="settings-scope">
       <label>Область конфигурации
         <select value={scope} disabled={!!pending || busy} onChange={(e) => setScope(e.target.value as Scope)}>
-          <option value="global">На этом Mac · все проекты</option>
+          <option value="global">На этом компьютере · все проекты</option>
           <option value="project" disabled={!s.directory || remote}>Текущий проект</option>
         </select>
       </label>

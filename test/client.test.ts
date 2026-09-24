@@ -243,3 +243,22 @@ it("retains the parent request ID needed to associate a preparation answer with 
   const page = await new OpenCodeClient().messages("ses_fork", { directory: "/fixture" });
   expect(page.messages[0].info).toMatchObject({ parentID: "msg_request", finish: "stop", time: { completed: 2 } });
 });
+
+it("reports a malformed body as an API fault, not as an unreachable server", async () => {
+  // A 200 with broken JSON is an API incompatibility. Calling it "cannot reach
+  // the server" sent the user to check the connection instead of the version.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response("<html>proxy error</html>", {
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+  const error = await new OpenCodeClient()
+    .projects()
+    .catch((e: unknown) => e);
+  expect(error).toBeInstanceOf(ApiError);
+  expect(error).not.toBeInstanceOf(ConnectionError);
+  expect((error as ApiError).message).toContain("malformed response");
+});

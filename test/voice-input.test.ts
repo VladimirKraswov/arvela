@@ -4,6 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_PREFS } from "../src/state/prefs";
 import { captureErrorMessage } from "../src/voice/captureError";
+import { resetPlatformCache } from "../src/native/platform";
 
 const fake = vi.hoisted(() => ({
   state: {} as any, setUi: vi.fn(), appendDictation: vi.fn(), transcribe: vi.fn(),
@@ -23,12 +24,14 @@ beforeEach(() => {
   resume = vi.fn().mockResolvedValue(undefined); close = vi.fn().mockResolvedValue(undefined); capture = vi.fn();
   vi.stubGlobal("AudioContext", class { resume = resume; close = close; });
   vi.stubGlobal("MediaRecorder", class {});
-  vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: capture } });
+  // The permission hint is host-specific; pin macOS so the assertion is exact.
+  resetPlatformCache();
+  vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", mediaDevices: { getUserMedia: capture } });
   const node = document.createElement("div"); document.body.append(node);
   root = createRoot(node); act(() => root.render(createElement(VoiceInput, { disabled: false })));
 });
 afterEach(() => {
-  act(() => root.unmount()); document.body.innerHTML = ""; vi.unstubAllGlobals();
+  act(() => root.unmount()); document.body.innerHTML = ""; vi.unstubAllGlobals(); resetPlatformCache();
 });
 async function click(label: string) {
   await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click());
@@ -61,6 +64,14 @@ it("stops a late granted microphone stream after cancellation without transcript
   await act(async () => finish({ getTracks: () => [{ stop }] }));
   expect(stop).toHaveBeenCalledOnce(); expect(fake.transcribe).not.toHaveBeenCalled();
   expect(fake.appendDictation).not.toHaveBeenCalled();
+});
+it("names the host's own permission location instead of assuming macOS", () => {
+  const denied = { name: "NotAllowedError" };
+  expect(captureErrorMessage(denied, "macos")).toContain("Конфиденциальность и безопасность → Микрофон");
+  expect(captureErrorMessage(denied, "linux")).toContain("xdg-desktop-portal");
+  expect(captureErrorMessage(denied, "windows")).toContain("Параметры → Конфиденциальность");
+  for (const host of ["macos", "linux", "windows", "other"] as const)
+    expect(captureErrorMessage(denied, host)).toContain("Если доступ уже включён");
 });
 it("distinguishes missing and unavailable devices from permission errors", () => {
   expect(captureErrorMessage({ name: "NotFoundError" })).toContain("Микрофон не найден");

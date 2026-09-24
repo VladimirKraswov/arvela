@@ -1,3 +1,100 @@
+# OpenCode Desktop 0.2.9 — coordinator review follow-up — IN REVIEW (not released)
+
+Twenty coordinator findings re-checked against the code and fixed where real.
+Headlines: existing chats keep their engine when a folder default changes
+(durable origin, not folder fallback); handoff works OpenCode↔Pi with the
+composer leading into it; Pi's built-in write/edit/bash are gated by a
+first-party approval extension that denies on no-UI/timeout (proved live);
+Pi runs in its own process group with a graceful-EOF→SIGTERM→SIGKILL shutdown
+(Rust test on a tree that ignores both); an explicit `deepseek/deepseek-flash`
+is selectable and was verified live in the built app; capability probes use
+`--no-session`; Pi settings and the model picker stopped overclaiming.
+
+Both engines accepted on Linux: live Pi with the real model, and a test-owned
+OpenCode 1.18.18 on an isolated config/XDG home at loopback 43067.
+
+Verified: tsc; 273 passed / 6 skipped frontend tests; live suites 3 Pi + 3
+OpenCode passing separately; `npm run build`; `cargo fmt --check`;
+`cargo check --all-targets` clean; 31/31 Rust tests; `npm run build:linux`;
+native UI smoke; no orphaned Pi or language-server processes after exit.
+
+NEXT (maintainer, on the Mac): `npm run build:macos`, `scripts/verify-macos.py`,
+then Pi against `/opt/homebrew/bin/pi` with local Qwen (not DeepSeek), adding
+explicit language-server paths in Pi settings since a Finder-launched app does
+not inherit PATH. Details in `docs/PI-ENGINE.md` and `docs/VERIFICATION.md`.
+
+# OpenCode Desktop 0.2.9 — Pi as a second engine — IN REVIEW (not released)
+
+Owner asked for Pi to become a real second agent engine beside OpenCode, with
+separate settings, per-folder/per-chat engine selection, working local Pi RPC
+sessions, safe tool dialogs, and LSP. Direct Claude Code CLI work in the
+temporary checkout on Igor's Ubuntu machine. No commits, push or release.
+
+Delivered: `src-tauri/src/pi.rs` (process ownership, strict JSONL framing,
+default-deny extension dialogs, LSP setup) and `src/agent/pi/` (protocol,
+pure event translator, `AgentBackend`, native bridge). Engine selection lives in
+`src/state/engines.ts`: per-chat override → folder preference → OpenCode, which
+is also the migration for everything that existed before. Separate "Pi" settings
+group; OpenCode settings untouched and never applied to Pi. Honest cross-engine
+handoff: a new Pi chat seeded with a labelled transcript, provenance shown in the
+chat, nothing sent without the user. First-party LSP extension after auditing and
+rejecting the third-party candidate (detached daemon).
+
+Pi installed on Igor at `~/.local/share/opencode-desktop/pi-runtime` pinned to
+0.85.1; `typescript-language-server` there too; `rust-analyzer` via rustup
+component. The DeepSeek test key was used only in child environments.
+
+Verified on Linux: tsc; 258 passed / 2 skipped frontend tests; `npm run build`;
+`cargo fmt --check`; `cargo check --all-targets`; 30/30 Rust tests;
+`npm run build:linux`; live Pi run with a real model; live LSP diagnostics for
+TypeScript and Rust; native UI smoke of the Pi settings; zero orphaned Pi
+processes after app exit.
+
+NEXT (maintainer, on the Mac): build `npm run build:macos`, run
+`scripts/verify-macos.py`, then exercise Pi against the already-installed
+`/opt/homebrew/bin/pi` and the local Qwen models (not DeepSeek), and OpenCode as
+usual. Install language servers there and press «Настроить LSP». Details and
+remaining limits in `docs/PI-ENGINE.md` and the 0.2.9 entries in
+`docs/VERIFICATION.md`.
+
+# OpenCode Desktop 0.2.9 — platform variants — IN REVIEW (source only, not released)
+
+Owner asked for a deep quality refactor on his Ubuntu 24.04 machine, an agent-facing
+layer that keeps OpenCode the default while allowing future backends, two explicit
+build variants (Linux + macOS) with architecture ready for Windows, and product version
+0.2.9 everywhere. Direct Claude Code CLI work in the temporary checkout
+`~/work/opencode-desktop-claude-review-20260924`. No commits, no push, no release.
+
+Delivered: `src/agent/` (`AgentBackend` contract, capability flags, descriptor
+registry, OpenCode adapter); `src/state/store.ts` drives the neutral contract and owns
+no transport; OpenCode-only surfaces (PTY, `/mcp`, JSONC editor) go through
+`asOpenCodeClient` and the panels using them are capability-gated. Only OpenCode is
+implemented — no other backend is claimed. Platform-neutral `tauri.conf.json` plus
+`tauri.macos.conf.json` (Overlay chrome + `Entitlements.plist` + app/dmg) and
+`tauri.linux.conf.json` (deb); no `tauri.windows.conf.json` on purpose. Per-OS paths in
+`src-tauri/src/paths.rs` resolve evidence-first so an existing engine config or chat
+directory always wins over an XDG guess. Linux runtime: system chime player table,
+macOS chrome insets scoped to a `mac-chrome` class, absolute-path `ssh` resolution,
+`navigator.platform` fallback for platform detection, and 10 pieces of macOS-only UI
+copy made platform-accurate. Correctness fixes with regression tests: abort routed with
+the session's own directory, no phantom session slots from malformed events, malformed
+JSON bodies reported as API faults, session-owned directory authoritative.
+
+Verified on Linux only: `tsc --noEmit`; 213/213 frontend tests (32 files);
+`npm run build`; `cargo fmt --check`; `cargo check --all-targets`; 24/24 Rust tests;
+`npm run build:linux` → `OpenCode Desktop_0.2.9_amd64.deb` with correct Depends,
+Categories and no macOS artifacts inside; headless Xvfb smoke showing the real rendered
+window. The owner's OpenCode server, sessions, models and GPUs were untouched; no
+system packages installed and DKMS/kernel packages not altered.
+
+NEXT (maintainer, on a Mac): `npm run build:macos` then
+`python3 scripts/verify-macos.py "…/OpenCode Desktop.app"` — this is the gate proving
+the audio-input entitlement and Hardened Runtime survived moving entitlements into the
+macOS overlay. Also re-check macOS window chrome, the chime, and — on both platforms —
+SSH tunnels, ASR dictation, the PTY terminal and drag-and-drop attachments. Only then
+consider packaging/publishing 0.2.9. See `docs/PLATFORMS.md`, `docs/AGENT-BACKENDS.md`
+and the 0.2.9 entry in `docs/VERIFICATION.md`.
+
 # OpenCode Desktop 0.2.8 — DONE
 
 Owner requested Codex-like file/image/audio/video/PDF attachments, a reusable Proxmox CPU helper and Desktop service settings. CT205 `oc-helper` runs on Debian12; PDF/MP4/audio conversion fixtures, private loopback tunnel and health passed. GigaAM ASR CT201 remains separate. A real browser-to-OpenCode PDF roundtrip through CT205 and local Qwen passed. Native Settings showed all three services. Finder/Desktop drag initially failed because the native WebView intercepted the drop before HTML. The final installed build uses Tauri native drag/drop with narrowly scoped read/stat; the owner confirmed drag works. No additional model prompt was sent for this fix. Full frontend suite passed 184/184 before release; a later overloaded-host repeat timed out one unrelated project-switching test, which passed in an isolated 8/8 run with native-drop tests. TypeScript/Vite, cargo check, native app+DMG build, strict signature/entitlement check and hdiutil verification passed. Source commits `5bfe2d2` and `9ae9ad2` pushed; [v0.2.8](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.8) tag and remote DMG digest match the installed/Downloads build. DMG SHA256 `d4f0d3caab31a8ca0ddc6d9479171a39bdbab922e3db42e8d7d22da95ec87378`. Previous installed app backed up twice, most recently under `~/.local/share/opencode-desktop/backups/0.2.8-before-dragfix-20260924-214747`. OpenCode server, models, user sessions and MCP processes were preserved. CT205 is a host for future MCP but currently has no MCP endpoint. See `docs/ATTACHMENTS.md` and `docs/VERIFICATION.md`; no pending work or automation for this release.

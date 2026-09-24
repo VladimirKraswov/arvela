@@ -13,8 +13,9 @@ pub struct ConfigDocument {
 fn config_dir(scope: &str, directory: Option<&str>) -> Result<PathBuf, String> {
     match scope {
         "global" => {
-            let home = std::env::var_os("HOME").ok_or("HOME недоступен")?;
-            let dir = PathBuf::from(home).join(".config/opencode");
+            // Per-OS resolution lives in `paths`: macOS keeps $HOME/.config/opencode
+            // byte-for-byte, Linux follows XDG like the engine itself does.
+            let dir = crate::paths::opencode_config_dir()?;
             fs::create_dir_all(&dir).map_err(|_| "Не удалось открыть каталог OpenCode")?;
             fs::canonicalize(dir).map_err(|_| "Каталог OpenCode недоступен".into())
         }
@@ -91,7 +92,7 @@ pub fn write_opencode_config(
 }
 
 fn write_at(path: &Path, expected: &str, content: &str) -> Result<(), String> {
-    let current = read_at(&path)?;
+    let current = read_at(path)?;
     if current != expected {
         return Err(
             "Конфигурация изменилась на диске. Обновите настройки и повторите изменение".into(),

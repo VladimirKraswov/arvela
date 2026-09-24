@@ -1,3 +1,4 @@
+import { platform } from "../native/platform";
 import {useEffect,useState} from "react";
 import {store,useAppState} from "../state/store";
 import {COMPUTER_MCP,computerConfig,computerReadinessError,isLocalComputer,type ComputerStatus} from "../state/computer";
@@ -51,7 +52,8 @@ export function ComputerSettings(){
   return <section className="computer-settings" aria-label="Управление компьютером">
     <h4>Отдельный курсор агента</h4>
     <p>OpenCode читает интерфейс выбранного окна, видит его снимок, нажимает и вводит текст через Cua Driver. Ваш указатель остаётся свободным. Снимки и текст окон получает выбранная модель.</p>
-    {!native?<p>Откройте установленное приложение на Mac.</p>:<>
+    {platform()!=="macos"?<p role="status">Cua Driver управляет окнами только на macOS. На этом компьютере интеграция недоступна; остальные инструменты OpenCode работают как обычно.</p>
+      :!native?<p>Откройте установленное приложение на Mac.</p>:<>
       <div className="kv"><span>Драйвер</span><b>{status?status.installed?status.version:"Не установлен":"Проверка…"}</b></div>
       <div className="kv"><span>Управление</span><b>{status?.enabled?computerReadinessError(status)?"Не готово":"Включено":"Выключено"}</b></div>
       <div className="kv"><span>OpenCode · текущий проект</span><b>{connection==="connected"?"Подключён":connection==="not_configured"?"Не подключён":connection||"—"}</b></div>

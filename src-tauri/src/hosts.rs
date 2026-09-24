@@ -39,11 +39,24 @@ fn valid_target(s: &str) -> bool {
         && s.bytes()
             .all(|c| c.is_ascii_alphanumeric() || b"-_.@:%[]".contains(&c))
 }
+/// Absolute paths only: resolving `ssh` through PATH would let a user-writable
+/// directory decide which binary opens the tunnel. macOS ships the first entry,
+/// Debian/Ubuntu the first or second, Nix/Homebrew installs the last.
+const SSH_PROGRAMS: &[&str] = &["/usr/bin/ssh", "/bin/ssh", "/usr/local/bin/ssh"];
+
+fn ssh_program() -> &'static str {
+    SSH_PROGRAMS
+        .iter()
+        .copied()
+        .find(|p| PathBuf::from(p).is_file())
+        .unwrap_or(SSH_PROGRAMS[0])
+}
+
 fn ssh(target: &str) -> Result<Command, String> {
     if !valid_target(target) {
         return Err("Укажите SSH-алиас или user@host, без параметров команды.".into());
     }
-    let mut c = Command::new("/usr/bin/ssh");
+    let mut c = Command::new(ssh_program());
     c.args([
         "-T",
         "-o",
@@ -123,7 +136,8 @@ pub async fn prepare_chat_workspace(
         if let Some(target) = ssh_target {
             let mut c = ssh(&target)?;
             // Only the restricted, app-generated ID is interpolated. No arbitrary shell input.
-            let script = format!("umask 077; d=\"$HOME/.local/share/opencode-desktop/chats/{id}\"; mkdir -p -- \"$d\" && cd -- \"$d\" && pwd -P");
+            let remote = crate::paths::REMOTE_CHATS_SUBPATH;
+            let script = format!("umask 077; d=\"$HOME/{remote}/{id}\"; mkdir -p -- \"$d\" && cd -- \"$d\" && pwd -P");
             c.arg(&target).arg(script);
             let directory = output_timeout(c)?;
             if !directory.starts_with('/') || directory.contains('\n') { return Err("SSH вернул некорректный рабочий путь.".into()); }
@@ -134,7 +148,7 @@ pub async fn prepare_chat_workspace(
             if fs::canonicalize(&home).ok() != fs::canonicalize(&server_home).ok() || !home.is_absolute() {
                 return Err("Сервер работает на другой машине. Выберите подключение SSH для создания чата.".into());
             }
-            let root = home.join(".local/share/opencode-desktop/chats");
+            let root = crate::paths::app_data_dir()?.join("chats");
             fs::create_dir_all(&root).map_err(|e| e.to_string())?;
             let dir = root.join(&id);
             fs::create_dir(&dir).map_err(|e| e.to_string())?;
@@ -254,6 +268,11 @@ mod tests {
         ] {
             assert!(!valid_target(bad));
         }
+    }
+    #[test]
+    fn ssh_is_only_ever_launched_from_an_absolute_path() {
+        assert!(SSH_PROGRAMS.iter().all(|p| p.starts_with('/')));
+        assert!(ssh_program().starts_with('/'));
     }
     #[test]
     fn ssh_never_disables_host_key_verification() {

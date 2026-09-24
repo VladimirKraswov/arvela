@@ -1,6 +1,6 @@
 [package]
 name = "opencode-desktop"
-version = "0.2.8"
+version = "0.2.9"
 description = "Independent desktop client for OpenCode"
 authors = ["OpenCode Desktop contributors"]
 edition = "2021"
@@ -27,6 +27,11 @@ serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart"] }
 base64 = "0.22"
 url = "2"
+
+# Unix only, and only for process-*group* signalling: a Pi agent spawns language
+# servers, and killing just the direct child would orphan them.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

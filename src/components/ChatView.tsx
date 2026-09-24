@@ -102,12 +102,22 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
     }
   };
   const broken = ['reconnecting','error','closed'].includes(s.connection.streamState);
+  // Provenance must be visible: a handed-over chat never pretends the earlier
+  // turns were its own.
+  const origin = store.handoffOrigin(sessionId);
   return <div className="chat-viewport">
     <div className="chat-scroll" ref={scrollRef} onScroll={() => controller.current?.onScroll()} tabIndex={0} aria-label="История чата">
       <div className="chat-inner" ref={contentRef}>
         {!sessionId && !s.ui.historyLoading && <div className="welcome">
           <div className="welcome-mark"><span>⌁</span></div><h1>С чего начнём?</h1><WorkspacePicker />
           <p className="welcome-context">{store.isProjectless() ? 'Задайте вопрос или поручите любую задачу' : 'Работа с файлами выбранного проекта'}</p>
+        </div>}
+        {origin && <div className="handoff-provenance" role="note">
+          <Icon name="handoff" size={15} />
+          <span>Продолжение чата {origin.engine === 'pi' ? 'Pi' : 'OpenCode'} «{origin.title}». Расшифровка той переписки передана сюда как контекст; сами сообщения остались в исходном чате.
+            {origin.omitted > 0 && ` Ранние ${origin.omitted} реплик(и) не поместились и были опущены.`}{' '}
+            {origin.session && <button className="btn small ghost" onClick={() => void store.openChat(origin.session!)}>Открыть исходный чат</button>}
+          </span>
         </div>}
         {sessionId && s.ui.historyLoading && !slot && <div className="empty-hint">Загрузка истории…</div>}
         {sessionId && s.ui.historyError && <div className="msg-error" role="alert">{s.ui.historyError}{' '}

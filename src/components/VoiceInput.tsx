@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { store } from "../state/store";
 import { draftKey } from "../state/prefs";
 import { defaultAsr, transcribeAudio, validateAsr } from "../voice/asr";
-import { captureErrorMessage } from "../voice/captureError";
+import { captureErrorMessage, micUnavailableMessage } from "../voice/captureError";
 import { Icon } from "./Icon";
 
 export function VoiceInput({ disabled }: { disabled: boolean }) {
@@ -58,7 +58,7 @@ export function VoiceInput({ disabled }: { disabled: boolean }) {
       typeof MediaRecorder === "undefined"
     ) {
       setError(
-        "Микрофон недоступен в этом WebView. Проверьте разрешение macOS для OpenCode Desktop.",
+        micUnavailableMessage(),
       );
       return;
     }

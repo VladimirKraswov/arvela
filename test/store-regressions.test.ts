@@ -121,3 +121,37 @@ it("R5: accepting a prompt must preserve a new draft typed while awaiting acknow
   await pending;
   expect(store.getDraft()).toBe("next task typed during request");
 });
+
+it("aborts a session with its own project directory, not whichever project is open", async () => {
+  // The sidebar shows running work from other projects. Aborting used the open
+  // project's directory, so OpenCode answered 404 and the run kept going.
+  const abort = vi.spyOn(store.client, "abort").mockResolvedValue(undefined);
+  vi.mocked(store.client.listSessions).mockImplementation(async (dir: string) =>
+    dir === "/test/B" ? [session("ses_other", "/test/B")] : [],
+  );
+  await store.setDirectory("/test/B");
+  await store.setDirectory("/test/A");
+  await store.stopSession("ses_other");
+  expect(abort).toHaveBeenCalledWith("ses_other", "/test/B");
+});
+
+it("routes a stop to the project the session was created in, not the one now open", async () => {
+  // A chat started in project A keeps running while the user moves to project B.
+  // Aborting it with B's directory made OpenCode answer 404 and the run continued.
+  store.state = {
+    ...store.state,
+    connectedProviderIds: ["local-qwen-next"],
+  };
+  store.setModelChoice("local-qwen-next", "qwen38-flash-next", "medium");
+  vi.spyOn(store.client, "createSession").mockResolvedValue(
+    session("ses_created", "/test/A"),
+  );
+  vi.spyOn(store.client, "prompt").mockResolvedValue(undefined);
+  const abort = vi.spyOn(store.client, "abort").mockResolvedValue(undefined);
+  expect(await store.sendPrompt("long task")).toBe(true);
+  expect(store.state.activeSessionId).toBe("ses_created");
+
+  await store.setDirectory("/test/B");
+  await store.stopSession("ses_created");
+  expect(abort).toHaveBeenCalledWith("ses_created", "/test/A");
+});

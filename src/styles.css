@@ -1193,11 +1193,13 @@ button:focus-visible,
   user-select: none;
   -webkit-user-select: none;
 }
-.native .sidebar-brand {
+/* Only macOS draws overlay window controls inside the content area; GTK and
+   Windows have a real title bar, so reserving space there leaves a dead gap. */
+.native.mac-chrome .sidebar-brand {
   height: 76px;
   padding-top: 27px;
 }
-.native.sidebar-hidden .topbar {
+.native.mac-chrome.sidebar-hidden .topbar {
   padding-left: 90px;
 }
 .sidebar-brand strong {
@@ -2535,7 +2537,7 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .settings-screen { position: absolute; inset: 0; z-index: 35; display: grid; grid-template-columns: 265px minmax(0, 1fr); background: var(--bg); font-size: 1rem; }
 .settings-sidebar { display: flex; flex-direction: column; min-height: 0; background: var(--bg-raised); border-right: 1px solid var(--border); padding: 0 12px 16px; }
 .settings-window-drag { flex: none; height: 28px; }
-.native .settings-window-drag { height: 40px; }
+.native.mac-chrome .settings-window-drag { height: 40px; }
 .settings-back { display: flex; align-items: center; gap: 9px; text-align: left; padding: 12px 8px; border-radius: 8px; font-size: .93rem; flex: none; }
 .settings-back:hover { background: var(--bg-input); }
 .settings-search { display: flex; align-items: center; gap: 8px; padding: 8px 11px; margin: 10px 0 14px; background: var(--bg-input); border-radius: 20px; color: var(--text-dim); }
@@ -2618,3 +2620,20 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 }
 
 .chat-inner .md table { font-size: .92em; }
+
+/* Pi engine: provenance banner, extension dialog and settings lists. */
+.handoff-provenance {
+  display: flex; gap: 9px; align-items: flex-start;
+  margin: 10px 0 14px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-raised); color: var(--text-dim); font-size: .92rem;
+}
+.handoff-provenance svg { flex: none; margin-top: 2px; }
+.pi-dialog { max-width: 520px; }
+.pi-dialog textarea { width: 100%; min-height: 140px; font-family: inherit; }
+.pi-dialog-options { flex-wrap: wrap; }
+.pi-settings .pi-model-list { display: flex; flex-direction: column; }
+.pi-settings .pi-model-list .kv { padding: 7px 0; border-top: 1px solid var(--border); }
+.pi-settings .pi-model-list .kv:first-child { border-top: 0; }
+.pi-settings .kv span small { display: block; color: var(--text-dim); font-size: .85em; }
+.switch-label { display: inline-flex; gap: 8px; align-items: center; }

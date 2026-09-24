@@ -8,8 +8,73 @@ import { DEFAULT_HELPER_ENDPOINT } from "../attachments/helper";
 // Persisted shell preferences. The shell owns theme/layout/directories/drafts;
 // OpenCode owns sessions, models, credentials. No engine data is rewritten here.
 
+/** App-owned metadata for a Pi chat; Pi itself owns only the transcript. */
+export interface PiSessionMeta {
+  id: string;
+  directory: string;
+  title: string;
+  created: number;
+  updated: number;
+  archived?: number;
+  /** Set when this chat was carried over from another engine. */
+  handoffFrom?: string;
+}
+
+/** Pi runtime configuration. Never holds a credential: Pi owns its own auth. */
+export interface PiSettings {
+  /** Absolute path override when Pi is not in a known location. */
+  program?: string;
+  provider?: string;
+  model?: string;
+  thinking?: string;
+  /** Absolute paths of Pi extensions to load (e.g. the LSP extension). */
+  extensions?: string[];
+  lspEnabled?: boolean;
+  /**
+   * Approval policy for Pi's built-in tools. "ask" is the safe default and the
+   * value used when this is unset; "full" is only ever set by an explicit,
+   * informed choice in settings.
+   */
+  toolPolicy?: "ask" | "full";
+  /**
+   * Explicit `provider/model` the user pinned, used even when Pi's bundled
+   * catalog does not list it (Pi itself accepts such ids as custom models).
+   */
+  customModel?: string;
+  /** `provider/model` that answered a real request; evidence, not a promise. */
+  verifiedModel?: string;
+  /**
+   * Absolute paths to language servers, tried before the built-in candidates.
+   * Needed on macOS, where an app launched from Finder inherits neither
+   * `/opt/homebrew/bin` nor `~/.cargo/bin`.
+   */
+  lspServerPaths?: string[];
+}
+
 export interface Prefs {
   appearance: Appearance;
+  /** Preferred engine per project folder. Absent means OpenCode. */
+  projectEngine?: Record<string, string>;
+  /** Per-chat engine override. Absent means the folder preference. */
+  sessionEngine?: Record<string, string>;
+  piSessions?: Record<string, PiSessionMeta>;
+  /**
+   * Where a chat's starting context came from, for either engine. Kept engine
+   * neutral so the provenance banner works for OpenCode→Pi and Pi→OpenCode.
+   */
+  handoffOrigins?: Record<
+    string,
+    {
+      from: string;
+      fromEngine: string;
+      title: string;
+      directory: string;
+      omitted: number;
+    }
+  >;
+  pi?: PiSettings;
+  /** Engine for a chat that has no folder yet. */
+  newChatEngine?: string;
   // Stable server identity is independent of an ephemeral SSH forwarding port.
   workspaceKey?: string;
   activeHost?: string;
@@ -160,9 +225,15 @@ export function switchEndpointPrefs(
     ...DEFAULT_PREFS,
     layout: prefs.layout,
     ...saved,
-    // The CPU helper and speech recognizer belong to this Mac, not an OpenCode workspace.
+    // The CPU helper and speech recognizer belong to this computer, not an
+    // OpenCode workspace. Pi is local too: its runtime settings and its chats
+    // must survive switching to another OpenCode server.
     asr: prefs.asr,
     helperEndpoint: prefs.helperEndpoint,
+    pi: prefs.pi,
+    piSessions: prefs.piSessions,
+    sessionEngine: prefs.sessionEngine,
+    handoffOrigins: prefs.handoffOrigins,
     // Appearance belongs to the app, not to a cached remote workspace.
     theme: prefs.theme,
     appearance: normalizeAppearance(prefs.appearance),

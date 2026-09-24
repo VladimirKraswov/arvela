@@ -6,6 +6,7 @@ import { ACCENTS, DEFAULT_APPEARANCE } from "../state/appearance";
 import { defaultAsr, getAsrKey, setAsrKey, validateAsr } from "../voice/asr";
 import { OpenCodeSettings, type EngineSection } from "./OpenCodeSettings";
 import { ComputerSettings } from "./ComputerSettings";
+import { PiSettings } from "./PiSettings";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
 import { DEFAULT_HELPER_ENDPOINT, helperHealth, validHelperEndpoint, type HelperHealth } from "../attachments/helper";
@@ -14,13 +15,14 @@ export const SETTINGS_SECTIONS = [
   { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Подключение к OpenCode и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
-  { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Курсор агента, Cua Driver и разрешения macOS", keywords: "запись экрана универсальный доступ мышь" },
+  { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
   { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
   { id: "tools", title: "Инструменты", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
   { id: "skills", title: "Навыки", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
   { id: "plugins", title: "Плагины", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
   { id: "mcp", title: "MCP-серверы", group: "OpenCode", icon: "server", description: "Подключения инструментов и их статус", keywords: "mcp интеграции серверы" },
   { id: "agents", title: "Агенты", group: "OpenCode", icon: "chat", description: "Доступные агенты и агент по умолчанию", keywords: "agents build plan" },
+  { id: "pi", title: "Движок Pi", group: "Pi", icon: "chat", description: "Установка, модели, расширения и LSP локального агента Pi", keywords: "pi rpc движок engine модель расширение lsp язык сервер" },
   { id: "about", title: "О приложении", group: "Приложение", icon: "code", description: "Версия приложения и состояние сервера", keywords: "диагностика поток событий SSE провайдеры" },
 ] as const;
 type Section = typeof SETTINGS_SECTIONS[number]["id"];
@@ -45,9 +47,9 @@ function AppearanceSettings() {
     store.setAppearance({ accent: custom }); setColorError(false);
   };
   return <>
-    <p className="settings-intro">Изменения сразу видны во всём приложении и сохраняются на этом Mac.</p>
+    <p className="settings-intro">Изменения сразу видны во всём приложении и сохраняются на этом компьютере.</p>
     <Group title="Оформление">
-      <Row title="Тема" description="Системная тема следует настройкам macOS."><select aria-label="Тема" value={prefs.theme} onChange={e => store.setTheme(e.target.value as typeof prefs.theme)}><option value="system">Системная</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></Row>
+      <Row title="Тема" description="Системная тема следует настройкам операционной системы."><select aria-label="Тема" value={prefs.theme} onChange={e => store.setTheme(e.target.value as typeof prefs.theme)}><option value="system">Системная</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></Row>
       <Row title="Основной цвет" description="Кнопки, ссылки и выделения."><div className="accent-swatches" role="group" aria-label="Основной цвет">{ACCENTS.map(([value, title]) => <button key={value} aria-label={title} title={title} aria-pressed={a.accent === value} onClick={() => store.setAppearance({ accent: value })} style={{ background: value === "neutral" ? "var(--text)" : value, color: "#111" }}>{a.accent === value && <Icon name="check" size={15} />}</button>)}</div></Row>
       <Row title="Свой цвет" description="Цвет в формате HEX, например #5599ee."><div className="custom-color"><input type="color" aria-label="Выбрать свой цвет" value={/^#[0-9a-f]{6}$/i.test(custom) ? custom : "#5599ee"} onChange={e => { setCustom(e.target.value); store.setAppearance({ accent: e.target.value }); }}/><input aria-label="HEX цвета" value={custom} spellCheck={false} maxLength={7} aria-invalid={colorError} onChange={e => { setCustom(e.target.value); setColorError(false); }} onKeyDown={e => { if (e.key === "Enter") saveColor(); }}/><button className="btn small" onClick={saveColor}>Применить цвет</button></div></Row>
       {colorError && <p className="settings-inline-error" role="alert">Введите # и шесть шестнадцатеричных символов.</p>}
@@ -108,7 +110,7 @@ export function SettingsScreen() {
       <div className="settings-window-drag" data-tauri-drag-region />
       <button ref={back} className="settings-back" onClick={() => requestExit("close")} disabled={connecting}><Icon name="arrowDown" size={17} style={{ transform: "rotate(90deg)" }}/>Вернуться в приложение</button>
       <div className="settings-search"><Icon name="search" size={16}/><input type="search" aria-label="Поиск настроек" placeholder="Поиск настроек…" value={query} onChange={e => setQuery(e.target.value)}/></div>
-      <nav aria-label="Разделы настроек">{["Приложение", "Интеграции", "OpenCode"].map(group => <div className="settings-nav-group" key={group}><div className="settings-nav-label">{group}</div>{SETTINGS_SECTIONS.filter(x => x.group === group).map(item => <button key={item.id} aria-current={!query && section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={17}/>{item.title}</button>)}</div>)}</nav>
+      <nav aria-label="Разделы настроек">{["Приложение", "Интеграции", "OpenCode", "Pi"].map(group => <div className="settings-nav-group" key={group}><div className="settings-nav-label">{group}</div>{SETTINGS_SECTIONS.filter(x => x.group === group).map(item => <button key={item.id} aria-current={!query && section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={17}/>{item.title}</button>)}</div>)}</nav>
       <span className="settings-sidebar-version">OpenCode Desktop {appVersion}</span>
     </aside>
     <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
@@ -116,7 +118,7 @@ export function SettingsScreen() {
       {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения подключения, диктовки, помощника или OpenCode. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
         {section === "general" && <>
-          <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Адрес независимо запущенного сервера на этом Mac."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
+          <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Адрес независимо запущенного сервера на этом компьютере."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
           <div className="settings-actions"><span className="settings-muted">Перезапуск сервера не требуется.</span><button className="btn primary" disabled={connecting || !localDirty} onClick={async () => {
             setError(""); setNotice("");
             if (!isAllowedBaseUrl(endpoint.trim())) { setError("Укажите HTTP-адрес loopback сервера. Для удалённого компьютера используйте SSH-подключение."); return; }
@@ -134,9 +136,10 @@ export function SettingsScreen() {
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
         {section === "computer" && <ComputerSettings/>}
+        {section === "pi" && <PiSettings/>}
         {section === "helper" && <>
           <p className="settings-intro">CPU-помощник в контейнере Proxmox подготавливает вложения для выбранной модели. Если модель поддерживает формат, файл идёт напрямую. Иначе помощник извлекает текст, кадры и звук. Аудио распознаёт отдельный GigaAM ASR из раздела «Диктовка».</p>
-          <Group title="Подключение"><Row title="Локальный адрес помощника" description="SSH-туннель на этом Mac; удалённый адрес контейнера сюда не вводится."><input aria-label="Адрес помощника" spellCheck={false} value={helper} onChange={event => { setHelper(event.target.value); setHelperStatus(null); }}/></Row><Row title="Состояние"><span>{helperStatus?.ok ? `Работает · версия ${helperStatus.version}` : "Проверка не выполнялась"}</span></Row><Row title="Доступные сервисы"><span>{helperStatus?.services.join(", ") || "—"}</span></Row></Group>
+          <Group title="Подключение"><Row title="Локальный адрес помощника" description="SSH-туннель на этом компьютере; удалённый адрес контейнера сюда не вводится."><input aria-label="Адрес помощника" spellCheck={false} value={helper} onChange={event => { setHelper(event.target.value); setHelperStatus(null); }}/></Row><Row title="Состояние"><span>{helperStatus?.ok ? `Работает · версия ${helperStatus.version}` : "Проверка не выполнялась"}</span></Row><Row title="Доступные сервисы"><span>{helperStatus?.services.join(", ") || "—"}</span></Row></Group>
           <p className="settings-muted">MCP-подключения OpenCode настраиваются отдельно в разделе «MCP-серверы». Файлы не хранятся в контейнере после обработки.</p>
           <div className="settings-actions"><button className="btn" disabled={testingHelper} onClick={async () => { setError(""); setNotice(""); setTestingHelper(true); try { setHelperStatus(await helperHealth(helper.trim())); setNotice("Помощник доступен."); } catch (problem) { setHelperStatus(null); setError(problem instanceof Error ? problem.message : String(problem)); } finally { setTestingHelper(false); } }}>{testingHelper ? "Проверка…" : "Проверить подключение"}</button><button className="btn primary" disabled={!helperDirty} onClick={() => { const next = helper.trim().replace(/\/$/, ""); if (!validHelperEndpoint(next)) { setError("Укажите локальный HTTP-адрес без пути и учётных данных."); return; } store.setHelperEndpoint(next); setHelper(next); setError(""); setNotice("Адрес помощника сохранён."); }}>Сохранить</button></div>
         </>}

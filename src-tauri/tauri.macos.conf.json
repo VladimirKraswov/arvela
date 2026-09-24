@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "OpenCode Desktop",
+        "width": 1360,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 620,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "macOS": {
+      "entitlements": "Entitlements.plist"
+    }
+  }
+}

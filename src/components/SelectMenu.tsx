@@ -10,7 +10,13 @@ export function SelectMenu({
 }: {
   label: string;
   value: string;
-  options: { value: string; label: string; detail?: string }[];
+  options: {
+    value: string;
+    label: string;
+    detail?: string;
+    /** Shown but not selectable; `detail` explains why. */
+    disabled?: boolean;
+  }[];
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
@@ -85,8 +91,11 @@ export function SelectMenu({
               <button
                 role="option"
                 aria-selected={o.value === value}
+                aria-disabled={o.disabled || undefined}
+                disabled={o.disabled}
                 key={o.value}
                 onClick={() => {
+                  if (o.disabled) return;
                   onChange(o.value);
                   setOpen(false);
                   ref.current?.querySelector("button")?.focus();

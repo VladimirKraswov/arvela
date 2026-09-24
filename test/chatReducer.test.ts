@@ -349,3 +349,25 @@ describe("sessionPatchFiles (1.18.18: /session/diff may be empty, patch parts ar
     expect(sessionPatchFiles(root.sessions[SID])).toEqual([]);
   });
 });
+
+describe("malformed events never create phantom sessions", () => {
+  it("ignores a part without its own session id", () => {
+    const root = emptyChatRoot();
+    reduceEvent(
+      root,
+      evt("message.part.updated", "bad-part", {
+        part: { id: "a", messageID: MID, type: "text", text: "x" },
+      }),
+    );
+    expect(Object.keys(root.sessions)).toEqual([]);
+  });
+
+  it("ignores an unattributed session error instead of keying it under an empty id", () => {
+    const root = emptyChatRoot();
+    reduceEvent(root, evt("session.error", "bad-error", { error: { message: "boom" } }));
+    expect(Object.keys(root.sessions)).toEqual([]);
+    // A properly attributed error still lands in its own conversation.
+    reduceEvent(root, evt("session.error", "good-error", { sessionID: SID, error: { message: "boom" } }));
+    expect(root.sessions[SID].lastError).toContain("boom");
+  });
+});

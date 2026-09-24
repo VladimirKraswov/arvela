@@ -19,13 +19,31 @@ import { DEFAULT_HELPER_ENDPOINT } from "../attachments/helper";
 // Designed to be testable: Tauri is only touched through theme/window niceties.
 
 import { useSyncExternalStore } from "react";
+import { ApiError, ConnectionError, type OpenCodeClient } from "../api/client";
+import type { AgentBackend } from "../agent/backend";
+import { asOpenCodeClient } from "../agent/opencode";
 import {
-  ApiError,
-  ConnectionError,
-  isAllowedBaseUrl,
-  OpenCodeClient,
-} from "../api/client";
-import { eventStreamUrl, globalEventStreamUrl, runEventStream, type GlobalEvent } from "../api/events";
+  createBackend,
+  DEFAULT_BACKEND_ID,
+  findBackendDescriptor,
+  registerBackendDescriptor,
+} from "../agent/registry";
+import {
+  PiBackend,
+  piDescriptor,
+  PI_BACKEND_ID,
+  type PiDialogRequest,
+  type PiHealth,
+} from "../agent/pi/backend";
+import { piBridge } from "../agent/pi/native";
+import { buildHandoffTranscript } from "./handoffTranscript";
+import {
+  DEFAULT_ENGINE,
+  engineForDirectory,
+  engineForSession,
+  modelScope,
+  type EngineId,
+} from "./engines";
 import { completionChime } from "../native/sound";
 import { emptySidebarList, emptyRecentList, mergeSidebarSessions, type SidebarList, type RecentList } from "./sidebar";
 import type {
@@ -99,6 +117,13 @@ export interface UiState {
   confirmDelete: Session | null;
   handoffSource: Session | null;
   toast: string | null;
+  /** Blocking Pi extension dialog awaiting the user. Never auto-answered. */
+  piDialog: PiDialogRequest | null;
+  /**
+   * The user picked a different engine for an existing chat. Engines cannot
+   * share a transcript, so this offers the handoff instead of refusing.
+   */
+  engineSwitch: { session: Session; from: EngineId; to: EngineId } | null;
 }
 
 export interface AppState {
@@ -121,6 +146,8 @@ export interface AppState {
   configModel: string | null;
   compaction: CompactionConfig;
   agents: AgentInfo[];
+  /** Last Pi probe: install, model catalog, commands. Null until asked for. */
+  piHealth: PiHealth | null;
   olderExhausted: Record<string, boolean>;
   historyCursors: Record<string, string | null>;
   ui: UiState;
@@ -161,6 +188,7 @@ function initialState(): AppState {
     configModel: null,
     compaction: {},
     agents: [],
+    piHealth: null,
     olderExhausted: {},
     historyCursors: {},
     ui: {
@@ -180,6 +208,8 @@ function initialState(): AppState {
       confirmDelete: null,
       handoffSource: null,
       toast: null,
+      piDialog: null,
+      engineSwitch: null,
     },
     rev: 0,
   };
@@ -187,9 +217,407 @@ function initialState(): AppState {
 
 class Store {
   state: AppState = initialState();
-  client = new OpenCodeClient(this.state.prefs.endpoint);
+  /**
+   * The agent runtime this shell drives. OpenCode is the default and currently the
+   * only implementation; everything below talks to the neutral `AgentBackend`
+   * contract so another runtime can be registered without touching UI or state.
+   */
+  backend: AgentBackend = createBackend(
+    DEFAULT_BACKEND_ID,
+    this.state.prefs.endpoint,
+  );
+
+  /**
+   * OpenCode-only transport for the surfaces outside the neutral contract: the PTY
+   * terminal, the `/mcp` inventory and the JSONC config editor. Callers that can be
+   * reached with another backend must gate on `backend.capabilities` first.
+   */
+  get client(): OpenCodeClient {
+    const client = asOpenCodeClient(this.backend);
+    if (!client)
+      throw new Error(
+        "Эта возможность доступна только при подключении к OpenCode.",
+      );
+    return client;
+  }
+
+  /**
+   * Second engine. Created lazily so a user who never selects Pi never pays for
+   * detection, and so the browser preview stays functional without a native host.
+   */
+  private piEngine: PiBackend | null = null;
+  piInstalled = false;
+
+  // ---------- engines ----------
+  //
+  // `backend` above is the *workspace* backend: connection, projects, folders and
+  // the sidebar always come from OpenCode. A conversation, however, runs on the
+  // engine chosen for its chat, which may be Pi.
+
+  /** The Pi engine, created on first use and wired to this store. */
+  pi(): PiBackend {
+    if (!this.piEngine) {
+      this.piEngine = new PiBackend({
+        choice: (directory) => {
+          const settings = this.state.prefs.pi ?? {};
+          const model = this.getModelChoice(PI_BACKEND_ID, directory);
+          return {
+            program: settings.program,
+            provider: model?.providerID ?? settings.provider,
+            model: model ? `${model.providerID}/${model.modelID}` : settings.model,
+            thinking: model?.variant ?? settings.thinking,
+            extensions: settings.lspEnabled === false ? [] : settings.extensions,
+            // Absent means "ask": a missing preference must never read as
+            // blanket approval for Pi's file and shell tools.
+            toolPolicy: settings.toolPolicy === "full" ? "full" : "ask",
+          };
+        },
+        meta: {
+          all: () => this.state.prefs.piSessions ?? {},
+          save: (meta) => {
+            this.mutate((x) => ({
+              prefs: {
+                ...x.prefs,
+                piSessions: { ...x.prefs.piSessions, [meta.id]: meta },
+              },
+            }));
+            this.persistPrefs();
+          },
+          remove: (id) => {
+            this.mutate((x) => {
+              const piSessions = { ...x.prefs.piSessions };
+              delete piSessions[id];
+              return { prefs: { ...x.prefs, piSessions } };
+            });
+            this.persistPrefs();
+          },
+        },
+        onNotice: (_directory, _session, notice) =>
+          this.patchUi({ toast: notice.text }),
+        onDialog: (request) => this.patchUi({ piDialog: request }),
+        onHistoryStale: (directory, sessionId) => {
+          // Streaming used provisional ids; re-read Pi's durable transcript.
+          if (this.state.activeSessionId === sessionId && this.state.directory === directory)
+            void this.loadHistory(sessionId, directory);
+        },
+      });
+    }
+    return this.piEngine;
+  }
+
+  /** Engine id for a chat, honouring the per-chat override then the folder. */
+  engineIdFor(
+    sessionId: string | null = this.state.activeSessionId,
+    directory: string | null = this.state.directory,
+  ): EngineId {
+    return engineForSession(this.state.prefs, sessionId, directory);
+  }
+
+  engineIdForDirectory(directory: string | null): EngineId {
+    return engineForDirectory(this.state.prefs, directory);
+  }
+
+  /** Backend for an engine id. Unknown ids fall back to the workspace backend. */
+  engine(id: EngineId = this.engineIdFor()): AgentBackend {
+    return id === PI_BACKEND_ID ? this.pi() : this.backend;
+  }
+
+  /** Engine driving the chat that is open right now. */
+  conversation(): AgentBackend {
+    return this.engine(this.engineIdFor());
+  }
+
+  /** A Pi chat is identified by app-owned metadata, not by the OpenCode server. */
+  isPiSession(sessionId: string): boolean {
+    return Boolean(this.state.prefs.piSessions?.[sessionId]);
+  }
+
+  setProjectEngine(directory: string, engine: EngineId): void {
+    this.mutate((x) => ({
+      prefs: {
+        ...x.prefs,
+        projectEngine: { ...x.prefs.projectEngine, [directory]: engine },
+      },
+    }));
+    this.persistPrefs();
+  }
+
+  /**
+   * Choose the engine for the chat being composed. An existing chat keeps the
+   * engine that produced its transcript: switching would silently hand another
+   * agent a conversation it never had.
+   */
+  setSessionEngine(sessionId: string | null, engine: EngineId): void {
+    if (sessionId) {
+      const current = this.engineIdFor(sessionId, this.state.directory);
+      if (current !== engine) {
+        // A finished transcript cannot move between engines: they do not share
+        // a format or a store. Offer the handoff rather than dead-ending.
+        const session =
+          this.state.sessions.find((x) => x.id === sessionId) ??
+          this.state.archivedSessions.find((x) => x.id === sessionId) ??
+          null;
+        if (!session) {
+          this.patchUi({ toast: "Чат недоступен для переноса." });
+          return;
+        }
+        this.patchUi({ engineSwitch: { session, from: current, to: engine } });
+        return;
+      }
+      this.mutate((x) => ({
+        prefs: {
+          ...x.prefs,
+          sessionEngine: { ...x.prefs.sessionEngine, [sessionId]: engine },
+        },
+      }));
+    } else if (this.state.directory) {
+      this.setProjectEngine(this.state.directory, engine);
+      return;
+    } else {
+      this.mutate((x) => ({ prefs: { ...x.prefs, newChatEngine: engine } }));
+    }
+    this.persistPrefs();
+  }
+
+  /**
+   * Whether an engine can accept work right now. Pi is a local process and does
+   * not depend on the OpenCode server being reachable — gating it behind
+   * another engine's health would be plainly wrong.
+   */
+  engineReady(id: EngineId = this.engineIdFor()): boolean {
+    return id === PI_BACKEND_ID
+      ? this.piInstalled
+      : this.state.connection.phase === "connected";
+  }
+
+  /** Engine for a brand-new chat in the current folder. */
+  newChatEngine(): EngineId {
+    return this.state.directory
+      ? this.engineIdForDirectory(this.state.directory)
+      : (this.state.prefs.newChatEngine ?? DEFAULT_ENGINE);
+  }
+
+  /**
+   * A request is still valid when the engine it used is the one still in charge.
+   * The Pi engine instance is stable for the process; OpenCode's is replaced on
+   * every reconnect, which is exactly the staleness this guards.
+   */
+  private engineStillActive(backend: AgentBackend): boolean {
+    return backend === this.backend || backend === this.piEngine;
+  }
+
+  /** Pi chats for a folder; empty when Pi is not installed or not selected. */
+  private async piListFor(directory: string): Promise<Session[]> {
+    const anyPiHere =
+      this.engineIdForDirectory(directory) === PI_BACKEND_ID ||
+      Object.values(this.state.prefs.piSessions ?? {}).some(
+        (m) => m.directory === directory,
+      );
+    if (!anyPiHere) return [];
+    try {
+      return await this.pi().listSessions(directory);
+    } catch {
+      // Pi being unavailable must never break the OpenCode session list.
+      return [];
+    }
+  }
+
+  /**
+   * Continue an existing chat on the other engine, honestly.
+   *
+   * The source conversation is never moved or rewritten: a new chat is created
+   * on the target engine, seeded with a labelled transcript, and its metadata
+   * records where it came from so the UI can show the provenance. Nothing is
+   * sent until the user presses Send — the transcript lands in the draft.
+   */
+  async continueOnEngine(session: Session, engine: EngineId): Promise<boolean> {
+    const directory = session.directory;
+    const from = this.engineIdFor(session.id, directory);
+    if (from === engine) return false;
+    if (engine === PI_BACKEND_ID && !this.engineReady(PI_BACKEND_ID)) {
+      this.patchUi({ toast: "Pi недоступен: проверьте «Настройки → Движок Pi»." });
+      return false;
+    }
+    if (engine !== PI_BACKEND_ID && this.state.connection.phase !== "connected") {
+      this.patchUi({ toast: "OpenCode недоступен: подключитесь и повторите." });
+      return false;
+    }
+    if (!this.state.chat.sessions[session.id]) {
+      await this.loadHistory(session.id, directory);
+      if (this.state.ui.historyError) {
+        this.patchUi({ toast: "Не удалось прочитать историю для переноса." });
+        return false;
+      }
+    }
+    const label = (id: EngineId) => (id === PI_BACKEND_ID ? "Pi" : "OpenCode");
+    const transcript = buildHandoffTranscript(this.state.chat, session.id, {
+      sourceLabel: label(from),
+      sourceTitle: session.title,
+    });
+    if (!transcript.included) {
+      this.patchUi({ toast: "В этом чате нечего переносить." });
+      return false;
+    }
+    try {
+      // The target engine creates its own chat; the source is never moved,
+      // rewritten or archived.
+      const created = await this.engine(engine).createSession({
+        directory,
+        title: `${session.title} · ${label(engine)}`,
+        ...(engine === PI_BACKEND_ID
+          ? {}
+          : {
+              permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
+              agent: this.getAgentChoice() ?? undefined,
+            }),
+      });
+      this.mutate((x) => ({
+        prefs: {
+          ...x.prefs,
+          sessionEngine: { ...x.prefs.sessionEngine, [created.id]: engine },
+          // Provenance is engine-neutral, so the banner works both ways.
+          handoffOrigins: {
+            ...x.prefs.handoffOrigins,
+            [created.id]: {
+              from: session.id,
+              fromEngine: from,
+              title: session.title,
+              directory,
+              omitted: transcript.omitted,
+            },
+          },
+          ...(engine === PI_BACKEND_ID
+            ? {
+                piSessions: {
+                  ...x.prefs.piSessions,
+                  [created.id]: {
+                    ...(x.prefs.piSessions?.[created.id] ?? {
+                      id: created.id,
+                      directory,
+                      title: created.title,
+                      created: Date.now(),
+                      updated: Date.now(),
+                    }),
+                    handoffFrom: session.id,
+                  },
+                },
+              }
+            : {}),
+          // The transcript lands in the draft: the user reviews and edits it,
+          // and nothing is sent until they press Send.
+          drafts: { ...x.prefs.drafts, [created.id]: transcript.text },
+        },
+        sessions: [created, ...x.sessions.filter((y) => y.id !== created.id)],
+      }));
+      this.persistPrefs();
+      this.rememberActivitySession(created);
+      this.updateSidebarSession(created);
+      await this.selectSession(created.id);
+      this.patchUi({
+        engineSwitch: null,
+        toast: transcript.omitted
+          ? `Контекст перенесён в новый чат ${label(engine)}; ранние ${transcript.omitted} реплик(и) опущены. Проверьте черновик и отправьте.`
+          : `Контекст перенесён в новый чат ${label(engine)}. Проверьте черновик и отправьте.`,
+      });
+      return true;
+    } catch (e) {
+      this.patchUi({ toast: `Не удалось создать чат ${label(engine)}: ${errText(e)}` });
+      return false;
+    }
+  }
+
+  /** Where this chat's context came from, for either engine. */
+  handoffOrigin(sessionId: string | null): {
+    id: string;
+    title: string;
+    engine: EngineId;
+    directory: string;
+    omitted: number;
+    session: Session | null;
+  } | null {
+    if (!sessionId) return null;
+    const record = this.state.prefs.handoffOrigins?.[sessionId];
+    const legacy = this.state.prefs.piSessions?.[sessionId]?.handoffFrom;
+    const from = record?.from ?? legacy;
+    if (!from) return null;
+    const session =
+      this.state.sessions.find((x) => x.id === from) ??
+      this.state.archivedSessions.find((x) => x.id === from) ??
+      null;
+    return {
+      id: from,
+      title: record?.title ?? session?.title ?? from,
+      engine: record?.fromEngine ?? DEFAULT_ENGINE,
+      directory: record?.directory ?? session?.directory ?? "",
+      omitted: record?.omitted ?? 0,
+      session,
+    };
+  }
+
+  /**
+   * Materialize the app's own Pi LSP extension and its server list, then record
+   * the extension path so new Pi sessions load it. The user's own `~/.pi`
+   * configuration is never touched.
+   */
+  async setupPiLsp(): Promise<{ servers: string[]; missing: string[] }> {
+    const setup = await piBridge().setupLsp(this.state.prefs.pi?.lspServerPaths ?? []);
+    this.setPiSettings({
+      extensions: [setup.extensionPath],
+      lspEnabled: true,
+    });
+    return {
+      servers: setup.servers.map((s) => `${s.id} · ${s.command}`),
+      missing: setup.missing,
+    };
+  }
+
+  setPiSettings(patch: Partial<NonNullable<Prefs["pi"]>>): void {
+    this.mutate((x) => ({ prefs: { ...x.prefs, pi: { ...x.prefs.pi, ...patch } } }));
+    this.persistPrefs();
+  }
+
+  /**
+   * Ask the installed Pi what it can actually do. This starts a short-lived Pi
+   * process, so it is only ever triggered by an explicit user action or by
+   * opening the Pi settings section — never on a timer.
+   */
+  async refreshPiHealth(): Promise<void> {
+    // Without an open project, probe in a managed empty folder rather than
+    // borrowing one of the user's: the catalog must be visible either way.
+    const directory =
+      this.state.directory ??
+      this.projectDirectories()[0] ??
+      this.state.prefs.projectlessRoot ??
+      (await piBridge().probeDirectory().catch(() => ""));
+    const health = await this.pi().describe(directory);
+    this.piInstalled = health.install.installed;
+    this.mutate({ piHealth: health });
+  }
+
+  async refreshPiInstall(): Promise<void> {
+    try {
+      const install = await piBridge().detect(this.state.prefs.pi?.program);
+      if (this.piInstalled !== install.installed) {
+        this.piInstalled = install.installed;
+        this.mutate({});
+      }
+    } catch {
+      this.piInstalled = false;
+    }
+  }
+
+  async answerPiDialog(
+    answer: { value?: string; confirmed?: boolean; cancelled?: boolean },
+  ): Promise<void> {
+    const dialog = this.state.ui.piDialog;
+    if (!dialog) return;
+    this.patchUi({ piDialog: null });
+    await this.pi().answerDialog(dialog.key, dialog.request.id, answer);
+  }
+
   private listeners = new Set<() => void>();
   private streamAbort: AbortController | null = null;
+  private piStreamAbort: AbortController | null = null;
   private globalAbort: AbortController | null = null;
   private activityDirectories = new Map<string, string>();
   private activitySessions = new Map<string, Session>();
@@ -218,6 +646,7 @@ class Store {
     this.connectionGeneration++;
     this.directoryGeneration++;
     this.streamAbort?.abort();
+    this.piStreamAbort?.abort();
     this.globalAbort?.abort();
     this.queueArmed.clear();
   }
@@ -308,6 +737,7 @@ class Store {
     this.connectionGeneration++;
     this.directoryGeneration++;
     this.streamAbort?.abort();
+    this.piStreamAbort?.abort();
     this.globalAbort?.abort();
     this.queueArmed.clear();
     this.mutate((s) => ({
@@ -376,8 +806,17 @@ class Store {
     workspaceKey?: string,
   ): Promise<boolean> {
     const requested =
-      endpoint?.trim().replace(/\/+$/, "") ?? this.client.baseUrl;
-    if (!isAllowedBaseUrl(requested)) {
+      endpoint?.trim().replace(/\/+$/, "") ?? this.backend.endpoint;
+    // Strict lookup: re-creating the active backend from a *fallback* descriptor
+    // would quietly move the workspace onto a different agent runtime.
+    const descriptor = findBackendDescriptor(this.backend.id);
+    if (!descriptor) {
+      this.patchUi({
+        toast: `Агент «${this.backend.id}» не зарегистрирован в этой сборке.`,
+      });
+      return false;
+    }
+    if (!descriptor.isAllowedEndpoint(requested)) {
       this.patchUi({
         toast:
           "Use a plain HTTP loopback origin, such as http://127.0.0.1:4096 (no path, credentials or query).",
@@ -391,11 +830,13 @@ class Store {
     this.directoryGeneration++;
     this.streamAbort?.abort();
     this.streamAbort = null;
+    this.piStreamAbort?.abort();
+    this.piStreamAbort = null;
     this.globalAbort?.abort();
     this.globalAbort = null;
     const key = workspaceKey ?? requested;
     if (
-      requested !== this.client.baseUrl ||
+      requested !== this.backend.endpoint ||
       key !== (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
     ) {
       const prefs =
@@ -408,7 +849,7 @@ class Store {
       this.activitySessions.clear();
       this.activityRevisions.clear();
       this.activityLookups.clear();
-      this.client = new OpenCodeClient(requested);
+      this.backend = descriptor.create(requested);
       this.mutate({
         prefs,
         directory: prefs.selectedDirectory,
@@ -438,8 +879,8 @@ class Store {
       });
       this.persistPrefs();
     }
-    this.client.headers = hostHeaders(key);
-    const client = this.client;
+    this.backend.setAuthHeaders(hostHeaders(key));
+    const backend = this.backend;
     this.mutate((s) => ({
       connection: {
         ...s.connection,
@@ -450,7 +891,7 @@ class Store {
       },
     }));
     try {
-      const health = await client.health();
+      const health = await backend.health();
       if (gen !== this.connectionGeneration) return false;
       if (!health.healthy) throw new Error("Server reports unhealthy");
       if (Number(health.version.split(".")[0]) !== 1)
@@ -471,7 +912,7 @@ class Store {
         await this.setDirectory(this.state.directory, { restoreSession: true });
       else await this.setDirectory(null);
       if (gen !== this.connectionGeneration) return false;
-      this.startGlobalStream(client, gen);
+      this.startGlobalStream(backend, gen);
       void this.reconcileUnreadSessions();
       return true;
     } catch (e) {
@@ -490,16 +931,16 @@ class Store {
 
   private async loadRuntimeMetadata(): Promise<void> {
     const gen = this.directoryGeneration,
-      client = this.client,
+      backend = this.backend,
       directory = this.state.directory;
     this.patchUi({ runtimeLoading: true });
     try {
       const [prov, agents, config] = await Promise.all([
-        client.providers(undefined, directory),
-        client.agents(undefined, directory),
-        client.config(directory),
+        backend.providers(undefined, directory),
+        backend.agents(undefined, directory),
+        backend.config(directory),
       ]);
-      if (gen !== this.directoryGeneration || client !== this.client) return;
+      if (gen !== this.directoryGeneration || backend !== this.backend) return;
       this.mutate({
         providers: prov.all ?? [],
         connectedProviderIds: prov.connected ?? [],
@@ -510,12 +951,12 @@ class Store {
         agents: (agents ?? []).filter((a) => !a.hidden),
       });
     } catch (e) {
-      if (gen === this.directoryGeneration && client === this.client)
+      if (gen === this.directoryGeneration && backend === this.backend)
         this.patchUi({
           toast: `Could not load model/agent list: ${errText(e)}`,
         });
     } finally {
-      if (gen === this.directoryGeneration && client === this.client)
+      if (gen === this.directoryGeneration && backend === this.backend)
         this.patchUi({ runtimeLoading: false });
     }
   }
@@ -531,12 +972,9 @@ class Store {
     await this.connect();
   }
 
+  /** Stores the typed value; validation/normalization happens on connect. */
   setEndpoint(endpoint: string): void {
-    const normalized =
-      this.client.baseUrl && endpoint === this.client.baseUrl
-        ? endpoint
-        : endpoint;
-    this.mutate((s) => ({ prefs: { ...s.prefs, endpoint: normalized } }));
+    this.mutate((s) => ({ prefs: { ...s.prefs, endpoint } }));
     this.persistPrefs();
   }
 
@@ -562,18 +1000,18 @@ class Store {
     if (!opts.force && (previous.loading || (previous.loaded && !opts.more))) return;
     const request = (this.sidebarRequests.get(directory) ?? 0) + 1;
     this.sidebarRequests.set(directory, request);
-    const client = this.client, generation = this.connectionGeneration;
+    const backend = this.backend, generation = this.connectionGeneration;
     const limit = previous.limit + (opts.more ? 50 : 0);
     const journal = new Map<string, Session | null>();
     this.sidebarJournals.add(journal);
-    const current = () => client === this.client && generation === this.connectionGeneration &&
+    const current = () => backend === this.backend && generation === this.connectionGeneration &&
       this.sidebarRequests.get(directory) === request;
     this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
       [directory]: { ...previous, loading: true, error: null, limit },
     } }));
     try {
       const [sessions, statuses] = await Promise.all([
-        client.listSessions(directory, { limit }), client.sessionStatuses(directory),
+        backend.listSessions(directory, { limit }), backend.sessionStatuses(directory),
       ]);
       if (!current()) return;
       for (const session of sessions) {
@@ -584,7 +1022,6 @@ class Store {
       if (!current()) return;
       const attention = [...this.activitySessions.values()].filter(x => this.isUnread(x.id) && x.directory === directory);
       const scoped = mergeSidebarSessions([...attention, ...sessions], journal).filter((s) => s.directory === directory);
-      for (const session of scoped) this.activityDirectories.set(session.id, directory);
       for (const [id, status] of Object.entries(statuses))
         if (!this.activityStatus(id)) this.observeSessionStatus(id, status, directory);
       this.mutate((s) => ({ projectSessionLists: { ...s.projectSessionLists,
@@ -602,20 +1039,19 @@ class Store {
     if (this.state.connection.phase !== "connected") return;
     const previous = this.state.recentSessionList;
     if (more && (!previous.cursor || previous.loading || previous.archived !== archived)) return;
-    const client = this.client, generation = this.connectionGeneration, request = ++this.recentRequest;
+    const backend = this.backend, generation = this.connectionGeneration, request = ++this.recentRequest;
     const journal = new Map<string, Session | null>();
     this.sidebarJournals.add(journal);
-    const current = () => client === this.client && generation === this.connectionGeneration && request === this.recentRequest;
+    const current = () => backend === this.backend && generation === this.connectionGeneration && request === this.recentRequest;
     this.mutate({ recentSessionList: { ...(previous.archived === archived ? previous : emptyRecentList()),
       archived, loading: true, error: null },
     });
     try {
-      const page = await client.recentSessions(archived, more ? previous.cursor ?? undefined : undefined);
+      const page = await backend.recentSessions(archived, more ? previous.cursor ?? undefined : undefined);
       if (!current()) return;
       for (const session of page.sessions) this.rememberActivitySession(session);
       const sessions = mergeSidebarSessions([...(more ? previous.sessions : []), ...page.sessions], journal)
         .filter((s) => Boolean(s.time.archived) === archived);
-      for (const session of sessions) this.activityDirectories.set(session.id, session.directory);
       this.mutate({ recentSessionList: { ...this.state.recentSessionList, sessions, loaded: true,
         loading: false, cursor: page.cursor, hasMore: page.cursor !== null },
       });
@@ -659,10 +1095,10 @@ class Store {
   async refreshProjects(): Promise<void> {
     if (this.state.connection.phase !== "connected") return;
     try {
-      const client = this.client,
+      const backend = this.backend,
         gen = this.connectionGeneration;
-      const projects = await client.projects();
-      if (client === this.client && gen === this.connectionGeneration)
+      const projects = await backend.projects();
+      if (backend === this.backend && gen === this.connectionGeneration)
         this.mutate({ projects });
     } catch (e) {
       this.patchUi({ toast: `Could not load projects: ${errText(e)}` });
@@ -718,6 +1154,8 @@ class Store {
     this.listGeneration++; // in-flight list requests belong to the previous project
     this.streamAbort?.abort();
     this.streamAbort = null;
+    this.piStreamAbort?.abort();
+    this.piStreamAbort = null;
     this.mutate((s) => ({
       directory,
       sessions: [],
@@ -754,7 +1192,7 @@ class Store {
       return;
     }
 
-    void this.client.vcs(directory).then((vcs) => {
+    void this.backend.vcs(directory).then((vcs) => {
       if (gen === this.directoryGeneration) this.patchUi({ vcs });
     });
     await Promise.all([this.refreshSessions(), metadata]);
@@ -767,6 +1205,7 @@ class Store {
       // keep "new conversation" state by default; do not auto-open old sessions
     }
     this.startEventStream(directory, gen);
+    this.startPiStream(directory, gen);
     if (opts.restoreSession && this.state.activeSessionId) {
       const restored = this.state.activeSessionId;
       if (!this.state.chat.sessions[restored])
@@ -785,20 +1224,30 @@ class Store {
   async refreshSessions(): Promise<void> {
     const directory = this.state.directory;
     const dirGen = this.directoryGeneration;
-    if (!directory || this.state.connection.phase !== "connected") return;
+    const openCodeUp = this.state.connection.phase === "connected";
+    if (!directory || (!openCodeUp && !this.piInstalled)) return;
     const myGen = ++this.listGeneration;
     const current = () =>
       myGen === this.listGeneration && dirGen === this.directoryGeneration;
     this.patchUi({ sessionListLoading: true, sessionListError: null });
     try {
-      const [sessions, statuses] = await Promise.all([
-        this.client.listSessions(directory),
-        this.client.sessionStatuses(directory),
+      const [sessions, statuses, piSessions, piStatuses] = await Promise.all([
+        openCodeUp ? this.backend.listSessions(directory) : Promise.resolve([]),
+        openCodeUp
+          ? this.backend.sessionStatuses(directory)
+          : Promise.resolve({} as Record<string, SessionStatus>),
+        // A folder can hold chats from both engines; the sidebar shows both.
+        this.piListFor(directory),
+        this.piEngine
+          ? this.pi().sessionStatuses(directory)
+          : Promise.resolve({} as Record<string, SessionStatus>),
       ]);
       if (!current()) return;
-      for (const session of sessions) this.rememberActivitySession(session);
-      const visible = sessions.filter((s) => !s.parentID);
-      for (const item of visible) this.activityDirectories.set(item.id, directory);
+      for (const session of [...sessions, ...piSessions])
+        this.rememberActivitySession(session);
+      const visible = [...sessions, ...piSessions].filter((s) => !s.parentID);
+      for (const [id, status] of Object.entries(piStatuses))
+        statuses[id] = status;
       for (const [id, status] of Object.entries(statuses))
         this.observeSessionStatus(id, status, directory);
       this.rememberChatListing(directory, visible);
@@ -847,7 +1296,9 @@ class Store {
     this.historyJournals.add(journal);
     this.patchUi({ historyLoading: true, historyError: null });
     try {
-      const { messages, before } = await this.client.messages(sessionId, {
+      const { messages, before } = await this.engine(
+        this.engineIdFor(sessionId, directory),
+      ).messages(sessionId, {
         directory,
         limit: 200,
       });
@@ -982,18 +1433,22 @@ class Store {
   async ensureChatWorkspace(): Promise<boolean> {
     if (this.state.connection.phase !== "connected") return false;
     if (this.state.directory) return true;
+    if (!this.backend.capabilities.projectlessChat) {
+      this.patchUi({ sendError: "Этот агент требует выбранного проекта." });
+      return false;
+    }
     if (this.workspacePromise) return this.workspacePromise;
     const gen = this.directoryGeneration,
-      client = this.client,
+      backend = this.backend,
       host = this.currentHost();
     this.patchUi({ workspacePreparing: true, sendError: null });
     const p = (async () => {
       try {
-        const paths = await client.paths();
-        if (gen !== this.directoryGeneration || client !== this.client)
+        const paths = await backend.paths();
+        if (gen !== this.directoryGeneration || backend !== this.backend)
           return false;
         const workspace = await prepareChat(host, paths.home);
-        if (gen !== this.directoryGeneration || client !== this.client)
+        if (gen !== this.directoryGeneration || backend !== this.backend)
           return false;
         const draft = this.getDraft();
         this.mutate((s) => ({
@@ -1014,13 +1469,13 @@ class Store {
         }));
         const nextGen = this.directoryGeneration + 1;
         await this.setDirectory(workspace.directory);
-        return nextGen === this.directoryGeneration && client === this.client;
+        return nextGen === this.directoryGeneration && backend === this.backend;
       } catch (e) {
-        if (gen === this.directoryGeneration && client === this.client)
+        if (gen === this.directoryGeneration && backend === this.backend)
           this.patchUi({ sendError: errText(e) });
         return false;
       } finally {
-        if (client === this.client) this.patchUi({ workspacePreparing: false });
+        if (backend === this.backend) this.patchUi({ workspacePreparing: false });
       }
     })();
     this.workspacePromise = p;
@@ -1040,10 +1495,11 @@ class Store {
     const directory = this.state.directory;
     if (!directory) return null;
     const gen = this.directoryGeneration;
-    const endpoint = this.client.baseUrl;
+    const endpoint = this.backend.endpoint;
     const choice = this.getModelChoice();
     try {
-      const session = await this.client.createSession({
+      const engineId = this.engineIdForDirectory(directory);
+      const session = await this.engine(engineId).createSession({
         directory,
         title,
         agent: this.getAgentChoice() ?? undefined,
@@ -1060,10 +1516,11 @@ class Store {
       if (
         gen !== this.directoryGeneration ||
         this.state.directory !== directory ||
-        this.client.baseUrl !== endpoint
+        this.backend.endpoint !== endpoint
       ) {
         return session;
       }
+      this.rememberActivitySession(session);
       this.mutate((s) => ({
         sessions: [session, ...s.sessions.filter((x) => x.id !== session.id)],
       }));
@@ -1078,14 +1535,16 @@ class Store {
   }
 
   async renameSession(session: Session, title: string): Promise<void> {
-    const gen = this.connectionGeneration, client = this.client;
+    const gen = this.connectionGeneration;
+    const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
-      const updated = await client.updateSession(
+      const updated = await backend.updateSession(
         session.id,
         { title },
         session.directory,
       );
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.updateSidebarSession(updated);
       this.mutate((s) => ({
         sessions: s.sessions.map((x) => (x.id === updated.id ? updated : x)),
@@ -1097,20 +1556,23 @@ class Store {
         },
       }));
     } catch (e) {
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.patchUi({ toast: `Rename failed: ${errText(e)}` });
     }
   }
 
   async archiveSession(session: Session): Promise<void> {
-    const gen = this.connectionGeneration, client = this.client;
+    const gen = this.connectionGeneration;
+    const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
-      const updated = await client.updateSession(
+      const updated = await backend.updateSession(
         session.id,
         { time: { archived: Date.now() } },
         session.directory,
       );
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.clearUnread(session.id);
       this.updateSidebarSession(updated);
       this.mutate((s) => ({
@@ -1138,20 +1600,23 @@ class Store {
       this.persistPrefs();
       this.patchUi({ toast: "Session archived" });
     } catch (e) {
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.patchUi({ toast: `Archive failed: ${errText(e)}` });
     }
   }
 
   async unarchiveSession(session: Session): Promise<void> {
-    const gen = this.connectionGeneration, client = this.client;
+    const gen = this.connectionGeneration;
+    const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
-      const updated = await client.updateSession(
+      const updated = await backend.updateSession(
         session.id,
         { time: { archived: 0 } },
         session.directory,
       );
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.updateSidebarSession(updated);
       this.mutate((s) => ({
         archivedSessions: s.archivedSessions.filter((x) => x.id !== session.id),
@@ -1174,16 +1639,19 @@ class Store {
       }));
       this.patchUi({ toast: "Session restored" });
     } catch (e) {
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.patchUi({ toast: `Restore failed: ${errText(e)}` });
     }
   }
 
   async deleteSession(session: Session): Promise<void> {
-    const gen = this.connectionGeneration, client = this.client;
+    const gen = this.connectionGeneration;
+    const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
-      await client.deleteSession(session.id, session.directory);
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      await backend.deleteSession(session.id, session.directory);
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.forgetActivity(session.id);
       this.mutate((s) => ({
         sessions: s.sessions.filter((x) => x.id !== session.id),
@@ -1205,18 +1673,30 @@ class Store {
       this.persistPrefs();
       this.patchUi({ toast: "Session deleted permanently" });
     } catch (e) {
-      if (gen !== this.connectionGeneration || client !== this.client) return;
+      if (gen !== this.connectionGeneration || !this.engineStillActive(backend))
+        return;
       this.patchUi({ toast: `Delete failed: ${errText(e)}` });
     }
   }
 
   // ---------- model / agent selection ----------
 
-  getModelChoice(): {
+  /**
+   * Model preferences are scoped per engine: Pi and OpenCode have different
+   * catalogs, so switching engines must never reuse the other one's model.
+   * OpenCode keeps the historic unprefixed keys, so existing preferences and
+   * per-session choices continue to resolve unchanged.
+   */
+  getModelChoice(
+    engine: EngineId = this.engineIdFor(),
+    directoryOverride?: string | null,
+  ): {
     providerID: string;
     modelID: string;
     variant?: string | null;
   } | null {
+    if (engine === PI_BACKEND_ID)
+      return this.piModelChoice(directoryOverride ?? this.state.directory);
     const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
     const sessionId = this.state.activeSessionId;
     const sessionChoice = sessionId
@@ -1291,6 +1771,132 @@ class Store {
     return null;
   }
 
+  /** Pi's catalog comes from the engine itself, not from OpenCode providers. */
+  /**
+   * Pi's model resolution.
+   *
+   * Pi's bundled catalog is *not* the list of models an account can use: it can
+   * both miss models the account has (a custom id such as `deepseek/deepseek-flash`,
+   * which Pi accepts with a warning and runs fine) and list models the account
+   * cannot reach. So catalog membership is evidence, never a gate:
+   *
+   *   per-chat / per-folder choice  →  explicit custom model  →  configured
+   *   default  →  first catalog entry
+   *
+   * Only an actual request proves access; that is what `checkPiModelAccess`
+   * does, and its result is what the UI marks as verified.
+   */
+  private piModelChoice(directory: string | null): {
+    providerID: string;
+    modelID: string;
+    variant?: string | null;
+  } | null {
+    const models = this.state.piHealth?.models ?? [];
+    const custom = parseModelId(this.state.prefs.pi?.customModel);
+    const usable = (choice: { providerID: string; modelID: string } | undefined) => {
+      if (!choice?.providerID || !choice.modelID) return undefined;
+      const inCatalog = models.some(
+        (m) => m.provider === choice.providerID && m.id === choice.modelID,
+      );
+      const isCustom =
+        custom &&
+        custom.providerID === choice.providerID &&
+        custom.modelID === choice.modelID;
+      // With no catalog at all we cannot contradict the user's choice either.
+      return inCatalog || isCustom || !models.length ? choice : undefined;
+    };
+    const sessionId = this.state.activeSessionId;
+    const keys = [
+      sessionId ? modelScope(PI_BACKEND_ID, `session:${sessionId}`) : undefined,
+      modelScope(PI_BACKEND_ID, directory ?? "@chats"),
+      modelScope(PI_BACKEND_ID, "*"),
+    ].filter((k): k is string => Boolean(k));
+    for (const key of keys) {
+      const stored = usable(this.state.prefs.modelChoice[key]);
+      if (stored) return stored;
+    }
+    if (custom)
+      return { ...custom, variant: this.state.prefs.pi?.thinking ?? null };
+    const configured = usable(parseModelId(this.state.prefs.pi?.model) ?? undefined);
+    if (configured)
+      return { ...configured, variant: this.state.prefs.pi?.thinking ?? null };
+    const first = models[0];
+    return first
+      ? { providerID: first.provider, modelID: first.id, variant: null }
+      : null;
+  }
+
+  /** Models offered for Pi: its catalog plus any explicitly pinned custom id. */
+  piModelOptions(): {
+    providerID: string;
+    modelID: string;
+    label: string;
+    source: "catalog" | "custom";
+    verified: boolean;
+  }[] {
+    const verified = this.state.prefs.pi?.verifiedModel;
+    type Option = {
+      providerID: string;
+      modelID: string;
+      label: string;
+      source: "catalog" | "custom";
+      verified: boolean;
+    };
+    const out: Option[] = (this.state.piHealth?.models ?? []).map((m) => ({
+      providerID: m.provider,
+      modelID: m.id,
+      label: m.name ?? m.id,
+      source: "catalog",
+      verified: verified === `${m.provider}/${m.id}`,
+    }));
+    const custom = parseModelId(this.state.prefs.pi?.customModel);
+    if (custom && !out.some((m) => m.providerID === custom.providerID && m.modelID === custom.modelID))
+      out.unshift({
+        ...custom,
+        label: custom.modelID,
+        source: "custom",
+        verified: verified === `${custom.providerID}/${custom.modelID}`,
+      });
+    return out;
+  }
+
+  setPiCustomModel(value: string): void {
+    const parsed = parseModelId(value);
+    this.setPiSettings({
+      customModel: parsed ? `${parsed.providerID}/${parsed.modelID}` : undefined,
+      // A new pin invalidates the previous access evidence.
+      verifiedModel: undefined,
+    });
+  }
+
+  /**
+   * The only honest readiness check: send the smallest possible real prompt and
+   * see whether the provider answers. A configured model proves nothing about
+   * credentials, endpoint or entitlement.
+   */
+  async checkPiModelAccess(): Promise<{ ok: boolean; detail: string }> {
+    const choice = this.getModelChoice(PI_BACKEND_ID);
+    if (!choice)
+      return { ok: false, detail: "Модель для Pi не выбрана." };
+    const id = `${choice.providerID}/${choice.modelID}`;
+    try {
+      const detail = await this.pi().checkAccess(
+        await piBridge().probeDirectory().catch(() => ""),
+        choice,
+      );
+      this.setPiSettings({ verifiedModel: id });
+      return { ok: true, detail };
+    } catch (e) {
+      this.setPiSettings({
+        verifiedModel:
+          this.state.prefs.pi?.verifiedModel === id
+            ? undefined
+            : this.state.prefs.pi?.verifiedModel,
+      });
+      return { ok: false, detail: errText(e) };
+    }
+  }
+
   private defaultVariant(providerID: string, modelID: string): string | null {
     return this.modelInfo(providerID, modelID)?.variants?.medium
       ? "medium"
@@ -1302,10 +1908,19 @@ class Store {
     modelID: string,
     variant?: string | null,
   ): void {
-    const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
-    const key = this.state.activeSessionId
-      ? `session:${this.state.activeSessionId}`
-      : dir || "*";
+    const engine = this.engineIdFor();
+    const dir =
+      engine === PI_BACKEND_ID
+        ? (this.state.directory ?? "@chats")
+        : this.isProjectless()
+          ? "@chats"
+          : (this.state.directory ?? "");
+    const key = modelScope(
+      engine,
+      this.state.activeSessionId
+        ? `session:${this.state.activeSessionId}`
+        : dir || "*",
+    );
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
@@ -1382,7 +1997,9 @@ class Store {
   /** Editing preserves the original conversation and never starts inference implicitly. */
   async prepareEditedBranch(messageID: string, text: string): Promise<void> {
     if (this.editBranchBusy) throw new Error("Ветка уже создаётся.");
-    const id = this.state.activeSessionId, directory = this.state.directory, client = this.client;
+    if (!this.conversation().capabilities.fork)
+      throw new Error("Этот агент не поддерживает ветвление разговора.");
+    const id = this.state.activeSessionId, directory = this.state.directory, backend = this.backend;
     const generation = this.connectionGeneration, directoryGeneration = this.directoryGeneration;
     const message = id ? this.state.chat.sessions[id]?.messages[messageID] : undefined;
     if (!id || !directory || !text.trim() || message?.role !== "user" || this.state.connection.phase !== "connected")
@@ -1391,25 +2008,25 @@ class Store {
     if (parts.some(p => this.state.chat.sessions[id].parts[p]?.type === "file"))
       throw new Error("Сообщение содержит вложения. Отправьте уточнение новым сообщением, чтобы сохранить их.");
     const model = this.getModelChoice(), agent = this.getAgentChoice();
-    const current = () => client === this.client && generation === this.connectionGeneration &&
+    const current = () => backend === this.backend && generation === this.connectionGeneration &&
       directoryGeneration === this.directoryGeneration && this.state.activeSessionId === id;
     this.editBranchBusy = true;
     try {
       const [source, statuses, permissions, questions] = await Promise.all([
-        client.getSession(id, directory), client.sessionStatuses(directory),
-        client.pendingPermissions(directory), client.pendingQuestions(directory),
+        backend.getSession(id, directory), backend.sessionStatuses(directory),
+        backend.pendingPermissions(directory), backend.pendingQuestions(directory),
       ]);
       if (!current()) throw new Error("Выбран другой чат. Вернитесь к сообщению, чтобы повторить.");
       if (source.directory !== directory || source.time.archived || source.parentID)
         throw new Error("Исходная сессия больше недоступна для редактирования.");
       if ((statuses[id] && statuses[id].type !== "idle") || permissions.some(p => p.sessionID === id) || questions.some(q => q.sessionID === id))
         throw new Error("Дождитесь завершения задачи или ответьте на её вопрос.");
-      const fork = await client.forkSession(id, directory, messageID);
+      const fork = await backend.forkSession(id, directory, messageID);
       // OpenCode forks exclude the selected message, but do NOT inherit permission rules.
-      const branch = await client.updateSession(fork.id, {
+      const branch = await backend.updateSession(fork.id, {
         title: `${source.title} · правка`, permission: source.permission ?? [],
       }, directory);
-      if (client !== this.client || generation !== this.connectionGeneration)
+      if (backend !== this.backend || generation !== this.connectionGeneration)
         throw new Error("Подключение изменилось. Ветка сохранена на исходном сервере; сообщение не отправлено.");
       this.rememberActivitySession(branch);
       this.updateSidebarSession(branch);
@@ -1430,7 +2047,7 @@ class Store {
 
   async sendPrompt(text: string, attachments: DraftAttachment[] = [], onProgress: (label: string) => void = () => {}): Promise<boolean> {
     if (
-      this.state.connection.phase !== "connected" ||
+      !this.engineReady() ||
       (!text.trim() && !attachments.length) ||
       this.state.ui.sending ||
       this.state.ui.workspacePreparing ||
@@ -1451,30 +2068,42 @@ class Store {
     // Capture the full request identity before any await: it must never be re-read after
     // the user switched project/session mid-flight (R3), and the draft slot is revision-bound (R5).
     const gen = this.directoryGeneration;
-    const endpoint = this.client.baseUrl;
-    const client = this.client;
+    const endpoint = this.backend.endpoint;
+    // The engine is resolved once, from the chat being composed: a folder switch
+    // mid-flight must not redirect an accepted prompt to a different agent.
+    const engineId = this.engineIdFor();
+    const backend = this.engine(engineId);
     const selected = this.state.activeSessionId;
     const sentAtStatus = this.statusSequence;
     const status = selected ? this.activityStatus(selected) : null;
     if (status?.type === "busy" || status?.type === "retry") return false;
     const slotKey = draftKey(this.state.activeSessionId, directory);
-    const model = this.getModelChoice();
+    const model = this.getModelChoice(engineId);
     if (!model) {
       this.patchUi({
         sendError:
-          "No connected model is available. Check provider configuration in OpenCode.",
+          engineId === PI_BACKEND_ID
+            ? "У Pi нет настроенной модели. Откройте «Настройки → Pi» и проверьте каталог моделей."
+            : "No connected model is available. Check provider configuration in OpenCode.",
       });
       return false;
     }
     const agent = this.getAgentChoice();
     const trimmed = text.trim() || "Проанализируй приложенные файлы.";
-    const modelInfo = this.modelInfo(model.providerID, model.modelID);
+    const modelInfo =
+      engineId === PI_BACKEND_ID
+        ? piModelInfo(this.state.piHealth, model)
+        : this.modelInfo(model.providerID, model.modelID);
+    if (attachments.length && !this.conversation().capabilities.attachments) {
+      this.patchUi({ sendError: "Этот агент не принимает вложения." });
+      return false;
+    }
     if (attachments.length && !modelInfo) { this.patchUi({ sendError: "Выбранная модель больше не доступна." }); return false; }
     let scope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, selected);
     const sameContext = () =>
       gen === this.directoryGeneration &&
       this.state.directory === directory &&
-      this.client.baseUrl === endpoint;
+      this.backend.endpoint === endpoint;
     this.patchUi({ sending: true, sendError: null });
     let sessionId = this.state.activeSessionId;
     try {
@@ -1485,25 +2114,32 @@ class Store {
       if (!sameContext() || this.state.activeSessionId !== selected)
         throw new Error("Чат изменился во время подготовки вложений. Вложения остались в черновике.");
       if (!sessionId) {
-        const created = await client.createSession({
+        const created = await backend.createSession({
           directory,
-          permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
           title: trimmed.slice(0, 60),
-          agent: agent ?? undefined,
-          model: {
-            id: model.modelID,
-            providerID: model.providerID,
-            variant: model.variant ?? undefined,
-          },
+          ...(engineId === PI_BACKEND_ID
+            ? {}
+            : {
+                permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
+                agent: agent ?? undefined,
+                model: {
+                  id: model.modelID,
+                  providerID: model.providerID,
+                  variant: model.variant ?? undefined,
+                },
+              }),
         });
         if (!sameContext() || this.state.activeSessionId !== selected)
           return false; // selection changed during creation
         sessionId = created.id;
+        this.rememberActivitySession(created);
         this.mutate((s) => ({
           sessions: [created, ...s.sessions.filter((x) => x.id !== created.id)],
           activeSessionId: created.id,
           prefs: {
             ...s.prefs,
+            // The chat's engine is pinned at creation and survives restarts.
+            sessionEngine: { ...s.prefs.sessionEngine, [created.id]: engineId },
             lastSessionByDir: {
               ...s.prefs.lastSessionByDir,
               [directory]: created.id,
@@ -1518,7 +2154,7 @@ class Store {
         }
       }
       const target = sessionId;
-      await client.prompt(target, directory, {
+      await backend.prompt(target, directory, {
         model: { providerID: model.providerID, modelID: model.modelID },
         agent: agent ?? undefined,
         variant: model.variant ?? undefined,
@@ -1563,7 +2199,7 @@ class Store {
       return false;
     } finally {
       onProgress("");
-      if (this.client === client) {
+      if (this.backend === backend) {
         this.patchUi({ sending: false });
         void this.drainQueue();
       }
@@ -1579,7 +2215,9 @@ class Store {
     const gen = this.directoryGeneration;
     this.patchUi({ historyLoading: true, historyError: null });
     try {
-      const { messages, before } = await this.client.messages(sessionId, {
+      const { messages, before } = await this.engine(
+        this.engineIdFor(sessionId, directory),
+      ).messages(sessionId, {
         directory,
         limit: 200,
         before: cursor,
@@ -1626,10 +2264,16 @@ class Store {
 
   async stopSession(sessionId: string): Promise<void> {
     this.queueArmed.delete(sessionId);
-    const directory = this.state.directory;
+    // Abort is directory-scoped: a session started in another project must be
+    // stopped with *its* directory, not whichever project is open right now.
+    const directory =
+      this.activityDirectories.get(sessionId) ?? this.state.directory;
     if (!directory) return;
     try {
-      await this.client.abort(sessionId, directory);
+      await this.engine(this.engineIdFor(sessionId, directory)).abort(
+        sessionId,
+        directory,
+      );
     } catch (e) {
       this.patchUi({ toast: `Stop failed: ${errText(e)}` });
     }
@@ -1641,13 +2285,14 @@ class Store {
     if (
       !directory ||
       !model ||
+      !this.conversation().capabilities.compaction ||
       this.isRunning(sessionId) ||
       this.compactLocks.has(sessionId)
     )
       return;
     this.compactLocks.add(sessionId);
     try {
-      await this.client.summarize(
+      await this.conversation().summarize(
         sessionId,
         directory,
         model.providerID,
@@ -1691,7 +2336,7 @@ class Store {
       return;
     const id = this.state.activeSessionId,
       directory = this.state.directory,
-      client = this.client;
+      backend = this.backend;
     if (!id) {
       this.mutate((s) => ({ prefs: { ...s.prefs, newAccess: mode } }));
       this.persistPrefs();
@@ -1699,12 +2344,12 @@ class Store {
     }
     this.accessChanging = true;
     try {
-      const updated = await client.updateSession(
+      const updated = await backend.updateSession(
         id,
         { permission: accessRules(mode) },
         directory,
       );
-      if (client === this.client && directory === this.state.directory)
+      if (backend === this.backend && directory === this.state.directory)
         this.mutate((s) => ({
           sessions: s.sessions.map((x) => (x.id === id ? updated : x)),
         }));
@@ -1861,8 +2506,8 @@ class Store {
   }
   private async dispatchQueued(item: QueuedPrompt, steer: boolean) {
     const sid = item.sessionID,
-      client = this.client,
-      endpoint = client.baseUrl;
+      backend = this.backend,
+      endpoint = backend.endpoint;
     if (
       this.queueLocks.has(sid) ||
       this.state.ui.sending ||
@@ -1891,7 +2536,7 @@ class Store {
     try {
       // OpenCode persists a new user message, then joins the existing run loop.
       // No abort: the correction is seen at the next model/tool boundary.
-      await client.prompt(sid, item.directory, {
+      await backend.prompt(sid, item.directory, {
         messageID: newMessageId(),
         model: {
           providerID: item.model.providerID,
@@ -1901,7 +2546,7 @@ class Store {
         variant: item.model.variant ?? undefined,
         parts: [{ type: "text", text: item.text }],
       });
-      if (client !== this.client) return;
+      if (backend !== this.backend) return;
       this.writeQueue(
         sid,
         this.getQueue(sid).filter((x) => x.id !== item.id),
@@ -1926,7 +2571,7 @@ class Store {
     } catch (e) {
       this.queueArmed.delete(sid);
       // Persist an ambiguous outcome; NEVER automatically retry and execute it twice.
-      if (client === this.client)
+      if (backend === this.backend)
         this.writeQueue(
           sid,
           this.getQueue(sid).map((x) =>
@@ -1937,7 +2582,7 @@ class Store {
         );
     } finally {
       this.queueLocks.delete(sid);
-      if (client === this.client && endpoint === this.state.prefs.endpoint)
+      if (backend === this.backend && endpoint === this.state.prefs.endpoint)
         void this.drainQueue();
     }
   }
@@ -1951,7 +2596,7 @@ class Store {
     const directory = this.state.directory;
     if (!directory) return;
     try {
-      await this.client.replyPermission(req.id, reply, directory);
+      await this.backend.replyPermission(req.id, reply, directory);
       this.mutate((s) => {
         const permissions = { ...s.chat.permissions };
         delete permissions[req.id];
@@ -1969,7 +2614,7 @@ class Store {
     const directory = this.state.directory;
     if (!directory) return;
     try {
-      await this.client.replyQuestion(req.id, answers, directory);
+      await this.backend.replyQuestion(req.id, answers, directory);
       this.mutate((s) => {
         const questions = { ...s.chat.questions };
         delete questions[req.id];
@@ -1984,7 +2629,7 @@ class Store {
     const directory = this.state.directory;
     if (!directory) return;
     try {
-      await this.client.rejectQuestion(req.id, directory);
+      await this.backend.rejectQuestion(req.id, directory);
       this.mutate((s) => {
         const questions = { ...s.chat.questions };
         delete questions[req.id];
@@ -1997,12 +2642,36 @@ class Store {
 
   // ---------- event stream ----------
 
+  /**
+   * Pi streams over the native bridge, independently of the OpenCode SSE stream:
+   * a folder can hold chats from both engines at once, and neither stream may
+   * stall or cancel the other.
+   */
+  private startPiStream(directory: string, gen: number): void {
+    this.piStreamAbort?.abort();
+    this.piStreamAbort = null;
+    const hasPiHere =
+      this.engineIdForDirectory(directory) === PI_BACKEND_ID ||
+      Object.values(this.state.prefs.piSessions ?? {}).some(
+        (m) => m.directory === directory,
+      );
+    if (!hasPiHere) return;
+    const ctrl = new AbortController();
+    this.piStreamAbort = ctrl;
+    this.pi().subscribeDirectory(directory, {
+      signal: ctrl.signal,
+      onEvent: (event: ServerEvent) => {
+        if (gen !== this.directoryGeneration) return;
+        this.handleEvent(event);
+      },
+      onState: () => {},
+    });
+  }
+
   private startEventStream(directory: string, gen: number): void {
     const ctrl = new AbortController();
     this.streamAbort = ctrl;
-    void runEventStream({
-      url: eventStreamUrl(this.client.baseUrl, directory),
-      headers: this.client.headers,
+    this.backend.subscribeDirectory(directory, {
       signal: ctrl.signal,
       onEvent: (event: ServerEvent) => {
         if (gen !== this.directoryGeneration) return; // stale project events must not leak
@@ -2031,16 +2700,22 @@ class Store {
     const journal: ServerEvent[] = [];
     this.historyJournals.add(journal);
     try {
+      // Permission/question polling is optional: a backend that does not ask is
+      // not probed for endpoints it never implements.
+      const capabilities = this.backend.capabilities;
       const [sessions, statuses, permissions, questions] = await Promise.all([
-        this.client.listSessions(directory),
-        this.client.sessionStatuses(directory),
-        this.client.pendingPermissions(directory),
-        this.client.pendingQuestions(directory),
+        this.backend.listSessions(directory),
+        this.backend.sessionStatuses(directory),
+        capabilities.permissions
+          ? this.backend.pendingPermissions(directory)
+          : Promise.resolve([]),
+        capabilities.questions
+          ? this.backend.pendingQuestions(directory)
+          : Promise.resolve([]),
       ]);
       if (gen !== this.directoryGeneration || journal.length >= 20000) return;
       for (const session of sessions) this.rememberActivitySession(session);
       const visible = sessions.filter((s) => !s.parentID);
-      for (const item of visible) this.activityDirectories.set(item.id, directory);
       for (const [id, status] of Object.entries(statuses))
         this.observeSessionStatus(id, status, directory);
       this.rememberChatListing(directory, visible);
@@ -2080,7 +2755,6 @@ class Store {
           chat,
         };
       });
-      this.historyJournals.delete(journal);
       const active = this.state.activeSessionId;
       if (active) await this.loadHistory(active, directory);
       void this.drainQueue();
@@ -2212,10 +2886,10 @@ class Store {
     if (known) { this.rememberActivitySession(known); return Promise.resolve(known); }
     const existing = this.activityLookups.get(id);
     if (existing) return existing;
-    const client = this.client, generation = this.connectionGeneration;
-    const current = () => client === this.client && generation === this.connectionGeneration;
+    const backend = this.backend, generation = this.connectionGeneration;
+    const current = () => backend === this.backend && generation === this.connectionGeneration;
     const revision = this.activityRevisions.get(id);
-    const promise = client.getSession(id, directory ?? null).then(session => {
+    const promise = backend.getSession(id, directory ?? null).then(session => {
       if (!current()) return;
       if (revision !== this.activityRevisions.get(id)) return this.activitySessions.get(id);
       this.rememberActivitySession(session);
@@ -2235,16 +2909,16 @@ class Store {
       .filter(([, item]) => !directory || item.directory === directory);
     // Bound startup load; an old unread root outside the list's first page is resolved individually.
     for (let i = 0; i < entries.length; i += 8) {
-      const client = this.client, generation = this.connectionGeneration;
+      const backend = this.backend, generation = this.connectionGeneration;
       await Promise.all(entries.slice(i, i + 8).map(([id, item]) => this.resolveActivitySession(id, item.directory)));
-      if (client !== this.client || generation !== this.connectionGeneration) return;
+      if (backend !== this.backend || generation !== this.connectionGeneration) return;
     }
   }
 
   private finishActivity(id: string, status: SessionStatus, directory?: string): void {
     if (this.state.activityStatuses[id] !== status || !this.visibleActivity(id) || this.isViewing(id)) return;
     let unread = { ...this.state.prefs.unreadSessions, [id]: {
-      time: Date.now(), directory: directory ?? this.activityDirectories.get(id),
+      time: Date.now(), directory: this.activityDirectories.get(id) ?? directory,
     } };
     if (Object.keys(unread).length > 500) unread = Object.fromEntries(Object.entries(unread)
       .sort((a, b) => a[1].time - b[1].time).slice(-500));
@@ -2254,7 +2928,10 @@ class Store {
   }
 
   private observeSessionStatus(id: string, status: SessionStatus, directory?: string): void {
-    if (directory) this.activityDirectories.set(id, directory);
+    // A listing/stream directory is only a hint. Once the session itself has been
+    // seen (`rememberActivitySession`), its own directory stays authoritative.
+    if (directory && !this.activityDirectories.has(id))
+      this.activityDirectories.set(id, directory);
     const previous = this.activityStatus(id);
     const wasRunning = previous?.type === "busy" || previous?.type === "retry";
     const running = status.type === "busy" || status.type === "retry";
@@ -2268,24 +2945,22 @@ class Store {
       this.rememberActivitySession(known);
       if (finished) this.finishActivity(id, status, directory);
     } else {
-      const client = this.client, generation = this.connectionGeneration;
+      const backend = this.backend, generation = this.connectionGeneration;
       void this.resolveActivitySession(id, directory).then(session => {
-        if (session && finished && client === this.client && generation === this.connectionGeneration)
+        if (session && finished && backend === this.backend && generation === this.connectionGeneration)
           this.finishActivity(id, status, directory);
       });
     }
   }
 
-  private startGlobalStream(client: OpenCodeClient, generation: number): void {
+  private startGlobalStream(backend: AgentBackend, generation: number): void {
     const ctrl = new AbortController();
     this.globalAbort = ctrl;
     let opened = false;
-    void runEventStream<GlobalEvent>({
-      url: globalEventStreamUrl(client.baseUrl),
-      headers: client.headers,
+    backend.subscribeAll({
       signal: ctrl.signal,
       onEvent: ({ directory, payload }) => {
-        if (generation !== this.connectionGeneration || client !== this.client ||
+        if (generation !== this.connectionGeneration || backend !== this.backend ||
             !payload || typeof payload.type !== "string") return;
         this.indexSidebarEvent(payload);
         if (payload.type === "session.updated" && payload.properties?.info) {
@@ -2308,10 +2983,10 @@ class Store {
         }
       },
       onState: (state) => {
-        if (generation !== this.connectionGeneration || client !== this.client) return;
+        if (generation !== this.connectionGeneration || backend !== this.backend) return;
         if (state === "open") {
           if (opened) {
-            void this.reconcileBackgroundActivity(client, generation);
+            void this.reconcileBackgroundActivity(backend, generation);
             void this.loadRecentSessions(this.state.recentSessionList.archived);
             for (const dir of this.projectDirectories())
               if (this.isProjectExpanded(dir)) void this.loadProjectSessions(dir, { force: true });
@@ -2344,7 +3019,7 @@ class Store {
     this.persistPrefs();
   }
 
-  private async reconcileBackgroundActivity(client: OpenCodeClient, generation: number) {
+  private async reconcileBackgroundActivity(backend: AgentBackend, generation: number) {
     const directories = new Set<string>();
     for (const [id, status] of Object.entries(this.state.activityStatuses))
       if (status.type === "busy" || status.type === "retry") {
@@ -2353,8 +3028,8 @@ class Store {
       }
     for (const dir of directories) {
       try {
-        const statuses = await client.sessionStatuses(dir);
-        if (generation !== this.connectionGeneration || client !== this.client) return;
+        const statuses = await backend.sessionStatuses(dir);
+        if (generation !== this.connectionGeneration || backend !== this.backend) return;
         for (const [id, status] of Object.entries(this.state.activityStatuses))
           if (this.activityDirectories.get(id) === dir &&
               (status.type === "busy" || status.type === "retry"))
@@ -2372,6 +3047,10 @@ class Store {
 
   async toggleTerminal(): Promise<void> {
     const next = !this.state.prefs.layout.bottomOpen;
+    if (next && !this.conversation().capabilities.pty) {
+      this.patchUi({ toast: "Этот агент не предоставляет терминал." });
+      return;
+    }
     if (next && !(await this.ensureChatWorkspace())) return;
     this.setLayout({ bottomOpen: next });
   }
@@ -2405,6 +3084,48 @@ class Store {
   }
 }
 
+/**
+ * Pi's catalog uses its own shape; the attachment pipeline only needs the
+ * declared input modalities and context window, so this projects the minimum
+ * rather than pretending Pi models are OpenCode models.
+ */
+function parseModelId(
+  value: string | undefined | null,
+): { providerID: string; modelID: string } | null {
+  const parts = (value ?? "").trim().split("/");
+  if (parts.length < 2 || !parts[0] || !parts.slice(1).join("/")) return null;
+  return { providerID: parts[0], modelID: parts.slice(1).join("/") };
+}
+
+function piModelInfo(
+  health: PiHealth | null,
+  choice: { providerID: string; modelID: string },
+): ModelInfo | null {
+  const model = health?.models.find(
+    (m) => m.provider === choice.providerID && m.id === choice.modelID,
+  );
+  // A custom model Pi accepts but does not describe still needs *some*
+  // metadata, or the attachment pipeline would refuse the whole prompt. Assume
+  // the conservative shape: text only.
+  if (!model)
+    return {
+      id: choice.modelID,
+      name: choice.modelID,
+      attachment: false,
+      reasoning: false,
+      input: ["text"],
+      limit: {},
+    } as unknown as ModelInfo;
+  return {
+    id: model.id,
+    name: model.name ?? model.id,
+    attachment: (model.input ?? []).includes("image"),
+    reasoning: Boolean(model.reasoning),
+    input: model.input ?? ["text"],
+    limit: { context: model.contextWindow, output: model.maxTokens },
+  } as unknown as ModelInfo;
+}
+
 export function errText(e: unknown): string {
   if (e instanceof ApiError)
     return e.status === 404 ? "Not found on the OpenCode server" : e.detail;
@@ -2414,6 +3135,9 @@ export function errText(e: unknown): string {
 }
 
 export const store = new Store();
+// Both engines live in the registry, so `listBackendDescriptors()` is the honest
+// list of what this build can drive.
+registerBackendDescriptor(piDescriptor(() => store.pi()));
 import.meta.hot?.dispose(() => store.dispose());
 
 export function useAppState(): AppState {

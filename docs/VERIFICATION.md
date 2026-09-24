@@ -1,5 +1,184 @@
 # Verification record
 
+## Coordinator review follow-up — 0.2.9, 2026-09-25 (source only, not released)
+
+Twenty coordinator findings were re-checked against the code; the real ones were
+fixed and each is backed by a test or a measurement.
+
+- **Existing chats no longer change engine when a folder's default does.**
+  `engineForSession` now resolves an existing chat from durable evidence —
+  explicit per-chat override, then Pi session metadata, then OpenCode — and the
+  folder preference governs new chats only. Previously, setting a project to Pi
+  would have reinterpreted every historical OpenCode id as a Pi chat.
+- **Handoff works both ways and the composer leads into it.** Choosing the other
+  engine for an existing chat opens a dialog explaining that engines cannot share
+  a transcript, then creates a chat on the target engine seeded with an editable
+  transcript. Provenance is engine-neutral and shown in the new chat. The
+  transcript now carries tool outcomes (path/command plus trimmed output), and
+  when it does not fit it sheds tool output before whole turns, reporting both.
+- **Pi's built-in tools are gated.** A first-party `tool-gate.ts` extension is
+  loaded into every real Pi session by the native layer. Anything not on the
+  read-only list — including unknown tools — requires `ctx.ui.confirm()`, which
+  the app shows as a modal; no answer, no UI or a native timeout all deny.
+  "Full access" exists only as an explicit setting; an unset or unrecognized
+  value means "ask". **Measured live:** the model was told to write a file,
+  really called `write`, the gate asked, the answer was cancel, and no file was
+  created — the test asserts the attempt and the prompt so it cannot pass
+  vacuously.
+- **Process-tree shutdown.** Pi runs in its own process group; shutdown closes
+  stdin, waits 3 s, then SIGTERMs the group, waits 1.5 s, then SIGKILLs it. A
+  Rust test drives a tree that ignores both EOF and SIGTERM and asserts the whole
+  group is gone within bounds. Live: closing stdin ends Pi with code 0 and the
+  language server disappears. Note for accuracy: hard-killing Pi alone did *not*
+  orphan `typescript-language-server`, because it exits when its stdin closes;
+  the group fallback is there for servers that do not.
+- **The explicit DeepSeek model works.** Pi's bundled catalog is treated as
+  evidence, not a gate: a pinned `provider/model` is used even when absent from
+  it, `piModelInfo` falls back to conservative metadata, and prompts pass Pi's
+  own `provider/id` form. Picker entries are labelled "каталог Pi · доступ не
+  проверен" / "свой идентификатор · доступ не проверен" / "проверена".
+- **Readiness is measured, not assumed.** "Проверить доступ" sends one minimal
+  real request in an ephemeral session. **Measured in the built app:** with
+  `deepseek/deepseek-flash` pinned — a model absent from Pi's catalog — it
+  reported «Подтверждён · Модель ответила на тестовый запрос».
+- **Capability probes leave nothing behind**: they run with `--no-session` and no
+  extensions, and any `probe-*` transcript from an older build is filtered out of
+  the chat list.
+- **Pi settings tell the truth**: the LSP toggle is disabled and reads "Не
+  установлено" until the extension exists; credentials are described as Pi's own;
+  extensions and language-server paths can now be added, not only removed.
+  Explicit absolute server paths are tried first, which is what a Finder-launched
+  macOS app needs since it inherits neither `/opt/homebrew/bin` nor `~/.cargo/bin`.
+- **The composer no longer shows OpenCode's access selector for Pi chats**; it
+  shows the Pi tool policy instead.
+- **Live tests use the real model and real events.** `test/pi-live.test.ts`
+  defaults to `deepseek/deepseek-flash` and waits for `agent_settled` instead of
+  sleeping; the suite dropped from ~22 s to ~6 s and no longer depends on
+  provider latency.
+- **Both engines were accepted on Linux.** A test-owned OpenCode 1.18.18 was run
+  with an isolated config/XDG home on loopback port 43067 against a disposable
+  fixture project; `test/opencode-live.test.ts` proved health and provider, a real
+  conversation reaching the stream reducer (`OPENCODE_LIVE_OK`), history agreeing
+  with the stream, and cancel. The owner's own services were never touched.
+- Verified: `tsc --noEmit`; **273 passed / 6 skipped** frontend tests across 39
+  files (the 6 skipped are the opt-in live suites, run separately and passing —
+  3 Pi, 3 OpenCode); `npm run build`; `cargo fmt --check`; `cargo check
+  --all-targets` with zero warnings; **31/31** Rust tests; `npm run build:linux`
+  → `OpenCode Desktop_0.2.9_amd64.deb`; native UI smoke of the Pi settings.
+  After the app exited: no Pi processes and no language servers left.
+- Still not verified: macOS (coordinator), Windows (no variant), image
+  attachments to Pi in a live run, and third-party Pi extensions raising dialogs.
+
+## Pi as a second engine — 0.2.9, 2026-09-25 (source only, not released)
+
+Performed on the owner's Ubuntu 24.04 x86_64 machine. **macOS was not built or
+tested here; Windows does not exist as a variant.**
+
+- **Pi is real, not a picker.** `src/agent/pi/` implements `AgentBackend` over
+  Pi's documented JSONL RPC mode (`docs/rpc.md` of the installed
+  `@earendil-works/pi-coding-agent@0.85.1`). Pi events are translated into this
+  app's own event vocabulary, so the existing reducer, renderer and scrolling
+  work unchanged — there is no second agent loop. Both engines are registered in
+  the backend registry.
+- **Installed on Igor** into an app-owned location:
+  `~/.local/share/opencode-desktop/pi-runtime` with the version pinned exactly to
+  0.85.1 (matching the owner's Mac). Nothing global was changed; `~/.pi` was
+  created by Pi itself and is never written to by this app.
+- **Live acceptance** (`test/pi-live.test.ts`, opt-in, real CLI + real model):
+  a streamed answer reached the app's chat state (`PI_LIVE_OK`), `agent_settled`
+  swapped the provisional streaming ids for Pi's durable entry ids, one process
+  per session, and reopening the same session id returned the same transcript.
+  The DeepSeek key was passed only in the child environment; it is not printed,
+  logged, committed or placed in any argument.
+- **LSP works end to end.** A first-party extension
+  (`src-tauri/resources/pi/lsp-extension.ts`) registers `lsp_diagnostics`,
+  `lsp_hover` and `lsp_definition`. Live: the model called `lsp_diagnostics` and
+  received `Type 'number' is not assignable to type 'string'` from
+  typescript-language-server and `E0308 mismatched types` from rust-analyzer.
+  The third-party candidate `samfoy/pi-lsp-extension@f2433d1` was read but **not
+  installed**: it spawns a detached per-workspace daemon that outlives the Pi
+  session, which conflicts with this app's process-ownership rule. Full audit in
+  `docs/PI-ENGINE.md`.
+- **Language servers on Igor**: `typescript-language-server@5.1.1` installed into
+  the app-owned runtime directory; `rust-analyzer` added as a rustup component.
+  Detection now *probes* a server before offering it — `rustup` leaves a shim at
+  `/usr/bin/rust-analyzer` even when the component is absent, and the first live
+  run caught exactly that.
+- **Native UI acceptance** on the built Linux app under Xvfb: the settings screen
+  shows a separate "Pi" group; detection reported the managed path and version
+  0.85.1; the model list showed the real 4-model DeepSeek catalog with context
+  and modalities read from Pi; "Настроить LSP" found both servers as "готов".
+- **Process ownership verified in the real app**: 3 Pi children while running, 0
+  after the window exited.
+- **Safety**: no network transport (stdio only), program path always absolute and
+  never from `PATH`, one child per (directory, session), blocking
+  `extension_ui_request` surfaced to a modal with default-deny on timeout or when
+  nothing can display it.
+- **OpenCode is unchanged as the default**: folders and chats without an explicit
+  choice resolve to OpenCode, and its model-preference keys keep their historic
+  unprefixed form. A regression test asserts OpenCode still refuses to send while
+  its server is unreachable, while a Pi chat is allowed to run.
+- Verified: `tsc --noEmit`; **258 passed / 2 skipped** frontend tests across 37
+  files (the 2 skipped are the opt-in live ones, run separately and passing);
+  `npm run build`; `cargo fmt --check`; `cargo check --all-targets`; **30/30**
+  Rust tests; `npm run build:linux` → `OpenCode Desktop_0.2.9_amd64.deb`.
+- Not verified: macOS (coordinator), Pi extension dialogs against a real
+  extension that raises them, image attachments to Pi in a live run, and Pi with
+  a remote OpenCode host (deliberately unsupported and reported as such).
+
+## Linux variant and agent-backend seam — 0.2.9, 2026-09-24 (source only, not released)
+
+Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review checkout.
+**macOS and Windows were not built or tested here.**
+
+- Agent-backend seam: the state layer now talks to `AgentBackend` (`src/agent/`), with
+  OpenCode as the only registered implementation and still the default. Transport,
+  stream URLs and SSE parsing no longer leak into `src/state/store.ts`. PTY, `/mcp`
+  and the JSONC config editor stay OpenCode-specific and are reached through
+  `asOpenCodeClient`; the review panel and terminal are mounted only when
+  `backend.capabilities.vcsDiff` / `.pty` are true, so that escape hatch cannot be hit
+  during render. Re-connecting resolves the active backend's descriptor strictly — a
+  lenient fallback would silently move a live workspace onto another runtime.
+- Two reviewed build variants. `tauri.conf.json` is platform-neutral; macOS window
+  chrome and `Entitlements.plist` live only in `tauri.macos.conf.json`, deb targets only
+  in `tauri.linux.conf.json`. `test/bundle-config.test.ts` fails on drift between the
+  duplicated window object (Tauri replaces arrays), on a macOS key reaching the shared
+  config, on a version mismatch across package/Cargo/Tauri, and if an untested
+  `tauri.windows.conf.json` appears.
+- Per-OS paths are resolved in one place (`src-tauri/src/paths.rs`) and are
+  **evidence-first**: an existing `opencode` / `opencode-desktop` directory always wins
+  over an XDG guess, so the settings editor cannot write a config the engine never
+  reads and an upgrade cannot orphan existing chats. Without XDG variables the result is
+  byte-for-byte the shipped 0.2.x layout on both platforms.
+- Linux runtime fixes: completion chime now picks the first installed system player
+  (`canberra-gtk-play` → `paplay` → `pw-play`, all absolute paths, silence if none);
+  macOS overlay-window-control insets are scoped to a `mac-chrome` class; `ssh` is
+  resolved from an absolute allow-list, never PATH. Platform detection falls back to
+  `navigator.platform`, so a stripped user agent cannot drop the macOS chrome inset.
+- User-visible copy that claimed macOS on every platform was corrected in 10 places
+  (settings, workspace picker, host dialogs, connection gate, OpenCode settings,
+  microphone errors, keyboard hints). `test/ui-copy.test.ts` fails if shared copy names
+  an OS again, unless the line explicitly scopes the claim ("Только macOS").
+- Correctness fixes with regression tests: abort/стоп is routed with the session's own
+  project directory (a session created in project A and stopped from project B used to
+  get a 404 and keep running); malformed `message.part.updated` / `session.error` events
+  no longer create phantom session slots; a 200 response with a malformed body is
+  reported as an API fault instead of "cannot reach the server"; a session's own
+  directory is authoritative over the listing directory it was seen in.
+- Verified on Linux: TypeScript `tsc --noEmit`; **213/213** frontend tests across 32
+  files; `npm run build`; `cargo fmt --check`; `cargo check --all-targets`; **24/24**
+  Rust tests; `npm run build:linux` producing `OpenCode Desktop_0.2.9_amd64.deb`
+  (`Package: open-code-desktop`, `Depends: libwebkit2gtk-4.1-0, libgtk-3-0`,
+  `Categories=Development`, no `Entitlements.plist` / `Info.plist` / `.icns` inside).
+  Headless smoke under Xvfb: `xwininfo` showed `"OpenCode Desktop" 1360x900+0+0` and a
+  screen capture showed the rendered UI with no dead macOS chrome gap and the expected
+  "no connection" state. The owner's OpenCode server, sessions and GPUs were not touched.
+- Not verified here and left to the maintainer on a Mac: the `.app`/`.dmg` build, ad-hoc
+  signature, Hardened Runtime, the audio-input entitlement surviving the config split
+  (`scripts/verify-macos.py` is the gate), and the macOS chime. Not verified on any
+  platform after these changes: SSH tunnels, ASR dictation, the PTY terminal and
+  drag-and-drop attachments.
+
 ## Attachments and CPU helper — 0.2.8, 2026-09-24
 
 - Deployed isolated unprivileged Proxmox CT205 `oc-helper` (Debian 12, 4 vCPU/4 GB, 20 GB) with bounded PDF/audio/video conversion. Its source SHA256 matches `services/helper/server.py`; `oc-helper.service` is active. Mac access is through a persistent loopback SSH tunnel on port 18107; direct Mac requests to the CT return 403. `/health` reports version 0.1.0 and the three conversion services. PDF text/page, video frames/audio and audio conversion fixtures passed. Existing GigaAM ASR on CT201 remains the transcription backend and was not moved.

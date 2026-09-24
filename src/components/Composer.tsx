@@ -3,6 +3,8 @@ import { ContextMeter } from "./ContextMeter";
 import { VoiceInput } from "./VoiceInput";
 import { accessOptions, type AccessMode } from "../state/access";
 import { Icon } from "./Icon";
+import { engineOptions } from "../state/engines";
+import { PI_BACKEND_ID } from "../agent/pi/backend";
 import { SelectMenu } from "./SelectMenu";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { store, useAppState } from "../state/store";
@@ -47,7 +49,8 @@ export function Composer() {
       ? { type: "busy" as const }
       : { type: "idle" as const };
   const running = status?.type === "busy" || status?.type === "retry";
-  const connected = s.connection.phase === "connected";
+  // The engine that will run the prompt decides readiness, not OpenCode alone.
+  const connected = store.engineReady();
 
   useEffect(() => { void attachmentDrafts.ensure(scope).catch(error => setAttachmentError(String(error))); }, [scope]);
   const addFiles = (files: File[]) => {
@@ -87,8 +90,34 @@ export function Composer() {
     return () => { window.removeEventListener("dragover", over); window.removeEventListener("drop", drop); window.removeEventListener("dragleave", leave); };
   });
 
+  const engineId = store.engineIdFor();
+  const engines = engineOptions(s.prefs, store.piInstalled);
+  const isPi = engineId === PI_BACKEND_ID;
+
   const modelList = useMemo(() => {
-    const out: { providerID: string; modelID: string; label: string }[] = [];
+    const out: {
+      providerID: string;
+      modelID: string;
+      label: string;
+      detail?: string;
+    }[] = [];
+    if (isPi) {
+      // Pi keeps its own catalog; OpenCode providers must not leak into it.
+      // Catalog membership is not proof of access, so say so rather than
+      // presenting every bundled entry as usable.
+      for (const m of store.piModelOptions())
+        out.push({
+          providerID: m.providerID,
+          modelID: m.modelID,
+          label: m.label,
+          detail: m.verified
+            ? "проверена"
+            : m.source === "custom"
+              ? "свой идентификатор · доступ не проверен"
+              : "каталог Pi · доступ не проверен",
+        });
+      return out;
+    }
     for (const p of providers) {
       for (const m of Object.values(p.models)) {
         if (m.status === "deprecated") continue;
@@ -100,10 +129,10 @@ export function Composer() {
       }
     }
     return out;
-  }, [providers]);
+  }, [providers, isPi, s.piHealth]);
 
   const variantOptions = useMemo(() => {
-    if (!choice) return [];
+    if (!choice || isPi) return [];
     const model = store.modelInfo(choice.providerID, choice.modelID);
     const variants = model?.variants ? Object.keys(model.variants) : [];
     return variants;
@@ -255,18 +284,45 @@ export function Composer() {
             </button>
             <input ref={fileInputRef} type="file" multiple hidden disabled={s.ui.sending} aria-label="Выбрать файлы" onChange={event => { addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }}/>
             <button className="composer-plus" type="button" disabled={s.ui.sending} aria-label="Приложить файлы" title="Приложить файлы" onClick={() => fileInputRef.current?.click()}><Icon name="file" size={18}/></button>
-            <SelectMenu
-              label="Режим доступа"
-              disabled={running || s.ui.sending || !connected}
-              value={store.getAccessMode()}
-              options={[
-                ...accessOptions,
-                ...(store.getAccessMode() === "custom" ? [{value: "custom", label: "Свои разрешения", detail: "Правила этой сессии OpenCode"}] : []),
-              ]}
-              onChange={(mode) => mode !== "custom" && void store.setAccessMode(mode as AccessMode)}
-            />
+            {isPi ? (
+              // OpenCode's permission rules do not govern Pi. Pi chats get their
+              // own approval policy instead of a control that would lie.
+              <SelectMenu
+                label="Доступ Pi"
+                disabled={running || s.ui.sending}
+                value={s.prefs.pi?.toolPolicy === "full" ? "full" : "ask"}
+                options={[
+                  { value: "ask", label: "Спрашивать", detail: "Подтверждение на запись, правку и команды" },
+                  { value: "full", label: "Полный доступ", detail: "Pi выполняет инструменты без запроса" },
+                ]}
+                onChange={(value) => store.setPiSettings({ toolPolicy: value === "full" ? "full" : "ask" })}
+              />
+            ) : (
+              <SelectMenu
+                label="Режим доступа"
+                disabled={running || s.ui.sending || !connected}
+                value={store.getAccessMode()}
+                options={[
+                  ...accessOptions,
+                  ...(store.getAccessMode() === "custom" ? [{value: "custom", label: "Свои разрешения", detail: "Правила этой сессии OpenCode"}] : []),
+                ]}
+                onChange={(mode) => mode !== "custom" && void store.setAccessMode(mode as AccessMode)}
+              />
+            )}
           </div>
           <div className="composer-controls-right">
+          <SelectMenu
+            label="Движок"
+            disabled={!connected || running}
+            value={engineId}
+            options={engines.map((e) => ({
+              value: e.id,
+              label: e.label,
+              detail: e.available ? undefined : e.reason,
+              disabled: !e.available,
+            }))}
+            onChange={(id) => store.setSessionEngine(s.activeSessionId, id)}
+          />
           <SelectMenu
             label="Модель"
             disabled={!connected}
@@ -274,7 +330,7 @@ export function Composer() {
             options={modelList.map((m) => ({
               value: `${m.providerID}/${m.modelID}`,
               label: m.label,
-              detail: m.providerID,
+              detail: m.detail ?? m.providerID,
             }))}
             onChange={(value) => {
               const [providerID, ...rest] = value.split("/");

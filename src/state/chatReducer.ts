@@ -139,7 +139,10 @@ export function reduceEvent(root: ChatRootState, event: ServerEvent): boolean {
     }
     case "message.part.updated": {
       const part = props.part as MessagePart | undefined;
-      if (!part?.id) break;
+      // A part without its own session must not open a slot keyed "undefined":
+      // that phantom session would then receive status//error reconciliation.
+      if (!part?.id || typeof part.sessionID !== "string" || !part.sessionID)
+        break;
       if (seen(root, event.id)) break;
       const slot = sessionSlot(root, part.sessionID);
       upsertPart(slot, part);
@@ -225,8 +228,10 @@ export function reduceEvent(root: ChatRootState, event: ServerEvent): boolean {
       break;
     }
     case "session.error": {
-      const target = sessionID ?? String(props.sessionID ?? "");
-      const slot = sessionSlot(root, target);
+      // An unattributed error cannot be shown in any conversation; recording it
+      // under the empty key only created a slot the UI can never surface.
+      if (!sessionID) break;
+      const slot = sessionSlot(root, sessionID);
       slot.status = { type: "idle" };
       slot.lastError = describeMessageError(props.error) || "Session error";
       changed = true;

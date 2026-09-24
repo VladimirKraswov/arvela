@@ -1,14 +1,17 @@
 {
   "name": "opencode-desktop",
   "private": true,
-  "version": "0.2.8",
+  "version": "0.2.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:linux": "tauri build --bundles deb",
+    "build:macos": "tauri build --bundles app,dmg --config '{\"bundle\":{\"macOS\":{\"signingIdentity\":\"-\"}}}'",
+    "check:linux-prereqs": "./scripts/check-linux-prereqs.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

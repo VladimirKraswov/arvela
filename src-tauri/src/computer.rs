@@ -49,10 +49,7 @@ const INPUT: &[&str] = &[
 ];
 
 fn settings_dir() -> Result<PathBuf, String> {
-    Ok(
-        PathBuf::from(std::env::var_os("HOME").ok_or("HOME недоступен")?)
-            .join(".local/share/opencode-desktop/computer"),
-    )
+    Ok(crate::paths::app_data_dir()?.join("computer"))
 }
 fn is_enabled() -> bool {
     settings_dir().is_ok_and(|p| p.join("enabled").is_file())

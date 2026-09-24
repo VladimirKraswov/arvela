@@ -1,4 +1,6 @@
 import { HandoffDialog } from "./components/HandoffDialog";
+import { PiDialog } from "./components/PiDialog";
+import { EngineSwitchDialog } from "./components/EngineSwitchDialog";
 import { HostDialogs } from "./components/HostDialogs";
 import { store, useAppState, applyTheme } from "./state/store";
 import { Sidebar } from "./components/Sidebar";
@@ -15,6 +17,7 @@ import { TerminalPanel } from "./components/TerminalPanel";
 import { Palette } from "./components/Palette";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { useEffect } from "react";
+import { hasOverlayWindowControls, isNative, platform } from "./native/platform";
 
 /** Pointer-drag horizontal splitter: initial width follows movementX, clamped. */
 function startResize(opts: {
@@ -48,6 +51,8 @@ export default function App() {
     // connect() is idempotent, so a StrictMode double-invoke shares one attempt.
     applyTheme(store.state.prefs.theme);
     void store.connect();
+    // Cheap `--version` probe: the engine picker must know whether Pi exists.
+    void store.refreshPiInstall();
   }, []);
 
   useEffect(() => {
@@ -92,10 +97,15 @@ export default function App() {
   }, []);
 
   const layout = s.prefs.layout;
+  // The review panel and the terminal are OpenCode-specific surfaces: they reach
+  // the transport directly through `store.client`. Mount them only when the
+  // active agent backend actually provides them, so the escape hatch can never
+  // be hit during render.
+  const capabilities = store.backend.capabilities;
 
   return (
     <div
-      className={`app-shell${"__TAURI_INTERNALS__" in window ? " native" : ""}${s.activeSessionId ? "" : " new-task"}${layout.sidebarOpen ? "" : " sidebar-hidden"}`}
+      className={`app-shell platform-${platform()}${isNative() ? " native" : ""}${hasOverlayWindowControls() ? " mac-chrome" : ""}${s.activeSessionId ? "" : " new-task"}${layout.sidebarOpen ? "" : " sidebar-hidden"}`}
     >
       <div className="app-body" inert={s.ui.settingsOpen} aria-hidden={s.ui.settingsOpen || undefined} style={s.ui.settingsOpen ? { visibility: "hidden" } : undefined}>
         {layout.sidebarOpen && <Sidebar />}
@@ -120,7 +130,10 @@ export default function App() {
           <div className="center-main">
             <div className="chat-col">
               {s.connection.phase === "connected" ||
-              s.connection.phase === "connecting" ? (
+              s.connection.phase === "connecting" ||
+              // A Pi chat runs locally: an unreachable OpenCode server must not
+              // replace it with a connection error it has nothing to do with.
+              store.engineReady() ? (
                 <>
                   <ChatView />
                   <Composer />
@@ -129,7 +142,7 @@ export default function App() {
                 <ConnectionGate />
               )}
             </div>
-            {layout.rightOpen && (
+            {layout.rightOpen && capabilities.vcsDiff && (
               <>
                 <div
                   className="resizer-v"
@@ -154,7 +167,7 @@ export default function App() {
               </>
             )}
           </div>
-          {layout.bottomOpen && (
+          {layout.bottomOpen && capabilities.pty && (
             <>
               <div
                 className="resizer-h"
@@ -193,7 +206,9 @@ export default function App() {
       {s.ui.paletteOpen && <Palette />}
       {s.ui.settingsOpen && <SettingsScreen />}
       <HostDialogs />
-      <HandoffDialog />
+      {capabilities.fork && <HandoffDialog />}
+      <PiDialog />
+      <EngineSwitchDialog />
       <DeleteConfirm />
       <Toast />
     </div>

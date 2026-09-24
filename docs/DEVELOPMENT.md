@@ -17,6 +17,26 @@ Run from this project directory. On the current Mac, `NODE_PATH` can point into 
 
 Initial Cargo dependency compilation may take several minutes. Use an adequate bounded timeout rather than repeatedly killing/restarting it. Never hide build failures with a successful wrapper command. Don't call `npm test` passed until a real test script exists and runs meaningful tests.
 
+## Build variants
+
+Two reviewed variants, one shared source tree: `npm run build:linux` (`.deb`) and
+`npm run build:macos` (`.app` + `.dmg`, ad-hoc signed). The platform-neutral
+`tauri.conf.json` carries no macOS chrome or entitlements; `tauri.macos.conf.json`
+and `tauri.linux.conf.json` add only their own keys, and `test/bundle-config.test.ts`
+fails if either drifts or if an untested Windows variant appears. Exact commands,
+the support matrix and the Windows extension points are in `docs/PLATFORMS.md`.
+
+`./scripts/check-linux-prereqs.sh` reports missing Tauri 2 system libraries and prints
+the `apt` line; it never installs anything, so an agent can stop cleanly at the
+system-package boundary. On Ubuntu 24.04 the required set is `build-essential
+pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev libssl-dev`.
+
+For a headless Linux smoke test start `Xvfb :N -screen 0 1360x900x24`, run the binary
+with `DISPLAY=:N` and confirm the window with `xwininfo -root -tree` (software
+rendering prints harmless `libEGL warning: DRI3` lines). Do not point a test run at
+the owner's real OpenCode server: an unreachable endpoint is the expected result and
+exercises the error state.
+
 ## Test safety
 
 Use only explicitly created test projects/sessions. Never delete, reset or summarize a user's existing conversation to test behavior. Git status and before/after diffs must demonstrate user work is preserved. Do not mutate another project as a convenience. Do not upgrade/stop OpenCode or restart FreeToken during ordinary UI tests.

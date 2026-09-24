@@ -204,7 +204,7 @@ export function HostPicker({ compact = false }: { compact?: boolean }) {
           >
             <Icon name="monitor" />
             <span>
-              На этом компьютере<small>Файлы и инструменты этого Mac</small>
+              На этом компьютере<small>Файлы и инструменты этого компьютера</small>
             </span>
             {active === "local" && <Icon name="check" size={16} />}
           </button>
