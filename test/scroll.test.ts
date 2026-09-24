@@ -54,3 +54,9 @@ it('anchors to the visible part inside a long answer when preceding parts resize
  controller.pause();expect(controller.snapshot().anchor?.id).toBe('visible-part');
  partTop+=200;height+=200;controller.layout();expect(el.scrollTop).toBe(1000);
 });
+it('ignores zero-size anchors in folded progress even when the viewport extends above the window',()=>{
+ el.getBoundingClientRect=()=>({top:-52,bottom:148} as DOMRect);
+ const folded=document.createElement('div');folded.dataset.scrollAnchor='hidden-step';el.prepend(folded);
+ folded.getBoundingClientRect=()=>({top:0,bottom:0} as DOMRect);
+ controller.pause();expect(controller.snapshot().anchor?.id).toBe('message');
+});

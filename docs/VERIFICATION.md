@@ -1,5 +1,17 @@
 # Verification record
 
+## Cohesive assistant output — 0.2.5, 2026-09-24
+
+- Read-only inspection of actual OpenCode 1.18.18 history confirmed many `tool-calls` messages share one user parent and precede a `stop` text answer. The view now groups those adjacent steps without mutating messages or session state. User steering, different parents and compaction summaries remain separate boundaries.
+- One compact progress rail retains explanatory text, collapsed reasoning and expandable tools; one final footer copies only the final Markdown. Model profiles and total known output tokens appear under «Сведения», with incomplete/paginated usage labelled. Tool errors remain discoverable when progress is folded; abort/budget failures remain visible and are never promoted to final answers. Internal compaction is a separate folded disclosure.
+- Browser acceptance used a private local HTTP/SSE fixture, without model requests. Manual reading stayed exactly at scrollTop2275 as height grew3076→3713; the final-answer transition preserved3090.5 as height grew3820→4121. Jump resumed following. Switching away/back preserved expanded progress and top2867.5. Exact final Markdown clipboard, history prepend, light/dark layouts and no console errors verified.
+- Native review exposed internal summaries opening as large transcript blocks and short tool durations wrapping beside long commands; both corrected. A separate browser reproduction found folded zero-size anchors being selected when the viewport was above the window edge. Its regression test failed before the fix and passed after; invisible anchors are now excluded from capture/restore.
+- Final full frontend suite: **157/157**, `npm test -- --maxWorkers=2`; TypeScript/Vite production build passed. Regression coverage includes request boundaries, pagination-stable group identity, final/error/compaction classification, exact copy, retained live folds and navigation state. No Rust implementation changed. Native candidate verified the real Compute Mesh history with29/19tool actions, distinct finals and actual error states; connected/open, engine1.18.18, app0.2.5. The final installed build also confirms «Сжатие контекста» starts collapsed and offers «Копировать сводку».
+
+- Final Tauri app+DMG build passed, app `codesign --verify --deep --strict` and DMG `hdiutil verify` passed. Installed `/Applications/OpenCode Desktop.app`; executable SHA256 `83190f6c007f363cf631c51c5282e0f39a46225f101f154db6a85bda83b59bf4`. Downloads DMG SHA256 `ce4fbdf9d899906418ccdfd15ad126f0ee721c40c8cf43867c582cc775cc5edb`. Local ad-hoc signing only; no Developer ID/notarization.
+- All25remembered directory scopes were idle before both installations. Original0.2.4 backup: `~/.local/share/opencode-desktop/backups/0.2.4-before-0.2.5-20260924-161613`; the intermediate candidate is separately backed up. OpenCode PID27982 and existing MCP processes retained. Model/agent/ASR/host/access/theme, all drafts, selected Compute Mesh conversation, expanded projects and globalconfig were compared unchanged. No prompts or GPU requests were sent. Private receipts: `.local/turns-0.2.5/`; owned fixture/Vite/browser closed.
+
+
 ## Chat reading and attention — 0.2.4, 2026-09-24
 
 - Confirmed the owner’s phantom GPU Mesh indicator was persisted attention for a hidden explore child. Metadata reconciliation now removes confirmed child/archive/deleted marks, preserves unknown marks on network errors, and includes older unread roots beyond the first page. Late lookup/host races are guarded.

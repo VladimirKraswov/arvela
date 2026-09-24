@@ -563,6 +563,8 @@ select {
   color: var(--warn);
 }
 .tool-duration {
+  white-space: nowrap;
+  flex-shrink: 0;
   margin-left: auto;
   color: var(--text-faint);
   font-size: 11px;
@@ -2485,3 +2487,25 @@ kbd {
  .user-message .msg-user { max-width: 95%; }
  .jump-latest { bottom: 10px; }
 }
+
+/* A request reads as one response, with a compact, reversible work history. */
+.assistant-turn { min-width:0; }
+.turn-progress-toggle { display:flex; align-items:center; gap:9px; flex-wrap:wrap; width:100%; text-align:left; padding:6px 0; background:none; border:0; color:var(--text-dim); font-size:12px; cursor:pointer; }
+.turn-progress-toggle:hover { color:var(--text); }
+.turn-chevron { font-size:20px; line-height:14px; transform:rotate(0); }
+.turn-chevron.expanded { transform:rotate(90deg); }
+.turn-count { color:var(--text-faint); font-size:11px; }
+.turn-tool-errors { color:var(--warn); font-size:11px; }
+.turn-content { min-width:0; }
+.turn-step { border-left:1px solid var(--border); margin-left:5px; padding:10px 0 10px 19px; }
+.turn-step[hidden] { display:none; }
+.turn-step .msg-assistant { gap:8px; }
+.turn-step .md { font-size:13px; line-height:1.65; }
+.turn-step .fold-head { padding:3px 0; font-size:12px; }
+.turn-step .fold.reasoning .fold-head { font-size:11px; }
+.turn-answer.after-progress { padding-top:20px; }
+.turn-footer { margin-top:12px; gap:12px; }
+.turn-details { font-size:11px; color:var(--text-faint); }
+.turn-details summary { cursor:pointer; }
+.turn-details[open] { flex-basis:100%; }
+.turn-details > div { display:flex; gap:7px 16px; flex-wrap:wrap; margin-top:7px; overflow-wrap:anywhere; }

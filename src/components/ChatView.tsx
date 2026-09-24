@@ -1,12 +1,13 @@
 import { WorkspacePicker } from './WorkspacePicker';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { store, useAppState } from '../state/store';
-import { AssistantMessageView, PermissionCard, QuestionCard, UserMessageView } from './render';
+import { AssistantTurnView, PermissionCard, QuestionCard, UserMessageView } from './render';
 import { ChatScrollController, type ReadingPosition } from '../chat/scroll';
+import { groupConversation } from '../chat/turns';
 import { dayKey, dayLabel } from '../chat/time';
 import { Icon } from './Icon';
 
-const positions = new Map<string, { position: ReadingPosition; first?: string }>();
+const positions = new Map<string, { position: ReadingPosition; first?: string; progress?: Record<string, boolean> }>();
 export function ChatView() {
   const s = useAppState();
   const key = JSON.stringify([s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId]);
@@ -16,6 +17,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   const s = useAppState(), sessionId = s.activeSessionId;
   const slot = sessionId ? s.chat.sessions[sessionId] : undefined;
   const scrollRef = useRef<HTMLDivElement>(null), contentRef = useRef<HTMLDivElement>(null);
+  const progressState = useRef<Record<string, boolean>>(positions.get(cacheKey)?.progress ?? {});
   const controller = useRef<ChatScrollController | null>(null);
   const [away, setAway] = useState(false);
   const first = useRef<string | undefined>(positions.get(cacheKey)?.first);
@@ -25,6 +27,9 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   if (!first.current && order.length) first.current = order[Math.max(0, order.length - 60)];
   const start = Math.max(0, order.indexOf(first.current ?? ''));
   const messages = order.slice(start).map(id => slot!.messages[id]).filter(Boolean);
+  const rows = groupConversation(order.map(id => slot!.messages[id]).filter(Boolean));
+  const visibleIds = new Set(messages.map(m => m.id));
+  const visibleRows = rows.filter(row => row.kind === 'user' ? visibleIds.has(row.message.id) : row.messages.some(m=>visibleIds.has(m.id)));
   const pending = sessionId ? store.pendingInteraction(sessionId) : { permissions: [], questions: [] };
   const permission = pending.permissions[0], question = pending.questions[0];
   const more = !!sessionId && !!s.historyCursors[sessionId] && !s.olderExhausted[sessionId];
@@ -61,6 +66,8 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
       if (y !== touchY) view.intent(y > touchY ? 'up' : 'down');
       touchY = y;
     };
+    const disclosure = () => view.pause();
+    el.addEventListener('conversation-disclosure', disclosure);
     const pointer = (e: PointerEvent) => {
       if (e.target === el && e.clientX >= el.getBoundingClientRect().left + el.clientWidth - 14) {
         view.pause(); view.intent('down');
@@ -70,9 +77,10 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
     el.addEventListener('touchstart', touchStart, { passive: true }); el.addEventListener('touchmove', touchMove, { passive: true });
     el.addEventListener('pointerdown', pointer);
     return () => {
-      positions.set(cacheKey, { position: view.snapshot(), first: first.current });
+      positions.set(cacheKey, { position: view.snapshot(), first: first.current, progress: progressState.current });
       if (positions.size > 80) positions.delete(positions.keys().next().value!);
       resize.disconnect(); view.dispose(); controller.current = null;
+      el.removeEventListener('conversation-disclosure', disclosure);
       el.removeEventListener('wheel', wheel); el.removeEventListener('keydown', key);
       el.removeEventListener('touchstart', touchStart); el.removeEventListener('touchmove', touchMove); el.removeEventListener('pointerdown', pointer);
     };
@@ -107,11 +115,19 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
         {(start > 0 || more) && <button className="history-more" disabled={s.ui.historyLoading} onClick={() => void older()}>
           {s.ui.historyLoading ? 'Загрузка…' : start ? `${start} предыдущих сообщений` : 'Загрузить более ранние сообщения'}<Icon name="chevron" size={16} />
         </button>}
-        {messages.map((m, index) => <div className="history-message" data-message-id={m.id} key={m.id}>
-          {dayKey(m.time.created) && (index === 0 || dayKey(messages[index - 1].time.created) !== dayKey(m.time.created)) &&
-            <div className="history-date">{dayLabel(m.time.created)}</div>}
-          {m.role === 'user' ? <UserMessageView message={m} /> : <AssistantMessageView sessionId={sessionId!} message={m} />}
-        </div>)}
+        {visibleRows.map((row, index) => {
+          const shown = row.kind === 'assistant' ? row.messages.filter(m=>visibleIds.has(m.id)) : [];
+          const firstMessage = row.kind === 'user' ? row.message : shown[0];
+          const previous = visibleRows[index - 1];
+          const previousTime = previous ? previous.kind === 'user' ? previous.message.time.created : previous.messages[previous.messages.length - 1].time.created : 0;
+          return <div className="history-message" key={row.key}>
+            {dayKey(firstMessage.time.created) && (index === 0 || dayKey(previousTime) !== dayKey(firstMessage.time.created)) &&
+              <div className="history-date">{dayLabel(firstMessage.time.created)}</div>}
+            {row.kind === 'user' ? <UserMessageView message={row.message} /> : <AssistantTurnView sessionId={sessionId!} messages={shown} progressState={progressState.current} progressKey={row.key}
+              partial={shown.length < row.messages.length || (index === 0 && (more || start > 0))}
+              active={index === visibleRows.length - 1 && !!slot && ['busy', 'retry'].includes(slot.status.type)} />}
+          </div>;
+        })}
         {slot?.lastError && <div className="msg-error" role="alert">{slot.lastError}</div>}
         {slot?.status.type === 'busy' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />Агент работает…</div>}
         {slot?.status.type === 'retry' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />{slot.status.message ?? 'Повтор подключения…'}</div>}

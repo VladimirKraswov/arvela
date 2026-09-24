@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useId, useState } from "react";
 import type {
   AssistantMessage,
   MessagePart,
@@ -11,6 +11,7 @@ import { useAppState } from "../state/store";
 import { Markdown } from "./Markdown";
 import { CopyButton } from "./CopyButton";
 import { MessageEdit } from "./MessageEdit";
+import { actionCountLabel, answerText, finalAnswer, stepCountLabel, turnMetrics, visibleParts } from "../chat/turns";
 import { exactTime, messageTime } from "../chat/time";
 export { Markdown } from "./Markdown";
 
@@ -71,18 +72,16 @@ export const ToolPartView = memo(function ToolPartView({
 }) {
   const st = part.state ?? { status: "pending" as const };
   const running = st.status === "running" || st.status === "pending";
-  const dur =
-    st.time?.start && st.time?.end
-      ? `${(((st.time.end as number) - (st.time.start as number)) / 1000).toFixed(1)}s`
-      : null;
+  const elapsed = st.time?.end && st.time?.start ? Math.max(0, st.time.end - st.time.start) : null;
+  const dur = elapsed === null ? null : elapsed < 100 ? '<0,1 с' : `${(elapsed / 1000).toFixed(1)} с`;
+  const fields = st.input && typeof st.input === 'object' ? st.input as Record<string, unknown> : {};
+  const description = typeof fields.description === 'string' && fields.description.trim() ? fields.description : st.title;
   const label = (
     <>
       <span className="tool-name">{part.tool ?? "tool"}</span>
-      {st.title ? <span> {st.title}</span> : null}
-      {st.status === "error" && (
-        <span className="tool-state-error"> — failed</span>
-      )}
-      {running && <span className="tool-state-run"> — running</span>}
+      {description ? <span> {description}</span> : null}
+      {st.status === "error" && <span className="tool-state-error"> — ошибка</span>}
+      {running && <span className="tool-state-run"> — выполняется</span>}
     </>
   );
   const input =
@@ -184,7 +183,7 @@ export const AssistantMessageView = memo(function AssistantMessageView({
   message: AssistantMessage;
 }) {
   const s = useAppState();
-  const parts = messageParts(s, sessionId, message.id);
+  const parts = visibleParts(messageParts(s, sessionId, message.id));
   const running = !message.time.completed;
   const errText = message.error ? describeError(message.error) : null;
   const finishBad =
@@ -214,29 +213,65 @@ export const AssistantMessageView = memo(function AssistantMessageView({
             : `Finished with status: ${message.finish}`}
         </div>
       )}
-      {message.time.completed && (
-        <div className="message-footer">
-          <MessageTimestamp value={message.time.completed} />
-          <CopyButton text={parts.filter(p=>p.type==='text'&&!p.synthetic&&!p.ignored).map(p=>p.text??'').join('\n\n')} label="Копировать весь ответ" compact />
-        </div>
-      )}
-      {message.time.completed && (
-        <div className="msg-meta">
-          {message.modelID && (
-            <span>
-              {message.modelID}
-              {message.variant ? ` · ${message.variant}` : ""}
-            </span>
-          )}
-          {typeof message.tokens?.output === "number" &&
-            message.tokens.output > 0 && (
-              <span>{message.tokens.output} out tokens</span>
-            )}
-        </div>
-      )}
+
     </div>
   );
 });
+
+/** A turn owns one footer. Keep step nodes mounted and in order as streaming becomes a final answer. */
+export function AssistantTurnView({sessionId, messages, active = false, partial = false, progressState, progressKey}: {
+  sessionId: string; messages: AssistantMessage[]; active?: boolean; partial?: boolean;
+  progressState?: Record<string, boolean>; progressKey?: string;
+}) {
+  const s = useAppState(), regionId = useId();
+  const last = messages[messages.length - 1];
+  const parts = messageParts(s, sessionId, last.id);
+  const hasFinal = finalAnswer(last, parts);
+  // Only history opened after completion starts folded. Never collapse a reader's live progress.
+  const [expanded, setExpanded] = useState(() => (progressKey ? progressState?.[progressKey] : undefined) ?? (!last.summary && (active || !hasFinal)));
+  useEffect(() => { if (progressState && progressKey) progressState[progressKey] = expanded; }, [progressState, progressKey, expanded]);
+  const progress = hasFinal ? messages.slice(0, -1) : messages;
+  const allParts = messages.flatMap(m => messageParts(s, sessionId, m.id));
+  const actions = allParts.filter(p => p.type === 'tool').length;
+  const errors = allParts.filter(p => p.type === 'tool' && p.state?.status === 'error').length;
+  const metrics = turnMetrics(messages);
+  const terminal = !!last.time.completed && last.finish !== 'tool-calls' && last.finish !== 'tool_calls';
+  const label = last.summary ? 'Сжатие контекста' : active ? 'Работаю' : 'Ход работы';
+  const toggle = () => {
+    // Explicit disclosure is reader navigation, not new streaming content to follow to the tail.
+    document.getElementById(regionId)?.dispatchEvent(new Event('conversation-disclosure', {bubbles:true}));
+    setExpanded(v => !v);
+  };
+  return <section className="assistant-turn" aria-label="Ответ ассистента">
+    {progress.length > 0 && <button className="turn-progress-toggle" data-scroll-anchor={`disclosure:${progressKey ?? messages[0].id}`} aria-expanded={expanded} aria-controls={progress.map(m => `${regionId}-${m.id}`).join(' ')} onClick={toggle}>
+      <span className={`turn-chevron${expanded ? ' expanded' : ''}`} aria-hidden>›</span>
+      {active && <span className="tool-spinner" aria-hidden />}
+      <span>{label}</span>{actions > 0 && <span className="turn-count">{actionCountLabel(actions)}</span>}
+      {partial && <span className="turn-count">продолжение</span>}
+      {errors > 0 && <span className="turn-tool-errors">Ошибок инструментов: {errors}</span>}
+    </button>}
+    <div id={regionId} className="turn-content">
+      {messages.map(m => {
+        const isFinal = hasFinal && m.id === last.id;
+        // Message failures and output limits must remain visible even if the user folded progress.
+        const problem = !!m.error || (!!m.finish && !['stop','end_turn','stop_sequence','tool-calls','tool_calls'].includes(m.finish));
+        return <div key={m.id} id={`${regionId}-${m.id}`} data-message-id={m.id} className={isFinal ? `turn-answer${progress.length ? ' after-progress' : ''}` : 'turn-step'}
+          hidden={!isFinal && !expanded && !problem}>
+          <AssistantMessageView sessionId={sessionId} message={m} />
+        </div>;
+      })}
+    </div>
+    {terminal && <div className="message-footer turn-footer">
+      {!!answerText(parts).trim() && <CopyButton text={answerText(parts)} label={last.summary ? "Копировать сводку" : hasFinal ? "Копировать весь ответ" : "Копировать незавершённый ответ"} compact />}
+      <MessageTimestamp value={last.time.completed!} />
+      <details className="turn-details"><summary>Сведения</summary><div>
+        {metrics.profiles.length > 0 && <span>{metrics.profiles.join(' → ')}</span>}
+        <span>{stepCountLabel(messages.length)}{partial ? ' в загруженной истории' : ''}</span>
+        {metrics.output > 0 && <span>{metrics.output.toLocaleString('ru-RU')} выходных токенов{metrics.partial ? ' (данные неполные)' : ''}</span>}
+      </div></details>
+    </div>}
+  </section>;
+}
 
 function describeError(error: unknown): string {
   const e = error as { name?: string; data?: { message?: string } };

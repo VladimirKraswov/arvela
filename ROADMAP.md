@@ -163,3 +163,11 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] User-message edit into an engine fork before the selected message; original retained, access and profile copied, explicit draft/send step.
 - [x] Root-session attention reconciliation; hidden subagents/archive/deletion excluded, unread roots exposed beyond sidebar truncation.
 - [x] Native installation and release acceptance (see VERIFICATION).
+
+## M14 — Cohesive assistant turns (0.2.5)
+
+- [x] Adjacent engine steps grouped by request, with user/parent/compaction boundaries and stable message/part anchors.
+- [x] Compact progress rail with expandable reasoning/tools; final answer and single copy/time/details footer.
+- [x] Completed history starts folded; live progress stays open and disclosure state survives conversation switching.
+- [x] Tool errors remain discoverable; aborted/limited output is not labelled as a successful final answer; invisible engine markers no longer create gaps.
+- [x] Native installation and final package validation (see VERIFICATION).

@@ -31,7 +31,7 @@ export class ChatScrollController {
     let candidate: HTMLElement | undefined;
     for (const node of nodes) {
       const box = node.getBoundingClientRect();
-      if (box.bottom > viewport.top + 1 && box.top < viewport.bottom) {
+      if (box.bottom > box.top && box.bottom > viewport.top + 1 && box.top < viewport.bottom) {
         if (!candidate || candidate.contains(node)) candidate = node;
         else break;
       }
@@ -77,7 +77,10 @@ export class ChatScrollController {
     if (this.following) this.write(this.bottom());
     else {
       const node = this.anchor && Array.from(this.el.querySelectorAll<HTMLElement>('[data-scroll-anchor]'))
-        .find(x => x.dataset.scrollAnchor === this.anchor!.id);
+        .find(x => {
+          const box = x.getBoundingClientRect();
+          return x.dataset.scrollAnchor === this.anchor!.id && box.bottom > box.top;
+        });
       if (node) this.write(this.el.scrollTop + node.getBoundingClientRect().top - this.el.getBoundingClientRect().top - this.anchor!.offset);
       else this.write(this.top);
       this.capture();
