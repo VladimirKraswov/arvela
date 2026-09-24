@@ -1,11 +1,12 @@
-# OpenCode Desktop 0.2.4 — INSTALLED, publication pending
+# OpenCode Desktop 0.2.4 — DONE
 
 Implemented stable streaming scroll/manual reading/jump, anchored history and remembered reading position, dated 60-message history disclosure, code/full Markdown copy, syntax highlight/local code editing, own-message edits via new engine fork+draft preserving history/profile/access. Fixed phantom project unread caused by hidden explore child; archived/deleted metadata reconciled and real unread roots remain visible beyond sidebar truncation. No parallel GPU or prompts sent in acceptance.
 
 Verified:145 frontend tests/full build; final focused14 after review corrections; browser deterministic streaming/pagination/copy/light+dark/switchback; native installed0.2.4 actual history copy/jump, GPU Mesh no phantomdot; owned real fork preserved earlycontext/denyall/QwenMedium/agent and originalsource, draftcorrect. All test sessions archived, testprojecthidden, original @clip_cut_bot chat restored with emptydraft andGPU Meshexpanded. ASR/hosts/theme/access/model/agent andglobalconfig preserved, OpenCodePID27982 andexistingMCPleftalive. Receipts .local/scroll-0.2.4.
 
 Tauri app+DMGbuilt. Initial linker-onlysignaturefailedstrictverification; rebundledsamebinary with explicitadhocsigningIdentity"-" (READMEcommandupdated). Finalcodesignstrict/hdiutilvalid. Appinstalled /Applications/OpenCode Desktop.app; backup ~/.local/share/opencode-desktop/backups/0.2.3-before-0.2.4-20260924-142806; DownloadsDMG SHA25680738a55250510020a17fc671b51b2bbd47126914501ac9c6af7a0ba2633285b.
-Next: finaldiffcheck/commit/pushmain, GitHubreleasev0.2.4 withfull40charSHA, verifyassetdigest, checkpointDONE. No more builds/testsneededunlessnewimplementationchanges. CleanuponlyownedfixtureHTTPport4314(exec92121) andVite1425(exec98521), temporarybrowser12; nativeappmustremainopenoriginalchat. Noautomationneedsresuming.
+Source commit b6148f7 pushed to main. GitHub release v0.2.4 published, tag points to the full source commit, remote DMG digest matches installed/downloaded receipt. Release https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.4. Owned fixture listener4314, Vite1425 and browser12 closed; nativeapp remains open on originalchat. Noautomationresumed. All required work complete; do not rebuild or repeat acceptance without a new request.
+
 
 # OpenCode Desktop 0.2.3 — DONE
 
