@@ -4,17 +4,16 @@ import { npmPluginName, parseConfig, permissionValue, remoteMcpUrl, updateConfig
 
 type Scope = "global" | "project";
 type Document = { path: string; content: string };
-type Section = "tools" | "skills" | "plugins" | "mcp" | "agents";
+export type EngineSection = "tools" | "skills" | "plugins" | "mcp" | "agents";
 const DEFAULT_TOOLS = ["bash", "read", "glob", "grep", "edit", "webfetch", "websearch", "task", "skill", "lsp"];
 const asRecord = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const asStrings = (value: unknown): string[] => Array.isArray(value) ? value.filter((x): x is string => typeof x === "string") : [];
 
-export function OpenCodeSettings({onDirtyChange}: {onDirtyChange?: (dirty: boolean) => void}) {
+export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyChange?: (dirty: boolean) => void; section?: EngineSection}) {
   const s = useAppState();
   const remote = !!store.currentHost();
   const native = "__TAURI_INTERNALS__" in window;
   const [scope, setScope] = useState<Scope>("global");
-  const [section, setSection] = useState<Section>("tools");
   const [doc, setDoc] = useState<Document | null>(null);
   const [pending, setPending] = useState<{content: string; paths: string[]} | null>(null);
   const [error, setError] = useState("");
@@ -120,10 +119,6 @@ export function OpenCodeSettings({onDirtyChange}: {onDirtyChange?: (dirty: boole
       </label>
       <small>{doc?.path ?? (remote ? "Удалённый сервер: инвентарь доступен, редактирование локального файла отключено." : !native ? "Редактирование доступно в установленном приложении." : "Загрузка конфигурации…")}</small>
     </div>
-    <nav className="engine-tabs" aria-label="Настройки OpenCode">
-      {([ ["tools","Инструменты"], ["skills","Навыки"], ["plugins","Плагины"], ["mcp","MCP"], ["agents","Агенты"] ] as const).map(([id,label]) =>
-        <button key={id} className={section === id ? "active" : ""} onClick={() => setSection(id)}>{label}</button>)}
-    </nav>
     {error && <p role="alert" className="composer-error">{error}</p>}
     {notice && <p role="status" className="settings-notice">{notice}</p>}
     {pending && <div className="settings-review" role="status">

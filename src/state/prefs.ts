@@ -1,3 +1,4 @@
+import { DEFAULT_APPEARANCE, normalizeAppearance, type Appearance } from "./appearance";
 import type { RemoteHost } from "../native/hosts";
 import type { Session } from "../api/types";
 import type { QueuedPrompt } from "./queue";
@@ -7,6 +8,7 @@ import { defaultAsr, type AsrSettings } from "../voice/asr";
 // OpenCode owns sessions, models, credentials. No engine data is rewritten here.
 
 export interface Prefs {
+  appearance: Appearance;
   // Stable server identity is independent of an ephemeral SSH forwarding port.
   workspaceKey?: string;
   activeHost?: string;
@@ -49,6 +51,7 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
+  appearance: DEFAULT_APPEARANCE,
   endpoint: "http://127.0.0.1:4096",
   theme: "dark",
   asr: defaultAsr,
@@ -79,6 +82,7 @@ export function loadPrefs(): Prefs {
     return {
       ...DEFAULT_PREFS,
       ...parsed,
+      appearance: normalizeAppearance(parsed.appearance),
       asr: parsed.asr?.endpoint?.trim() ? parsed.asr : defaultAsr,
       layout: { ...DEFAULT_PREFS.layout, ...(parsed.layout ?? {}) },
       lastSessionByDir: parsed.lastSessionByDir ?? {},
@@ -151,10 +155,12 @@ export function switchEndpointPrefs(
   const saved = endpointState[workspaceKey];
   return {
     ...DEFAULT_PREFS,
-    theme: prefs.theme,
     asr: prefs.asr,
     layout: prefs.layout,
     ...saved,
+    // Appearance belongs to the app, not to a cached remote workspace.
+    theme: prefs.theme,
+    appearance: normalizeAppearance(prefs.appearance),
     queues: Object.fromEntries(
       Object.entries(saved?.queues ?? {}).map(([id, list]) => [
         id,

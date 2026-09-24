@@ -196,3 +196,11 @@ it("keeps unread on network errors and ignores a late metadata response after de
   resolve(session("late","/work/b"));await new Promise(r=>setTimeout(r,0));
   expect(store.isUnread("late")).toBe(false);expect(chime).not.toHaveBeenCalled();
 });
+
+it("does not mark a hidden conversation read while the full-page settings are open", async () => {
+  await store.setDirectory("/work/a"); await store.selectSession("ses_a");
+  store.setUi({ settingsOpen: true });
+  status("ses_a", "/work/a", "busy"); status("ses_a", "/work/a", "idle");
+  store.markReadIfViewing(); expect(store.isUnread("ses_a")).toBe(true);
+  store.setUi({ settingsOpen: false }); expect(store.isUnread("ses_a")).toBe(false);
+});

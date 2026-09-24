@@ -171,3 +171,12 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Completed history starts folded; live progress stays open and disclosure state survives conversation switching.
 - [x] Tool errors remain discoverable; aborted/limited output is not labelled as a successful final answer; invisible engine markers no longer create gaps.
 - [x] Native installation and final package validation (see VERIFICATION).
+
+## M15 — Full-page settings and appearance (0.2.6)
+
+- [x] Settings navigation/search, grouped rows, back/escape and preserved conversation/draft; Cmd+, shortcut.
+- [x] Theme, accessible palette/custom accent, independent UI/chat/code sizes, chat width/line spacing, live preview and reset.
+- [x] Validated app-global persistence and old-preferences migration, unaffected by SSH workspace snapshots.
+- [x] Separate connection/ASR saves, staged JSONC edits retained across sections with exit protection; original backup/conflict logic retained.
+- [x] Unit and browser acceptance, including maximum fonts at the minimum native window size; no model inference.
+- [x] Final native installation and package verification (see VERIFICATION).

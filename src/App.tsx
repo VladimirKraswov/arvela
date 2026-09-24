@@ -9,11 +9,11 @@ import { RightPanel } from "./components/RightPanel";
 import {
   ConnectionGate,
   DeleteConfirm,
-  SettingsDialog,
   Toast,
 } from "./components/Dialogs";
 import { TerminalPanel } from "./components/TerminalPanel";
 import { Palette } from "./components/Palette";
+import { SettingsScreen } from "./components/SettingsScreen";
 import { useEffect } from "react";
 
 /** Pointer-drag horizontal splitter: initial width follows movementX, clamped. */
@@ -63,6 +63,12 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === ",") {
+        e.preventDefault();
+        store.setUi({ settingsOpen: true, paletteOpen: false });
+        return;
+      }
+      if (store.state.ui.settingsOpen) return;
       if (mod && e.key.toLowerCase() === "k") {
         e.preventDefault();
         store.setUi({ paletteOpen: !store.state.ui.paletteOpen });
@@ -78,8 +84,6 @@ export default function App() {
       } else if (e.key === "Escape") {
         if (store.state.ui.paletteOpen) store.setUi({ paletteOpen: false });
         if (store.state.ui.hostDialogOpen || store.state.ui.remoteFolderOpen) return;
-        if (store.state.ui.settingsOpen && !document.querySelector('[data-unsaved-settings="true"]'))
-          store.setUi({ settingsOpen: false });
         if (store.state.ui.confirmDelete) store.setUi({ confirmDelete: null });
       }
     };
@@ -93,7 +97,7 @@ export default function App() {
     <div
       className={`app-shell${"__TAURI_INTERNALS__" in window ? " native" : ""}${s.activeSessionId ? "" : " new-task"}${layout.sidebarOpen ? "" : " sidebar-hidden"}`}
     >
-      <div className="app-body">
+      <div className="app-body" inert={s.ui.settingsOpen} aria-hidden={s.ui.settingsOpen || undefined} style={s.ui.settingsOpen ? { visibility: "hidden" } : undefined}>
         {layout.sidebarOpen && <Sidebar />}
         <div
           className="resizer-v"
@@ -187,7 +191,7 @@ export default function App() {
         </div>
       </div>
       {s.ui.paletteOpen && <Palette />}
-      <SettingsDialog />
+      {s.ui.settingsOpen && <SettingsScreen />}
       <HostDialogs />
       <HandoffDialog />
       <DeleteConfirm />

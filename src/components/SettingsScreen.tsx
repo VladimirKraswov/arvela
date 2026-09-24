@@ -1,0 +1,139 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { version as appVersion } from "../../package.json";
+import { store, useAppState } from "../state/store";
+import { DEFAULT_BASE_URL, isAllowedBaseUrl } from "../api/client";
+import { ACCENTS, DEFAULT_APPEARANCE } from "../state/appearance";
+import { defaultAsr, getAsrKey, setAsrKey, validateAsr } from "../voice/asr";
+import { OpenCodeSettings, type EngineSection } from "./OpenCodeSettings";
+import { ComputerSettings } from "./ComputerSettings";
+import { Icon } from "./Icon";
+import { Markdown } from "./Markdown";
+
+export const SETTINGS_SECTIONS = [
+  { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Подключение к OpenCode и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
+  { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
+  { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
+  { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Курсор агента, Cua Driver и разрешения macOS", keywords: "запись экрана универсальный доступ мышь" },
+  { id: "tools", title: "Инструменты", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
+  { id: "skills", title: "Навыки", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
+  { id: "plugins", title: "Плагины", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
+  { id: "mcp", title: "MCP-серверы", group: "OpenCode", icon: "server", description: "Подключения инструментов и их статус", keywords: "mcp интеграции серверы" },
+  { id: "agents", title: "Агенты", group: "OpenCode", icon: "chat", description: "Доступные агенты и агент по умолчанию", keywords: "agents build plan" },
+  { id: "about", title: "О приложении", group: "Приложение", icon: "code", description: "Версия приложения и состояние сервера", keywords: "диагностика поток событий SSE провайдеры" },
+] as const;
+type Section = typeof SETTINGS_SECTIONS[number]["id"];
+export function searchSettings(query: string) {
+  const words = query.trim().toLocaleLowerCase().split(/\s+/);
+  return SETTINGS_SECTIONS.filter(s => words.every(word => `${s.title} ${s.description} ${s.keywords}`.toLocaleLowerCase().includes(word)));
+}
+const isEngine = (id: Section): id is EngineSection => ["tools", "skills", "plugins", "mcp", "agents"].includes(id);
+function Row({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return <div className="setting-row"><div className="setting-label"><span>{title}</span>{description && <small>{description}</small>}</div><div className="setting-control">{children}</div></div>;
+}
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="setting-group" aria-label={title}><h2>{title}</h2><div className="setting-card">{children}</div></section>;
+}
+function AppearanceSettings() {
+  const { prefs } = useAppState(), a = prefs.appearance;
+  const [custom, setCustom] = useState(a.accent === "neutral" ? "#5599ee" : a.accent);
+  const [colorError, setColorError] = useState(false);
+  useEffect(() => { setCustom(a.accent === "neutral" ? "#5599ee" : a.accent); setColorError(false); }, [a.accent]);
+  const saveColor = () => {
+    if (!/^#[0-9a-f]{6}$/i.test(custom)) { setColorError(true); return; }
+    store.setAppearance({ accent: custom }); setColorError(false);
+  };
+  return <>
+    <p className="settings-intro">Изменения сразу видны во всём приложении и сохраняются на этом Mac.</p>
+    <Group title="Оформление">
+      <Row title="Тема" description="Системная тема следует настройкам macOS."><select aria-label="Тема" value={prefs.theme} onChange={e => store.setTheme(e.target.value as typeof prefs.theme)}><option value="system">Системная</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></Row>
+      <Row title="Основной цвет" description="Кнопки, ссылки и выделения."><div className="accent-swatches" role="group" aria-label="Основной цвет">{ACCENTS.map(([value, title]) => <button key={value} aria-label={title} title={title} aria-pressed={a.accent === value} onClick={() => store.setAppearance({ accent: value })} style={{ background: value === "neutral" ? "var(--text)" : value, color: "#111" }}>{a.accent === value && <Icon name="check" size={15} />}</button>)}</div></Row>
+      <Row title="Свой цвет" description="Цвет в формате HEX, например #5599ee."><div className="custom-color"><input type="color" aria-label="Выбрать свой цвет" value={/^#[0-9a-f]{6}$/i.test(custom) ? custom : "#5599ee"} onChange={e => { setCustom(e.target.value); store.setAppearance({ accent: e.target.value }); }}/><input aria-label="HEX цвета" value={custom} spellCheck={false} maxLength={7} aria-invalid={colorError} onChange={e => { setCustom(e.target.value); setColorError(false); }} onKeyDown={e => { if (e.key === "Enter") saveColor(); }}/><button className="btn small" onClick={saveColor}>Применить цвет</button></div></Row>
+      {colorError && <p className="settings-inline-error" role="alert">Введите # и шесть шестнадцатеричных символов.</p>}
+    </Group>
+    <Group title="Размер текста">
+      {([
+        ["uiFontSize", "Интерфейс", "Меню, проекты и элементы управления.", 12, 18],
+        ["chatFontSize", "Сообщения", "Ответы, ваши сообщения и поле ввода.", 12, 24],
+        ["codeFontSize", "Код", "Блоки кода, команды и результаты инструментов.", 10, 22],
+      ] as const).map(([key, title, description, min, max]) => <Row key={key} title={title} description={description}><div className="font-control"><input type="range" min={min} max={max} step={1} aria-label={`Размер шрифта: ${title}`} value={a[key]} onChange={e => store.setAppearance({ [key]: Number(e.target.value) })}/><output>{a[key]} px</output></div></Row>)}
+    </Group>
+    <Group title="Чтение чата">
+      <Row title="Ширина сообщений" description="Доступная ширина зависит от размера окна и боковых панелей."><select aria-label="Ширина сообщений" value={a.chatWidth} onChange={e => store.setAppearance({ chatWidth: e.target.value as typeof a.chatWidth })}><option value="standard">Обычная</option><option value="wide">Широкая</option><option value="full">На всю ширину</option></select></Row>
+      <Row title="Межстрочный интервал"><select aria-label="Межстрочный интервал" value={a.lineSpacing} onChange={e => store.setAppearance({ lineSpacing: e.target.value as typeof a.lineSpacing })}><option value="standard">Обычный</option><option value="relaxed">Свободный</option></select></Row>
+    </Group>
+    <section className="appearance-preview" aria-label="Предпросмотр оформления"><h2>Предпросмотр</h2><div className="preview-chat"><div className="preview-label"><span className="preview-dot"/>OpenCode Desktop</div><Markdown source={'Так будет выглядеть ответ в чате. **Важное легко заметить**, а код удобно читать.\n\n```typescript\nconst greeting = "Привет, мир!";\nconsole.log(greeting);\n```'}/><span className="preview-caption">Размеры текста и кода настраиваются отдельно.</span></div></section>
+    <div className="settings-actions"><span className="settings-muted">Сохранено автоматически</span><button className="btn" onClick={() => { store.setAppearance(DEFAULT_APPEARANCE); store.setTheme("dark"); }}>Сбросить оформление</button></div>
+  </>;
+}
+
+export function SettingsScreen() {
+  const s = useAppState();
+  const [section, setSection] = useState<Section>("general"), [query, setQuery] = useState("");
+  const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
+  const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
+  const [endpoint, setEndpoint] = useState(s.prefs.localEndpoint ?? s.prefs.endpoint);
+  const [asr, setAsr] = useState(s.prefs.asr ?? defaultAsr), [key, setKey] = useState(getAsrKey(asr.endpoint));
+  const [savedKey, setSavedKey] = useState(key);
+  const [error, setError] = useState(""), [notice, setNotice] = useState(""), [connecting, setConnecting] = useState(false);
+  const content = useRef<HTMLDivElement>(null), back = useRef<HTMLButtonElement>(null), stay = useRef<HTMLButtonElement>(null);
+  const localDirty = endpoint !== (s.prefs.localEndpoint ?? s.prefs.endpoint);
+  const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
+  const dirty = engineDirty || localDirty || voiceDirty;
+  const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
+  const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
+  const navigate = (id: Section) => { setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
+  useEffect(() => { if (leave) { content.current?.scrollTo(0, 0); stay.current?.focus(); } }, [leave]);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    back.current?.focus();
+    return () => { requestAnimationFrame(() => { if (previous?.isConnected) previous.focus({ preventScroll: true }); }); };
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || s.ui.hostDialogOpen) return;
+      e.preventDefault();
+      if (query) setQuery(""); else if (leave) setLeave(null); else requestExit("close");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  const selected = SETTINGS_SECTIONS.find(x => x.id === section)!;
+  const matches = searchSettings(query);
+  return <section className="settings-screen" aria-label="Настройки" data-unsaved-settings={dirty ? "true" : undefined}>
+    <aside className="settings-sidebar">
+      <div className="settings-window-drag" data-tauri-drag-region />
+      <button ref={back} className="settings-back" onClick={() => requestExit("close")} disabled={connecting}><Icon name="arrowDown" size={17} style={{ transform: "rotate(90deg)" }}/>Вернуться в приложение</button>
+      <div className="settings-search"><Icon name="search" size={16}/><input type="search" aria-label="Поиск настроек" placeholder="Поиск настроек…" value={query} onChange={e => setQuery(e.target.value)}/></div>
+      <nav aria-label="Разделы настроек">{["Приложение", "Интеграции", "OpenCode"].map(group => <div className="settings-nav-group" key={group}><div className="settings-nav-label">{group}</div>{SETTINGS_SECTIONS.filter(x => x.group === group).map(item => <button key={item.id} aria-current={!query && section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={17}/>{item.title}</button>)}</div>)}</nav>
+      <span className="settings-sidebar-version">OpenCode Desktop {appVersion}</span>
+    </aside>
+    <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
+      <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1><p>{query.trim() ? `Результаты для «${query.trim()}»` : selected.description}</p></header>
+      {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения подключения, диктовки или OpenCode. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
+      {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
+        {section === "general" && <>
+          <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Адрес независимо запущенного сервера на этом Mac."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
+          <div className="settings-actions"><span className="settings-muted">Перезапуск сервера не требуется.</span><button className="btn primary" disabled={connecting || !localDirty} onClick={async () => {
+            setError(""); setNotice("");
+            if (!isAllowedBaseUrl(endpoint.trim())) { setError("Укажите HTTP-адрес loopback сервера. Для удалённого компьютера используйте SSH-подключение."); return; }
+            setConnecting(true);
+            try { const ok = await store.connect(endpoint.trim()); if (ok) { setEndpoint(endpoint.trim()); setNotice("Подключено."); } else setError(store.state.connection.error ?? "Подключиться не удалось."); }
+            catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+            finally { setConnecting(false); }
+          }}>{connecting ? "Подключение…" : "Сохранить и подключиться"}</button></div>
+        </>}
+        {section === "appearance" && <AppearanceSettings/>}
+        {section === "voice" && <>
+          <p className="settings-intro">Диктовка распознаёт речь и добавляет текст в черновик сообщения.</p>
+          <Group title="Распознавание речи"><Row title="URL распознавания" description="Полный адрес ASR API, совместимого с OpenAI."><input aria-label="URL распознавания" spellCheck={false} value={asr.endpoint} onChange={e => { setAsr({ ...asr, endpoint: e.target.value }); setKey(getAsrKey(e.target.value)); }}/></Row><Row title="Модель"><input aria-label="Модель ASR" value={asr.model} onChange={e => setAsr({ ...asr, model: e.target.value })}/></Row><Row title="Язык" description="Например, ru. Пустое значение — автоматический выбор."><input aria-label="Язык ASR" value={asr.language} onChange={e => setAsr({ ...asr, language: e.target.value })}/></Row><Row title="API-ключ" description="Только если сервис требует авторизацию. Хранится до закрытия приложения."><input aria-label="API-ключ ASR" type="password" autoComplete="off" placeholder="Необязательно" value={key} onChange={e => setKey(e.target.value)}/></Row></Group>
+          <p className="settings-muted">Запись — до 2 минут. Аудио не сохраняется на диск. Для удалённого сервиса используйте HTTPS.</p>
+          <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
+        </>}
+        {section === "computer" && <ComputerSettings/>}
+        {section === "about" && <Group title="Состояние приложения"><Row title="OpenCode Desktop"><span>{appVersion}</span></Row><Row title="Версия OpenCode"><span>{s.connection.version ?? "—"}</span></Row><Row title="Подключение"><span>{s.connection.phase === "connected" ? "Подключено" : s.connection.phase}</span></Row><Row title="Поток событий"><span>{s.connection.streamState}</span></Row><Row title="Подключённые провайдеры"><span>{s.connectedProviderIds.length}</span></Row><Row title="Агенты"><span>{s.agents.map(a => a.name).join(", ") || "—"}</span></Row></Group>}
+      </>}
+      <div hidden={!!query.trim() || !isEngine(section)}>{engineVisited && <OpenCodeSettings section={engineSection} onDirtyChange={setEngineDirty}/>}</div>
+      {error && <p role="alert" className="composer-error">{error}</p>}{notice && <p role="status" className="settings-notice">{notice}</p>}
+    </div></div>
+  </section>;
+}

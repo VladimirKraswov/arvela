@@ -1,3 +1,4 @@
+import { applyAppearance, normalizeAppearance, type Appearance } from "./appearance";
 import {
   connectSsh,
   prepareChat,
@@ -2143,7 +2144,7 @@ class Store {
 
   private isViewing(id: string): boolean {
     return this.state.activeSessionId === id &&
-      this.conversationAtBottom && !this.state.ui.historyLoading &&
+      this.conversationAtBottom && !this.state.ui.settingsOpen && !this.state.ui.historyLoading &&
       typeof document !== "undefined" && !document.hidden && document.hasFocus();
   }
 
@@ -2339,6 +2340,7 @@ class Store {
 
   setUi(patch: Partial<UiState>): void {
     this.patchUi(patch);
+    if (patch.settingsOpen === false) this.markReadIfViewing();
   }
 
   async toggleTerminal(): Promise<void> {
@@ -2352,6 +2354,13 @@ class Store {
       prefs: { ...s.prefs, layout: { ...s.prefs.layout, ...patch } },
     }));
     this.persistPrefs();
+  }
+
+  setAppearance(patch: Partial<Appearance>): void {
+    const appearance = normalizeAppearance({ ...this.state.prefs.appearance, ...patch });
+    this.mutate(s => ({ prefs: { ...s.prefs, appearance } }));
+    this.persistPrefs();
+    applyAppearance(appearance);
   }
 
   setTheme(theme: Prefs["theme"]): void {
@@ -2392,6 +2401,7 @@ export function applyTheme(theme: Prefs["theme"]): void {
     theme === "system" ? (mq.matches ? "dark" : "light") : theme;
   root.dataset.theme = effective;
   root.style.colorScheme = effective;
+  applyAppearance(store.state.prefs.appearance);
 }
 
 if (typeof window !== "undefined") {
