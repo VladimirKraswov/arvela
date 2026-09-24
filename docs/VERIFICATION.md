@@ -9,6 +9,7 @@
 - Installed `/Applications/OpenCode Desktop.app` 0.2.7. Native microphone click produced a running timer and sound-level canvas; cancel returned to the microphone button without error or ASR submission. The existing microphone grant was usable. This verifies actual capture/start/cancel; speech-to-transcript was not repeated in this fix.
 - All 26 preferences categories, drafts and global OpenCode configuration compared unchanged. All 26 remembered scopes were idle before installation. External OpenCode PID 27982 and the four pre-existing MCP processes remained alive; engine 1.18.18 healthy. Backup: `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.6-before-0.2.7-20260924-173755`. Private receipts: `.local/microphone-0.2.7/`.
 - Installed executable SHA256: `c68e60ce6b9eb8563732f3085eaca6b6203173878db498dbc0c0434ba460d666`. Downloads DMG SHA256: `143b48f24f9d47dbf9cd33e85f9b4e40b0186b3667e652dd34f2af8c0cdc1602`. Hardened Runtime remains enabled; local ad-hoc signature, no Developer ID/notarization.
+- Source `c04f053b2fc7a67c937689a8363418b62e913ef3` pushed; [v0.2.7](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.7) published. Remote tag and DMG digest match the verified local artifact.
 
 ## Settings and appearance — 0.2.6, 2026-09-24
 
