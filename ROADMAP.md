@@ -194,4 +194,4 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Route by live model input capabilities; direct images and supported media, PDF/video/audio conversion on isolated CT205 with GigaAM transcription for sound.
 - [x] Loopback SSH tunnel with dynamic CT address, restricted source IP, helper endpoint/status in Desktop settings; OpenCode MCP connections remain separately configurable.
 - [x] Explicit size, context and queue limits; failures retain draft and never silently discard unsupported content.
-- [x] Packaged app, native helper/status and picker draft, real browser-to-OpenCode PDF roundtrip, source checks and installation (see VERIFICATION). Native picker automation did not complete selection of the intended fixture; this is recorded as a verification limit.
+- [x] Packaged app, native helper/status and picker draft, real browser-to-OpenCode PDF roundtrip, source checks and installation (see VERIFICATION). Finder drop is handled by Tauri's native event and narrowly scoped file read after an owner-reported regression. The native acceptance outcome is recorded in VERIFICATION.

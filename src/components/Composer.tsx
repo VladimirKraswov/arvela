@@ -8,6 +8,10 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { store, useAppState } from "../state/store";
 import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../attachments/drafts";
 import { LARGE_PASTE_THRESHOLD, pastedTextFile } from "../attachments/prepare";
+import { filesFromNativeDrop } from "../attachments/native-drop";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { readFile, stat } from "@tauri-apps/plugin-fs";
 
 function AttachmentChip({ file, onRemove, disabled }: { file: DraftAttachment; onRemove: () => void; disabled: boolean }) {
   const [preview, setPreview] = useState("");
@@ -52,6 +56,23 @@ export function Composer() {
     setAttachmentError("");
     void attachmentDrafts.add(scope, files).catch(error => setAttachmentError(error instanceof Error ? error.message : String(error)));
   };
+  const addFilesRef = useRef(addFiles);
+  addFilesRef.current = addFiles;
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWebview().onDragDropEvent(event => {
+      if (event.payload.type === "enter" || event.payload.type === "over") { setDragging(true); return; }
+      setDragging(false);
+      if (event.payload.type !== "drop") return;
+      void filesFromNativeDrop(event.payload.paths, stat, readFile)
+        .then(files => { if (!disposed) addFilesRef.current(files); })
+        .catch(error => { if (!disposed) setAttachmentError(error instanceof Error ? error.message : String(error)); });
+    }).then(stop => { if (disposed) stop(); else unlisten = stop; })
+      .catch(error => { if (!disposed) setAttachmentError(`Не удалось включить перетаскивание файлов: ${String(error)}`); });
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
   useEffect(() => {
     const over = (event: DragEvent) => {
       if (!Array.from(event.dataTransfer?.types ?? []).includes("Files")) return;
