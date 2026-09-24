@@ -325,6 +325,12 @@ export class OpenCodeClient {
     ).then(normalizeSession);
   }
 
+  forkSession(sessionID: string, directory: string, messageID: string): Promise<Session> {
+    return this.request<Record<string, unknown>>("POST", `/session/${sessionID}/fork`, {
+      query: { directory }, body: { messageID },
+    }).then(normalizeSession);
+  }
+
   deleteSession(sessionID: string, directory: string | null): Promise<void> {
     return this.request<void>("DELETE", `/session/${sessionID}`, {
       query: { directory: directory ?? undefined },

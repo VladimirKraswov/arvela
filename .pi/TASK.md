@@ -1,3 +1,12 @@
+# OpenCode Desktop 0.2.4 — INSTALLED, publication pending
+
+Implemented stable streaming scroll/manual reading/jump, anchored history and remembered reading position, dated 60-message history disclosure, code/full Markdown copy, syntax highlight/local code editing, own-message edits via new engine fork+draft preserving history/profile/access. Fixed phantom project unread caused by hidden explore child; archived/deleted metadata reconciled and real unread roots remain visible beyond sidebar truncation. No parallel GPU or prompts sent in acceptance.
+
+Verified:145 frontend tests/full build; final focused14 after review corrections; browser deterministic streaming/pagination/copy/light+dark/switchback; native installed0.2.4 actual history copy/jump, GPU Mesh no phantomdot; owned real fork preserved earlycontext/denyall/QwenMedium/agent and originalsource, draftcorrect. All test sessions archived, testprojecthidden, original @clip_cut_bot chat restored with emptydraft andGPU Meshexpanded. ASR/hosts/theme/access/model/agent andglobalconfig preserved, OpenCodePID27982 andexistingMCPleftalive. Receipts .local/scroll-0.2.4.
+
+Tauri app+DMGbuilt. Initial linker-onlysignaturefailedstrictverification; rebundledsamebinary with explicitadhocsigningIdentity"-" (READMEcommandupdated). Finalcodesignstrict/hdiutilvalid. Appinstalled /Applications/OpenCode Desktop.app; backup ~/.local/share/opencode-desktop/backups/0.2.3-before-0.2.4-20260924-142806; DownloadsDMG SHA25680738a55250510020a17fc671b51b2bbd47126914501ac9c6af7a0ba2633285b.
+Next: finaldiffcheck/commit/pushmain, GitHubreleasev0.2.4 withfull40charSHA, verifyassetdigest, checkpointDONE. No more builds/testsneededunlessnewimplementationchanges. CleanuponlyownedfixtureHTTPport4314(exec92121) andVite1425(exec98521), temporarybrowser12; nativeappmustremainopenoriginalchat. Noautomationneedsresuming.
+
 # OpenCode Desktop 0.2.3 — DONE
 
 Scope: project remove/restore, task handoff with important full-history context, and native Mac computer control with independent cursor. User authorized implementation, installation and GitHub publication. Read AGENTS.md and the local Qwen guardrails on resume. Do not restart external OpenCode, change model defaults or resume the completed heartbeat.

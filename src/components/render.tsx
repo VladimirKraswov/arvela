@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useState } from "react";
 import type {
   AssistantMessage,
   MessagePart,
@@ -7,32 +7,15 @@ import type {
   Session,
   UserMessage,
 } from "../api/types";
-import { renderMarkdown, safeExternalUrl } from "../util/markdown";
 import { useAppState } from "../state/store";
+import { Markdown } from "./Markdown";
+import { CopyButton } from "./CopyButton";
+import { MessageEdit } from "./MessageEdit";
+import { exactTime, messageTime } from "../chat/time";
+export { Markdown } from "./Markdown";
 
-export function Markdown({ source }: { source: string }) {
-  const html = useMemo(() => renderMarkdown(source), [source]);
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onClick = (e: MouseEvent) => {
-      const a = (e.target as HTMLElement).closest("a");
-      const href = a?.getAttribute("href");
-      if (!href) return;
-      e.preventDefault();
-      const safe = safeExternalUrl(href);
-      if (safe)
-        void import("@tauri-apps/plugin-opener")
-          .then(({ openUrl }) => openUrl(safe))
-          .catch(() => window.open(safe, "_blank", "noopener"));
-    };
-    el.addEventListener("click", onClick);
-    return () => el.removeEventListener("click", onClick);
-  }, []);
-  return (
-    <div ref={ref} className="md" dangerouslySetInnerHTML={{ __html: html }} />
-  );
+function MessageTimestamp({value}:{value:number}) {
+ return value>0?<time dateTime={new Date(value).toISOString()} title={exactTime(value)}>{messageTime(value)}</time>:null;
 }
 
 export function Fold({
@@ -210,9 +193,9 @@ export const AssistantMessageView = memo(function AssistantMessageView({
       message.finish,
     );
   return (
-    <div className="msg-assistant">
+    <div className="msg-assistant" data-scroll-anchor={`message:${message.id}`}>
       {parts.map((p) => (
-        <PartView key={p.id} part={p} />
+        <div key={p.id} data-scroll-anchor={`part:${p.id}`}><PartView part={p} /></div>
       ))}
       {running && parts.length === 0 && (
         <div className="status-line">
@@ -229,6 +212,12 @@ export const AssistantMessageView = memo(function AssistantMessageView({
           {message.finish === "length"
             ? "Stopped: output budget exhausted for this step. You can ask to continue."
             : `Finished with status: ${message.finish}`}
+        </div>
+      )}
+      {message.time.completed && (
+        <div className="message-footer">
+          <MessageTimestamp value={message.time.completed} />
+          <CopyButton text={parts.filter(p=>p.type==='text'&&!p.synthetic&&!p.ignored).map(p=>p.text??'').join('\n\n')} label="Копировать весь ответ" compact />
         </div>
       )}
       {message.time.completed && (
@@ -268,7 +257,10 @@ export function UserMessageView({ message }: { message: UserMessage }) {
     .join("\n")
     .trim();
   if (!text) return null;
-  return <div className="msg-user">{text}</div>;
+  return <div className="user-message" data-scroll-anchor={`message:${message.id}`}>
+    <div className="msg-user">{text}</div>
+    <div className="message-footer"><MessageTimestamp value={message.time.created}/><CopyButton text={text} label="Копировать сообщение" compact/><MessageEdit message={message} text={text}/></div>
+  </div>;
 }
 
 export function PermissionCard({

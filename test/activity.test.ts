@@ -45,6 +45,7 @@ beforeEach(async () => {
   vi.spyOn(OpenCodeClient.prototype, "listSessions").mockImplementation(async (directory: string) =>
     directory === "/work/a" ? [session("ses_a", directory)] : [],
   );
+  vi.spyOn(OpenCodeClient.prototype, "getSession").mockImplementation(async (id, directory) => session(id, directory!));
   expect(await store.connectLocal("http://127.0.0.1:4096")).toBe(true);
   expect(events.global).toBeTruthy();
 });
@@ -144,6 +145,8 @@ it("a delayed event from the previous host cannot mark the new host unread", asy
 });
 
 it("removes attention when a session is deleted elsewhere", async () => {
+  await store.setDirectory("/work/a");
+  await store.setDirectory("/work/b");
   status("ses_a", "/work/a", "busy");
   status("ses_a", "/work/a", "idle");
   expect(store.hasUnreadInDirectory("/work/a")).toBe(true);
@@ -152,4 +155,44 @@ it("removes attention when a session is deleted elsewhere", async () => {
   } });
   expect(store.hasUnreadInDirectory("/work/a")).toBe(false);
   expect(store.activityStatus("ses_a")).toBeUndefined();
+});
+
+
+it("does not show project attention or chime for a hidden subagent", async () => {
+  const child = { ...session("child", "/work/b"), parentID: "root" };
+  vi.mocked(store.client.getSession).mockResolvedValue(child);
+  status("child", "/work/b", "busy"); status("child", "/work/b", "idle");
+  await new Promise(r => setTimeout(r, 0));
+  expect(store.hasUnreadInDirectory("/work/b")).toBe(false);
+  expect(store.isUnread("child")).toBe(false);
+  expect(chime).not.toHaveBeenCalled();
+});
+
+it("reconciles persisted child, archived and deleted marks while keeping a root outside the first page", async () => {
+  const { ApiError } = await import("../src/api/client");
+  store.state.prefs.unreadSessions = Object.fromEntries(["child","archived","deleted","old-root"].map(id=>[id,{time:1,directory:"/work/b"}]));
+  store.state.prefs.projectlessSessions=[session("deleted","/work/b")];
+  vi.mocked(store.client.getSession).mockImplementation(async (id: string) => {
+    if(id==="deleted") throw new ApiError(404,"gone");
+    const s=session(id,"/work/b");
+    return id==="child"?{...s,parentID:"root"}:id==="archived"?{...s,time:{...s.time,archived:2}}:s;
+  });
+  await store.loadProjectSessions("/work/b");
+  expect(Object.keys(store.state.prefs.unreadSessions)).toEqual(["old-root"]);
+  expect(store.state.projectSessionLists["/work/b"].sessions.map((s:any)=>s.id)).toContain("old-root");
+  expect(store.hasUnreadInDirectory("/work/b")).toBe(true);
+  expect(chime).not.toHaveBeenCalled();
+});
+
+it("keeps unread on network errors and ignores a late metadata response after deletion", async () => {
+  store.state.prefs.unreadSessions={offline:{time:1,directory:"/work/b"}};
+  vi.mocked(store.client.getSession).mockRejectedValue(new Error("offline"));
+  await store.loadProjectSessions("/work/b");
+  expect(store.isUnread("offline")).toBe(true);
+  let resolve!: (s:any)=>void;
+  vi.mocked(store.client.getSession).mockReturnValue(new Promise(r=>resolve=r));
+  status("late","/work/b","busy");status("late","/work/b","idle");
+  events.global.onEvent({directory:"/work/b",payload:{type:"session.deleted",properties:{sessionID:"late"}}});
+  resolve(session("late","/work/b"));await new Promise(r=>setTimeout(r,0));
+  expect(store.isUnread("late")).toBe(false);expect(chime).not.toHaveBeenCalled();
 });

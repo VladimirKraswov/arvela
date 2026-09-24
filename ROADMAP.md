@@ -153,3 +153,13 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] JSONC-preserving MCP configuration and OpenCode skill, local-host guard, unchanged model/provider/access settings.
 - [x] Native permission onboarding, live tool/vision/overlay acceptance and final installation.
 - [ ] Foreground/desktop control, remote desktop and explicit browser-profile integration; excluded from this release.
+
+
+## M13 — Reading and message tools (0.2.4)
+
+- [x] Explicit follow/reading modes, wheel/touch/keyboard intent, jump-to-latest and resize/prepend anchoring.
+- [x] Per-session in-memory reading position; incremental history, day separators and exact timestamp tooltips.
+- [x] Safe React Markdown/GFM, syntax highlighting, full-response/code copying and editable code copies.
+- [x] User-message edit into an engine fork before the selected message; original retained, access and profile copied, explicit draft/send step.
+- [x] Root-session attention reconciliation; hidden subagents/archive/deletion excluded, unread roots exposed beyond sidebar truncation.
+- [x] Native installation and release acceptance (see VERIFICATION).

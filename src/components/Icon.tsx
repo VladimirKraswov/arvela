@@ -1,5 +1,8 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, string> = {
+  arrowDown: "M12 4v16m-6-6 6 6 6-6",
+  copy: "M9 3h11v13H9zM5 7H3v14h12v-2",
+  edit: "m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15z",
   handoff: "M4 16V9a3 3 0 0 1 3-3h12m-5-5 5 5-5 5M4 20h.01",
   monitor: "M3 3h18v13H3zM12 16v5M8 21h8",
   server: "M3 3h18v7H3zM3 14h18v7H3zM7 6h.01M7 17h.01M16 6h2M16 17h2",

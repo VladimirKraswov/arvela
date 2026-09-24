@@ -188,6 +188,10 @@ class Store {
   private streamAbort: AbortController | null = null;
   private globalAbort: AbortController | null = null;
   private activityDirectories = new Map<string, string>();
+  private activitySessions = new Map<string, Session>();
+  private activityRevisions = new Map<string, number>();
+  private activityLookups = new Map<string, Promise<Session | undefined>>();
+  private editBranchBusy = false;
   private conversationAtBottom = true;
   private directoryGeneration = 0;
   private saveTimerQueued = false;
@@ -396,6 +400,10 @@ class Store {
           : switchEndpointPrefs(this.state.prefs, requested, key);
       if (key !== (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint))
         this.activityDirectories.clear();
+      // Revalidate persisted attention on every connection, including the same server.
+      this.activitySessions.clear();
+      this.activityRevisions.clear();
+      this.activityLookups.clear();
       this.client = new OpenCodeClient(requested);
       this.mutate({
         prefs,
@@ -460,6 +468,7 @@ class Store {
       else await this.setDirectory(null);
       if (gen !== this.connectionGeneration) return false;
       this.startGlobalStream(client, gen);
+      void this.reconcileUnreadSessions();
       return true;
     } catch (e) {
       if (gen === this.connectionGeneration)
@@ -563,7 +572,14 @@ class Store {
         client.listSessions(directory, { limit }), client.sessionStatuses(directory),
       ]);
       if (!current()) return;
-      const scoped = mergeSidebarSessions(sessions, journal).filter((s) => s.directory === directory);
+      for (const session of sessions) {
+        const latest = journal.has(session.id) ? journal.get(session.id) : session;
+        if (latest) this.rememberActivitySession(latest);
+      }
+      await this.reconcileUnreadSessions(directory);
+      if (!current()) return;
+      const attention = [...this.activitySessions.values()].filter(x => this.isUnread(x.id) && x.directory === directory);
+      const scoped = mergeSidebarSessions([...attention, ...sessions], journal).filter((s) => s.directory === directory);
       for (const session of scoped) this.activityDirectories.set(session.id, directory);
       for (const [id, status] of Object.entries(statuses))
         if (!this.activityStatus(id)) this.observeSessionStatus(id, status, directory);
@@ -592,6 +608,7 @@ class Store {
     try {
       const page = await client.recentSessions(archived, more ? previous.cursor ?? undefined : undefined);
       if (!current()) return;
+      for (const session of page.sessions) this.rememberActivitySession(session);
       const sessions = mergeSidebarSessions([...(more ? previous.sessions : []), ...page.sessions], journal)
         .filter((s) => Boolean(s.time.archived) === archived);
       for (const session of sessions) this.activityDirectories.set(session.id, session.directory);
@@ -624,6 +641,7 @@ class Store {
     if (["session.created", "session.updated"].includes(event.type)) {
       const info = event.properties?.info as Session | undefined;
       if (info?.id && info.directory && info.time) {
+        this.rememberActivitySession(info);
         this.updateSidebarSession(info);
         if (info.time.archived) this.clearUnread(info.id);
       }
@@ -774,6 +792,7 @@ class Store {
         this.client.sessionStatuses(directory),
       ]);
       if (!current()) return;
+      for (const session of sessions) this.rememberActivitySession(session);
       const visible = sessions.filter((s) => !s.parentID);
       for (const item of visible) this.activityDirectories.set(item.id, directory);
       for (const [id, status] of Object.entries(statuses))
@@ -1354,6 +1373,53 @@ class Store {
       prefs: { ...s.prefs, drafts: { ...s.prefs.drafts, [key]: text } },
     }));
     this.persistPrefs();
+  }
+
+  /** Editing preserves the original conversation and never starts inference implicitly. */
+  async prepareEditedBranch(messageID: string, text: string): Promise<void> {
+    if (this.editBranchBusy) throw new Error("Ветка уже создаётся.");
+    const id = this.state.activeSessionId, directory = this.state.directory, client = this.client;
+    const generation = this.connectionGeneration, directoryGeneration = this.directoryGeneration;
+    const message = id ? this.state.chat.sessions[id]?.messages[messageID] : undefined;
+    if (!id || !directory || !text.trim() || message?.role !== "user" || this.state.connection.phase !== "connected")
+      throw new Error("Откройте исходное сообщение и проверьте подключение.");
+    const parts = this.state.chat.sessions[id]?.partsByMessage[messageID] ?? [];
+    if (parts.some(p => this.state.chat.sessions[id].parts[p]?.type === "file"))
+      throw new Error("Сообщение содержит вложения. Отправьте уточнение новым сообщением, чтобы сохранить их.");
+    const model = this.getModelChoice(), agent = this.getAgentChoice();
+    const current = () => client === this.client && generation === this.connectionGeneration &&
+      directoryGeneration === this.directoryGeneration && this.state.activeSessionId === id;
+    this.editBranchBusy = true;
+    try {
+      const [source, statuses, permissions, questions] = await Promise.all([
+        client.getSession(id, directory), client.sessionStatuses(directory),
+        client.pendingPermissions(directory), client.pendingQuestions(directory),
+      ]);
+      if (!current()) throw new Error("Выбран другой чат. Вернитесь к сообщению, чтобы повторить.");
+      if (source.directory !== directory || source.time.archived || source.parentID)
+        throw new Error("Исходная сессия больше недоступна для редактирования.");
+      if ((statuses[id] && statuses[id].type !== "idle") || permissions.some(p => p.sessionID === id) || questions.some(q => q.sessionID === id))
+        throw new Error("Дождитесь завершения задачи или ответьте на её вопрос.");
+      const fork = await client.forkSession(id, directory, messageID);
+      // OpenCode forks exclude the selected message, but do NOT inherit permission rules.
+      const branch = await client.updateSession(fork.id, {
+        title: `${source.title} · правка`, permission: source.permission ?? [],
+      }, directory);
+      if (client !== this.client || generation !== this.connectionGeneration)
+        throw new Error("Подключение изменилось. Ветка сохранена на исходном сервере; сообщение не отправлено.");
+      this.rememberActivitySession(branch);
+      this.updateSidebarSession(branch);
+      this.mutate(s => ({ sessions: s.directory === directory ? [...s.sessions.filter(x => x.id !== branch.id), branch] : s.sessions, prefs: { ...s.prefs,
+        drafts: { ...s.prefs.drafts, [branch.id]: text },
+        modelChoice: { ...s.prefs.modelChoice, ...(model ? { [`session:${branch.id}`]: model } : {}) },
+        agentChoice: { ...s.prefs.agentChoice, ...(agent ? { [`session:${branch.id}`]: agent } : {}) },
+      } }));
+      this.persistPrefs();
+      if (current()) {
+        await this.selectSession(branch.id);
+        this.patchUi({ toast: "Правка в черновике новой ветки. Проверьте её и нажмите «Отправить»." });
+      } else this.patchUi({ toast: "Новая ветка с черновиком сохранена. Сообщение ещё не отправлено." });
+    } finally { this.editBranchBusy = false; }
   }
 
   // ---------- execution ----------
@@ -1944,6 +2010,7 @@ class Store {
         this.client.pendingQuestions(directory),
       ]);
       if (gen !== this.directoryGeneration || journal.length >= 20000) return;
+      for (const session of sessions) this.rememberActivitySession(session);
       const visible = sessions.filter((s) => !s.parentID);
       for (const item of visible) this.activityDirectories.set(item.id, directory);
       for (const [id, status] of Object.entries(statuses))
@@ -2064,13 +2131,13 @@ class Store {
   }
 
   hasUnreadInDirectory(directory: string): boolean {
-    return Object.values(this.state.prefs.unreadSessions ?? {})
-      .some((item) => item.directory === directory);
+    return Object.entries(this.state.prefs.unreadSessions ?? {})
+      .some(([id, item]) => item.directory === directory && this.visibleActivity(id));
   }
 
   hasRunningInDirectory(directory: string): boolean {
     return Object.entries(this.state.activityStatuses).some(([id, status]) =>
-      this.activityDirectories.get(id) === directory &&
+      this.activityDirectories.get(id) === directory && this.visibleActivity(id) &&
       (status.type === "busy" || status.type === "retry"));
   }
 
@@ -2100,34 +2167,85 @@ class Store {
     this.persistPrefs();
   }
 
+  private visibleActivity(id: string): boolean {
+    const session = this.activitySessions.get(id);
+    return !session?.parentID && !session?.time?.archived;
+  }
+
+  private rememberActivitySession(session: Session): void {
+    this.activityRevisions.set(session.id, (this.activityRevisions.get(session.id) ?? 0) + 1);
+    this.activitySessions.set(session.id, session);
+    this.activityDirectories.set(session.id, session.directory);
+    if (session.parentID || session.time?.archived) this.clearUnread(session.id);
+  }
+
+  private resolveActivitySession(id: string, directory?: string): Promise<Session | undefined> {
+    const known = this.activitySessions.get(id);
+    if (known) { this.rememberActivitySession(known); return Promise.resolve(known); }
+    const existing = this.activityLookups.get(id);
+    if (existing) return existing;
+    const client = this.client, generation = this.connectionGeneration;
+    const current = () => client === this.client && generation === this.connectionGeneration;
+    const revision = this.activityRevisions.get(id);
+    const promise = client.getSession(id, directory ?? null).then(session => {
+      if (!current()) return;
+      if (revision !== this.activityRevisions.get(id)) return this.activitySessions.get(id);
+      this.rememberActivitySession(session);
+      if (!session.parentID && !session.time.archived) this.updateSidebarSession(session);
+      return session;
+    }).catch(error => {
+      // A failed connection is not evidence that a result has been read or deleted.
+      if (current() && revision === this.activityRevisions.get(id) && error instanceof ApiError && error.status === 404) this.forgetActivity(id);
+      return undefined;
+    }).finally(() => { if (this.activityLookups.get(id) === promise) this.activityLookups.delete(id); });
+    this.activityLookups.set(id, promise);
+    return promise;
+  }
+
+  private async reconcileUnreadSessions(directory?: string): Promise<void> {
+    const entries = Object.entries(this.state.prefs.unreadSessions ?? {})
+      .filter(([, item]) => !directory || item.directory === directory);
+    // Bound startup load; an old unread root outside the list's first page is resolved individually.
+    for (let i = 0; i < entries.length; i += 8) {
+      const client = this.client, generation = this.connectionGeneration;
+      await Promise.all(entries.slice(i, i + 8).map(([id, item]) => this.resolveActivitySession(id, item.directory)));
+      if (client !== this.client || generation !== this.connectionGeneration) return;
+    }
+  }
+
+  private finishActivity(id: string, status: SessionStatus, directory?: string): void {
+    if (this.state.activityStatuses[id] !== status || !this.visibleActivity(id) || this.isViewing(id)) return;
+    let unread = { ...this.state.prefs.unreadSessions, [id]: {
+      time: Date.now(), directory: directory ?? this.activityDirectories.get(id),
+    } };
+    if (Object.keys(unread).length > 500) unread = Object.fromEntries(Object.entries(unread)
+      .sort((a, b) => a[1].time - b[1].time).slice(-500));
+    this.mutate(s => ({ prefs: { ...s.prefs, unreadSessions: unread } }));
+    this.persistPrefs();
+    void completionChime().catch(() => {});
+  }
+
   private observeSessionStatus(id: string, status: SessionStatus, directory?: string): void {
     if (directory) this.activityDirectories.set(id, directory);
     const previous = this.activityStatus(id);
     const wasRunning = previous?.type === "busy" || previous?.type === "retry";
     const running = status.type === "busy" || status.type === "retry";
-    const finished = wasRunning && !running && status.type === "idle";
+    const finished = wasRunning && status.type === "idle";
     if (previous?.type === status.type && !running) return;
-    let unread = this.state.prefs.unreadSessions;
-    if (running && unread?.[id]) {
-      unread = { ...unread };
-      delete unread[id];
-    } else if (finished && !this.isViewing(id)) {
-      unread = { ...unread, [id]: {
-        time: Date.now(), directory: directory ?? this.activityDirectories.get(id),
-      } };
-      if (Object.keys(unread).length > 500)
-        unread = Object.fromEntries(Object.entries(unread)
-          .sort((a, b) => a[1].time - b[1].time).slice(-500));
+    if (running) this.clearUnread(id);
+    this.mutate(s => ({ activityStatuses: { ...s.activityStatuses, [id]: status } }));
+    const known = this.activitySessions.get(id) ?? this.state.sessions.find(x => x.id === id)
+      ?? this.state.prefs.projectlessSessions?.find(x => x.id === id);
+    if (known) {
+      this.rememberActivitySession(known);
+      if (finished) this.finishActivity(id, status, directory);
+    } else {
+      const client = this.client, generation = this.connectionGeneration;
+      void this.resolveActivitySession(id, directory).then(session => {
+        if (session && finished && client === this.client && generation === this.connectionGeneration)
+          this.finishActivity(id, status, directory);
+      });
     }
-    const changedUnread = unread !== this.state.prefs.unreadSessions;
-    this.mutate((s) => ({
-      activityStatuses: { ...s.activityStatuses, [id]: status },
-      ...(changedUnread
-        ? { prefs: { ...s.prefs, unreadSessions: unread } }
-        : {}),
-    }));
-    if (changedUnread) this.persistPrefs();
-    if (finished && !this.isViewing(id)) void completionChime().catch(() => {});
   }
 
   private startGlobalStream(client: OpenCodeClient, generation: number): void {
@@ -2179,6 +2297,8 @@ class Store {
   private forgetActivity(id: string): void {
     this.updateSidebarSession(null, id);
     this.activityDirectories.delete(id);
+    this.activitySessions.delete(id);
+    this.activityRevisions.set(id, (this.activityRevisions.get(id) ?? 0) + 1);
     const unreadSessions = { ...this.state.prefs.unreadSessions };
     delete unreadSessions[id];
     const activityStatuses = { ...this.state.activityStatuses };

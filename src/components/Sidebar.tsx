@@ -195,7 +195,7 @@ export function Sidebar() {
               <ProjectActions directory={dir} />
             </div>
             {expanded && <div className="project-sessions" aria-label={`Сессии ${name}`}>
-              {sessions.slice(0, shown).map((sess) => row(sess, dir))}
+              {sessions.filter((sess, index) => index < shown || store.isUnread(sess.id) || store.isRunning(sess.id)).map((sess) => row(sess, dir))}
               {list?.loading && <div className="empty-hint" role="status">Загрузка…</div>}
               {list?.error && <div className="empty-hint" role="alert">Не удалось загрузить сессии. <button title={list.error} onClick={() => void store.loadProjectSessions(dir, { force: true })}>Повторить</button></div>}
               {list?.loaded && !list.loading && !list.error && sessions.length === 0 && <button className="project-empty" onClick={() => void store.setDirectory(dir)}>Начать первый чат</button>}

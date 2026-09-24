@@ -1,161 +1,125 @@
-import { WorkspacePicker } from "./WorkspacePicker";
-import { useEffect, useMemo, useRef } from "react";
-import { store, useAppState } from "../state/store";
-import {
-  AssistantMessageView,
-  PermissionCard,
-  QuestionCard,
-  UserMessageView,
-} from "./render";
+import { WorkspacePicker } from './WorkspacePicker';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { store, useAppState } from '../state/store';
+import { AssistantMessageView, PermissionCard, QuestionCard, UserMessageView } from './render';
+import { ChatScrollController, type ReadingPosition } from '../chat/scroll';
+import { dayKey, dayLabel } from '../chat/time';
+import { Icon } from './Icon';
 
+const positions = new Map<string, { position: ReadingPosition; first?: string }>();
 export function ChatView() {
   const s = useAppState();
-  const sessionId = s.activeSessionId;
+  const key = JSON.stringify([s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId]);
+  return <Conversation key={key} cacheKey={key} />;
+}
+function Conversation({ cacheKey }: { cacheKey: string }) {
+  const s = useAppState(), sessionId = s.activeSessionId;
   const slot = sessionId ? s.chat.sessions[sessionId] : undefined;
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const stickRef = useRef(true);
+  const scrollRef = useRef<HTMLDivElement>(null), contentRef = useRef<HTMLDivElement>(null);
+  const controller = useRef<ChatScrollController | null>(null);
+  const [away, setAway] = useState(false);
+  const first = useRef<string | undefined>(positions.get(cacheKey)?.first);
+  const [, redraw] = useState(0);
+  const order = slot?.messageOrder ?? [];
+  // Keep the same first visible message as new messages arrive. Never evict what is being read.
+  if (!first.current && order.length) first.current = order[Math.max(0, order.length - 60)];
+  const start = Math.max(0, order.indexOf(first.current ?? ''));
+  const messages = order.slice(start).map(id => slot!.messages[id]).filter(Boolean);
+  const pending = sessionId ? store.pendingInteraction(sessionId) : { permissions: [], questions: [] };
+  const permission = pending.permissions[0], question = pending.questions[0];
+  const more = !!sessionId && !!s.historyCursors[sessionId] && !s.olderExhausted[sessionId];
 
-  const pending = sessionId
-    ? store.pendingInteraction(sessionId)
-    : { permissions: [], questions: [] };
-  const lastPending = pending.permissions[0] ?? null;
-  const lastQuestion = pending.questions[0] ?? null;
+  useLayoutEffect(() => {
+    const el = scrollRef.current!, content = contentRef.current!;
+    const view = new ChatScrollController(el, (following, offBottom) => {
+      setAway(offBottom);
+      store.setConversationAtBottom(following && !offBottom);
+    }, positions.get(cacheKey)?.position);
+    controller.current = view;
+    const resize = new ResizeObserver(() => view.schedule());
+    resize.observe(el); resize.observe(content);
+    const wheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX) || !event.deltaY) return;
+      // Scrolling inside an expanded tool card should not move the conversation.
+      let node = event.target as HTMLElement | null;
+      while (node && node !== el) {
+        if (node.scrollHeight > node.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(node).overflowY)
+          && (event.deltaY < 0 ? node.scrollTop > 0 : node.scrollTop + node.clientHeight < node.scrollHeight - 1)) return;
+        node = node.parentElement;
+      }
+      view.intent(event.deltaY < 0 ? 'up' : 'down');
+    };
+    const key = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('textarea,input,[contenteditable="true"]')) return;
+      if (['ArrowUp','PageUp','Home'].includes(e.key) || (e.key === ' ' && e.shiftKey)) view.intent('up');
+      if (['ArrowDown','PageDown','End'].includes(e.key) || (e.key === ' ' && !e.shiftKey)) view.intent('down');
+    };
+    let touchY = 0;
+    const touchStart = (e: TouchEvent) => { touchY = e.touches[0]?.clientY ?? 0; };
+    const touchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? touchY;
+      if (y !== touchY) view.intent(y > touchY ? 'up' : 'down');
+      touchY = y;
+    };
+    const pointer = (e: PointerEvent) => {
+      if (e.target === el && e.clientX >= el.getBoundingClientRect().left + el.clientWidth - 14) {
+        view.pause(); view.intent('down');
+      }
+    };
+    el.addEventListener('wheel', wheel, { passive: true }); el.addEventListener('keydown', key);
+    el.addEventListener('touchstart', touchStart, { passive: true }); el.addEventListener('touchmove', touchMove, { passive: true });
+    el.addEventListener('pointerdown', pointer);
+    return () => {
+      positions.set(cacheKey, { position: view.snapshot(), first: first.current });
+      if (positions.size > 80) positions.delete(positions.keys().next().value!);
+      resize.disconnect(); view.dispose(); controller.current = null;
+      el.removeEventListener('wheel', wheel); el.removeEventListener('keydown', key);
+      el.removeEventListener('touchstart', touchStart); el.removeEventListener('touchmove', touchMove); el.removeEventListener('pointerdown', pointer);
+    };
+  }, [cacheKey]);
+  // Before paint, preserve anchors for React updates; ResizeObserver handles async height changes.
+  useLayoutEffect(() => { controller.current?.layout(); });
 
-  const messages = useMemo(() => {
-    if (!slot) return [];
-    return slot.messageOrder.map((id) => slot.messages[id]).filter(Boolean);
-  }, [slot, s.rev]);
-
-  const lastEventAt = slot?.lastEventAt ?? 0;
-
-  useEffect(() => {
-    stickRef.current = true;
-    store.setConversationAtBottom(true);
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [sessionId]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el && stickRef.current) {
-      el.scrollTop = el.scrollHeight;
-      store.setConversationAtBottom(true);
+  const older = async () => {
+    controller.current?.pause();
+    if (start) { first.current = order[Math.max(0, start - 60)]; redraw(n => n + 1); }
+    else if (sessionId) {
+      const previous = first.current;
+      await store.loadOlderMessages(sessionId);
+      if (!controller.current) return;
+      const next = store.state.chat.sessions[sessionId]?.messageOrder ?? [];
+      const index = next.indexOf(previous ?? '');
+      if (index > 0) first.current = next[Math.max(0, index - 60)];
+      redraw(n => n + 1);
     }
-  }, [messages.length, lastEventAt, lastPending, lastQuestion]);
-
-  const onScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    store.setConversationAtBottom(stickRef.current);
   };
-
-  const streamBroken =
-    s.connection.streamState === "reconnecting" ||
-    s.connection.streamState === "error" ||
-    s.connection.streamState === "closed";
-
-  return (
-    <div
-      className="chat-scroll"
-      ref={scrollRef}
-      onScroll={onScroll}
-      tabIndex={-1}
-      aria-label="Conversation"
-    >
-      <div className="chat-inner">
-        {!sessionId && !s.ui.historyLoading && (
-          <div className="welcome">
-            <div className="welcome-mark">
-              <span>⌁</span>
-            </div>
-            <h1>С чего начнём?</h1>
-            <WorkspacePicker />
-            <p className="welcome-context">
-              {store.isProjectless()
-                ? "Задайте вопрос или поручите любую задачу"
-                : "Работа с файлами выбранного проекта"}
-            </p>
-          </div>
-        )}
-        {sessionId && s.ui.historyLoading && !slot && (
-          <div className="empty-hint">Loading history…</div>
-        )}
-        {sessionId && s.ui.historyError && (
-          <div className="msg-error" role="alert">
-            {s.ui.historyError}{" "}
-            <button
-              className="btn small ghost"
-              onClick={() => void store.loadHistory(sessionId, s.directory!)}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-        {sessionId &&
-          slot &&
-          slot.messageOrder.length > 0 &&
-          !!s.historyCursors[sessionId] &&
-          !s.olderExhausted[sessionId] && (
-            <button
-              className="btn small ghost"
-              style={{ marginBottom: 8 }}
-              disabled={s.ui.historyLoading}
-              onClick={() => void store.loadOlderMessages(sessionId)}
-            >
-              {s.ui.historyLoading ? "Loading…" : "Load older messages"}
-            </button>
-          )}
-        {messages.map((m) =>
-          m.role === "user" ? (
-            <UserMessageView key={m.id} message={m} />
-          ) : (
-            <AssistantMessageView
-              key={m.id}
-              sessionId={sessionId!}
-              message={m}
-            />
-          ),
-        )}
-        {slot?.lastError && (
-          <div className="msg-error" role="alert">
-            {slot.lastError}
-          </div>
-        )}
-        {slot?.status.type === "busy" && (
-          <div className="status-line" role="status">
-            <span className="tool-spinner" aria-hidden />
-            Agent is working — reasoning, tools and text updates will appear
-            above.
-          </div>
-        )}
-        {slot?.status.type === "retry" && (
-          <div className="status-line" role="status">
-            <span className="tool-spinner" aria-hidden />
-            {(slot.status as { message?: string }).message ??
-              "Retrying request…"}
-          </div>
-        )}
-        {lastPending && (
-          <PermissionCard
-            req={lastPending}
-            onReply={(r) => void store.replyPermission(lastPending, r)}
-          />
-        )}
-        {lastQuestion && (
-          <QuestionCard
-            key={lastQuestion.id}
-            req={lastQuestion}
-            onReply={(a) => void store.replyQuestion(lastQuestion, a)}
-            onReject={() => void store.rejectQuestion(lastQuestion)}
-          />
-        )}
-        {streamBroken && s.connection.phase === "connected" && (
-          <div className="status-line" role="status">
-            Event stream is reconnecting — history is preserved and will resync
-            automatically.
-          </div>
-        )}
+  const broken = ['reconnecting','error','closed'].includes(s.connection.streamState);
+  return <div className="chat-viewport">
+    <div className="chat-scroll" ref={scrollRef} onScroll={() => controller.current?.onScroll()} tabIndex={0} aria-label="История чата">
+      <div className="chat-inner" ref={contentRef}>
+        {!sessionId && !s.ui.historyLoading && <div className="welcome">
+          <div className="welcome-mark"><span>⌁</span></div><h1>С чего начнём?</h1><WorkspacePicker />
+          <p className="welcome-context">{store.isProjectless() ? 'Задайте вопрос или поручите любую задачу' : 'Работа с файлами выбранного проекта'}</p>
+        </div>}
+        {sessionId && s.ui.historyLoading && !slot && <div className="empty-hint">Загрузка истории…</div>}
+        {sessionId && s.ui.historyError && <div className="msg-error" role="alert">{s.ui.historyError}{' '}
+          <button className="btn small ghost" onClick={() => void store.loadHistory(sessionId, s.directory!)}>Повторить</button></div>}
+        {(start > 0 || more) && <button className="history-more" disabled={s.ui.historyLoading} onClick={() => void older()}>
+          {s.ui.historyLoading ? 'Загрузка…' : start ? `${start} предыдущих сообщений` : 'Загрузить более ранние сообщения'}<Icon name="chevron" size={16} />
+        </button>}
+        {messages.map((m, index) => <div className="history-message" data-message-id={m.id} key={m.id}>
+          {dayKey(m.time.created) && (index === 0 || dayKey(messages[index - 1].time.created) !== dayKey(m.time.created)) &&
+            <div className="history-date">{dayLabel(m.time.created)}</div>}
+          {m.role === 'user' ? <UserMessageView message={m} /> : <AssistantMessageView sessionId={sessionId!} message={m} />}
+        </div>)}
+        {slot?.lastError && <div className="msg-error" role="alert">{slot.lastError}</div>}
+        {slot?.status.type === 'busy' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />Агент работает…</div>}
+        {slot?.status.type === 'retry' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />{slot.status.message ?? 'Повтор подключения…'}</div>}
+        {permission && <PermissionCard req={permission} onReply={r => void store.replyPermission(permission, r)} />}
+        {question && <QuestionCard key={question.id} req={question} onReply={a => void store.replyQuestion(question, a)} onReject={() => void store.rejectQuestion(question)} />}
+        {broken && s.connection.phase === 'connected' && <div className="status-line" role="status">Восстанавливаем поток событий. История сохранена.</div>}
       </div>
     </div>
-  );
+    {away && sessionId && <button className="jump-latest" title="Перейти к последнему сообщению" aria-label="К последнему сообщению" onClick={() => controller.current?.latest()}><Icon name="arrowDown" size={18} /><span>Вниз</span></button>}
+  </div>;
 }
