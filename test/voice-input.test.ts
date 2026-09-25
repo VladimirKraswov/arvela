@@ -31,7 +31,7 @@ beforeEach(() => {
   root = createRoot(node); act(() => root.render(createElement(VoiceInput, { disabled: false })));
 });
 afterEach(() => {
-  act(() => root.unmount()); document.body.innerHTML = ""; vi.unstubAllGlobals(); resetPlatformCache();
+  act(() => root.unmount()); document.body.innerHTML = ""; vi.restoreAllMocks(); vi.unstubAllGlobals(); resetPlatformCache();
 });
 async function click(label: string) {
   await act(async () => document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click());
@@ -43,18 +43,60 @@ it("explains native permission refusal without exposing the raw WebKit error or 
   expect(alert.textContent).toContain("Конфиденциальность и безопасность → Микрофон");
   expect(alert.textContent).toContain("Если доступ уже включён");
   expect(alert.textContent).not.toContain("user agent");
-  expect(close).toHaveBeenCalled(); expect(fake.transcribe).not.toHaveBeenCalled();
+  expect(close).not.toHaveBeenCalled(); expect(fake.transcribe).not.toHaveBeenCalled();
   expect(document.querySelector('button[aria-label="Надиктовать"]')).not.toBeNull();
   await click("Закрыть ошибку микрофона");
   expect(document.querySelector('[role="alert"]')).toBeNull();
 });
-it("does not request microphone permission after cancellation during audio startup", async () => {
-  let finish!: () => void;
-  resume.mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
-  await click("Надиктовать"); await click("Отменить диктовку");
-  await act(async () => finish());
-  expect(capture).not.toHaveBeenCalled(); expect(close).toHaveBeenCalled();
-  expect(fake.transcribe).not.toHaveBeenCalled();
+it("records and transcribes even when Web Audio never resumes", async () => {
+  const stop = vi.fn();
+  capture.mockResolvedValue({ getTracks: () => [{ stop }] });
+  resume.mockReturnValue(new Promise<void>(() => {}));
+  vi.stubGlobal("AudioContext", class {
+    resume = resume; close = close;
+    createAnalyser() { return { fftSize: 0, frequencyBinCount: 48, getByteTimeDomainData: (data: Uint8Array) => data.fill(128) }; }
+    createMediaStreamSource() { return { connect: () => {} }; }
+  });
+  const started = vi.fn();
+  vi.stubGlobal("MediaRecorder", class {
+    static isTypeSupported() { return true; }
+    state = "inactive"; mimeType = "audio/webm";
+    onstop: (() => void) | null = null;
+    start() { this.state = "recording"; started(); }
+    stop() { this.state = "inactive"; this.onstop?.(); }
+  });
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    clearRect() {}, beginPath() {}, roundRect() {}, fill() {}, fillStyle: "",
+  } as unknown as CanvasRenderingContext2D);
+  fake.transcribe.mockResolvedValue("распознано");
+  await click("Надиктовать");
+  expect(capture).toHaveBeenCalledOnce();
+  expect(started).toHaveBeenCalledOnce();
+  expect(document.querySelector('button[aria-label="Закончить и распознать"]')).not.toBeNull();
+  await click("Закончить и распознать");
+  expect(fake.transcribe).toHaveBeenCalledOnce();
+  expect(fake.appendDictation).toHaveBeenCalledWith(expect.any(String), expect.any(String), "распознано");
+  expect(stop).toHaveBeenCalledOnce();
+});
+it("keeps the composer in recording layout until cancellation completes", async () => {
+  const onActiveChange = vi.fn();
+  act(() => root.render(createElement(VoiceInput, { disabled: false, onActiveChange })));
+  expect(onActiveChange).toHaveBeenLastCalledWith(false);
+  let finish!: (stream: any) => void;
+  capture.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  await click("Надиктовать");
+  expect(onActiveChange).toHaveBeenLastCalledWith(true);
+  expect(document.querySelector('.voice-recording[aria-label="Надиктовка"]')).not.toBeNull();
+  expect(document.querySelector('button[aria-label="Отменить диктовку"]')).not.toBeNull();
+  await click("Отменить диктовку");
+  expect(onActiveChange).toHaveBeenLastCalledWith(false);
+  const stop = vi.fn();
+  await act(async () => finish({ getTracks: () => [{ stop }] }));
+  expect(onActiveChange).toHaveBeenLastCalledWith(false);
+  expect(capture).toHaveBeenCalledOnce();
+  expect(stop).toHaveBeenCalledOnce();
 });
 it("stops a late granted microphone stream after cancellation without transcription", async () => {
   let finish!: (stream: any) => void;

@@ -5,12 +5,13 @@ import { defaultAsr, transcribeAudio, validateAsr } from "../voice/asr";
 import { captureErrorMessage, micUnavailableMessage } from "../voice/captureError";
 import { Icon } from "./Icon";
 
-export function VoiceInput({ disabled }: { disabled: boolean }) {
+export function VoiceInput({ disabled, onActiveChange }: { disabled: boolean; onActiveChange?: (active: boolean) => void }) {
   const [phase, setPhase] = useState<
     "idle" | "requesting" | "recording" | "transcribing"
   >("idle");
   const [error, setError] = useState(""),
     [seconds, setSeconds] = useState(0);
+  useEffect(() => onActiveChange?.(phase !== "idle"), [phase, onActiveChange]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const operation = useRef(0),
     recorder = useRef<MediaRecorder | null>(null),
@@ -69,32 +70,37 @@ export function VoiceInput({ disabled }: { disabled: boolean }) {
     setPhase("requesting");
     setSeconds(0);
     try {
-      const audio = new AudioContext();
-      context.current = audio;
-      await audio.resume();
-      // Cancellation while Web Audio starts must not open a later permission prompt.
-      if (epoch !== operation.current) return;
       const input = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true },
         video: false,
       });
       if (epoch !== operation.current) {
         input.getTracks().forEach((t) => t.stop());
-        await audio.close().catch(() => {});
         return;
       }
       stream.current = input;
-      const analyser = audio.createAnalyser();
-      analyser.fftSize = 256;
-      audio.createMediaStreamSource(input).connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount),
+      // WebKit can leave AudioContext.resume() pending indefinitely. Sound
+      // visualization is optional and must never block the actual recorder.
+      let analyser: AnalyserNode | null = null;
+      try {
+        const audio = new AudioContext();
+        context.current = audio;
+        analyser = audio.createAnalyser();
+        analyser.fftSize = 256;
+        audio.createMediaStreamSource(input).connect(analyser);
+        void audio.resume().catch(() => {});
+      } catch {
+        void context.current?.close().catch(() => {});
+        context.current = null;
+      }
+      const data = new Uint8Array(analyser?.frequencyBinCount ?? 0),
         history = Array<number>(48).fill(0);
       const draw = () => {
         if (epoch !== operation.current) return;
-        analyser.getByteTimeDomainData(data);
+        analyser?.getByteTimeDomainData(data);
         let sum = 0;
         for (const v of data) sum += ((v - 128) / 128) ** 2;
-        history.push(Math.min(1, Math.sqrt(sum / data.length) * 5));
+        history.push(data.length ? Math.min(1, Math.sqrt(sum / data.length) * 5) : 0);
         history.shift();
         const el = canvas.current,
           ctx = el?.getContext("2d");
@@ -192,10 +198,11 @@ export function VoiceInput({ disabled }: { disabled: boolean }) {
           <Icon name="mic" />
         </button>
       ) : (
-        <div className="voice-recording" role="status">
+        <div className="voice-recording" role="status" aria-label="Надиктовка">
           <button
-            className="icon-btn"
+            className="voice-cancel icon-btn"
             aria-label="Отменить диктовку"
+            title="Отменить диктовку"
             onClick={abort}
           >
             <Icon name="close" />
@@ -208,16 +215,17 @@ export function VoiceInput({ disabled }: { disabled: boolean }) {
                 ref={canvas}
                 aria-label="Уровень звука микрофона"
               />
-              <span>
+              <span className="voice-timer">
                 {Math.floor(seconds / 60)}:
                 {String(seconds % 60).padStart(2, "0")}
               </span>
               <button
-                className="icon-btn"
+                className="voice-finish icon-btn"
                 aria-label="Закончить и распознать"
+                title="Закончить и распознать"
                 onClick={() => recorder.current?.stop()}
               >
-                <Icon name="check" />
+                <Icon name="stop" size={14} />
               </button>
             </>
           ) : (

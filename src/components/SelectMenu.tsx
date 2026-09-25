@@ -3,12 +3,14 @@ import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
 export function SelectMenu({
   label,
+  className,
   value,
   options,
   onChange,
   disabled = false,
 }: {
   label: string;
+  className?: string;
   value: string;
   options: {
     value: string;
@@ -32,7 +34,7 @@ export function SelectMenu({
   );
   return (
     <div
-      className="select-menu"
+      className={`select-menu ${className ?? ""}`}
       ref={ref}
       onKeyDown={(e) => {
         if (e.key === "Escape") {

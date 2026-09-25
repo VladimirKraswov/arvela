@@ -37,6 +37,7 @@ export function Composer() {
   const [attachmentError, setAttachmentError] = useState("");
   const [attachmentProgress, setAttachmentProgress] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [voiceActive, setVoiceActive] = useState(false);
   const scope = attachmentScope(s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId);
   const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
@@ -242,7 +243,7 @@ export function Composer() {
           Подготовка рабочего места чата…
         </div>
       )}
-      <div className={`composer ${dragging ? "composer-drop-target" : ""}`}>
+      <div className={`composer ${dragging ? "composer-drop-target" : ""} ${voiceActive ? "composer-voice-active" : ""}`}>
         {dragging && <div className="composer-drop-label">Перетащите файлы сюда</div>}
         {attachments.length > 0 && <div className="attachment-list" aria-label="Вложения">{attachments.map(file => <AttachmentChip key={file.id} file={file} disabled={s.ui.sending} onRemove={() => void attachmentDrafts.remove(scope, [file.id])}/>)}</div>}
         <textarea
@@ -310,6 +311,7 @@ export function Composer() {
           <div className="composer-controls-right">
           <SelectMenu
             label="Движок"
+            className="composer-engine-picker"
             disabled={!connected || running}
             value={engineId}
             options={engines.map((e) => ({
@@ -322,6 +324,7 @@ export function Composer() {
           />
           <SelectMenu
             label="Модель"
+            className="composer-model-picker"
             disabled={!connected || (isPi && modelList.length === 0)}
             value={isPi && modelList.length === 0
               ? "Проверьте модель в настройках Pi"
@@ -345,6 +348,7 @@ export function Composer() {
           {variantOptions.length > 0 && (
             <SelectMenu
               label="Усилие рассуждения"
+              className="composer-effort-picker"
               value={choice?.variant ?? ""}
               options={[
                 { value: "", label: "По умолчанию" },
@@ -365,6 +369,7 @@ export function Composer() {
           )}
           {!isPi && <SelectMenu
             label="Агент"
+            className="composer-agent-picker"
             value={store.getAgentChoice() ?? ""}
             options={store
               .primaryAgentNames()
@@ -373,7 +378,7 @@ export function Composer() {
               store.setAgentOverride(s.directory ?? "*", name)
             }
           />}
-          <VoiceInput disabled={!connected || s.ui.workspacePreparing} />
+          <VoiceInput disabled={!connected || s.ui.workspacePreparing} onActiveChange={setVoiceActive} />
           {running && session && (
             <button
               className="stop-btn"
