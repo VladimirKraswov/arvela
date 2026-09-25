@@ -1,5 +1,48 @@
 # Verification record
 
+## Voice composer repair — 0.2.10, 2026-09-25
+
+- The recording control was competing with model, effort and agent pickers in
+  one flex row. In the native 0.2.10 candidate, three synthetic PNGs with long
+  names remained attached while the microphone entered real recording; the
+  waveform, timer, cancel and stop were all visible and accessible across the
+  composer. Cancel stopped the recording without sending audio and the three
+  test attachments were removed afterward. The installed 0.2.10 app also
+  entered recording and canceled cleanly in the preserved tiny-cad chat.
+- WebKit could leave `AudioContext.resume()` pending before requesting the
+  microphone. Capture now starts first, and visualization cannot hold it up.
+  A regression test keeps Web Audio permanently pending while checking that
+  recording starts, the stop action transcribes and the result reaches the
+  draft. Other tests cover refusal and cancellation of a late microphone grant.
+- Mac checks: `npm test` **281 passed / 6 opt-in live skipped**;
+  `npm run build`; `cargo fmt --check`; `cargo check --all-targets`;
+  `cargo test` **29 passed**; `npm run build:macos`;
+  `scripts/verify-macos.py` on both candidate and installed app;
+  `hdiutil verify` on the DMG. Installed app and candidate executable hashes
+  match: `0b4408484fd7854991e0e89ed020fcb3941000106b6954bdec58293722f0e2f8`.
+  DMG SHA256 is
+  `548a2441cdfff53807c373592e19970fb56a786b92c6c01cdb003566f0ea206e`;
+  the identical file is in Downloads. Previous 0.2.9 app backup:
+  `~/.local/share/opencode-desktop/backups/0.2.9-before-0.2.10-20260925-112515/`.
+- Linux Ubuntu 24.04 x86_64 used a test-owned copy of source commit `54fe7a3`:
+  **281 frontend tests passed / 6 opt-in live skipped**, **31 Rust tests passed**,
+  `npm run build:linux` produced package `open-code-desktop` version `0.2.10`
+  for `amd64` with GTK/WebKit dependencies. Xvfb displayed a real
+  1360×900 OpenCode Desktop window. DEB SHA256 is
+  `4463440656dd0626cb3b9c3a8109d174c7f48c1f6449d4cbe317aee8795204a5`.
+  The package was copied back and the marker-verified temporary checkout on
+  Igor's machine was removed.
+- The OpenCode API reported no busy sessions before installation. Its server,
+  model services, user chats and configuration were not restarted or edited.
+  No model inference or ASR audio request was sent for this acceptance.
+  Read-only inspection of the user's 09:10 tiny-cad prompt recorded
+  `local-qwen38/qwen-v100` in the actual user message and assistant response;
+  the screenshot also displays V100. This evidence does not establish a
+  different picker selection immediately before that send.
+- Source fix `54fe7a3` was pushed to main. [Release v0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10)
+  contains the Mac DMG and Linux DEB with the digests above. macOS remains
+  ad-hoc signed without Developer ID notarization; Windows is unbuilt.
+
 ## Coordinator macOS acceptance — 0.2.9, 2026-09-25
 
 - Pi 0.85.1 was detected at `/opt/homebrew/bin/pi`. Its model catalog was

@@ -191,7 +191,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 ## M16 — Native microphone permission repair (0.2.7)
 
 - [x] Signed macOS audio-input entitlement, retaining Hardened Runtime and normal system consent.
-- [x] Russian capture diagnostics distinguish permission, missing and unavailable devices; canceled startup never opens a later capture request.
+- [x] Russian capture diagnostics distinguish permission, missing and unavailable devices; cancellation stops a late-granted microphone stream without transcription.
 - [x] Regression tests for refusal/cancellation and release-artifact signature/entitlement/usage-description check.
 - [x] Installed native capture/cancel acceptance, strict package verification and preserved configuration (see VERIFICATION).
 
@@ -202,3 +202,10 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Loopback SSH tunnel with dynamic CT address, restricted source IP, helper endpoint/status in Desktop settings; OpenCode MCP connections remain separately configurable.
 - [x] Explicit size, context and queue limits; failures retain draft and never silently discard unsupported content.
 - [x] Packaged app, native helper/status and picker draft, real browser-to-OpenCode PDF roundtrip, source checks and installation (see VERIFICATION). Finder drop is handled by Tauri's native event and narrowly scoped file read after an owner-reported regression. The native acceptance outcome is recorded in VERIFICATION.
+
+## M18 — Voice composer and attachment layout (0.2.10)
+
+- [x] Recording uses a full-width, anchored composer row with visible cancel, waveform, timer and stop controls; model, agent and access controls cannot crowd it offscreen.
+- [x] Attachment chips scroll within a bounded area, and long model/agent names shrink in the idle toolbar. The text area also respects viewport height.
+- [x] Microphone capture no longer waits for Web Audio visualization to resume. Cancellation stops late grants and does not transcribe.
+- [x] Native Mac acceptance with three long-name images, active recording, cancel and clean draft; installed app smoke. Linux `.deb` built and window-smoked from the same source. See VERIFICATION.

@@ -1,3 +1,29 @@
+# OpenCode Desktop 0.2.10 — DONE (released 2026-09-25)
+
+Owner-reported dictation controls were clipped by model/agent selectors and
+attachments. Recording now has a full-width anchored row, bounded attachment
+height and a single-line idle toolbar. The microphone starts independently of
+Web Audio resume; a permanently pending Web Audio regression test passes.
+Native candidate with three long-name PNGs showed waveform, timer, cancel and
+stop in view; canceled with no ASR call and removed the test files. Installed
+0.2.10 also recorded and canceled; original tiny-cad chat/draft stayed intact.
+
+Mac: 281 frontend passed / 6 live skipped, 29 Rust passed, Tauri DMG build,
+signature/microphone verification and hdiutil verification. Installed app
+executable SHA256 `0b4408484fd7854991e0e89ed020fcb3941000106b6954bdec58293722f0e2f8`;
+DMG `548a2441cdfff53807c373592e19970fb56a786b92c6c01cdb003566f0ea206e`.
+Previous app backup at
+`~/.local/share/opencode-desktop/backups/0.2.9-before-0.2.10-20260925-112515/`.
+Linux Ubuntu: 281 frontend passed / 6 live skipped, 31 Rust passed, real
+1360×900 Xvfb window. DEB
+`4463440656dd0626cb3b9c3a8109d174c7f48c1f6449d4cbe317aee8795204a5`.
+Igor's test checkout was removed. OpenCode server and GPUs were untouched;
+API status was idle and no prompts or ASR audio were sent. Source fix `54fe7a3`
+pushed; [v0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10)
+contains both verified packages. The 09:10 tiny-cad message and reply both
+record V100; a different pre-send UI selection is not established by that
+read-only history. Full evidence is in `docs/VERIFICATION.md`.
+
 # OpenCode Desktop 0.2.9 — DONE (released 2026-09-25)
 
 Igor's direct Claude Code CLI refactor, the Pi backend, and separate Linux/Mac
