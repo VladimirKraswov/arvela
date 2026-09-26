@@ -1,4 +1,19 @@
-# OpenCode Desktop 0.2.10 — DONE (released 2026-09-25)
+# OpenCode Desktop 0.2.11 — Agent control MCP (DONE 2026-09-26)
+
+Owner requested a first-class API for controlling OpenCode Desktop without
+physical mouse/UI automation, then using it as a subagent. Source 0.2.11 adds a
+private per-user Unix socket, bundled `--agent-mcp` stdio adapter, semantic tools
+for project/session/model/run state, a settings installer and documentation.
+Frontend/Rust unit, production TypeScript build, fmt/check and live native MCP
+acceptance passed. Permission requests remain explicit; there is no second agent
+loop or network listener. Installed 0.2.11 and OpenCode registration are live.
+Real bounded Qwen review session `ses_f213ab959ffeqKwsKiqqTdhGx5` completed via
+send/wait/conversation tools; its six useful findings were fixed and reverified.
+Concurrent live wait/status/stop passed. Final: frontend 286 pass / 6 skipped,
+Rust 32 pass, build/check/fmt/diff and signed app/DMG verification pass. Evidence
+and hashes are in docs/VERIFICATION.md. No remaining work in this task.
+
+## Previous task — 0.2.10 (DONE, released 2026-09-25)
 
 Owner-reported dictation controls were clipped by model/agent selectors and
 attachments. Recording now has a full-width anchored row, bounded attachment

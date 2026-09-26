@@ -551,3 +551,30 @@ Not yet verified at the time of writing: Finder launch with restricted PATH, nat
 - Native launch outside dev tooling (LaunchServices `open`): window "OpenCode Desktop" rendered the dark shell, connected pill "OpenCode 1.18.18", engine version, and real model/agent/effort options fetched live from `/config` + `/agent` (screenshot `/tmp/ocdesktop-native2.png`). WebKit child processes hold the loopback connections; the external server was never started or stopped by the app. The app quit cleanly afterward.
 - **Limitation (honest):** interactive project selection / session resume inside the *packaged native window* was not proven. Synthetic input (System Events keystrokes and a CGEvent click helper) did not drive the WKWebView `<select>`/buttons, and while probing, the user's own apps came to the foreground — further synthetic event injection was stopped immediately to avoid interfering with live work, and one keystroke sequence may have reached the then-focused app (flagged deliberately). The identical store/renderer code path for resume is proven in the browser run above.
 - Still open: command palette, desktop notifications, full file viewer (highlight/find/open-in-editor), Finder restricted-PATH + offline-draft-restore check, working-tree vs session diff separation, engine-update flow.
+# Agent control MCP — 0.2.11, 2026-09-26
+
+- Added a private per-user Unix-socket control plane and bundled
+  `opencode-desktop --agent-mcp` stdio server. Installed app reports 0.2.11;
+  installed and bundle executable SHA256 match:
+  `4edf4a0ae7bd6c6464fc17c689f2e376a821ff871a9a51d30b3ed5e65fe0f8b8`.
+- Global OpenCode JSONC contains only the reserved local `opencode_desktop`
+  command with `enabled:true`; live `/mcp` for the project reports `connected`.
+  Registration ran through `desktop_install_mcp`, which uses compare-and-save,
+  backup, collision refusal and rollback on dynamic connection failure.
+- Installed MCP handshake reported server 0.2.11 and 15 bounded semantic tools.
+  `desktop_status` matched the visible project/session/model. A real Qwen Flash
+  Next read-only review was submitted, waited and read back through MCP session
+  `ses_f213ab959ffeqKwsKiqqTdhGx5`; no pointer automation was used.
+- That review found wait serialization, fast-idle, partial-install, stalled-client,
+  oversized-response and future multi-window delivery risks. They were corrected:
+  wait/status/stop/interactions bypass mutation serialization, idle is immediate,
+  failed registration rolls back, reads time out at 10 seconds with 32-connection
+  cap, oversized replies return an explicit error and events target `main` only.
+- Live regression: while `desktop_wait` was active, a second `desktop_status`
+  completed in 12 ms and `desktop_stop` in 253 ms; the waiting call immediately
+  returned `idle`. The stopped test session had entered OpenCode's normal
+  `model is still loading` retry state, proving stop remains available during retry.
+- Final verification: 286 frontend tests pass (6 skipped integration tests), 32
+  Rust tests pass, TypeScript/Vite production build, Cargo check/fmt and
+  `git diff --check` pass. Ad-hoc app signature verifies. DMG verifies with SHA256
+  `dc23b5e68e76d221eea0623b44cd8861f9f0dd55e68c83d362c3ab3e6cdc869d`.

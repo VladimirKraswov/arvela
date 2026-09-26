@@ -1,6 +1,6 @@
 # Варианты сборки и поддержка платформ
 
-Версия продукта — **0.2.10**, одинаково в `package.json`, `package-lock.json`,
+Версия продукта — **0.2.11**, одинаково в `package.json`, `package-lock.json`,
 `src-tauri/Cargo.toml` и `src-tauri/tauri.conf.json` (проверяется тестом
 `test/bundle-config.test.ts`).
 
@@ -61,7 +61,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ```sh
 npm run check:linux-prereqs        # только сообщает недостающие пакеты
 npm run build:linux
-# src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.10_amd64.deb
+# src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.deb
 ```
 
 Требуемые системные пакеты Ubuntu 24.04:
@@ -104,8 +104,8 @@ DISPLAY=:77 xwd -root -silent -out /tmp/shot.xwd
 Проверить содержимое пакета без установки:
 
 ```sh
-dpkg-deb -I "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.10_amd64.deb"
-dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.10_amd64.deb"
+dpkg-deb -I "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.deb"
+dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.deb"
 ```
 
 В списке файлов не должно быть `Entitlements.plist`, `Info.plist` и `.icns`.

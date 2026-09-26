@@ -1,6 +1,7 @@
 mod asr;
 pub mod computer;
 mod config;
+pub mod control;
 mod hosts;
 mod paths;
 pub mod pi;
@@ -10,6 +11,11 @@ pub fn run() {
     tauri::Builder::default()
         .manage(hosts::Hosts::default())
         .manage(pi::PiSessions::default())
+        .manage(control::AgentControl::default())
+        .setup(|app| {
+            control::start(app.handle().clone()).map_err(std::io::Error::other)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
             hosts::ssh_aliases,
@@ -21,6 +27,9 @@ pub fn run() {
             computer::computer_status,
             computer::computer_set_enabled,
             computer::computer_action,
+            control::agent_control_ready,
+            control::agent_control_complete,
+            control::agent_control_status,
             pi::pi_detect,
             pi::pi_open,
             pi::pi_request,
@@ -45,6 +54,7 @@ pub fn run() {
                 }
                 // No Pi agent may outlive the window that started it.
                 pi::shutdown(app);
+                control::shutdown(app);
             }
         });
 }

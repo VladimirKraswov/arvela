@@ -6,6 +6,7 @@ import { ACCENTS, DEFAULT_APPEARANCE } from "../state/appearance";
 import { defaultAsr, getAsrKey, setAsrKey, validateAsr } from "../voice/asr";
 import { OpenCodeSettings, type EngineSection } from "./OpenCodeSettings";
 import { ComputerSettings } from "./ComputerSettings";
+import { AgentControlSettings } from "./AgentControlSettings";
 import { PiSettings } from "./PiSettings";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
@@ -16,6 +17,7 @@ export const SETTINGS_SECTIONS = [
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
   { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
+  { id: "agentControl", title: "API для агентов", group: "Интеграции", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
   { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
   { id: "tools", title: "Инструменты", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
   { id: "skills", title: "Навыки", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
@@ -136,6 +138,7 @@ export function SettingsScreen() {
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
         {section === "computer" && <ComputerSettings/>}
+        {section === "agentControl" && <AgentControlSettings/>}
         {section === "pi" && <PiSettings/>}
         {section === "helper" && <>
           <p className="settings-intro">CPU-помощник в контейнере Proxmox подготавливает вложения для выбранной модели. Если модель поддерживает формат, файл идёт напрямую. Иначе помощник извлекает текст, кадры и звук. Аудио распознаёт отдельный GigaAM ASR из раздела «Диктовка».</p>

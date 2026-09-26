@@ -1,5 +1,14 @@
 # OpenCode Desktop roadmap
 
+## M19 — Agent control plane and MCP (0.2.11)
+
+- Private per-user Unix socket owned by the running Desktop process; no LAN listener.
+- Bundled `--agent-mcp` stdio server for semantic project/session/model/run control.
+- Commands execute through the visible frontend store and are serialized with bounded payloads/timeouts.
+- Explicit permission/question handling, without automatic approval or hidden retries.
+- Settings page installs the local MCP into OpenCode while preserving JSONC and unrelated entries.
+- Native acceptance covers MCP handshake, visible state synchronization, one real bounded agent task and transcript retrieval.
+
 The goal is a full daily-use desktop coding client with the familiar workspace structure requested by the user. This checklist describes planned work. A checkbox is checked only with recorded evidence. Exact equivalence with proprietary/cloud-only Codex features is not assumed; each capability must have an actual implementation or be explicitly marked unsupported.
 
 ## M0 — Bootstrap (provided)
