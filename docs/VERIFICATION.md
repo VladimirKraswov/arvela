@@ -1,5 +1,21 @@
 # Verification record
 
+## GitHub publication — v0.2.11, 2026-09-27
+
+- Current source and the completed AI-environment documentation were pushed to
+  private `main` at `ce5c595d0ca7339837205b7f22b8e2f80897ace5`.
+- [Release v0.2.11](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.11)
+  is published in that private repository and its tag points to the same commit.
+  The release contains the macOS Apple Silicon DMG only; Linux remains at v0.2.10.
+- The uploaded asset was downloaded again and matched the verified local DMG:
+  SHA256 `241b0c059d4ea440c3c22315e8608146d8cdc90a7b6fdd2acdc13848c4cc7f75`.
+  The installed executable also matches the candidate SHA256
+  `8f5c00b66014c5e6f9f2fa12fc192b4bce36f5b7e34e659a00aafe242cec150f`.
+- Separately installed OpenCode helpers are active in server 1.18.18: both
+  `repo_inspect` and `safe_edit` appear in its global and model-specific tool
+  lists. Historical sessions, model defaults and existing provider IDs survived
+  the idle restart. No new inference benchmark was claimed for publication.
+
 ## Agent Factory durable local runs — 0.2.11 follow-up, 2026-09-27
 
 - Managed `desktop_send` accepts an exact completion marker, bounded semantic

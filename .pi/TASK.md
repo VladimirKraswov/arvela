@@ -1,3 +1,14 @@
+# GitHub sync and v0.2.11 release — DONE 2026-09-27
+
+Owner requested complete Git synchronization. Five previously local commits,
+the AI-environment documentation and runtime-activation checkpoint were pushed
+to private `main` at `ce5c595d0ca7339837205b7f22b8e2f80897ace5`.
+GitHub release `v0.2.11` and its tag point to that commit. The macOS Apple
+Silicon DMG was downloaded from the release and SHA256 matched the verified
+installed/candidate artifact: `241b0c059d4ea440c3c22315e8608146d8cdc90a7b6fdd2acdc13848c4cc7f75`.
+No Linux 0.2.11 binary was asserted. See `docs/VERIFICATION.md`. This paragraph
+is a post-release documentation update; it does not change the tagged app source.
+
 # AI environment map — documentation (2026-09-27)
 
 Created `docs/AI-ENVIRONMENT.md` from live read-only VM/systemd/model and
