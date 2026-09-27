@@ -1,3 +1,16 @@
+# AI environment map — documentation (2026-09-27)
+
+Created `docs/AI-ENVIRONMENT.md` from live read-only VM/systemd/model and
+OpenCode API checks plus retained FreeToken/NInfer benchmark reports. It explains
+the two independent inference VMs, current Huihui-abliterated checkpoint,
+FreeToken main commit, Mac tunnels, agent/plugins/tools/skills/MCP, Desktop
+features and supporting CTs. Updated stale context and V100 model wording in
+`docs/CONTEXT-QUEUE-VOICE.md` and `docs/LOCAL-MODELS.md`; README links the map.
+No new inference benchmark, deployment, server restart or credential export was
+performed for this documentation task. V100 benchmark figures are explicitly
+labelled as preceding the current Huihui checkpoint. Verification: `npm run build`
+passed, `git diff --check` passed, and local documentation links resolve.
+
 # OpenCode Desktop 0.2.11 — Agent Factory durable local runs (DONE 2026-09-27)
 
 Owner expanded the malformed-tool repair into a production-quality system for
@@ -339,3 +352,38 @@ Verification at 22:37 Moscow: 93/93 frontend tests, TypeScript/Vite build, cargo
 - Native 0.2.1 test found and fixed project-row restoration leaving a completed session unread after showing its answer. Regression test added. Final full tests 97/97, six Rust tests, production build and `git diff --check` passed. Native source candidate verified V100 model/agent/context, real read-tool chat, busy→unread→read, settings inventories, JSONC backup/comment preservation and stale-write rejection. Rebuilt candidate repeated the unread scenario successfully.
 - Final DMG `OpenCode Desktop_0.2.1_aarch64.dmg` passed `hdiutil verify`, SHA256 `387826b644f8d199024b9e6e2716364852f167b3387f8d00eceaddaa977ae4c2`. Installed `/Applications/OpenCode Desktop.app` 0.2.1; `~/Applications` and Desktop aliases intact, old Qwen launcher intact. Old 0.2.0 backed up under `~/.local/share/opencode-desktop/backups/`. Installed app displayed connected OpenCode 1.18.18, open SSE, configured GigaAM ASR and preserved benchmark conversation. Same DMG copied to Downloads.
 - Source commit `471e78082072ee152c931e61e8617f16573b18d9` pushed to `main`; GitHub release `v0.2.1` published with matching remote DMG digest. See `docs/VERIFICATION.md` and `docs/LOCAL-MODELS.md`. No required work remains; stop the `opencode-desktop` heartbeat.
+
+## Local coding-agent improvement — 2026-09-27
+
+Owner authorized implementation after session-based diagnosis. New versioned
+`integrations/opencode-agent/` contains bounded `repo_inspect` (path/line search,
+hashes, nested instructions/manifests), permission-gated `safe_edit` (one exact
+replacement with stale-hash/ambiguity refusal), an installer with known-preimage
+checks/backups, and focused guidance for `qwen-build` and read-only `qwen-review`.
+Installed into local `~/.config/opencode` without changing provider/model config.
+The existing external OpenCode PID48432 was not restarted; its current tool cache
+still lists only `repo_inspect`. An isolated test server on port4196 loaded both
+tools, then was stopped. The new `safe_edit` becomes available to the normal
+server on its next idle lifecycle restart; do not describe it as live before then.
+
+Three pinned real-incident evals: Desktop malformed tool and chat scroll, TinyCAD
+Undo identity. Disposable Git exports with the same accepted tests fail at the
+pre-fix revisions and pass at accepted revisions (7/7, 9/9, 10/10). No model
+inference or A/B quality claim was made. Helper unit tests 10/10 and TS adapters
+typecheck passed. Installed TS adapter smoke passed: repository snapshot, read-only
+reviewer denial, edit-permission request and guarded exact replacement in a
+disposable directory. Full Desktop tests 297 passed/6 skipped, production frontend
+build and diff check passed. Extra improvement: nested AGENTS/checkpoints and
+related tests by filename or source reference now surface in file snapshots;
+`SketchHistory.ts` correctly points to the TinyCAD identity regression suite.
+The owner then explicitly requested a restart. OpenCode PID48432 had zero active
+sessions and PTYs and was stopped with TERM. A shell-background launch did not
+survive, so it was relaunched as launchctl submit job
+`dev.vladimir.opencode-serve-4096` (PID3996) with the same executable, arguments
+and cwd, logging to `~/Library/Logs/OpenCode/serve-4096-restart.log`. Fresh
+health reports OpenCode1.18.18; `/experimental/tool/ids` and model-specific
+`/experimental/tool` both include `repo_inspect` and `safe_edit`. Installed six
+files match versioned source hashes. Historical benchmark session is retrievable,
+Flash Next and V100 model IDs and qwen-build/review/V100 agents are present;
+Flash Next remains default. Zero active sessions/PTYs after restart. No inference
+task was launched, and no model/provider configuration was changed.

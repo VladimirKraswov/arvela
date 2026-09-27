@@ -8,11 +8,16 @@ For the current `local-qwen-next/qwen38-flash-next` configuration:
 
 | Parameter | Tokens |
 |---|---:|
-| Context window | 131,072 |
-| Input limit | 114,688 |
-| Reserved | 32,768 |
-| Automatic compaction threshold | **81,920** |
+| Context window | 262,144 |
+| Input limit | 245,760 |
+| Reserved | 24,576 |
+| Automatic compaction threshold | **221,184** |
 | Output limit | 16,384 |
+
+These are the current 2026-09-27 OpenCode values. The V100 model also has a
+262,144-token physical window, but its declared input is 229,376 and its
+compaction threshold is 204,800. Changing an inference server's window does not
+automatically rewrite OpenCode's model limits; see [AI environment](AI-ENVIRONMENT.md).
 
 Calculation follows the versioned [OpenCode 1.18.18 overflow implementation](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/overflow.ts): use reported `tokens.total`, or input + output + cache read + cache write; reasoning is not added twice. A fresh conversation shows an unknown usage until the first report. When switching tokenizers, the last measured usage still belongs to the preceding model until the next response. Manual “Сжать сейчас” is available when idle. It calls the engine's summarize endpoint; the request allows up to three minutes rather than prematurely labelling normal summarization a failure.
 
@@ -58,4 +63,9 @@ The microphone starts only after a click and system permission. The waveform is 
 
 Native requests use a bounded Rust multipart adapter; the WebView CSP stays restricted to the application and local OpenCode. HTTPS is accepted; HTTP is limited to loopback/private IPv4 destinations. Redirects are rejected, responses capped, connection/overall timeouts bounded. API keys are **memory-only**, tied to the configured URL and never written to preferences, documentation or logs. A new app launch requires entering the key again. Cancellation stops capture and ignores a late transcript; it cannot recall a request already received by the ASR server.
 
-The packaged macOS app contains `NSMicrophoneUsageDescription` following [Tauri's macOS bundle documentation](https://v2.tauri.app/distribute/macos-application-bundle/). No ASR service or credentials were supplied yet. The multipart integration is verified with synthetic audio and a local fixture, not a claimed successful transcription of real speech. First use of the user's ASR service still needs its actual endpoint/model and microphone permission.
+The packaged macOS app contains `NSMicrophoneUsageDescription` and the audio-input
+entitlement required by its Hardened Runtime. On this installation the configured
+ASR endpoint is GigaAM v3 in CT201 (`192.168.31.59`), and real M4A transcription
+has been checked. Capture and cancellation in the installed app were also checked;
+the ASR key, when required, remains memory-only. See [settings](SETTINGS.md) and
+the [AI environment](AI-ENVIRONMENT.md).
