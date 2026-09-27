@@ -18,6 +18,22 @@ interface ControlCommand {
 
 type Params = Record<string, unknown>;
 
+const MAX_MALFORMED_TOOL_RECOVERIES = 2;
+const TOOL_RECOVERY_PROMPT =
+  "Системное восстановление: предыдущий ответ завершился без выполнения, потому что вызов инструмента был выведен как обычный текст. Повтори тот же шаг сейчас через настоящий встроенный инструмент OpenCode с корректными структурированными аргументами, затем продолжи исходную задачу. Не описывай XML-теги и не завершай работу до проверки результата.";
+
+interface ManagedRun {
+  directory: string;
+  messagesBeforeSend: Set<string>;
+  recoveredMessages: Set<string>;
+  attempts: number;
+}
+
+// This state belongs to the long-lived Desktop process, not to the short-lived
+// MCP stdio client.  Therefore a later desktop_wait can recover a desktop_send
+// even though each MCP invocation used a different process.
+const managedRuns = new Map<string, ManagedRun>();
+
 function object(value: unknown): Params {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("parameters must be an object");
@@ -170,11 +186,22 @@ async function send(params: Params) {
     );
   }
   configure(params);
+  const messagesBeforeSend = new Set(
+    store.state.activeSessionId
+      ? (store.state.chat.sessions[store.state.activeSessionId]?.messageOrder ?? [])
+      : [],
+  );
   const accepted = await store.sendPrompt(text(params, "text")!);
   const acceptedSession = store.state.activeSessionId;
   if (!accepted || !acceptedSession) {
     throw new Error(store.state.ui.sendError ?? "the prompt was not accepted");
   }
+  managedRuns.set(acceptedSession, {
+    directory,
+    messagesBeforeSend,
+    recoveredMessages: new Set(),
+    attempts: 0,
+  });
   return {
     accepted: true,
     sessionId: acceptedSession,
@@ -184,9 +211,8 @@ async function send(params: Params) {
   };
 }
 
-function waitUntilSettled(sessionId: string, timeoutSeconds: number): Promise<unknown> {
+function waitForStateChange(sessionId: string, deadline: number): Promise<unknown> {
   return new Promise((resolve) => {
-    const deadline = Date.now() + timeoutSeconds * 1000;
     let timer: ReturnType<typeof setTimeout>;
     let unsubscribe = () => {};
     const finish = (result: unknown) => {
@@ -212,13 +238,98 @@ function waitUntilSettled(sessionId: string, timeoutSeconds: number): Promise<un
       } else if (!running) {
         finish({ outcome: "idle", status: runStatus });
       } else if (Date.now() >= deadline) {
-        finish({ outcome: "timeout", status: runStatus, timeoutSeconds });
+        finish({ outcome: "timeout", status: runStatus });
       }
     };
     unsubscribe = store.subscribe(inspect);
-    timer = setTimeout(inspect, timeoutSeconds * 1000);
+    timer = setTimeout(inspect, Math.max(0, deadline - Date.now()));
     inspect();
   });
+}
+
+function malformedToolCallMessage(
+  message: { id: string; role: string; finish?: string | null },
+  parts: Array<{ type: string; text?: string }>,
+): boolean {
+  if (message.role !== "assistant" || message.finish !== "stop") return false;
+  if (parts.some((part) => part.type === "tool")) return false;
+  const output = parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text ?? "")
+    .join("\n");
+  return (
+    output.includes("<tool_call>") &&
+    output.includes("<function=") &&
+    (output.includes("<parameter=") || output.includes("</parameter>"))
+  );
+}
+
+function recoverableMalformedToolMessage(sessionId: string, run: ManagedRun) {
+  const chat = store.state.chat.sessions[sessionId];
+  if (!chat) return null;
+  for (const messageId of [...chat.messageOrder].reverse()) {
+    if (run.messagesBeforeSend.has(messageId) || run.recoveredMessages.has(messageId)) continue;
+    const message = chat.messages[messageId];
+    if (!message || message.role !== "assistant") continue;
+    const parts = (chat.partsByMessage[messageId] ?? [])
+      .map((partId) => chat.parts[partId])
+      .filter((part): part is NonNullable<typeof part> => Boolean(part));
+    return malformedToolCallMessage(message, parts) ? message : null;
+  }
+  return null;
+}
+
+async function waitUntilSettled(sessionId: string, timeoutSeconds: number): Promise<unknown> {
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  for (;;) {
+    const result = (await waitForStateChange(sessionId, deadline)) as {
+      outcome: string;
+      status: unknown;
+      [key: string]: unknown;
+    };
+    if (result.outcome !== "idle") return { ...result, timeoutSeconds };
+
+    const run = managedRuns.get(sessionId);
+    if (!run) return result;
+    const malformed = recoverableMalformedToolMessage(sessionId, run);
+    if (!malformed) {
+      managedRuns.delete(sessionId);
+      return result;
+    }
+    if (run.attempts >= MAX_MALFORMED_TOOL_RECOVERIES) {
+      managedRuns.delete(sessionId);
+      return {
+        outcome: "recovery_exhausted",
+        status: result.status,
+        attempts: run.attempts,
+        messageId: malformed.id,
+      };
+    }
+
+    // Keep the recovery in the same visible conversation. Selection is explicit
+    // because the user may have inspected another chat between send and wait.
+    await selectSession(run.directory, sessionId);
+    run.recoveredMessages.add(malformed.id);
+    run.attempts += 1;
+    const accepted = await store.sendPrompt(TOOL_RECOVERY_PROMPT);
+    if (!accepted) {
+      managedRuns.delete(sessionId);
+      return {
+        outcome: "recovery_failed",
+        status: activeStatus(sessionId),
+        attempts: run.attempts,
+        error: store.state.ui.sendError ?? "OpenCode rejected the recovery prompt",
+      };
+    }
+    if (Date.now() >= deadline) {
+      return {
+        outcome: "timeout",
+        status: activeStatus(sessionId),
+        timeoutSeconds,
+        recoveryAttempted: true,
+      };
+    }
+  }
 }
 
 function conversation(sessionId: string, limit: number, maxChars: number) {
@@ -344,6 +455,7 @@ async function execute(method: string, raw: unknown): Promise<unknown> {
     case "stop": {
       const sessionId = text(params, "session_id")!;
       await store.stopSession(sessionId);
+      managedRuns.delete(sessionId);
       return { stopped: true, sessionId, status: activeStatus(sessionId) };
     }
     case "interactions":
@@ -441,4 +553,4 @@ export async function startAgentControl(): Promise<() => void> {
   return stopBridge;
 }
 
-export const agentControlForTest = { execute };
+export const agentControlForTest = { execute, malformedToolCallMessage };

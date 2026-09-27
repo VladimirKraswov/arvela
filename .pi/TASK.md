@@ -1,4 +1,25 @@
-# OpenCode Desktop 0.2.11 — Agent control MCP (DONE 2026-09-26)
+# OpenCode Desktop 0.2.11 — managed-session recovery follow-up (SOURCE DONE; FINAL INSTALL DEFERRED 2026-09-27)
+
+Owner reported that a long Nexus task silently stopped when local Qwen omitted
+one tool-call argument tag. Root cause is proven by NInfer request 269: the
+parser returned the markup as text with `finish=stop`, so OpenCode truthfully
+marked the session idle. This follow-up adds a bounded second safety layer for
+Agent Control sessions: `desktop_wait` detects only a new completed assistant
+message containing full textual tool-call markup and no real tool part, sends a
+fixed recovery instruction, and keeps waiting. It tries at most twice, never
+auto-approves permissions/questions, and reports `recovery_exhausted` instead
+of false success. Final verification: 288 frontend tests passed / 6 opt-in live
+skipped; 32 Rust tests passed; TypeScript/Vite, fmt/check, signed native app and
+DMG passed. A first candidate containing the requested recovery is installed.
+The final candidate additionally clears recovery state on explicit stop or a
+rejected retry; installation is intentionally deferred because an unrelated
+tiny-cad session is actively running and must not be interrupted. NInfer's
+strict parser recovery is separately committed
+as `ce67fc9c`, its three parser/schema/frontend suites pass, and the restarted
+V100 service is healthy. User sessions and the independent OpenCode server were
+preserved. The unrelated active tiny-cad run was not interrupted or repurposed.
+
+## Previous task — Agent control MCP (DONE 2026-09-26)
 
 Owner requested a first-class API for controlling OpenCode Desktop without
 physical mouse/UI automation, then using it as a subagent. Source 0.2.11 adds a

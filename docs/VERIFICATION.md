@@ -1,5 +1,42 @@
 # Verification record
 
+## Managed local-model recovery — 0.2.11, 2026-09-27
+
+- NInfer request 269 proved the failure mode: Qwen emitted a complete textual
+  tool-call region but omitted the opening parameter name. The parser reported
+  `marker_seen=true`, `fallback_reason=malformed_structure`, zero structured
+  calls and a normal stop token; therefore OpenCode correctly but misleadingly
+  considered the task finished.
+- NInfer commit `ce67fc9c` adds one schema-bounded repair. It may infer a missing
+  opening tag only for exactly one required declared string parameter. Multiple
+  required parameters, optional-only schemas, non-string parameters and other
+  malformed structures remain rejected. Exact regression plus Qwen frontend
+  and OpenAI-schema tests all pass. The V100 service was restarted only after
+  its scheduler reached zero running requests; health and model discovery pass.
+- Desktop Agent Control now keeps managed-send state in the long-lived app. On
+  an idle result it detects a new stopped assistant message containing textual
+  tool-call markup but no real tool part, submits a fixed recovery prompt and
+  continues waiting. It stops after two attempts with `recovery_exhausted`.
+  Ordinary UI chats, user text, unfinished turns, valid tool parts, permissions
+  and questions are never auto-retried or auto-approved.
+- Verification: `npm test` **288 passed / 6 opt-in live skipped**; focused Agent
+  Control tests **7 passed**; TypeScript/Vite production build; `cargo fmt
+  --check`; `cargo check --all-targets`; `cargo test` **32 passed**; macOS app
+  and DMG build; signature/entitlement verifier, strict codesign and `hdiutil
+  verify` all pass. Final candidate executable SHA256 is
+  `ac9f9bc2d2eb0bf36380082c9c17d64c7992e8e8f90a3cadcea1a3166b093c1a`;
+  installed first-candidate SHA256 is
+  `5c0ea938eff003905021a223fe1534f413e98ff4a78d36b7ef1c65357fabae2f`;
+  final DMG SHA256 is
+  `57171a61a767b3048853cb5acaf3d0350fb5072df45f0227e3d0a1ff7ef2c415`.
+  Previous app backup:
+  `~/.local/share/opencode-desktop/backups/0.2.11-before-tool-recovery-20260927`.
+  The independent OpenCode server and user sessions were preserved. The final
+  candidate was not installed over an actively running unrelated tiny-cad task;
+  it differs only by clearing managed recovery state after explicit stop or a
+  rejected retry. The requested malformed-output recovery is already present
+  in the installed first candidate.
+
 ## Voice composer repair — 0.2.10, 2026-09-25
 
 - The recording control was competing with model, effort and agent pickers in

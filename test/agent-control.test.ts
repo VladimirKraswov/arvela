@@ -57,4 +57,61 @@ describe("agent control MCP", () => {
     })) as { outcome: string };
     expect(result.outcome).toBe("idle");
   });
+
+  it("recognizes a completed textual tool call that OpenCode cannot execute", () => {
+    expect(
+      agentControlForTest.malformedToolCallMessage(
+        { id: "msg_bad", role: "assistant", finish: "stop" },
+        [
+          {
+            type: "text",
+            text: "<tool_call>\n<function=bash>\ndate\n</parameter>\n</function>\n</tool_call>",
+          },
+        ],
+      ),
+    ).toBe(true);
+    expect(
+      agentControlForTest.malformedToolCallMessage(
+        { id: "msg_truncated", role: "assistant", finish: "stop" },
+        [
+          {
+            type: "text",
+            text: "<tool_call>\n<function=bash>\n<parameter=command>date",
+          },
+        ],
+      ),
+    ).toBe(true);
+  });
+
+  it("does not retry normal text, user text, unfinished turns or real tool calls", () => {
+    const marker =
+      "<tool_call>\n<function=bash>\ndate\n</parameter>\n</function>\n</tool_call>";
+    expect(
+      agentControlForTest.malformedToolCallMessage(
+        { id: "msg_ok", role: "assistant", finish: "stop" },
+        [{ type: "text", text: "Работа закончена." }],
+      ),
+    ).toBe(false);
+    expect(
+      agentControlForTest.malformedToolCallMessage(
+        { id: "msg_user", role: "user", finish: "stop" },
+        [{ type: "text", text: marker }],
+      ),
+    ).toBe(false);
+    expect(
+      agentControlForTest.malformedToolCallMessage(
+        { id: "msg_busy", role: "assistant", finish: null },
+        [{ type: "text", text: marker }],
+      ),
+    ).toBe(false);
+    expect(
+      agentControlForTest.malformedToolCallMessage(
+        { id: "msg_tool", role: "assistant", finish: "stop" },
+        [
+          { type: "text", text: marker },
+          { type: "tool", text: "" },
+        ],
+      ),
+    ).toBe(false);
+  });
 });
