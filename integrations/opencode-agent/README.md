@@ -16,9 +16,10 @@ Run `python3 -m unittest -v test_tools.py test_install.py` here before installin
 preimage hashes, refuses changed user files or active local sessions, and backs
 up replaced files. It also installs the revised `qwen-coding` and `qwen-review`
 instructions without changing model/provider settings. The running OpenCode
-server may cache its tool registry. A separate fresh server discovered both
-tools; the existing server must be reloaded through its normal lifecycle when
-idle. Do not kill an externally managed server to force discovery.
+server may cache its tool registry. After the owner's 2026-09-27 restart request,
+the working server was relaunched while idle and now exposes both tools to the
+local Flash Next model. On another installation, reload only after confirming
+that its sessions and terminals are idle.
 
 The [real-incident evals](evals/README.md) replay accepted tests against both
 the earlier and fixed Git revisions in disposable directories. They require no
