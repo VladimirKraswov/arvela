@@ -444,11 +444,13 @@ fn tools() -> Value {
       {"name":"desktop_sessions","description":"List sessions for a project directory, including engine and live status.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"refresh":{"type":"boolean","default":true}},"required":["directory"],"additionalProperties":false}},
       {"name":"desktop_new_chat","description":"Open the new-chat composer for a directory and choose OpenCode or Pi for this new chat.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"engine":{"type":"string","enum":["opencode","pi"]}},"required":["directory"],"additionalProperties":false}},
       {"name":"desktop_configure","description":"Choose model, variant and agent for the visible chat. This does not change permissions or auto-approve anything.","inputSchema":{"type":"object","properties":{"provider_id":{"type":"string"},"model_id":{"type":"string"},"variant":{"type":["string","null"]},"agent":{"type":"string"}},"additionalProperties":false}},
-      {"name":"desktop_send","description":"Send one prompt through the visible OpenCode Desktop chat. Acceptance is not completion; call desktop_wait afterwards. Permission and question requests remain pending for the user.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"text":{"type":"string"},"engine":{"type":"string","enum":["opencode","pi"]},"provider_id":{"type":"string"},"model_id":{"type":"string"},"variant":{"type":["string","null"]},"agent":{"type":"string"}},"required":["directory","text"],"additionalProperties":false}},
+      {"name":"desktop_send","description":"Send one prompt through the visible OpenCode Desktop chat. Acceptance is not completion; call desktop_wait afterwards. For an explicitly managed long task, supply a literal completion_marker, bounded max_continuations and optional project-relative checkpoint_path. Permission and question requests remain pending for the user.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"text":{"type":"string"},"engine":{"type":"string","enum":["opencode","pi"]},"provider_id":{"type":"string"},"model_id":{"type":"string"},"variant":{"type":["string","null"]},"agent":{"type":"string"},"completion_marker":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},"max_continuations":{"type":"integer","minimum":0,"maximum":20},"checkpoint_path":{"type":"string","minLength":1,"maxLength":240}},"required":["directory","text"],"additionalProperties":false}},
       {"name":"desktop_wait","description":"Wait until a session becomes idle, needs user input, fails, or the bounded timeout expires.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":300,"default":120}},"required":["session_id"],"additionalProperties":false}},
       {"name":"desktop_conversation","description":"Read a bounded, normalized transcript from a session in OpenCode Desktop.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":200,"default":40},"max_chars":{"type":"integer","minimum":1000,"maximum":500000,"default":120000}},"required":["directory","session_id"],"additionalProperties":false}},
       {"name":"desktop_stop","description":"Stop a running session without closing OpenCode Desktop.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
       {"name":"desktop_interactions","description":"List pending permission requests and structured questions. Never infer approval from project scope.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
+      {"name":"desktop_managed_runs","description":"List durable managed long-run contracts for the currently connected server without prompts or tool output.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
+      {"name":"desktop_forget_managed_run","description":"Remove one managed continuation contract without aborting or deleting its OpenCode session.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
       {"name":"desktop_reply_permission","description":"Reply to a pending permission request. Use once/always only after an explicit user decision; reject is always safe.","inputSchema":{"type":"object","properties":{"request_id":{"type":"string"},"reply":{"type":"string","enum":["once","always","reject"]}},"required":["request_id","reply"],"additionalProperties":false}},
       {"name":"desktop_answer_question","description":"Answer or reject a pending structured question. Answers are arrays because a question may allow multiple selections.","inputSchema":{"type":"object","properties":{"request_id":{"type":"string"},"answers":{"type":"array","items":{"type":"array","items":{"type":"string"}}},"reject":{"type":"boolean","default":false}},"required":["request_id"],"additionalProperties":false}},
       {"name":"desktop_set_view","description":"Open/close visible OpenCode Desktop panels without using mouse input.","inputSchema":{"type":"object","properties":{"settings_open":{"type":"boolean"},"sidebar_open":{"type":"boolean"},"review_open":{"type":"boolean"},"terminal_open":{"type":"boolean"}},"additionalProperties":false}},
@@ -469,6 +471,8 @@ fn tool_method(name: &str) -> Option<&'static str> {
         "desktop_conversation" => "conversation",
         "desktop_stop" => "stop",
         "desktop_interactions" => "interactions",
+        "desktop_managed_runs" => "managed_runs",
+        "desktop_forget_managed_run" => "forget_managed_run",
         "desktop_reply_permission" => "reply_permission",
         "desktop_answer_question" => "answer_question",
         "desktop_set_view" => "set_view",
@@ -527,6 +531,22 @@ mod tests {
             .unwrap();
         assert!(tools.iter().any(|t| t["name"] == "desktop_send"));
         assert!(tools.iter().any(|t| t["name"] == "desktop_wait"));
+        assert!(tools.iter().any(|t| t["name"] == "desktop_managed_runs"));
+        assert!(tools
+            .iter()
+            .any(|t| t["name"] == "desktop_forget_managed_run"));
+        let send = tools
+            .iter()
+            .find(|tool| tool["name"] == "desktop_send")
+            .unwrap();
+        assert_eq!(
+            send.pointer("/inputSchema/properties/max_continuations/maximum"),
+            Some(&json!(20))
+        );
+        assert!(send
+            .pointer("/inputSchema/properties/completion_marker/pattern")
+            .and_then(Value::as_str)
+            .is_some_and(|pattern| pattern.contains("A-Za-z0-9")));
         assert!(!tools.iter().any(|t| t["name"] == "shell"));
     }
 

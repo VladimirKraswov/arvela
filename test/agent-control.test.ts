@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { agentControlConfig } from "../src/state/agentControl";
 import { agentControlForTest } from "../src/control/bridge";
+import type { ManagedRun } from "../src/control/managedRuns";
 
 const nativeStatus = {
   ready: true,
@@ -10,6 +11,24 @@ const nativeStatus = {
 };
 
 describe("agent control MCP", () => {
+  const managed = (overrides: Partial<ManagedRun> = {}): ManagedRun => ({
+    version: 1,
+    serverKey: "local",
+    sessionId: "ses_long",
+    directory: "/tmp/project",
+    boundaryMessageId: null,
+    turnBoundaryMessageId: null,
+    recoveredMessageIds: [],
+    malformedAttempts: 0,
+    continuationAttempts: 0,
+    maxContinuations: 2,
+    completionMarker: "DONE",
+    checkpointPath: ".pi/TASK.md",
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  });
+
   it("adds a local MCP without discarding JSONC comments or other servers", () => {
     const source = `{
   // keep this server
@@ -113,5 +132,44 @@ describe("agent control MCP", () => {
         ],
       ),
     ).toBe(false);
+  });
+
+  it("uses independent bounded budgets for malformed calls and incomplete work", () => {
+    expect(agentControlForTest.decideManagedIdle(managed(), "msg_bad", false)).toEqual({
+      kind: "retry_malformed",
+      messageId: "msg_bad",
+    });
+    expect(
+      agentControlForTest.decideManagedIdle(
+        managed({ malformedAttempts: 2 }),
+        "msg_bad",
+        false,
+      ),
+    ).toEqual({ kind: "recovery_exhausted", messageId: "msg_bad" });
+    expect(agentControlForTest.decideManagedIdle(managed(), null, true)).toEqual({
+      kind: "completed",
+    });
+    expect(agentControlForTest.decideManagedIdle(managed(), null, false)).toEqual({
+      kind: "continue",
+    });
+    expect(
+      agentControlForTest.decideManagedIdle(
+        managed({ continuationAttempts: 2 }),
+        null,
+        false,
+      ),
+    ).toEqual({ kind: "incomplete" });
+  });
+
+  it("accepts a completion marker only as its own exact line", () => {
+    expect(agentControlForTest.containsCompletionMarker("done\nACCEPTANCE_DONE\n", "ACCEPTANCE_DONE")).toBe(true);
+    expect(agentControlForTest.containsCompletionMarker("will later print ACCEPTANCE_DONE", "ACCEPTANCE_DONE")).toBe(false);
+    expect(agentControlForTest.containsCompletionMarker("ACCEPTANCE_DONE_SUFFIX", "ACCEPTANCE_DONE")).toBe(false);
+  });
+
+  it("does not cross a tool-call boundary before the final assistant answer", () => {
+    expect(agentControlForTest.isFinalAssistant({ role: "assistant", finish: "tool-calls" })).toBe(false);
+    expect(agentControlForTest.isFinalAssistant({ role: "assistant", finish: null })).toBe(false);
+    expect(agentControlForTest.isFinalAssistant({ role: "assistant", finish: "stop" })).toBe(true);
   });
 });

@@ -9,6 +9,14 @@ import type { EngineId } from "../state/engines";
 import { store } from "../state/store";
 import { isNative } from "../native/platform";
 import { installAgentControlMcp } from "./install";
+import {
+  getManagedRun,
+  listManagedRuns,
+  managedRunSummary,
+  putManagedRun,
+  removeManagedRun,
+  type ManagedRun,
+} from "./managedRuns";
 
 interface ControlCommand {
   id: string;
@@ -22,17 +30,12 @@ const MAX_MALFORMED_TOOL_RECOVERIES = 2;
 const TOOL_RECOVERY_PROMPT =
   "Системное восстановление: предыдущий ответ завершился без выполнения, потому что вызов инструмента был выведен как обычный текст. Повтори тот же шаг сейчас через настоящий встроенный инструмент OpenCode с корректными структурированными аргументами, затем продолжи исходную задачу. Не описывай XML-теги и не завершай работу до проверки результата.";
 
-interface ManagedRun {
-  directory: string;
-  messagesBeforeSend: Set<string>;
-  recoveredMessages: Set<string>;
-  attempts: number;
-}
-
-// This state belongs to the long-lived Desktop process, not to the short-lived
-// MCP stdio client.  Therefore a later desktop_wait can recover a desktop_send
-// even though each MCP invocation used a different process.
-const managedRuns = new Map<string, ManagedRun>();
+const COMPLETION_MARKER = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+const SAFE_CHECKPOINT_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/ -]{1,240}$/;
+const inFlightWaits = new Map<
+  string,
+  { promise: Promise<unknown>; controller: AbortController }
+>();
 
 function object(value: unknown): Params {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -111,6 +114,7 @@ function status() {
   const id = store.state.activeSessionId;
   const model = store.getModelChoice();
   const interactions = id ? pending(id) : { permissions: [], questions: [] };
+  const serverKey = store.state.prefs.workspaceKey ?? store.state.prefs.endpoint;
   return {
     connection: store.state.connection,
     directory: store.state.directory,
@@ -125,6 +129,7 @@ function status() {
       permissions: interactions.permissions.length,
       questions: interactions.questions.length,
     },
+    managedRun: id ? managedRunSummary(getManagedRun(serverKey, id)) : null,
     view: {
       settingsOpen: store.state.ui.settingsOpen,
       sidebarOpen: store.state.prefs.layout.sidebarOpen,
@@ -186,21 +191,52 @@ async function send(params: Params) {
     );
   }
   configure(params);
-  const messagesBeforeSend = new Set(
-    store.state.activeSessionId
-      ? (store.state.chat.sessions[store.state.activeSessionId]?.messageOrder ?? [])
-      : [],
+  const completionMarker = text(params, "completion_marker", false) ?? null;
+  if (completionMarker && !COMPLETION_MARKER.test(completionMarker))
+    throw new Error(
+      "completion_marker must be 1-128 ASCII letters, digits, dot, colon, underscore or dash",
+    );
+  const maxContinuations = integer(
+    params,
+    "max_continuations",
+    completionMarker ? 6 : 0,
+    0,
+    20,
   );
-  const accepted = await store.sendPrompt(text(params, "text")!);
+  if (!completionMarker && maxContinuations)
+    throw new Error("max_continuations requires completion_marker");
+  const checkpointPath = text(params, "checkpoint_path", false) ?? null;
+  if (checkpointPath && !SAFE_CHECKPOINT_PATH.test(checkpointPath))
+    throw new Error("checkpoint_path must be a safe project-relative path without '..'");
+  const currentOrder = store.state.activeSessionId
+    ? (store.state.chat.sessions[store.state.activeSessionId]?.messageOrder ?? [])
+    : [];
+  const boundaryMessageId = currentOrder.length ? currentOrder[currentOrder.length - 1] : null;
+  const originalPrompt = text(params, "text")!;
+  const managedPrompt = completionMarker
+    ? `${originalPrompt}\n\n---\nКонтракт управляемой длительной задачи:\n- Продолжай работу через инструменты и фактические проверки, а не только планирование.\n- После каждого значимого этапа сохраняй компактный checkpoint: цель, ограничения, проверенные факты, изменённые файлы, результаты тестов и точный следующий шаг.${checkpointPath ? ` Используй файл ${checkpointPath}.` : " Используй checkpoint, предусмотренный инструкциями проекта, если он есть."}\n- После сжатия контекста сначала перечитай checkpoint и проверь текущее состояние репозитория.\n- При необходимости решения человека задай штатный вопрос; не угадывай разрешения или требования.\n- Только когда все критерии исходной задачи действительно выполнены и проверены, выведи отдельной строкой точный маркер ${completionMarker}. Не упоминай и не выводи этот маркер раньше.`
+    : originalPrompt;
+  const accepted = await store.sendPrompt(managedPrompt);
   const acceptedSession = store.state.activeSessionId;
   if (!accepted || !acceptedSession) {
     throw new Error(store.state.ui.sendError ?? "the prompt was not accepted");
   }
-  managedRuns.set(acceptedSession, {
+  const now = Date.now();
+  putManagedRun({
+    version: 1,
+    serverKey: store.state.prefs.workspaceKey ?? store.state.prefs.endpoint,
+    sessionId: acceptedSession,
     directory,
-    messagesBeforeSend,
-    recoveredMessages: new Set(),
-    attempts: 0,
+    boundaryMessageId,
+    turnBoundaryMessageId: boundaryMessageId,
+    recoveredMessageIds: [],
+    malformedAttempts: 0,
+    continuationAttempts: 0,
+    maxContinuations,
+    completionMarker,
+    checkpointPath,
+    createdAt: now,
+    updatedAt: now,
   });
   return {
     accepted: true,
@@ -211,13 +247,18 @@ async function send(params: Params) {
   };
 }
 
-function waitForStateChange(sessionId: string, deadline: number): Promise<unknown> {
+function waitForStateChange(
+  sessionId: string,
+  deadline: number,
+  signal: AbortSignal,
+): Promise<unknown> {
   return new Promise((resolve) => {
     let timer: ReturnType<typeof setTimeout>;
     let unsubscribe = () => {};
     const finish = (result: unknown) => {
       clearTimeout(timer);
       unsubscribe();
+      signal.removeEventListener("abort", inspect);
       resolve(result);
     };
     const inspect = () => {
@@ -227,7 +268,9 @@ function waitForStateChange(sessionId: string, deadline: number): Promise<unknow
         runStatus.type === "busy" ||
         runStatus.type === "retry" ||
         (store.state.activeSessionId === sessionId && store.state.ui.sending);
-      if (interaction.permissions.length || interaction.questions.length) {
+      if (signal.aborted) {
+        finish({ outcome: "stopped", status: runStatus });
+      } else if (interaction.permissions.length || interaction.questions.length) {
         finish({ outcome: "needs_input", status: runStatus, ...interaction });
       } else if (store.state.chat.sessions[sessionId]?.lastError) {
         finish({
@@ -242,6 +285,57 @@ function waitForStateChange(sessionId: string, deadline: number): Promise<unknow
       }
     };
     unsubscribe = store.subscribe(inspect);
+    signal.addEventListener("abort", inspect, { once: true });
+    timer = setTimeout(inspect, Math.max(0, deadline - Date.now()));
+    inspect();
+  });
+}
+
+function isFinalAssistant(message: { role: string; finish?: string | null }): boolean {
+  return message.role === "assistant" && Boolean(message.finish && message.finish !== "tool-calls");
+}
+
+function finalAssistantSince(sessionId: string, boundaryMessageId: string | null): boolean {
+  const chat = store.state.chat.sessions[sessionId];
+  if (!chat) return false;
+  for (const messageId of [...chat.messageOrder].reverse()) {
+    if (messageId === boundaryMessageId) break;
+    const message = chat.messages[messageId];
+    if (!message || message.role !== "assistant") continue;
+    return isFinalAssistant(message);
+  }
+  return false;
+}
+
+function waitForManagedTurn(
+  sessionId: string,
+  boundaryMessageId: string | null,
+  deadline: number,
+  signal: AbortSignal,
+) {
+  return new Promise<void>((resolve) => {
+    let timer: ReturnType<typeof setTimeout>;
+    let unsubscribe = () => {};
+    const finish = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      signal.removeEventListener("abort", inspect);
+      resolve();
+    };
+    const inspect = () => {
+      const interaction = pending(sessionId);
+      if (
+        signal.aborted ||
+        interaction.permissions.length ||
+        interaction.questions.length ||
+        store.state.chat.sessions[sessionId]?.lastError ||
+        finalAssistantSince(sessionId, boundaryMessageId) ||
+        Date.now() >= deadline
+      )
+        finish();
+    };
+    unsubscribe = store.subscribe(inspect);
+    signal.addEventListener("abort", inspect, { once: true });
     timer = setTimeout(inspect, Math.max(0, deadline - Date.now()));
     inspect();
   });
@@ -268,7 +362,8 @@ function recoverableMalformedToolMessage(sessionId: string, run: ManagedRun) {
   const chat = store.state.chat.sessions[sessionId];
   if (!chat) return null;
   for (const messageId of [...chat.messageOrder].reverse()) {
-    if (run.messagesBeforeSend.has(messageId) || run.recoveredMessages.has(messageId)) continue;
+    if (messageId === run.boundaryMessageId) break;
+    if (run.recoveredMessageIds.includes(messageId)) continue;
     const message = chat.messages[messageId];
     if (!message || message.role !== "assistant") continue;
     const parts = (chat.partsByMessage[messageId] ?? [])
@@ -279,45 +374,169 @@ function recoverableMalformedToolMessage(sessionId: string, run: ManagedRun) {
   return null;
 }
 
-async function waitUntilSettled(sessionId: string, timeoutSeconds: number): Promise<unknown> {
+function containsCompletionMarker(text: string, marker: string): boolean {
+  return text.split(/\r?\n/).some((line) => line.trim() === marker);
+}
+
+function completionMarkerSeen(sessionId: string, run: ManagedRun): boolean {
+  if (!run.completionMarker) return true;
+  const chat = store.state.chat.sessions[sessionId];
+  if (!chat) return false;
+  for (const messageId of [...chat.messageOrder].reverse()) {
+    if (messageId === run.boundaryMessageId) break;
+    const message = chat.messages[messageId];
+    if (!message || message.role !== "assistant") continue;
+    for (const partId of chat.partsByMessage[messageId] ?? []) {
+      const part = chat.parts[partId];
+      if (part?.type === "text" && containsCompletionMarker(part.text ?? "", run.completionMarker))
+        return true;
+    }
+  }
+  return false;
+}
+
+function continuationPrompt(run: ManagedRun): string {
+  return `Управляемая длительная задача ещё не завершена: обязательный маркер ${run.completionMarker} отсутствует. Перечитай исходную задачу${run.checkpointPath ? ` и checkpoint ${run.checkpointPath}` : " и текущий checkpoint"}, проверь уже выполненное инструментами и продолжай с первого незакрытого шага. Не объявляй готовность и не выводи маркер, пока все критерии приёмки действительно не выполнены. Если необходимо решение человека, задай штатный вопрос.`;
+}
+
+type ManagedIdleDecision =
+  | { kind: "retry_malformed"; messageId: string }
+  | { kind: "recovery_exhausted"; messageId: string }
+  | { kind: "completed" }
+  | { kind: "continue" }
+  | { kind: "incomplete" };
+
+function decideManagedIdle(
+  run: ManagedRun,
+  malformedMessageId: string | null,
+  markerSeen: boolean,
+): ManagedIdleDecision {
+  if (malformedMessageId) {
+    return run.malformedAttempts >= MAX_MALFORMED_TOOL_RECOVERIES
+      ? { kind: "recovery_exhausted", messageId: malformedMessageId }
+      : { kind: "retry_malformed", messageId: malformedMessageId };
+  }
+  if (markerSeen) return { kind: "completed" };
+  return run.continuationAttempts >= run.maxContinuations
+    ? { kind: "incomplete" }
+    : { kind: "continue" };
+}
+
+async function waitUntilSettled(
+  sessionId: string,
+  timeoutSeconds: number,
+  signal: AbortSignal,
+): Promise<unknown> {
   const deadline = Date.now() + timeoutSeconds * 1000;
   for (;;) {
-    const result = (await waitForStateChange(sessionId, deadline)) as {
+    if (signal.aborted) return { outcome: "stopped", status: activeStatus(sessionId) };
+    const result = (await waitForStateChange(sessionId, deadline, signal)) as {
       outcome: string;
       status: unknown;
       [key: string]: unknown;
     };
     if (result.outcome !== "idle") return { ...result, timeoutSeconds };
 
-    const run = managedRuns.get(sessionId);
+    const serverKey = store.state.prefs.workspaceKey ?? store.state.prefs.endpoint;
+    let run = getManagedRun(serverKey, sessionId);
     if (!run) return result;
-    const malformed = recoverableMalformedToolMessage(sessionId, run);
-    if (!malformed) {
-      managedRuns.delete(sessionId);
-      return result;
-    }
-    if (run.attempts >= MAX_MALFORMED_TOOL_RECOVERIES) {
-      managedRuns.delete(sessionId);
+    // A persisted run may be resumed while another chat is visible. Load its
+    // authoritative history before deciding that a marker is absent; otherwise
+    // an empty in-memory slot could cause a false continuation after restart.
+    await selectSession(run.directory, sessionId);
+    if (signal.aborted) return { outcome: "stopped", status: activeStatus(sessionId) };
+    run = getManagedRun(serverKey, sessionId);
+    if (!run) return result;
+    const refreshedInteraction = pending(sessionId);
+    const refreshedStatus = activeStatus(sessionId);
+    if (refreshedInteraction.permissions.length || refreshedInteraction.questions.length) {
       return {
-        outcome: "recovery_exhausted",
-        status: result.status,
-        attempts: run.attempts,
-        messageId: malformed.id,
+        outcome: "needs_input",
+        status: refreshedStatus,
+        ...refreshedInteraction,
       };
+    }
+    if (store.state.chat.sessions[sessionId]?.lastError) {
+      return {
+        outcome: "failed",
+        status: refreshedStatus,
+        error: store.state.chat.sessions[sessionId].lastError,
+      };
+    }
+    if (refreshedStatus.type === "busy" || refreshedStatus.type === "retry") {
+      if (Date.now() >= deadline)
+        return { outcome: "timeout", status: refreshedStatus, timeoutSeconds };
+      continue;
+    }
+    if (!finalAssistantSince(sessionId, run.turnBoundaryMessageId)) {
+      await waitForManagedTurn(sessionId, run.turnBoundaryMessageId, deadline, signal);
+      if (signal.aborted) return { outcome: "stopped", status: activeStatus(sessionId) };
+      if (Date.now() >= deadline)
+        return { outcome: "timeout", status: activeStatus(sessionId), timeoutSeconds };
+      continue;
+    }
+    const malformed = recoverableMalformedToolMessage(sessionId, run);
+    const decision = decideManagedIdle(
+      run,
+      malformed?.id ?? null,
+      completionMarkerSeen(sessionId, run),
+    );
+    let prompt: string | null = null;
+    let recoveryKind: "malformed_tool" | "incomplete" | null = null;
+    if (decision.kind === "retry_malformed" || decision.kind === "recovery_exhausted") {
+      if (decision.kind === "recovery_exhausted") {
+        removeManagedRun(serverKey, sessionId);
+        return {
+          outcome: "recovery_exhausted",
+          status: result.status,
+          attempts: run.malformedAttempts,
+          messageId: decision.messageId,
+        };
+      }
+      run = putManagedRun({
+        ...run,
+        recoveredMessageIds: [...run.recoveredMessageIds, decision.messageId],
+        malformedAttempts: run.malformedAttempts + 1,
+      });
+      prompt = TOOL_RECOVERY_PROMPT;
+      recoveryKind = "malformed_tool";
+    } else if (decision.kind === "completed") {
+      removeManagedRun(serverKey, sessionId);
+      return run.completionMarker
+        ? { outcome: "completed", status: result.status, completionMarker: run.completionMarker }
+        : result;
+    } else if (decision.kind === "incomplete") {
+      removeManagedRun(serverKey, sessionId);
+      return {
+        outcome: "incomplete",
+        status: result.status,
+        reason: "completion_marker_missing",
+        completionMarker: run.completionMarker,
+        attempts: run.continuationAttempts,
+      };
+    } else {
+      run = putManagedRun({
+        ...run,
+        continuationAttempts: run.continuationAttempts + 1,
+      });
+      prompt = continuationPrompt(run);
+      recoveryKind = "incomplete";
     }
 
     // Keep the recovery in the same visible conversation. Selection is explicit
     // because the user may have inspected another chat between send and wait.
-    await selectSession(run.directory, sessionId);
-    run.recoveredMessages.add(malformed.id);
-    run.attempts += 1;
-    const accepted = await store.sendPrompt(TOOL_RECOVERY_PROMPT);
+    const order = store.state.chat.sessions[sessionId]?.messageOrder ?? [];
+    run = putManagedRun({
+      ...run,
+      turnBoundaryMessageId: order.length ? order[order.length - 1] : run.turnBoundaryMessageId,
+    });
+    const accepted = await store.sendPrompt(prompt);
     if (!accepted) {
-      managedRuns.delete(sessionId);
+      removeManagedRun(serverKey, sessionId);
       return {
         outcome: "recovery_failed",
         status: activeStatus(sessionId),
-        attempts: run.attempts,
+        recoveryKind,
         error: store.state.ui.sendError ?? "OpenCode rejected the recovery prompt",
       };
     }
@@ -327,9 +546,21 @@ async function waitUntilSettled(sessionId: string, timeoutSeconds: number): Prom
         status: activeStatus(sessionId),
         timeoutSeconds,
         recoveryAttempted: true,
+        recoveryKind,
       };
     }
   }
+}
+
+function waitForSession(sessionId: string, timeoutSeconds: number): Promise<unknown> {
+  const existing = inFlightWaits.get(sessionId);
+  if (existing) return existing.promise;
+  const controller = new AbortController();
+  const pending = waitUntilSettled(sessionId, timeoutSeconds, controller.signal).finally(() => {
+    if (inFlightWaits.get(sessionId)?.promise === pending) inFlightWaits.delete(sessionId);
+  });
+  inFlightWaits.set(sessionId, { promise: pending, controller });
+  return pending;
 }
 
 function conversation(sessionId: string, limit: number, maxChars: number) {
@@ -438,7 +669,7 @@ async function execute(method: string, raw: unknown): Promise<unknown> {
     case "send":
       return send(params);
     case "wait":
-      return waitUntilSettled(
+      return waitForSession(
         text(params, "session_id")!,
         integer(params, "timeout_seconds", 120, 1, 300),
       );
@@ -454,12 +685,26 @@ async function execute(method: string, raw: unknown): Promise<unknown> {
     }
     case "stop": {
       const sessionId = text(params, "session_id")!;
+      removeManagedRun(store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, sessionId);
+      inFlightWaits.get(sessionId)?.controller.abort();
       await store.stopSession(sessionId);
-      managedRuns.delete(sessionId);
       return { stopped: true, sessionId, status: activeStatus(sessionId) };
     }
     case "interactions":
       return pending(text(params, "session_id")!);
+    case "managed_runs": {
+      const serverKey = store.state.prefs.workspaceKey ?? store.state.prefs.endpoint;
+      return listManagedRuns(serverKey).map((run) => ({
+        sessionId: run.sessionId,
+        directory: run.directory,
+        ...managedRunSummary(run),
+      }));
+    }
+    case "forget_managed_run": {
+      const sessionId = text(params, "session_id")!;
+      removeManagedRun(store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, sessionId);
+      return { forgotten: true, sessionId };
+    }
     case "reply_permission": {
       const requestId = text(params, "request_id")!;
       const reply = text(params, "reply")!;
@@ -553,4 +798,10 @@ export async function startAgentControl(): Promise<() => void> {
   return stopBridge;
 }
 
-export const agentControlForTest = { execute, malformedToolCallMessage };
+export const agentControlForTest = {
+  execute,
+  malformedToolCallMessage,
+  decideManagedIdle,
+  containsCompletionMarker,
+  isFinalAssistant,
+};

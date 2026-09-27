@@ -1,4 +1,43 @@
-# OpenCode Desktop 0.2.11 — managed-session recovery follow-up (SOURCE DONE; FINAL INSTALL DEFERRED 2026-09-27)
+# OpenCode Desktop 0.2.11 — Agent Factory durable local runs (DONE 2026-09-27)
+
+Owner expanded the malformed-tool repair into a production-quality system for
+long local-model sessions. Source now has an explicit opt-in completion
+contract on `desktop_send`: exact standalone marker, 0–20 bounded semantic
+continuations, optional safe project-relative checkpoint path and a visible
+prompt contract for tool use/checkpoints/compaction/user questions. Supervision
+metadata is schema-validated, server/session-scoped, bounded to 100 records and
+30 days, and persists across Desktop restarts without storing prompts, tool
+output or credentials. Before any post-restart decision, Desktop selects the
+session and loads authoritative history, preventing a false continuation from
+an empty in-memory slot. Malformed-tool and incomplete-work budgets are
+independent; completion, incomplete, timeout, failed, needs-input,
+recovery-exhausted and recovery-failed remain distinct. Explicit stop and a
+rejected recovery remove durable state. Documentation: `docs/AGENT-FACTORY.md`.
+
+The final turn fence waits for a completed assistant response after the most
+recent send. A transient idle event and an intermediate `finish=tool-calls`
+therefore cannot dispatch duplicate continuations; concurrent waits for one
+session are coalesced. Verification: focused 16 frontend tests, full 297 passed
+/ 6 opt-in live skipped, TypeScript/Vite build,
+Rust 32 tests, signed macOS app and verified DMG. Native Qwen acceptance used
+test-owned sessions only: one bounded continuation completed without a
+duplicate; a second contract survived a full Desktop restart and completed;
+explicit stop removed a third contract and `desktop_managed_runs` stayed empty.
+Two concurrent MCP waits on final installed build session
+`ses_f1e262117ffeb4LNtlCGigSzwm` returned the same completed result and produced
+exactly one continuation user message.
+An active wait on `ses_f1e20d527ffeJPyhjn0uoKx42S` woke with `stopped` in 0.111
+seconds after explicit stop; its durable inventory was empty.
+Installed executable matches the candidate at SHA256
+`8f5c00b66014c5e6f9f2fa12fc192b4bce36f5b7e34e659a00aafe242cec150f`;
+DMG SHA256 is
+`241b0c059d4ea440c3c22315e8608146d8cdc90a7b6fdd2acdc13848c4cc7f75`.
+The previous app is recoverable at
+`~/.local/share/opencode-desktop/backups/0.2.11-agent-factory-stopfix-before-20260927`;
+earlier candidates are retained in the adjacent Agent Factory backups.
+The independent OpenCode server and unrelated user sessions were preserved.
+
+## Previous task — managed-session malformed-tool recovery (SOURCE DONE; FINAL INSTALL DEFERRED 2026-09-27)
 
 Owner reported that a long Nexus task silently stopped when local Qwen omitted
 one tool-call argument tag. Root cause is proven by NInfer request 269: the

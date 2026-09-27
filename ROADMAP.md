@@ -1,5 +1,21 @@
 # OpenCode Desktop roadmap
 
+## M20 — Agent Factory for durable local-model work (0.2.11 follow-up)
+
+- [x] Explicit completion contract: exact standalone marker plus bounded continuations.
+- [x] Durable server/session-scoped supervision state survives Desktop restart.
+- [x] Optional safe project-relative checkpoint path injected into the visible task contract.
+- [x] Separate completed, incomplete, needs-input, failed, timeout and recovery-exhausted outcomes.
+- [x] Bounded malformed tool-call repair remains independent from semantic continuation budget.
+- [x] Explicit stop and rejected recovery remove the contract; no later resurrection.
+- [x] Stored records are schema-validated, age/count bounded and contain no prompts/tool output.
+- [x] Agent API can inventory and explicitly forget durable contracts without deleting chats.
+- [x] Native live continuation, full Desktop restart/resume and explicit-stop acceptance.
+
+Acceptance: start a test-owned managed task, observe at least one bounded continuation,
+restart Desktop between waits, complete only on the exact marker, and prove explicit stop
+cannot resume it. Preserve the external OpenCode server and all unrelated sessions.
+
 ## M19 — Agent control plane and MCP (0.2.11)
 
 - Private per-user Unix socket owned by the running Desktop process; no LAN listener.

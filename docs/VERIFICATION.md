@@ -1,5 +1,56 @@
 # Verification record
 
+## Agent Factory durable local runs — 0.2.11 follow-up, 2026-09-27
+
+- Managed `desktop_send` accepts an exact completion marker, bounded semantic
+  continuation budget and optional safe project-relative checkpoint. The model
+  receives a visible contract to work through tools, record evidence, resume
+  after compaction and request human input rather than invent it.
+- Supervision survives Desktop restart and is scoped by server plus session.
+  Only directory, boundary ID, marker/checkpoint and counters are stored; no
+  prompt, response, tool output, credential or permission answer. Records are
+  schema-validated, capped at 100, expire after 30 days and retain at most 32
+  malformed message IDs.
+- An idle persisted run first opens the exact session and loads authoritative
+  history. Completion requires the marker as its own exact assistant text line.
+  Missing markers and malformed tool calls use separate finite budgets.
+  Explicit stop/rejected recovery delete the contract. Ordinary chats remain
+  single-send and receive no semantic continuation.
+- A per-turn message fence prevents a stale `idle` event from sending another
+  continuation while the model is already reasoning or executing a tool. An
+  assistant message with `finish=tool-calls` is intermediate; only a later
+  completed assistant response permits the next lifecycle decision.
+- Checks: focused Agent Factory/Control **16 passed**; full frontend **297
+  passed / 6 opt-in live skipped**; TypeScript/Vite production build; Rust
+  **32 tests passed**; signed native app, strict `codesign`, package verifier
+  and `hdiutil verify` passed.
+- Native local-Qwen acceptance used isolated sessions in the real candidate
+  app. `ses_f1e30b68cffe8fP1f66sPnMnXY` stopped once without its marker, received
+  exactly one continuation, passed through an intermediate tool-call turn and
+  completed on the exact marker without a duplicate send.
+  `ses_f1e2eae57ffecZXDK0nk6CZHhb` stopped without its marker, remained listed
+  by `desktop_managed_runs`, survived a full Desktop process restart and then
+  completed from authoritative OpenCode history. Explicit stop removed the
+  contract for `ses_f1e2ce58cffewjWTctCszuA34o`; the inventory was empty and no
+  continuation was resurrected.
+- On the final installed build, two simultaneous MCP waits observed
+  `ses_f1e262117ffeb4LNtlCGigSzwm`. Both returned the same completed result;
+  authoritative history contained two user messages total (the initial task
+  and exactly one continuation), proving per-session wait coalescing.
+- An explicit stop while `desktop_wait` was actively observing
+  `ses_f1e20d527ffeJPyhjn0uoKx42S` woke the waiter with `outcome=stopped` in
+  0.111 seconds rather than waiting for its 180-second timeout. The backend
+  became idle and `desktop_managed_runs` returned an empty list.
+- Installed and candidate executable SHA256:
+  `8f5c00b66014c5e6f9f2fa12fc192b4bce36f5b7e34e659a00aafe242cec150f`.
+  DMG SHA256:
+  `241b0c059d4ea440c3c22315e8608146d8cdc90a7b6fdd2acdc13848c4cc7f75`.
+  Previous installed build is recoverable at
+  `~/.local/share/opencode-desktop/backups/0.2.11-agent-factory-stopfix-before-20260927`;
+  earlier candidates remain in the adjacent Agent Factory backups.
+  The external OpenCode server and unrelated sessions were not restarted,
+  stopped or repurposed.
+
 ## Managed local-model recovery — 0.2.11, 2026-09-27
 
 - NInfer request 269 proved the failure mode: Qwen emitted a complete textual
