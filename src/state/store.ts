@@ -46,6 +46,7 @@ import {
   type EngineId,
 } from "./engines";
 import { completionChime } from "../native/sound";
+import { startLocalServerIfNative } from "../native/localServer";
 import { emptySidebarList, emptyRecentList, mergeSidebarSessions, type SidebarList, type RecentList } from "./sidebar";
 import type {
   AgentInfo,
@@ -899,7 +900,23 @@ class Store {
       },
     }));
     try {
-      const health = await backend.health();
+      let health;
+      try {
+        health = await backend.health();
+      } catch (error) {
+        if (gen !== this.connectionGeneration) return false;
+        // A local network failure may mean that no engine is running. The
+        // native side double-checks health/port under an interprocess lock
+        // before launching the separately installed CLI. SSH forwards have a
+        // different workspace key and must never fall back to a local engine.
+        if (
+          !(error instanceof ConnectionError) ||
+          key !== requested ||
+          !(await startLocalServerIfNative(requested))
+        ) throw error;
+        if (gen !== this.connectionGeneration) return false;
+        health = await backend.health();
+      }
       if (gen !== this.connectionGeneration) return false;
       if (!health.healthy) throw new Error("Server reports unhealthy");
       if (Number(health.version.split(".")[0]) !== 1)

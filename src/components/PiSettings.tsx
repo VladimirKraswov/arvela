@@ -112,6 +112,7 @@ export function PiSettings() {
                 : (install?.error ?? "Не проверено")}
           </span>
         </Row>
+        {install && !install.installed && <Row title="Установка Pi" description="Откройте официальную инструкцию, установите CLI и нажмите «Сохранить и проверить». Установка не выполняется автоматически."><button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl("https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md#getting-started"))}>Установить Pi…</button></Row>}
         <Row
           title="Путь к Pi"
           description="Абсолютный путь. Пусто — искать в известных местах установки."

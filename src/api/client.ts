@@ -70,7 +70,7 @@ export function isAllowedBaseUrl(raw: string): boolean {
     host !== "::1"
   )
     return false;
-  if (url.port && !/^\d+$/.test(url.port)) return false;
+  if (url.port && (!/^\d+$/.test(url.port) || Number(url.port) === 0)) return false;
   return true;
 }
 

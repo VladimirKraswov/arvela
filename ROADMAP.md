@@ -35,6 +35,15 @@ The goal is a full daily-use desktop coding client with the familiar workspace s
 - [x] Dependency installation, starter frontend build and Rust check verified; see docs/VERIFICATION.md.
 - [x] Initial Git checkpoint prepared and committed before worker dispatch.
 
+## M21 — Local OpenCode server autostart (0.2.12)
+
+- [x] On local connection failure, native Desktop checks the loopback port and starts the separately installed CLI only when absent.
+- [x] Cross-process startup lock, bounded health wait, executable discovery under a restricted app PATH, and a private startup log.
+- [x] Remote SSH workspaces, occupied ports, HTTP/auth errors and browser preview never trigger a local server launch.
+- [x] App exit leaves the server running; no existing server is restarted or killed.
+- [x] When local OpenCode or Pi CLI is missing, offer its official installation instructions; never install either engine silently.
+- [ ] Packaged macOS acceptance: missing test-owned local endpoint starts and connects; already running OpenCode is reused; existing user sessions are preserved.
+
 ## M1 — Native shell and connection (first vertical slice)
 
 - [x] Replace template with designed application shell, real sidebar, main view, top bar and persistent composer area. (VERIFICATION M1–M5)
@@ -98,8 +107,8 @@ Acceptance: user can execute and interrupt a local test command, then continue c
 
 ## M6 — Reliability, independent updates and macOS package
 
-- [ ] PARTIAL: disconnected gate shows actionable instructions and reconnect; the app deliberately never spawns a server, so no start/executable-picker flow.
-- [x] The app never spawns or kills OpenCode processes (externally managed) — verified across all live runs; no config rewrites.
+- [x] Disconnected gate shows actionable errors and reconnect; installed local OpenCode is started automatically when absent, with no executable picker or engine auto-update.
+- [x] Existing OpenCode processes are never killed or restarted; a Desktop-started local server remains independent after app exit. No config rewrites.
 - [ ] PARTIAL: shell (0.1.0) and engine (1.18.18) versions are displayed separately and reconnect is bounded/handled; no update flow.
 - [x] Reducer/client tests use real 1.18.18 event/patch/question shapes incl. missing/optional fields. No engine upgrade was run.
 - [x] Loopback-only WebView CSP, narrow core/opener/dialog capabilities and bounded native ASR command, safe-href markdown, no secrets logged. (Diagnostic export UI still absent.)

@@ -1,5 +1,52 @@
 # Verification record
 
+## Local OpenCode server autostart and CLI install offers — 0.2.12, 2026-09-30
+
+- The prior local connection path only checked `/global/health` and showed a
+  manual `opencode serve` instruction. A failed local connection now asks the
+  native shell to launch the separately installed CLI, then repeats health.
+  Existing healthy servers and occupied ports are never spawned over. SSH
+  workspaces, non-network HTTP errors and browser preview cannot start a local
+  service. The native command accepts only a plain HTTP loopback origin, uses
+  an interprocess launch lock and waits at most 30 seconds for health.
+- Native detection offers official OpenCode setup from the local connection
+  gate and General settings if the CLI is absent. The Pi settings page offers
+  the official Pi setup if its existing native detection fails. These are
+  explicit links, not automatic installers. The owner clarified that the
+  requested name was OpenCode, not Claude Code.
+- Test evidence: focused frontend **3/3**, full frontend **300 passed / 6
+  opt-in live skipped**, TypeScript/Vite build, Rust **37/37** plus formatting.
+  Rust tests include a test-owned fake CLI that reaches `/global/health`, an
+  immediate CLI failure, a healthy existing endpoint and an occupied port.
+  An initial frontend suite run overlapped Rust compilation and timed out in
+  five unrelated tests; those three suites passed **31/31** when rerun alone,
+  and the subsequent full sequential run passed.
+- After adding the install offers, focused frontend tests passed **20/20** for
+  connection/client behavior and **6/6** for Settings. Rust remained **37/37**;
+  `cargo check --all-targets` and `cargo fmt --all --check` passed. A parallel
+  full frontend rerun under Rust compilation and heavy local workload produced
+  timeouts in unrelated store/routing tests; this is not counted as a pass.
+  The final full rerun with two workers passed **301 tests / 6 opt-in live
+  skipped**.
+- Existing OpenCode 1.18.18 on local port 4096 and its active user session were
+  left untouched during implementation. The final macOS app and DMG built;
+  strict `codesign`, `scripts/verify-macos.py` and `hdiutil verify` passed.
+  Executable SHA256:
+  `24f7a0772324d1f3dedbbac8cd1e0732bf55ed3fde86492a60f8b5be7395fd6a`;
+  DMG SHA256:
+  `2008936781b68ee0de5dab781ca938942601dc7c1826e502563aee1ed6723733`.
+  The matching DMG was copied to Downloads. The owner authorized interrupting
+  the one active TinyCAD session for installation. Only that session was
+  aborted; the API then showed no active jobs. Previous app backup:
+  `~/.local/share/opencode-desktop/backups/0.2.11-before-0.2.12-20260930-184828`.
+  Installed executable matched the candidate SHA256. Native UI showed Desktop
+  0.2.12 connected to the unchanged OpenCode 1.18.18 server, OpenCode CLI
+  installed, and Pi 0.85.1 installed. The original TinyCAD chat was resumed
+  through the installed app; API confirmed the new user message and busy
+  status in the same session ID. A packaged-app missing-server test on the
+  owner's active profile was not performed; the Rust fake-CLI integration
+  test proves the launch/readiness path without stopping the user server.
+
 ## GitHub publication — v0.2.11, 2026-09-27
 
 - Current source and the completed AI-environment documentation were pushed to

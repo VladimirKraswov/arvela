@@ -4,13 +4,16 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_PREFS } from "../src/state/prefs";
 const fake = vi.hoisted(() => ({ state: {} as any, setUi: vi.fn(), setAsr: vi.fn(), setHelperEndpoint: vi.fn(), setAppearance: vi.fn(), setTheme: vi.fn(), connect: vi.fn() }));
+const cli = vi.hoisted(() => ({ detect: vi.fn<() => Promise<boolean | null>>() }));
 vi.mock('../src/state/store', () => ({ useAppState: () => fake.state, store: { ...fake, hostLabel: () => "Этот компьютер" } }));
+vi.mock('../src/native/localServer', () => ({ detectLocalOpenCode: cli.detect }));
 vi.mock('../src/components/OpenCodeSettings', () => ({ OpenCodeSettings: ({ section, onDirtyChange }: any) => createElement('button', { onClick: () => onDirtyChange(true) }, `Изменить ${section}`) }));
 vi.mock('../src/components/ComputerSettings', () => ({ ComputerSettings: () => createElement('p', {}, 'Cua Driver') }));
 import { SettingsScreen, searchSettings } from '../src/components/SettingsScreen';
 let root: Root;
 beforeEach(() => {
   vi.clearAllMocks(); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  cli.detect.mockResolvedValue(null);
   HTMLElement.prototype.scrollTo = vi.fn();
   fake.state = { prefs: structuredClone(DEFAULT_PREFS), ui: { settingsOpen: true }, connection: { version: "1.18.18", phase: "connected", streamState: "open" }, connectedProviderIds: ["local"], agents: [] };
   const node = document.createElement('div'); document.body.append(node); root = createRoot(node); act(() => root.render(createElement(SettingsScreen)));
@@ -54,4 +57,12 @@ it("offers the private helper separately from ASR and MCP and validates its loop
   click('Сохранить');
   expect(fake.setHelperEndpoint).toHaveBeenCalledWith('http://127.0.0.1:18109');
   expect(fake.setAsr).not.toHaveBeenCalled();
+});
+it("offers OpenCode installation only when its local CLI is missing", async () => {
+  cli.detect.mockResolvedValue(false);
+  await act(async () => { button('Проверить снова').click(); });
+  expect(button('Установить OpenCode…')).toBeTruthy();
+  cli.detect.mockResolvedValue(true);
+  await act(async () => { button('Проверить снова').click(); });
+  expect([...document.querySelectorAll('button')].some(e => e.textContent === 'Установить OpenCode…')).toBe(false);
 });

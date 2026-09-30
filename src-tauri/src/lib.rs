@@ -3,6 +3,7 @@ pub mod computer;
 mod config;
 pub mod control;
 mod hosts;
+mod local_server;
 mod paths;
 pub mod pi;
 mod sound;
@@ -21,6 +22,8 @@ pub fn run() {
             hosts::ssh_aliases,
             hosts::prepare_chat_workspace,
             hosts::connect_ssh,
+            local_server::ensure_local_opencode,
+            local_server::detect_local_opencode,
             config::read_opencode_config,
             config::write_opencode_config,
             sound::completion_chime,

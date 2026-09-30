@@ -18,6 +18,7 @@ describe("endpoint safety", () => {
     expect(isAllowedBaseUrl("http://127.0.0.1:4096")).toBe(true);
     expect(isAllowedBaseUrl("http://localhost:3000")).toBe(true);
     expect(isAllowedBaseUrl("http://[::1]:4096")).toBe(true);
+    expect(isAllowedBaseUrl("http://127.0.0.1:0")).toBe(false);
     expect(isAllowedBaseUrl("https://127.0.0.1:4096")).toBe(false);
     expect(isAllowedBaseUrl("http://example.com")).toBe(false);
     expect(isAllowedBaseUrl("http://10.0.0.5:4096")).toBe(false);

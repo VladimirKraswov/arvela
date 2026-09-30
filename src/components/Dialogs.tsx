@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { store, useAppState } from "../state/store";
+import { detectLocalOpenCode } from "../native/localServer";
+
+const OPEN_CODE_INSTALL_URL = "https://opencode.ai/docs/";
 
 export function DeleteConfirm() {
   const s = useAppState();
@@ -66,6 +69,13 @@ export function ConnectionGate() {
   const [endpoint, setEndpoint] = useState(
     s.prefs.localEndpoint ?? s.prefs.endpoint,
   );
+  const [cliInstalled, setCliInstalled] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (remote) return;
+    let active = true;
+    void detectLocalOpenCode().then(found => { if (active) setCliInstalled(found); }).catch(() => {});
+    return () => { active = false; };
+  }, [remote]);
   if (s.connection.phase === "connected") return null;
   return (
     <div className="gate" role="alert" aria-live="polite">
@@ -82,16 +92,17 @@ export function ConnectionGate() {
           </>
         ) : (
           <>
-            Запустите локальный{" "}
-            <code>opencode serve --hostname 127.0.0.1 --port 4096</code> и
-            повторите подключение. Движок устанавливается и обновляется отдельно
-            от приложения.
+            Приложение запускает установленный OpenCode автоматически, если
+            локальный сервер не работает. Проверьте адрес и установку OpenCode,
+            затем повторите подключение. Движок обновляется отдельно от
+            приложения.
           </>
         )}
       </p>
       {s.connection.error && (
         <p className="composer-error">{s.connection.error}</p>
       )}
+      {!remote && cliInstalled === false && <button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(OPEN_CODE_INSTALL_URL))}>Установить OpenCode…</button>}
       {remote ? (
         <button
           className="btn"

@@ -398,3 +398,48 @@ files match versioned source hashes. Historical benchmark session is retrievable
 Flash Next and V100 model IDs and qwen-build/review/V100 agents are present;
 Flash Next remains default. Zero active sessions/PTYs after restart. No inference
 task was launched, and no model/provider configuration was changed.
+# OpenCode Desktop 0.2.12 — local server autostart and CLI install offers (DONE 2026-09-30)
+
+Owner reported the disconnected local gate and asked Desktop to start the
+service with the app if it is absent. The old build only called `/global/health`
+and instructed manual `opencode serve`. New source retries a failed **local**
+connection through native `ensure_local_opencode`: strict loopback-origin
+validation, cross-process file lock, second health/port check, separately
+installed executable lookup under the packaged app's restricted PATH, bounded
+30-second readiness wait and a private startup log. Already healthy/occupied
+ports are not spawned over; SSH workspaces, HTTP/auth errors and browser
+preview never request local launch. Desktop exit leaves the OpenCode process
+alive. The connection gate/settings text and README/ROADMAP were updated.
+On the owner's follow-up, missing local OpenCode and Pi CLIs now get distinct
+installation offers linking to their official instructions. No installer runs
+without a user action. The OpenCode check is native and appears in the local
+connection gate and General settings; Pi reuses its existing native version
+probe in its own settings page. The owner's initial mention of "Cloud Code" was
+corrected explicitly to OpenCode; Claude Code is not part of this task.
+
+Evidence: final frontend 301 passed/6 opt-in live skipped, TypeScript/Vite build
+passes. Rust 37/37 tests, check and fmt pass, including
+loopback rejection, an already-healthy server, occupied port, failed CLI exit,
+and a test-owned fake CLI that reaches health. A parallel full frontend rerun
+during Rust compilation and heavy Mac workload hit timeouts in unrelated store
+and routing suites; focused changed suites pass. The final macOS build, strict
+code-sign verification, microphone entitlement check and DMG checksum pass.
+Final executable SHA256:
+`24f7a0772324d1f3dedbbac8cd1e0732bf55ed3fde86492a60f8b5be7395fd6a`;
+DMG SHA256:
+`2008936781b68ee0de5dab781ca938942601dc7c1826e502563aee1ed6723733`.
+Earlier candidate DMGs were superseded and must not be shipped. Final DMG
+was copied to Downloads with the same SHA256. The owner explicitly authorized
+interrupting the active TinyCAD task, installing and launching Desktop, then
+resuming the task. OpenCode API aborted only
+`ses_f25bd6a3fffeWS4Gx0Sy7YKB6N`; no other session was active. Version
+0.2.11 was backed up under
+`~/.local/share/opencode-desktop/backups/0.2.11-before-0.2.12-20260930-184828`.
+Installed executable matches candidate SHA256. Native UI shows 0.2.12,
+connected to the preserved OpenCode 1.18.18 server, OpenCode CLI installed,
+and Pi 0.85.1 at `/opt/homebrew/bin/pi`. The same TinyCAD chat received a
+contextual continuation prompt through the updated Desktop; API confirms a
+persisted user message and busy status. No other server, model or user chat was
+restarted. A packaged missing-server end-to-end run was not performed against
+the owner's active profile; the native fake-CLI integration test covers that
+startup path.
