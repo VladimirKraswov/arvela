@@ -1,5 +1,16 @@
 # Verification record
 
+## GitHub publication — v0.2.12, 2026-09-30
+
+- Private main contains the source, tests and updated documentation at
+  `540a587ef8adca6f9ca2d05600124d3e6283e0e1`.
+- [Release v0.2.12](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.12)
+  targets that commit and contains the macOS Apple Silicon DMG. GitHub's asset
+  SHA256 equals the verified local/Downloads artifact:
+  `2008936781b68ee0de5dab781ca938942601dc7c1826e502563aee1ed6723733`.
+  The installed executable matches the built candidate. Linux remains at
+  v0.2.10; no Linux 0.2.12 package is claimed.
+
 ## Local OpenCode server autostart and CLI install offers — 0.2.12, 2026-09-30
 
 - The prior local connection path only checked `/global/health` and showed a

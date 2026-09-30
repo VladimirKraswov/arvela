@@ -1,3 +1,14 @@
+# GitHub sync and v0.2.12 release — DONE 2026-09-30
+
+The 0.2.12 source/tests/docs are in private main at
+`540a587ef8adca6f9ca2d05600124d3e6283e0e1`. GitHub release
+`v0.2.12` targets that commit and carries the verified Apple Silicon DMG;
+GitHub asset SHA256 matches local/Downloads:
+`2008936781b68ee0de5dab781ca938942601dc7c1826e502563aee1ed6723733`.
+Installed Desktop 0.2.12 is running; original OpenCode server remains in place
+and the user-authorized TinyCAD chat is busy again in its original session.
+Linux remains at v0.2.10. See `docs/VERIFICATION.md`.
+
 # GitHub sync and v0.2.11 release — DONE 2026-09-27
 
 Owner requested complete Git synchronization. Five previously local commits,
