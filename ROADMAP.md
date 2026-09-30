@@ -9,7 +9,7 @@
 - [x] Apply saved paths to Pi detection/RPC and local OpenCode autostart without restarting a healthy server or reconnecting for a path-only edit.
 - [x] Verify the Pi CLI/Node paths and the capability-card spacing in an isolated native preview.
 - [ ] Investigate the isolated preview's Pi capability-metadata timeout; direct CLI RPC commands respond, but the UI probe did not complete.
-- [ ] Publish the tested macOS package.
+- [x] Publish the tested macOS package as v0.2.14; GitHub asset digest matches the verified local DMG.
 - [ ] Install only after the owner's active TinyCAD session is no longer at risk.
 
 ## M22 — Token usage by model (0.2.13)

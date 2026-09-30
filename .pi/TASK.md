@@ -1,4 +1,4 @@
-# OpenCode Desktop 0.2.14 — Pi startup, runtime paths and card spacing (IN PROGRESS 2026-09-30)
+# OpenCode Desktop 0.2.14 — Pi startup, runtime paths and card spacing (RELEASED; INSTALL DEFERRED 2026-09-30)
 
 The owner showed a Pi capability card whose last row touches its border and
 `env: node: No such file or directory`. Reproduced the latter by running the
@@ -24,7 +24,11 @@ Isolated native preview showed all new path fields and corrected card spacing;
 Pi 0.85.1 detected with explicit Node path, and path-only OpenCode save left
 server PID 7745 untouched. Its Pi capability-metadata probe timed out, while
 direct no-inference Pi RPC commands succeeded; see docs/VERIFICATION.md.
-Source publication remains. Installation remains deferred while TinyCAD is busy.
+Private main source commit `5acaab80f00512c77268cb24909822b4d694545a` and
+[v0.2.14](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.14)
+are published. Downloaded GitHub asset SHA256 matches the local/Downloads DMG.
+Installation remains deferred while TinyCAD is busy. The Pi capability-metadata
+timeout remains a separate open issue; do not claim it is repaired.
 
 # OpenCode Desktop 0.2.13 — token usage and settings spacing (SOURCE/RELEASE DONE; INSTALL DEFERRED 2026-09-30)
 
