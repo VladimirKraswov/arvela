@@ -8,6 +8,7 @@ import { OpenCodeSettings, type EngineSection } from "./OpenCodeSettings";
 import { ComputerSettings } from "./ComputerSettings";
 import { AgentControlSettings } from "./AgentControlSettings";
 import { PiSettings } from "./PiSettings";
+import { UsageSettings } from "./UsageSettings";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
 import { DEFAULT_HELPER_ENDPOINT, helperHealth, validHelperEndpoint, type HelperHealth } from "../attachments/helper";
@@ -16,6 +17,7 @@ import { detectLocalOpenCode } from "../native/localServer";
 export const SETTINGS_SECTIONS = [
   { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Подключение к OpenCode и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
+  { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
   { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
   { id: "agentControl", title: "API для агентов", group: "Интеграции", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
@@ -135,6 +137,7 @@ export function SettingsScreen() {
           }}>{connecting ? "Подключение…" : "Сохранить и подключиться"}</button></div>
         </>}
         {section === "appearance" && <AppearanceSettings/>}
+        {section === "usage" && <UsageSettings/>}
         {section === "voice" && <>
           <p className="settings-intro">Диктовка распознаёт речь и добавляет текст в черновик сообщения.</p>
           <Group title="Распознавание речи"><Row title="URL распознавания" description="Полный адрес ASR API, совместимого с OpenAI."><input aria-label="URL распознавания" spellCheck={false} value={asr.endpoint} onChange={e => { setAsr({ ...asr, endpoint: e.target.value }); setKey(getAsrKey(e.target.value)); }}/></Row><Row title="Модель"><input aria-label="Модель ASR" value={asr.model} onChange={e => setAsr({ ...asr, model: e.target.value })}/></Row><Row title="Язык" description="Например, ru. Пустое значение — автоматический выбор."><input aria-label="Язык ASR" value={asr.language} onChange={e => setAsr({ ...asr, language: e.target.value })}/></Row><Row title="API-ключ" description="Только если сервис требует авторизацию. Хранится до закрытия приложения."><input aria-label="API-ключ ASR" type="password" autoComplete="off" placeholder="Необязательно" value={key} onChange={e => setKey(e.target.value)}/></Row></Group>

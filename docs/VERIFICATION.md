@@ -1,5 +1,36 @@
 # Verification record
 
+## Token usage metrics — 0.2.13, 2026-09-30
+
+- Following owner screenshots, settings spacing was corrected for Pi installation
+  controls, HTTPS skill-source entry and related wrapping rows. Browser UI checks
+  at 900 px covered every settings section without horizontal overflow or row
+  collisions; at 680 px Pi and Skills remained within their content bounds.
+  A signed 0.2.13 macOS preview with an isolated bundle ID was also opened
+  alongside installed 0.2.12: native Pi and Skills views showed the bottom
+  button gap and vertically separated source label, field and action.
+- The new Settings → Использование screen reads assistant-message token counters
+  from the currently connected OpenCode server (including archived/child chats)
+  and locally registered Pi chats. It groups by each response's model, not the
+  chat's current model selection. Input, cache read/write and output are shown
+  separately; reasoning is already part of output. Period choices are 7 days,
+  30 days and all time. Errors make the result visibly partial.
+- Focused usage/settings tests: 12 passed. Final full frontend suite: 307 passed,
+  6 opt-in live inference tests skipped. TypeScript/Vite build passed; 37 Rust
+  tests passed.
+- An ad-hoc signed native preview with a separate bundle identifier
+  `dev.local.opencodedesktop.usagepreview` opened on macOS while the installed
+  0.2.12 app remained running. Settings showed the new page and live local
+  model split; both a partial-history warning and a subsequent complete scan
+  rendered correctly. The preview process was stopped afterward. No prompt,
+  inference or server restart was triggered by the check.
+- The final Apple Silicon app and DMG include the spacing correction.
+  `codesign --verify --deep --strict`, `scripts/verify-macos.py` and
+  `hdiutil verify` passed. DMG SHA256:
+  `234b560fb0330181dae61359971af5110de2f1021321d58385ca12d7f7713912`.
+  The owner’s TinyCAD session remained busy, so the installed app was untouched.
+  GitHub publication and eventual installation are recorded separately.
+
 ## GitHub publication — v0.2.12, 2026-09-30
 
 - Private main contains the source, tests and updated documentation at

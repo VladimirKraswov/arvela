@@ -267,6 +267,22 @@ export class OpenCodeClient {
     return { sessions: rows.map(normalizeSession), cursor: next };
   }
 
+  /** Full index for usage accounting, including child sessions. Read only. */
+  async usageSessionsPage(archived: boolean, cursor?: number, signal?: AbortSignal): Promise<{
+    sessions: Session[]; cursor: number | null;
+  }> {
+    let next: number | null = null;
+    const rows = await this.request<Array<Record<string, unknown>>>("GET", "/experimental/session", {
+      query: { roots: false, archived, limit: 100, cursor },
+      signal,
+      onResponse: (res) => {
+        const value = res.headers.get("x-next-cursor");
+        if (value && Number.isFinite(Number(value))) next = Number(value);
+      },
+    });
+    return { sessions: rows.map(normalizeSession), cursor: next };
+  }
+
   listSessions(
     directory: string | null,
     opts: { limit?: number; signal?: AbortSignal } = {},

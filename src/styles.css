@@ -2464,8 +2464,8 @@ kbd {
 .computer-settings .kv { margin: 12px 0; }
 .computer-settings .kv b { max-width: 60%; overflow-wrap: anywhere; }
 .computer-actions { flex-wrap: wrap; justify-content: flex-start; margin-top: 18px; }
-.computer-stop { display: flex; align-items: center; gap: 12px; margin-top: 18px; border-top: 1px solid var(--border); padding-top: 18px; }
-.computer-stop small { color: var(--text-dim); flex: 1; }
+.computer-stop { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 18px; border-top: 1px solid var(--border); padding-top: 18px; }
+.computer-stop small { color: var(--text-dim); flex: 1 1 260px; min-width: 0; }
 
 /* Reading stays anchored during streaming; the viewport controller owns scrolling. */
 .chat-viewport { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
@@ -2614,18 +2614,63 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .settings-page .engine-content { max-height: none; overflow: visible; }
 .settings-page .engine-row, .settings-page .engine-item { background: var(--bg-raised); padding: 14px; border-radius: 12px; font-size: .93rem; }
 .settings-page .engine-content p { font-size: .93rem; line-height: 1.6; }
+.settings-page .engine-content > label { display: flex; flex-direction: column; align-items: stretch; gap: 9px; min-width: 0; width: 100%; line-height: 1.4; }
+.settings-page .engine-content > label > input, .settings-page .engine-content > label > select { width: 100%; }
+.settings-page .engine-content > .btn { align-self: flex-start; }
+.settings-page .engine-add { gap: 10px; align-items: center; }
+.settings-page .engine-add input { flex: 1 1 180px; min-width: min(180px, 100%); }
+.settings-page .engine-row > code { min-width: 0; }
 .settings-page .settings-scope { margin-bottom: 18px; align-items: center; }
 .settings-page .settings-scope label { display: flex; flex-direction: column; gap: 9px; font-size: .93rem; }
 .settings-page .settings-scope small { font-size: .79rem; }
 .settings-page .settings-review { margin-bottom: 24px; }
 .settings-page .computer-settings { font-size: .93rem; }
 .settings-page .computer-settings .kv { padding: 14px; background: var(--bg-raised); margin: 0; border-bottom: 1px solid var(--border); }
+.settings-page .setting-card > .btn-row { align-items: center; flex-wrap: wrap; padding: 15px 0 18px; border-top: 1px solid var(--border); }
+.settings-page .setting-card > .handoff-note { margin: 0; padding: 15px 0; }
+.settings-page .setting-card > .pi-model-list { padding: 6px 0 16px; }
+.settings-page .pi-settings .kv { align-items: center; flex-wrap: wrap; gap: 8px 16px; overflow-wrap: anywhere; }
+.settings-page .pi-settings .kv > span { flex: 1 1 180px; min-width: 0; }
+.settings-page .pi-settings .kv > b { font-weight: 500; }
+.settings-page .pi-settings .kv > button { flex: none; }
+.usage-toolbar, .usage-periods { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.usage-toolbar { justify-content: space-between; margin: 16px 0 25px; }
+.usage-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; }
+.usage-periods .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-fill); color: var(--text); }
+.usage-status, .usage-warning { padding: 12px 15px; border-radius: 10px; background: var(--bg-raised); color: var(--text-dim); font-size: .88rem; }
+.usage-warning { border: 1px solid var(--border-strong); color: var(--text); }
+.usage-warning summary { cursor: pointer; }
+.usage-warning ul { margin: 10px 0 0; padding-left: 20px; color: var(--text-dim); }
+.usage-summary { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr); gap: 12px; }
+.usage-total, .usage-breakdown, .usage-models, .usage-empty, .usage-days { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 14px; }
+.usage-total { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 22px; }
+.usage-total small, .usage-total span, .usage-model small, .usage-note { color: var(--text-dim); }
+.usage-total strong { font-size: 1.8rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.usage-total span, .usage-model small { font-size: .8rem; }
+.usage-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; padding: 12px 20px; }
+.usage-breakdown div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); padding: 12px 0; font-size: .87rem; }
+.usage-breakdown div:last-child { border-bottom: 0; }
+.usage-breakdown strong, .usage-model b { font-variant-numeric: tabular-nums; font-weight: 550; }
+.usage-model { padding: 18px 20px; }
+.usage-model + .usage-model { border-top: 1px solid var(--border); }
+.usage-model-head { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.usage-model-head div { display: flex; flex-direction: column; min-width: 0; gap: 4px; overflow-wrap: anywhere; }
+.usage-model-head strong { font-weight: 550; }
+.usage-track { height: 6px; background: var(--border-strong); border-radius: 999px; overflow: hidden; margin: 12px 0 8px; }
+.usage-track span { display: block; height: 100%; background: var(--accent-fill); border-radius: inherit; }
+.usage-empty { padding: 22px; color: var(--text-dim); }
+.usage-days { display: flex; align-items: end; gap: 3px; height: 130px; padding: 17px 14px 8px; overflow-x: auto; }
+.usage-day { flex: 1 0 13px; height: 100%; display: flex; flex-direction: column; justify-content: end; align-items: center; gap: 5px; min-width: 13px; }
+.usage-day > span { display: block; width: 100%; max-width: 26px; background: var(--accent-fill); opacity: .72; border-radius: 4px 4px 0 0; }
+.usage-day small { color: var(--text-faint); font-size: .62rem; white-space: nowrap; }
+.usage-note { margin: 25px 0 0; font-size: .8rem; line-height: 1.55; }
 @media (max-width: 1000px) {
   .settings-screen { grid-template-columns: 225px minmax(0, 1fr); }
   .settings-page { padding-left: 24px; padding-right: 24px; }
   .setting-row { flex-wrap: wrap; gap: 12px; }
   .setting-control { max-width: 100%; margin-left: auto; }
   .setting-label { flex-basis: 200px; }
+  .usage-summary { grid-template-columns: 1fr; }
 }
 @media (max-width: 680px) {
   .settings-screen { grid-template-columns: 190px minmax(0, 1fr); }

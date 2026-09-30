@@ -1,3 +1,32 @@
+# OpenCode Desktop 0.2.13 — token usage and settings spacing (IN PROGRESS 2026-09-30)
+
+Owner requested a discreet settings view of measured token consumption by
+model, inspired by a screenshot but adapted to Desktop. Implemented a read-only
+usage scanner over all current/archived OpenCode sessions including children and
+Desktop-owned Pi chats. It groups each assistant response by its recorded
+provider/model, separates input, cache read/write and output, and does not add
+reasoning twice. Settings → Использование has 7/30-day/all-time periods,
+per-model rows, daily activity, progress/refresh and partial-history notices.
+No prompts, transcripts or usage totals are persisted by the new screen.
+Focused tests 12/12, full frontend 307 passed/6 opt-in live skipped, frontend
+build and 37 Rust tests passed. Isolated ad-hoc native preview (distinct bundle ID) showed the
+settings page and live model breakdown, once with a partial-history warning
+and once complete. The preview was closed without touching the installed app.
+The owner then reported cramped settings spacing. Pi's install action now has
+bottom padding within its card; engine configuration labels stack above full-width
+fields; add rows and status values wrap. Browser UI checks at 900 and 680 px
+confirmed the Pi and Skills examples have no collision or horizontal overflow;
+all settings sections were audited at 900 px. The corrected signed macOS
+preview was inspected natively in the Pi and Skills pages without replacing
+the installed app. The final signed app/DMG passed strict signature,
+microphone-entitlement and `hdiutil verify` checks. Final DMG SHA256:
+`234b560fb0330181dae61359971af5110de2f1021321d58385ca12d7f7713912`.
+The owner’s TinyCAD session was still busy; publication and installation
+remain separate follow-ups.
+Installation and publication remain to verify. The existing TinyCAD
+OpenCode session was busy when checked; no prompt, inference, server restart
+or installed-app replacement was made.
+
 # GitHub sync and v0.2.12 release — DONE 2026-09-30
 
 The 0.2.12 source/tests/docs are in private main at

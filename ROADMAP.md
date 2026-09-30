@@ -1,5 +1,18 @@
 # OpenCode Desktop roadmap
 
+## M22 — Token usage by model (0.2.13)
+
+- [x] Normalize settings spacing: Pi install actions stay inside cards; skill-source labels and inputs stack without collision; narrow-width settings preserve readable gaps.
+- [x] On-demand read-only accounting from assistant-message usage, including child and archived OpenCode sessions and Desktop-owned Pi chats.
+- [x] Group by the actual model on each reply; separate input, cache read/write and output without counting reasoning twice.
+- [x] Settings screen with 7-day, 30-day and all-time periods, per-model totals and daily activity; partial-history errors are visible.
+- [x] Isolated native macOS package opened the settings screen and scanned real OpenCode history; model split, dates and partial-data warning were visible.
+- [ ] Install/launch 0.2.13 when the owner's active TinyCAD run can be left undisturbed.
+
+Scope: currently connected OpenCode server and locally registered Pi chats. Removed
+sessions and other disconnected servers cannot be reconstructed. This is measured
+token use, not provider quota or billing.
+
 ## M20 — Agent Factory for durable local-model work (0.2.11 follow-up)
 
 - [x] Explicit completion contract: exact standalone marker plus bounded continuations.
