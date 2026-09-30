@@ -30,6 +30,11 @@
   `234b560fb0330181dae61359971af5110de2f1021321d58385ca12d7f7713912`.
   The owner’s TinyCAD session remained busy, so the installed app was untouched.
   GitHub publication and eventual installation are recorded separately.
+- Private main has the release source at
+  `c94eadecf417a7252de0d55144c9d02e66f47dbc`. [Release v0.2.13](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.13)
+  targets that commit; its downloaded DMG and GitHub asset digest both match
+  SHA256 `234b560fb0330181dae61359971af5110de2f1021321d58385ca12d7f7713912`.
+  Installed 0.2.12 is retained while the TinyCAD session is busy.
 
 ## GitHub publication — v0.2.12, 2026-09-30
 

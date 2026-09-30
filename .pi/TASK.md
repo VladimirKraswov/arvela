@@ -1,4 +1,4 @@
-# OpenCode Desktop 0.2.13 — token usage and settings spacing (IN PROGRESS 2026-09-30)
+# OpenCode Desktop 0.2.13 — token usage and settings spacing (SOURCE/RELEASE DONE; INSTALL DEFERRED 2026-09-30)
 
 Owner requested a discreet settings view of measured token consumption by
 model, inspired by a screenshot but adapted to Desktop. Implemented a read-only
@@ -21,8 +21,11 @@ preview was inspected natively in the Pi and Skills pages without replacing
 the installed app. The final signed app/DMG passed strict signature,
 microphone-entitlement and `hdiutil verify` checks. Final DMG SHA256:
 `234b560fb0330181dae61359971af5110de2f1021321d58385ca12d7f7713912`.
-The owner’s TinyCAD session was still busy; publication and installation
-remain separate follow-ups.
+Private main contains the source at `c94eadecf417a7252de0d55144c9d02e66f47dbc`;
+release `v0.2.13` targets that commit. Downloaded GitHub DMG SHA256 matches
+the verified local artifact. The owner’s TinyCAD session was still busy;
+installed 0.2.12 remains in place, and installation is deferred until it can
+be done without interrupting that run.
 Installation and publication remain to verify. The existing TinyCAD
 OpenCode session was busy when checked; no prompt, inference, server restart
 or installed-app replacement was made.
