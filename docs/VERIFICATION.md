@@ -37,7 +37,8 @@
 - Private main source commit `5acaab80f00512c77268cb24909822b4d694545a`
   is the target of [release v0.2.14](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.14).
   GitHub's reported asset digest and a downloaded copy both match the verified
-  DMG SHA256 above. Installed 0.2.12 is retained while the TinyCAD chat is busy.
+  DMG SHA256 above. Installed 0.2.13 is retained while the TinyCAD chat is busy
+  (confirmed from `/Applications/OpenCode Desktop.app/Contents/Info.plist`).
 
 ## Token usage metrics — 0.2.13, 2026-09-30
 
