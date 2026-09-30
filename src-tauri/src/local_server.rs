@@ -86,7 +86,25 @@ fn binary_candidates() -> Vec<PathBuf> {
     candidates
 }
 
-fn find_binary() -> Result<PathBuf, String> {
+fn find_binary(configured: Option<&Path>) -> Result<PathBuf, String> {
+    if let Some(path) = configured {
+        if !path.is_absolute() {
+            return Err("Укажите абсолютный путь к OpenCode CLI.".into());
+        }
+        let canonical =
+            fs::canonicalize(path).map_err(|_| "OpenCode CLI по указанному пути не найден.")?;
+        let metadata =
+            fs::metadata(&canonical).map_err(|_| "OpenCode CLI по указанному пути не найден.")?;
+        #[cfg(unix)]
+        if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+            return Err("Указанный путь к OpenCode CLI не является исполняемым файлом.".into());
+        }
+        #[cfg(not(unix))]
+        if !metadata.is_file() {
+            return Err("Указанный путь к OpenCode CLI не является файлом.".into());
+        }
+        return Ok(canonical);
+    }
     for candidate in binary_candidates() {
         let Ok(path) = fs::canonicalize(candidate) else {
             continue;
@@ -182,7 +200,7 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
 
     let binary = match binary_override {
         Some(path) => path.to_path_buf(),
-        None => find_binary()?,
+        None => find_binary(None)?,
     };
     let (log, log_path) = log_file(data_dir)?;
     let stderr = log
@@ -239,22 +257,35 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
     }
 }
 
-fn ensure_sync(raw: &str) -> Result<(), String> {
-    ensure_with(raw, None, &crate::paths::app_data_dir()?)
+fn ensure_sync(raw: &str, program: Option<&str>) -> Result<(), String> {
+    let configured = program.map(str::trim).filter(|value| !value.is_empty());
+    // Existing healthy servers are never restarted. The settings probe also
+    // validates this override before the next local autostart needs it.
+    let binary = if let Some(path) = configured {
+        Some(find_binary(Some(Path::new(path)))?)
+    } else {
+        None
+    };
+    ensure_with(raw, binary.as_deref(), &crate::paths::app_data_dir()?)
 }
 
 #[tauri::command]
-pub async fn ensure_local_opencode(endpoint: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || ensure_sync(&endpoint))
+pub async fn ensure_local_opencode(
+    endpoint: String,
+    program: Option<String>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || ensure_sync(&endpoint, program.as_deref()))
         .await
         .map_err(|e| format!("Не удалось проверить запуск OpenCode: {e}"))?
 }
 
 #[tauri::command]
-pub async fn detect_local_opencode() -> bool {
-    tauri::async_runtime::spawn_blocking(|| find_binary().is_ok())
-        .await
-        .unwrap_or(false)
+pub async fn detect_local_opencode(program: Option<String>) -> bool {
+    tauri::async_runtime::spawn_blocking(move || {
+        find_binary(program.as_deref().map(Path::new)).is_ok()
+    })
+    .await
+    .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -281,6 +312,24 @@ mod tests {
         ] {
             assert!(parse_endpoint(rejected).is_err(), "{rejected}");
         }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn configured_cli_must_be_an_absolute_executable_file() {
+        assert!(find_binary(Some(Path::new("./opencode"))).is_err());
+        assert!(find_binary(Some(Path::new("/definitely/not/here/opencode"))).is_err());
+        let root = std::env::temp_dir().join(format!("opencode-override-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let program = root.join("opencode");
+        fs::write(&program, "#!/bin/sh\nexit 0\n").unwrap();
+        assert!(find_binary(Some(&program)).is_err());
+        fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).unwrap();
+        assert_eq!(
+            find_binary(Some(&program)).unwrap(),
+            fs::canonicalize(&program).unwrap()
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

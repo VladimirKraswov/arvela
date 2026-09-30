@@ -29,6 +29,7 @@ export interface PiOpenRequest {
   model?: string;
   thinking?: string;
   program?: string;
+  nodeProgram?: string;
   extensions?: string[];
   /** Probe only: `--no-session`, so it leaves no transcript behind. */
   ephemeral?: boolean;
@@ -61,7 +62,7 @@ export interface LspSetup {
 }
 
 export interface PiBridge {
-  detect(configuredPath?: string): Promise<PiInstall>;
+  detect(configuredPath?: string, nodeProgram?: string): Promise<PiInstall>;
   open(request: PiOpenRequest): Promise<PiOpened>;
   request(key: string, command: unknown, timeoutMs?: number): Promise<unknown>;
   post(key: string, message: unknown): Promise<void>;
@@ -114,8 +115,8 @@ function tauriBridge(): PiBridge {
   const core = () => import("@tauri-apps/api/core");
   const events = () => import("@tauri-apps/api/event");
   return {
-    detect: async (configuredPath) =>
-      (await core()).invoke("pi_detect", { configuredPath: configuredPath ?? null }),
+    detect: async (configuredPath, nodeProgram) =>
+      (await core()).invoke("pi_detect", { configuredPath: configuredPath ?? null, nodeProgram: nodeProgram ?? null }),
     open: async (request) => (await core()).invoke("pi_open", { request }),
     request: async (key, command, timeoutMs) =>
       (await core()).invoke("pi_request", {

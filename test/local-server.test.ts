@@ -30,7 +30,7 @@ it("starts a missing local server once and retries its health before loading dat
   expect(await store.connect()).toBe(true);
   expect(health).toHaveBeenCalledTimes(2);
   expect(autostart).toHaveBeenCalledOnce();
-  expect(autostart).toHaveBeenCalledWith("http://127.0.0.1:4096");
+  expect(autostart).toHaveBeenCalledWith("http://127.0.0.1:4096", undefined);
   expect(store.state.connection.phase).toBe("connected");
   store.dispose();
 });

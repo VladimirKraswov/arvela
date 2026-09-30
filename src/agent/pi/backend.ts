@@ -90,6 +90,7 @@ export interface PiRuntimeChoice {
   model?: string;
   thinking?: string;
   program?: string;
+  nodeProgram?: string;
   extensions?: string[];
   /** Approval policy for Pi's built-in tools; "ask" when unset. */
   toolPolicy?: "ask" | "full";
@@ -172,7 +173,8 @@ export class PiBackend implements AgentBackend {
   // ---- health / metadata ----
 
   async health(): Promise<HealthInfo> {
-    const install = await this.bridge.detect(this.host.choice("").program);
+    const choice = this.host.choice("");
+    const install = await this.bridge.detect(choice.program, choice.nodeProgram);
     if (!install.installed)
       throw new Error(install.error || "Pi CLI не найден.");
     return { healthy: true, version: install.version } as HealthInfo;
@@ -184,7 +186,7 @@ export class PiBackend implements AgentBackend {
    */
   async describe(directory: string): Promise<PiHealth> {
     const choice = this.host.choice(directory);
-    const install = await this.bridge.detect(choice.program);
+    const install = await this.bridge.detect(choice.program, choice.nodeProgram);
     const empty: PiHealth = {
       install,
       models: [],
@@ -206,6 +208,7 @@ export class PiBackend implements AgentBackend {
         provider: choice.provider,
         model: choice.model,
         program: choice.program,
+        nodeProgram: choice.nodeProgram,
       });
       try {
         const [models, commands, state] = await Promise.all([
@@ -245,6 +248,7 @@ export class PiBackend implements AgentBackend {
       provider: choice.providerID,
       model: `${choice.providerID}/${choice.modelID}`,
       program: this.host.choice(directory).program,
+      nodeProgram: this.host.choice(directory).nodeProgram,
     });
     try {
       let assistant: PiAssistantMessage | undefined;
@@ -675,6 +679,7 @@ export class PiBackend implements AgentBackend {
         : choice.model,
       thinking: body?.variant ?? choice.thinking,
       program: choice.program,
+      nodeProgram: choice.nodeProgram,
       extensions: choice.extensions,
       toolPolicy: choice.toolPolicy,
     });

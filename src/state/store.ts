@@ -265,6 +265,7 @@ class Store {
           const model = this.getModelChoice(PI_BACKEND_ID, directory);
           return {
             program: settings.program,
+            nodeProgram: settings.nodeProgram,
             provider: model?.providerID ?? settings.provider,
             model: model ? `${model.providerID}/${model.modelID}` : settings.model,
             thinking: model?.variant ?? settings.thinking,
@@ -579,6 +580,11 @@ class Store {
     this.persistPrefs();
   }
 
+  setLocalOpenCodeProgram(program?: string): void {
+    this.mutate((x) => ({ prefs: { ...x.prefs, localOpenCodeProgram: program } }));
+    this.persistPrefs();
+  }
+
   /**
    * Ask the installed Pi what it can actually do. This starts a short-lived Pi
    * process, so it is only ever triggered by an explicit user action or by
@@ -599,7 +605,7 @@ class Store {
 
   async refreshPiInstall(): Promise<void> {
     try {
-      const install = await piBridge().detect(this.state.prefs.pi?.program);
+      const install = await piBridge().detect(this.state.prefs.pi?.program, this.state.prefs.pi?.nodeProgram);
       if (this.piInstalled !== install.installed) {
         this.piInstalled = install.installed;
         this.mutate({});
@@ -912,7 +918,7 @@ class Store {
         if (
           !(error instanceof ConnectionError) ||
           key !== requested ||
-          !(await startLocalServerIfNative(requested))
+          !(await startLocalServerIfNative(requested, this.state.prefs.localOpenCodeProgram))
         ) throw error;
         if (gen !== this.connectionGeneration) return false;
         health = await backend.health();

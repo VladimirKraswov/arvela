@@ -2633,6 +2633,8 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .settings-page .pi-settings .kv > span { flex: 1 1 180px; min-width: 0; }
 .settings-page .pi-settings .kv > b { font-weight: 500; }
 .settings-page .pi-settings .kv > button { flex: none; }
+.settings-page .pi-settings .setting-card > .kv { padding: 12px 0; }
+.settings-page .pi-settings .setting-card > .kv + .kv { border-top: 1px solid var(--border); }
 .usage-toolbar, .usage-periods { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .usage-toolbar { justify-content: space-between; margin: 16px 0 25px; }
 .usage-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; }

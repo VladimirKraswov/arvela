@@ -43,6 +43,7 @@ export function PiSettings() {
   const s = useAppState();
   const settings = s.prefs.pi ?? {};
   const [program, setProgram] = useState(settings.program ?? "");
+  const [nodeProgram, setNodeProgram] = useState(settings.nodeProgram ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [lsp, setLsp] = useState<{ servers: string[]; missing: string[] } | null>(null);
@@ -57,6 +58,9 @@ export function PiSettings() {
   useEffect(() => {
     setProgram(s.prefs.pi?.program ?? "");
   }, [s.prefs.pi?.program]);
+  useEffect(() => {
+    setNodeProgram(s.prefs.pi?.nodeProgram ?? "");
+  }, [s.prefs.pi?.nodeProgram]);
 
   const probe = async () => {
     setBusy(true);
@@ -128,12 +132,15 @@ export function PiSettings() {
         <Row title="Обнаружено" description={install?.source || "—"}>
           <span>{install?.path || "—"}</span>
         </Row>
+        <Row title="Путь к Node.js" description="Для Pi, установленного через npm. Пусто — искать рядом с Pi и в известных местах.">
+          <input aria-label="Путь к Node.js для Pi" spellCheck={false} placeholder="/opt/homebrew/bin/node" value={nodeProgram} onChange={(e) => setNodeProgram(e.target.value)} />
+        </Row>
         <div className="btn-row">
           <button
             className="btn"
             disabled={busy}
             onClick={() => {
-              store.setPiSettings({ program: program.trim() || undefined });
+              store.setPiSettings({ program: program.trim() || undefined, nodeProgram: nodeProgram.trim() || undefined });
               void probe();
             }}
           >

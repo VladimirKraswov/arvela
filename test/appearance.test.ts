@@ -40,6 +40,20 @@ it("keeps the CPU helper address global when switching OpenCode servers", () => 
   const back = switchEndpointPrefs(remote, DEFAULT_PREFS.endpoint);
   expect(back.helperEndpoint).toBe("http://127.0.0.1:18109");
 });
+it("keeps local engine paths when switching to and from a remote workspace", () => {
+  const current = {
+    ...DEFAULT_PREFS,
+    localOpenCodeProgram: "/opt/homebrew/bin/opencode",
+    pi: { program: "/opt/homebrew/bin/pi", nodeProgram: "/opt/homebrew/bin/node" },
+    endpointState: { remote: { localOpenCodeProgram: "/stale/opencode", pi: { program: "/stale/pi" } } },
+  };
+  const remote = switchEndpointPrefs(current, "http://127.0.0.1:5000", "remote");
+  expect(remote.localOpenCodeProgram).toBe(current.localOpenCodeProgram);
+  expect(remote.pi).toEqual(current.pi);
+  const back = switchEndpointPrefs(remote, DEFAULT_PREFS.endpoint);
+  expect(back.localOpenCodeProgram).toBe(current.localOpenCodeProgram);
+  expect(back.pi).toEqual(current.pi);
+});
 it("keeps arbitrary accent labels and filled buttons legible in both themes", () => {
   for (const color of ["#ffffff", "#000000", "#5599ee", "#e3b341", "#9b83ee", "#4caa86", "#e78060"]) for (const dark of [true, false]) {
     const a = accentColors(color, dark); expect(contrast(a.ink, dark ? "#202020" : "#ffffff")).toBeGreaterThanOrEqual(4.5); expect(contrast(a.fill, a.on)).toBeGreaterThanOrEqual(4.5);

@@ -17,6 +17,8 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+#[cfg(unix)]
+use std::io::Read;
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
@@ -95,8 +97,8 @@ pub struct PiInstall {
     pub error: String,
 }
 
-fn program_version(program: &Path) -> Result<String, String> {
-    let output = Command::new(program)
+fn program_version(program: &Path, node_override: Option<&Path>) -> Result<String, String> {
+    let output = command_for_program(program, node_override)?
         .arg("--version")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -133,26 +135,113 @@ fn resolve_program(configured: Option<&str>) -> Result<(PathBuf, &'static str), 
     Err("Pi CLI не найден. Установите его или укажите путь в настройках.".into())
 }
 
+/// npm installs Pi as `#!/usr/bin/env node`. Finder does not put Homebrew in
+/// PATH, so launching that absolute Pi path alone still fails inside `env`.
+/// Resolve only the interpreter from explicit locations and pass the script to
+/// it directly; the Pi executable itself is never selected through PATH.
+#[cfg(unix)]
+fn command_for_program(program: &Path, node_override: Option<&Path>) -> Result<Command, String> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut prefix = [0_u8; 64];
+    let length = std::fs::File::open(program)
+        .and_then(|mut file| file.read(&mut prefix))
+        .map_err(|e| {
+            format!(
+                "Не удалось прочитать исполняемый файл {}: {e}",
+                program.display()
+            )
+        })?;
+    let first_line = prefix[..length]
+        .split(|byte| *byte == b'\n')
+        .next()
+        .unwrap_or(&[]);
+    if first_line != b"#!/usr/bin/env node" && first_line != b"#!/usr/bin/env node\r" {
+        return Ok(Command::new(program));
+    }
+
+    if let Some(node) = node_override {
+        if !node.is_absolute() {
+            return Err("Укажите абсолютный путь к Node.js.".into());
+        }
+        let metadata =
+            std::fs::metadata(node).map_err(|_| "Node.js по указанному пути не найден.")?;
+        if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+            return Err("Указанный путь к Node.js не является исполняемым файлом.".into());
+        }
+    }
+    let mut candidates = Vec::new();
+    if let Some(node) = node_override {
+        candidates.push(node.to_path_buf());
+    }
+    if let Some(parent) = program.parent() {
+        candidates.push(parent.join("node"));
+    }
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        candidates.push(home.join(".local/bin/node"));
+        candidates.push(home.join(".volta/bin/node"));
+    }
+    candidates.extend([
+        PathBuf::from("/opt/homebrew/bin/node"),
+        PathBuf::from("/usr/local/bin/node"),
+        PathBuf::from("/usr/bin/node"),
+    ]);
+    let node = candidates
+        .into_iter()
+        .find(|path| {
+            std::fs::metadata(path)
+                .map(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false)
+        })
+        .ok_or_else(|| {
+            "Pi установлен, но Node.js не найден рядом с ним или в известных местах установки."
+                .to_string()
+        })?;
+
+    let mut command = Command::new(&node);
+    command.arg(program);
+    // Pi may start Node-based extensions and language servers. Preserve the
+    // inherited PATH, but put the verified interpreter directory first.
+    if let Some(parent) = node.parent() {
+        let mut paths = vec![parent.to_path_buf()];
+        if let Some(inherited) = std::env::var_os("PATH") {
+            paths.extend(std::env::split_paths(&inherited).filter(|entry| entry.is_absolute()));
+        }
+        command.env(
+            "PATH",
+            std::env::join_paths(paths).map_err(|e| e.to_string())?,
+        );
+    }
+    Ok(command)
+}
+
+#[cfg(not(unix))]
+fn command_for_program(program: &Path, _node_override: Option<&Path>) -> Result<Command, String> {
+    Ok(Command::new(program))
+}
+
 #[tauri::command]
-pub async fn pi_detect(configured_path: Option<String>) -> PiInstall {
+pub async fn pi_detect(configured_path: Option<String>, node_program: Option<String>) -> PiInstall {
     tauri::async_runtime::spawn_blocking(move || {
         match resolve_program(configured_path.as_deref()) {
-            Ok((path, source)) => match program_version(&path) {
-                Ok(version) => PiInstall {
-                    installed: true,
-                    path: path.display().to_string(),
-                    version,
-                    source: source.into(),
-                    error: String::new(),
-                },
-                Err(error) => PiInstall {
-                    installed: false,
-                    path: path.display().to_string(),
-                    source: source.into(),
-                    error,
-                    ..PiInstall::default()
-                },
-            },
+            Ok((path, source)) => {
+                match program_version(&path, node_program.as_deref().map(Path::new)) {
+                    Ok(version) => PiInstall {
+                        installed: true,
+                        path: path.display().to_string(),
+                        version,
+                        source: source.into(),
+                        error: String::new(),
+                    },
+                    Err(error) => PiInstall {
+                        installed: false,
+                        path: path.display().to_string(),
+                        source: source.into(),
+                        error,
+                        ..PiInstall::default()
+                    },
+                }
+            }
             Err(error) => PiInstall {
                 error,
                 ..PiInstall::default()
@@ -331,7 +420,10 @@ fn lsp_candidates() -> Vec<(LspServer, Vec<PathBuf>)> {
 
 /// A language server is only offered when `--version` actually succeeds.
 fn runnable(program: &Path) -> bool {
-    Command::new(program)
+    let Ok(mut command) = command_for_program(program, None) else {
+        return false;
+    };
+    command
         .arg("--version")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -549,6 +641,7 @@ pub struct PiOpenRequest {
     pub model: Option<String>,
     pub thinking: Option<String>,
     pub program: Option<String>,
+    pub node_program: Option<String>,
     /// Absolute paths of extensions to load. Validated as existing files.
     #[serde(default)]
     pub extensions: Vec<String>,
@@ -657,7 +750,8 @@ pub async fn pi_open(
             args.push(path.display().to_string());
         }
 
-        let mut command = Command::new(&program);
+        let mut command =
+            command_for_program(&program, request.node_program.as_deref().map(Path::new))?;
         command.args(&args).current_dir(&directory);
         #[cfg(unix)]
         {
@@ -1037,6 +1131,53 @@ mod tests {
         assert!(validate_override("pi").is_err());
         assert!(validate_override("./pi").is_err());
         assert!(validate_override("/definitely/not/here/pi").is_err());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn env_node_pi_runs_with_a_finder_like_path() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = std::env::temp_dir().join(format!(
+            "opencode-pi-node-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let pi = root.join("pi");
+        let node = root.join("node");
+        std::fs::write(&pi, "#!/usr/bin/env node\nconsole.log('ok')\n").unwrap();
+        std::fs::write(&node, "#!/bin/sh\nprintf '%s\\n' \"$1\"\n").unwrap();
+        std::fs::set_permissions(&pi, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(&node, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+        let prepared = command_for_program(&pi, None).unwrap();
+        let prepared_path = prepared
+            .get_envs()
+            .find(|(key, _)| *key == "PATH")
+            .and_then(|(_, value)| value)
+            .unwrap();
+        assert_eq!(
+            std::env::split_paths(prepared_path).next(),
+            Some(root.clone())
+        );
+        let output = command_for_program(&pi, None)
+            .unwrap()
+            .env("PATH", "/usr/bin:/bin")
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout).trim(),
+            pi.display().to_string()
+        );
+        assert!(command_for_program(&pi, Some(Path::new("node"))).is_err());
+        assert!(command_for_program(&pi, Some(&root.join("missing-node"))).is_err());
+        assert!(command_for_program(&pi, Some(&node)).is_ok());
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     /// Assistant text may legally contain U+2028/U+2029; a generic line reader

@@ -24,6 +24,8 @@ export interface PiSessionMeta {
 export interface PiSettings {
   /** Absolute path override when Pi is not in a known location. */
   program?: string;
+  /** Optional absolute Node.js executable for an env-node Pi installation. */
+  nodeProgram?: string;
   provider?: string;
   model?: string;
   thinking?: string;
@@ -81,6 +83,8 @@ export interface Prefs {
   workspaceKey?: string;
   activeHost?: string;
   localEndpoint?: string;
+  /** Optional local OpenCode CLI path; does not affect remote workspaces. */
+  localOpenCodeProgram?: string;
   remoteHosts?: RemoteHost[];
   projectlessDirectories?: string[];
   projectlessSessions?: Session[];
@@ -253,6 +257,7 @@ export function switchEndpointPrefs(
     workspaceKey,
     activeHost: prefs.activeHost,
     localEndpoint: prefs.localEndpoint,
+    localOpenCodeProgram: prefs.localOpenCodeProgram,
     remoteHosts: prefs.remoteHosts,
     endpointState: {
       ...endpointState,

@@ -81,15 +81,18 @@ export function SettingsScreen() {
   const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
   const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
   const [endpoint, setEndpoint] = useState(s.prefs.localEndpoint ?? s.prefs.endpoint);
+  const [openCodeProgram, setOpenCodeProgram] = useState(s.prefs.localOpenCodeProgram ?? "");
   const [asr, setAsr] = useState(s.prefs.asr ?? defaultAsr), [key, setKey] = useState(getAsrKey(asr.endpoint));
   const [helper, setHelper] = useState(s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT), [helperStatus, setHelperStatus] = useState<HelperHealth | null>(null), [testingHelper, setTestingHelper] = useState(false);
   const [savedKey, setSavedKey] = useState(key);
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [connecting, setConnecting] = useState(false);
   const [cliInstalled, setCliInstalled] = useState<boolean | null>(null);
-  const checkCli = () => { void detectLocalOpenCode().then(setCliInstalled).catch(() => setCliInstalled(null)); };
+  const checkCli = () => { void detectLocalOpenCode(openCodeProgram.trim() || undefined).then(setCliInstalled).catch(() => setCliInstalled(null)); };
   useEffect(checkCli, []);
   const content = useRef<HTMLDivElement>(null), back = useRef<HTMLButtonElement>(null), stay = useRef<HTMLButtonElement>(null);
-  const localDirty = endpoint !== (s.prefs.localEndpoint ?? s.prefs.endpoint);
+  const endpointDirty = endpoint !== (s.prefs.localEndpoint ?? s.prefs.endpoint);
+  const programDirty = openCodeProgram !== (s.prefs.localOpenCodeProgram ?? "");
+  const localDirty = endpointDirty || programDirty;
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
   const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
   const dirty = engineDirty || localDirty || voiceDirty || helperDirty;
@@ -126,15 +129,26 @@ export function SettingsScreen() {
       {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения подключения, диктовки, помощника или OpenCode. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
         {section === "general" && <>
-          <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Если сервер не запущен, приложение запустит установленный OpenCode на этом адресе."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="OpenCode CLI" description="Движок устанавливается отдельно от приложения."><span>{cliInstalled === null ? "Не проверено" : cliInstalled ? "Установлен" : "Не найден"}</span>{cliInstalled === false && <button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl("https://opencode.ai/docs/"))}>Установить OpenCode…</button>}<button className="btn" onClick={checkCli}>Проверить снова</button></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
+          <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Если сервер не запущен, приложение запустит установленный OpenCode на этом адресе."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="OpenCode CLI" description="Движок устанавливается отдельно от приложения."><span>{cliInstalled === null ? "Не проверено" : cliInstalled ? "Установлен" : "Не найден"}</span>{cliInstalled === false && <button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl("https://opencode.ai/docs/"))}>Установить OpenCode…</button>}<button className="btn" onClick={checkCli}>Проверить снова</button></Row><Row title="Путь к OpenCode CLI" description="Абсолютный путь к локальному CLI. Пусто — искать автоматически. Работающий сервер не перезапускается."><input aria-label="Путь к OpenCode CLI" spellCheck={false} placeholder="/opt/homebrew/bin/opencode" value={openCodeProgram} onChange={e => { setOpenCodeProgram(e.target.value); setCliInstalled(null); }}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
           <div className="settings-actions"><span className="settings-muted">Перезапуск сервера не требуется.</span><button className="btn primary" disabled={connecting || !localDirty} onClick={async () => {
             setError(""); setNotice("");
             if (!isAllowedBaseUrl(endpoint.trim())) { setError("Укажите HTTP-адрес loopback сервера. Для удалённого компьютера используйте SSH-подключение."); return; }
             setConnecting(true);
-            try { const ok = await store.connect(endpoint.trim()); if (ok) { setEndpoint(endpoint.trim()); setNotice("Подключено."); } else setError(store.state.connection.error ?? "Подключиться не удалось."); }
+            try {
+              const program = openCodeProgram.trim();
+              if (program && !(await detectLocalOpenCode(program))) { setError("Укажите абсолютный путь к существующему исполняемому файлу OpenCode CLI."); setCliInstalled(false); return; }
+              store.setLocalOpenCodeProgram(program || undefined);
+              setOpenCodeProgram(program);
+              setCliInstalled(await detectLocalOpenCode(program || undefined));
+              if (endpointDirty) {
+                const ok = await store.connect(endpoint.trim());
+                if (ok) { setEndpoint(endpoint.trim()); setNotice("Подключено."); }
+                else setError(store.state.connection.error ?? "Подключиться не удалось.");
+              } else setNotice("Путь к OpenCode CLI сохранён. Работающий сервер не перезапускался.");
+            }
             catch (e) { setError(e instanceof Error ? e.message : String(e)); }
             finally { setConnecting(false); }
-          }}>{connecting ? "Подключение…" : "Сохранить и подключиться"}</button></div>
+          }}>{connecting ? "Сохранение…" : endpointDirty ? "Сохранить и подключиться" : "Сохранить путь"}</button></div>
         </>}
         {section === "appearance" && <AppearanceSettings/>}
         {section === "usage" && <UsageSettings/>}

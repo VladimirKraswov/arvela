@@ -1,3 +1,31 @@
+# OpenCode Desktop 0.2.14 — Pi startup, runtime paths and card spacing (IN PROGRESS 2026-09-30)
+
+The owner showed a Pi capability card whose last row touches its border and
+`env: node: No such file or directory`. Reproduced the latter by running the
+installed `/opt/homebrew/bin/pi --version` with Finder-like PATH. The native
+layer now executes npm's env-node Pi script via a verified absolute Node path
+and keeps that Node directory on the child PATH for extensions/LSP. The Pi
+capability card's direct rows have padding and a separator. New restricted-PATH
+Rust regression, full Rust 38/38, frontend 307 passed/6 opt-in live skipped,
+TypeScript/Vite build and Rust check passed. Isolated native preview, final
+macOS package, release and installation remain to verify. Preserve the active
+TinyCAD OpenCode session and installed app.
+The owner additionally requested optional executable paths. Settings now has
+explicit Pi and Node.js paths, and General has a local OpenCode CLI path;
+blank values retain auto-discovery. Pi checks and RPC launches share the Node
+override, while OpenCode's path is used only if a missing local server must be
+started. Editing only the CLI path never reconnects or restarts a healthy
+server. Native validation rejects missing/non-absolute/non-executable overrides.
+Final checks: frontend 308 passed/6 opt-in live skipped; Rust 39 passed;
+TypeScript/Vite and Rust check passed. The signed macOS DMG passed `hdiutil`
+and signature/entitlement verification, SHA256
+`4c4d9eb7316cd2cad1887ba2be6d0fc359c843e1701f48cb86bcb4fca9884ec5`.
+Isolated native preview showed all new path fields and corrected card spacing;
+Pi 0.85.1 detected with explicit Node path, and path-only OpenCode save left
+server PID 7745 untouched. Its Pi capability-metadata probe timed out, while
+direct no-inference Pi RPC commands succeeded; see docs/VERIFICATION.md.
+Source publication remains. Installation remains deferred while TinyCAD is busy.
+
 # OpenCode Desktop 0.2.13 — token usage and settings spacing (SOURCE/RELEASE DONE; INSTALL DEFERRED 2026-09-30)
 
 Owner requested a discreet settings view of measured token consumption by

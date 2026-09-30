@@ -1,5 +1,17 @@
 # OpenCode Desktop roadmap
 
+## M23 — Pi startup, local runtime paths and final settings-card spacing (0.2.14)
+
+- [x] Launch npm's `env node` Pi entry point through a verified absolute Node interpreter, including when Finder omits Homebrew from PATH.
+- [x] Keep that interpreter on Pi's child PATH for Node-based extensions and language servers; report missing Node explicitly.
+- [x] Add bottom padding and a divider to direct Pi capability rows so the last line stays inside its card.
+- [x] Let the user set optional absolute paths to Pi CLI, its Node.js interpreter and the local OpenCode CLI; blank values preserve auto-discovery.
+- [x] Apply saved paths to Pi detection/RPC and local OpenCode autostart without restarting a healthy server or reconnecting for a path-only edit.
+- [x] Verify the Pi CLI/Node paths and the capability-card spacing in an isolated native preview.
+- [ ] Investigate the isolated preview's Pi capability-metadata timeout; direct CLI RPC commands respond, but the UI probe did not complete.
+- [ ] Publish the tested macOS package.
+- [ ] Install only after the owner's active TinyCAD session is no longer at risk.
+
 ## M22 — Token usage by model (0.2.13)
 
 - [x] Normalize settings spacing: Pi install actions stay inside cards; skill-source labels and inputs stack without collision; narrow-width settings preserve readable gaps.

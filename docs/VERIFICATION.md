@@ -1,5 +1,40 @@
 # Verification record
 
+## Pi startup and settings spacing — 0.2.14, 2026-09-30
+
+- Owner screenshot showed `env: node: No such file or directory` below the Pi
+  capabilities card and its last row touching the card border. Reproduced the
+  runtime failure with the installed `/opt/homebrew/bin/pi` and a Finder-like
+  `PATH=/usr/bin:/bin`: `pi --version` exited 127 with the same error.
+- Native Pi launches and version/LSP checks now detect npm's `env node` entry
+  point, choose an executable Node from absolute candidates, and pass the Pi
+  script directly to it. The selected Node directory is put first on the
+  child's PATH for extensions. A unit test uses a test-owned fake Pi/Node pair
+  and a restricted PATH; it also checks the prepared child PATH.
+- Pi capability rows now have vertical padding and a separator. Native UI and
+  final artifact checks remain to be recorded.
+- Optional Pi, Node.js and local OpenCode CLI paths are stored in app preferences;
+  blank values keep auto-discovery. Pi detection and launch use the same Node
+  override. The OpenCode override is validated and is used only for local
+  autostart; saving it alone does not reconnect to or restart a healthy server.
+  Rust tests cover invalid and executable path overrides.
+- Frontend suite: 308 passed, 6 opt-in live skipped. Rust suite: 39 passed;
+  `cargo check --all-targets`, TypeScript/Vite build and `git diff --check` passed.
+  The 0.2.14 DMG passed `hdiutil verify`, strict code-signature and microphone
+  entitlement checks. Local/Downloads SHA256:
+  `4c4d9eb7316cd2cad1887ba2be6d0fc359c843e1701f48cb86bcb4fca9884ec5`.
+- An ad-hoc native 0.2.14 preview with isolated bundle ID
+  `dev.local.opencodedesktop.pathsqa` showed the new CLI/Node fields and
+  well-spaced Pi capabilities card. Pi 0.85.1 was detected using the explicit
+  `/opt/homebrew/bin/node`; OpenCode CLI path saved with a visible confirmation.
+  The existing OpenCode server remained PID 7745 and healthy. The preview
+  process was closed.
+- The Pi capability-metadata probe in that preview timed out (`Pi не ответил
+  вовремя`). A separate, no-inference CLI RPC check of `get_available_models`,
+  `get_commands` and `get_state` returned all three successful responses, so
+  the timeout appears specific to Desktop's probe path. No claim is made that
+  this part of Pi is repaired.
+
 ## Token usage metrics — 0.2.13, 2026-09-30
 
 - Following owner screenshots, settings spacing was corrected for Pi installation

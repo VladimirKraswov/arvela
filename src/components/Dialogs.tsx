@@ -73,9 +73,9 @@ export function ConnectionGate() {
   useEffect(() => {
     if (remote) return;
     let active = true;
-    void detectLocalOpenCode().then(found => { if (active) setCliInstalled(found); }).catch(() => {});
+    void detectLocalOpenCode(s.prefs.localOpenCodeProgram).then(found => { if (active) setCliInstalled(found); }).catch(() => {});
     return () => { active = false; };
-  }, [remote]);
+  }, [remote, s.prefs.localOpenCodeProgram]);
   if (s.connection.phase === "connected") return null;
   return (
     <div className="gate" role="alert" aria-live="polite">
