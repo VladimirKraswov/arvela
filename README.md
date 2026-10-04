@@ -70,7 +70,7 @@ npm run build:macos
 python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode Desktop.app"
 ```
 
-Windows — NSIS `.exe` для текущего пользователя (проверено на Windows 11 x64):
+Windows — NSIS `.exe` для текущего пользователя (исходный порт проверен на Windows 11 x64 по переданному отчёту):
 
 ```powershell
 npm run build:windows

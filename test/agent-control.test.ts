@@ -4,6 +4,7 @@ import { agentControlForTest } from "../src/control/bridge";
 import type { ManagedRun } from "../src/control/managedRuns";
 
 const nativeStatus = {
+  supported: true,
   ready: true,
   command: "/Applications/OpenCode Desktop.app/Contents/MacOS/opencode-desktop",
   descriptorPath: "/Users/test/.local/share/opencode-desktop/agent-control/control.json",

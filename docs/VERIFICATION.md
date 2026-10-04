@@ -1,6 +1,49 @@
 # Verification record
 
+## Windows port integration review on Mac — 2026-10-04
+
+- The owner supplied a ZIP containing the original port bundle, patch and Windows
+  verification report. `git bundle verify` passed. SHA256 of the bundle is
+  `97de5cfa6c3ce308e273425f547348a6fea03241537bff5e355471d68d0d3a16`;
+  patch SHA256 is `6b296e2181f60b2b0e59d48136a1e17245dc78b8cef34383d4dc1f5180d3cf59`.
+  Both match the transferred report. Bundle head is
+  `7c47d55ee36dcd6640f7bd3d25dee81990c95dd4`.
+- The laptop reconstructed a baseline without the original Git history. Its
+  baseline tree matches Mac main `2d5b9f9` except for the executable bit on
+  `scripts/check-linux-prereqs.sh`. Cherry-picking only the port preserves main's
+  history and that executable bit.
+- Regression tests first reproduced POSIX case folding and loss of drive roots.
+  Fixed both, kept separator/case handling for drive and UNC paths, corrected
+  root-level relative diff paths, and added five path tests. An invalid explicit
+  Windows Node override now fails rather than selecting a fallback silently.
+- PowerShell scripts no longer depend on `$IsWindows` (absent in PowerShell 5.1).
+  Native detection exit codes are checked, and Node 25 is rejected because it
+  does not match the lockfile's supported ranges. The artifact verifier now
+  fails on missing/unhealthy server, missing installation or version mismatch;
+  `-ArtifactOnly` explicitly skips runtime acceptance. PowerShell is not installed
+  on this Mac, so these revised scripts have not been executed here.
+- The first full frontend run had two project-switch test timeouts: runtime
+  metadata was not mocked, causing requests to the owner's local server. An
+  isolated baseline run also made those requests (7 tests took 17.64 seconds).
+  Mocked only those API boundaries without changing behavioral assertions.
+  Final full suite: **313 passed / 6 opt-in live skipped**. Rust library:
+  **39 passed**. `cargo check --all-targets --locked`, `cargo fmt --check`,
+  TypeScript/Vite production build and `git diff --check` passed on Mac.
+- Native release app packaging passed with `npm run tauri -- build --bundles app`
+  and the ad-hoc signing overlay. `scripts/verify-macos.py` passed strict signature,
+  audio-input entitlement and microphone description checks. This candidate was
+  not installed, opened or published; the existing v0.2.14 release is unchanged.
+- No Windows installer was supplied in this ZIP. Its hash below is a transferred
+  receipt, not an independently verified or newly published binary. The integrated
+  source needs a fresh Windows build and live acceptance. Known Pi/Agent Control
+  limitations remain explicit; no inference benchmark or engine deployment was
+  performed for this integration.
+
 ## Windows 11 x64 port and installation — 0.2.14, 2026-10-04
+
+The following Windows acceptance is imported evidence from the owner's laptop,
+not a Windows rerun on this Mac. It applies to port commit `7c47d55` and its
+original installer. Integration fixes and their separate checks are recorded above.
 
 - The supplied inner source archive matched the administrator manifest SHA256
   `003744378acdfa9170a8910edcc808ff61ae97d110b581efb931c22ec8b3540a`.

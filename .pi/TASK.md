@@ -1,4 +1,20 @@
-# OpenCode Desktop 0.2.14 — Windows 11 x64 port and installation (DONE 2026-10-04)
+# Windows port integration — reviewed source (2026-10-04)
+
+Imported port `7c47d55` from the owner's verified bundle onto existing main via
+cherry-pick, preserving history and executable Linux prerequisite script. Fixed
+POSIX case folding, drive-root/relative diff paths, invalid explicit Windows Node
+fallback and PowerShell 5.1/false-positive verification scripts. Five path
+regressions were added; existing project-switch tests now mock their previously
+unmocked runtime metadata calls, without weakening assertions. Full frontend:
+313 passed / 6 opt-in live skipped; Mac Rust 39 passed, Cargo check/fmt and
+TypeScript/Vite build passed. See docs/VERIFICATION.md for transfer hashes,
+provenance and remaining Windows acceptance. Original Windows report is imported
+evidence, not a Mac-side rerun. No Windows installer was included. Native Mac
+release packaging also passed with ad-hoc signature and microphone entitlement
+verification. Source is ready for main synchronization; installed app, engines
+and user sessions remain unchanged. No new release or installer publication.
+
+# OpenCode Desktop 0.2.14 — Windows 11 x64 port and installation (REPORTED DONE 2026-10-04)
 
 Ported the supplied macOS/Linux source archive to Windows while preserving the
 existing product behavior. Added Windows path handling, OpenSSH and OpenCode CLI

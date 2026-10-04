@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
   [string]$InstallerPath = '',
-  [string]$HealthUrl = 'http://127.0.0.1:4096/global/health'
+  [string]$HealthUrl = 'http://127.0.0.1:4096/global/health',
+  [switch]$ArtifactOnly
 )
 
 $ErrorActionPreference = 'Stop'
 
-if (-not $IsWindows) {
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
   throw 'This artifact check must run on Windows.'
 }
 
@@ -32,10 +33,14 @@ $installed = Get-ChildItem -LiteralPath $uninstallRoot -ErrorAction SilentlyCont
   Select-Object -First 1
 
 $health = $null
-try {
+if (-not $ArtifactOnly) {
   $health = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 5
-} catch {
-  Write-Warning "OpenCode health check is unavailable: $($_.Exception.Message)"
+  if ($health.healthy -ne $true) { throw 'OpenCode did not report healthy=true.' }
+  if (-not $installed) { throw 'OpenCode Desktop is not installed for this user.' }
+  $package = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\package.json') -Raw | ConvertFrom-Json
+  if ($installed.DisplayVersion -ne $package.version) {
+    throw "Installed version $($installed.DisplayVersion) differs from source $($package.version)."
+  }
 }
 
 [pscustomobject]@{
@@ -52,4 +57,4 @@ try {
 if ($installer.Length -eq 0) {
   throw 'Installer is empty.'
 }
-Write-Host 'Windows artifact verification completed.'
+Write-Host 'Windows artifact checks completed. UI and agent acceptance require separate live tests.'

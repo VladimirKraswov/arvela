@@ -35,6 +35,11 @@ beforeEach(async () => {
   vi.spyOn(store.client, "pendingPermissions").mockResolvedValue([]);
   vi.spyOn(store.client, "pendingQuestions").mockResolvedValue([]);
   vi.spyOn(store.client, "messages").mockResolvedValue({ messages: [] });
+  // Project switches reload metadata as well. Keep these unit tests independent
+  // of an owner's running server and its response time.
+  vi.spyOn(store.client, "providers").mockResolvedValue({ all: [], connected: [], default: {} });
+  vi.spyOn(store.client, "agents").mockResolvedValue([]);
+  vi.spyOn(store.client, "config").mockResolvedValue({});
   await store.setDirectory("/test/A");
 });
 it("R1: session.created must not invalidate the current project SSE stream", async () => {

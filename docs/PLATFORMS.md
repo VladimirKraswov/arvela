@@ -11,7 +11,7 @@
 | Артефакт | `.deb` | `.app` + `.dmg` | NSIS `.exe` |
 | Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | `src-tauri/tauri.windows.conf.json` |
 | Команда | `npm run build:linux` | `npm run build:macos` | `npm run build:windows` |
-| Собрано и запущено | да, на Ubuntu 24.04 | да, на Mac владельца | да, Windows 11 x64 |
+| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.14, Mac владельца | 0.2.14, Windows 11 x64, по переданному отчёту |
 | Оконный хром | системный заголовок GTK | overlay-светофор macOS | системный заголовок Windows |
 | Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | нет сертификата издателя |
 | Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | WebView2/Windows |
@@ -22,7 +22,7 @@
 | Каталог конфигурации OpenCode | `$XDG_CONFIG_HOME` → `$HOME/.config` | `$HOME/.config` | `%USERPROFILE%\.config\opencode` |
 | Данные приложения | `$XDG_DATA_HOME` → `$HOME/.local/share` | `$HOME/.local/share` | `%LOCALAPPDATA%\opencode-desktop` |
 
-Windows-сборка 0.2.14 установлена и проверена с OpenCode 1.18.33 и локальным
+По переданному отчёту Windows-сборка 0.2.14 установлена и проверена с OpenCode 1.18.33 и локальным
 OpenAI-совместимым Qwen. Agent Control использует Unix domain socket и потому
 на Windows пока явно недоступен; Agent Factory, зависящая от него, также не
 имеет полного Windows-паритета. Pi CLI/RPC проверен отдельно, но интеграция Pi
@@ -51,7 +51,7 @@ Tauri 2 автоматически сливает `tauri.<platform>.conf.json` �
 
 ## Команды
 
-Общее для обеих платформ:
+Общее для трёх платформ (на Windows используйте `npm.cmd`):
 
 ```sh
 npm ci
@@ -66,7 +66,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ```sh
 npm run check:linux-prereqs        # только сообщает недостающие пакеты
 npm run build:linux
-# src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.deb
+# src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd64.deb
 ```
 
 Требуемые системные пакеты Ubuntu 24.04:
@@ -94,14 +94,26 @@ python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode 
 ### Windows (NSIS .exe)
 
 ```powershell
-npm run build:windows
+npm.cmd ci
+npm.cmd test -- --maxWorkers=2
+npm.cmd run build:windows
 # src-tauri\target\release\bundle\nsis\OpenCode Desktop_0.2.14_x64-setup.exe
 ```
 
 Нужны Rust stable-msvc, Visual Studio Build Tools с Desktop C++ workload,
-Node.js/npm и WebView2. Сборка 0.2.14 проверена на Windows 11 x64. Установщик
+Node.js 24 LTS >=24.15.0/npm и WebView2. По переданному отчёту сборка 0.2.14
+проверена на Windows 11 x64. Установщик
 предназначен для текущего пользователя и в локальной сборке не имеет цифровой
 подписи издателя.
+
+`scripts/check-windows-prereqs.ps1` совместим с Windows PowerShell 5.1 и
+PowerShell 7. `scripts/verify-windows.ps1` проверяет метаданные установщика,
+совпадение установленной версии и `/global/health`; отсутствие установки или
+здорового сервера — ошибка. `-ArtifactOnly` проверяет только файл установщика.
+Это не заменяет проверку окна, Pi, разрешений, вложений и диктовки в приложении.
+Исправления после импорта порта проверены на Mac; повторная Windows-сборка
+актуального main ещё не выполнена. Хеш установщика в отчёте относится к исходному
+Windows-коммиту `7c47d55`, а не к пересобранному main.
 
 ## Проверка Linux-рантайма
 
@@ -121,8 +133,8 @@ DISPLAY=:77 xwd -root -silent -out /tmp/shot.xwd
 Проверить содержимое пакета без установки:
 
 ```sh
-dpkg-deb -I "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.deb"
-dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.deb"
+dpkg-deb -I "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd64.deb"
+dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd64.deb"
 ```
 
 В списке файлов не должно быть `Entitlements.plist`, `Info.plist` и `.icns`.

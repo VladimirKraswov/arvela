@@ -1,5 +1,21 @@
 # OpenCode Desktop roadmap
 
+## M24 — Windows port integration (0.2.14 source, 2026-10-04)
+
+- [x] Import the owner's Windows port without replacing the existing main history or dropping the Linux prerequisite script's executable mode.
+- [x] Windows home/app-data paths, native CLI discovery, cross-process startup lock and current-user NSIS overlay.
+- [x] Keep unsupported Agent Control/Factory explicit and nonfatal on Windows.
+- [x] Review drive/UNC/POSIX path handling; preserve POSIX case sensitivity and filesystem roots, with regression tests.
+- [x] Reject an invalid explicit Windows Node path instead of silently selecting another interpreter.
+- [x] Fix prerequisite/verification scripts for PowerShell 5.1; installation and health failures must not count as acceptance.
+- [x] Frontend 313 passed / 6 opt-in live skipped; Mac Rust 39 passed, Cargo check and TypeScript/Vite build passed.
+- [ ] Rebuild and rerun the integrated main on Windows; the supplied acceptance report applies to the original port commit.
+- [ ] Windows packaged Pi UI, approval/LSP, file drop/clipboard and dictation acceptance.
+- [ ] Windows Job Object process-tree cleanup and private Agent Control transport.
+
+The previously published macOS v0.2.14 package is unchanged. This source integration
+does not publish a Windows installer or assert a new Linux binary.
+
 ## M23 — Pi startup, local runtime paths and final settings-card spacing (0.2.14)
 
 - [x] Launch npm's `env node` Pi entry point through a verified absolute Node interpreter, including when Finder omits Homebrew from PATH.

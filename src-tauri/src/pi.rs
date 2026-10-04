@@ -253,6 +253,9 @@ fn command_for_program(program: &Path, node_override: Option<&Path>) -> Result<C
     }
     let mut nodes = Vec::new();
     if let Some(node) = node_override {
+        if !node.is_absolute() || !node.is_file() {
+            return Err("Укажите абсолютный путь к существующему node.exe.".into());
+        }
         nodes.push(node.to_path_buf());
     }
     nodes.push(PathBuf::from(r"C:\Program Files\nodejs\node.exe"));

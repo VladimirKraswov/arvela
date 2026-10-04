@@ -1,4 +1,4 @@
-// Guards the split between the platform-neutral Tauri config and the two
+// Guards the split between the platform-neutral Tauri config and the three
 // reviewed platform variants. Tauri 2 merges `tauri.<platform>.conf.json` into
 // `tauri.conf.json`; object keys are merged, but arrays are *replaced*, which is
 // exactly where a silent drift (or a macOS-only key reaching Linux) would hide.
@@ -31,6 +31,8 @@ it("keeps macOS window chrome and entitlements out of the shared config", () => 
   // The Linux overlay must not reintroduce either of them.
   expect(linux.app).toBeUndefined();
   expect(linux.bundle.macOS).toBeUndefined();
+  expect(windows.app).toBeUndefined();
+  expect(windows.bundle.macOS).toBeUndefined();
 });
 
 it("preserves the Hardened Runtime microphone entitlement on the macOS variant", () => {

@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-if (-not $IsWindows) {
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
   throw 'This prerequisite check must run on Windows.'
 }
 
@@ -23,9 +23,11 @@ foreach ($command in $requiredCommands) {
   Write-Host "OK $command -> $resolvedPath"
 }
 
-$nodeVersion = [version]((& node.exe --version).TrimStart('v'))
-if ($nodeVersion -lt [version]'24.15.0') {
-  throw "Node.js 24.15.0 or newer is required by this lockfile; found $nodeVersion"
+$nodeOutput = & node.exe --version
+if ($LASTEXITCODE -ne 0) { throw 'node.exe --version failed.' }
+$nodeVersion = [version]($nodeOutput.TrimStart('v'))
+if (-not (($nodeVersion.Major -eq 24 -and $nodeVersion -ge [version]'24.15.0') -or $nodeVersion.Major -ge 26)) {
+  throw "Use Node.js 24 LTS >=24.15.0 or >=26.0.0 with this lockfile; found $nodeVersion"
 }
 Write-Host "OK Node.js $nodeVersion"
 
@@ -34,6 +36,7 @@ if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) {
   throw 'Visual Studio Installer (vswhere.exe) was not found.'
 }
 $vsInstall = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Workload.VCTools -property installationPath
+if ($LASTEXITCODE -ne 0) { throw 'Visual Studio detection failed.' }
 if (-not $vsInstall) {
   throw 'Visual Studio Build Tools with the Desktop C++ workload were not found.'
 }

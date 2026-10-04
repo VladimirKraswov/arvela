@@ -118,7 +118,7 @@ function ChangesTab() {
           const clean = normalizeLocalPath(abs).replace(/^\/private(?=\/)/, "");
           const root = normalizeLocalPath(dir).replace(/^\/private(?=\/)/, "");
           return pathIsWithin(clean, root) && clean !== root
-            ? clean.slice(root.length + 1)
+            ? clean.slice(root.length + (root.endsWith("/") ? 0 : 1))
             : clean.replace(/^\/+/, "");
         };
         const known = new Set(
