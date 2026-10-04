@@ -1,8 +1,10 @@
 import { parseConfig, updateConfig } from "./configEditor";
+import { isAbsoluteLocalPath } from "../util/paths";
 
 export const AGENT_CONTROL_MCP = "opencode_desktop";
 
 export interface AgentControlStatus {
+  supported: boolean;
   ready: boolean;
   command: string;
   descriptorPath: string;
@@ -15,7 +17,7 @@ export function agentControlConfig(
   status: AgentControlStatus,
   enabled: boolean,
 ) {
-  if (!status.command.startsWith("/") || !status.descriptorPath.startsWith("/"))
+  if (!isAbsoluteLocalPath(status.command) || !isAbsoluteLocalPath(status.descriptorPath))
     throw new Error("OpenCode Desktop returned non-absolute control paths.");
   const value = parseConfig(source);
   const existing = (value.mcp as Record<string, unknown> | undefined)?.[

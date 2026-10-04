@@ -1,5 +1,46 @@
 # Verification record
 
+## Windows 11 x64 port and installation — 0.2.14, 2026-10-04
+
+- The supplied inner source archive matched the administrator manifest SHA256
+  `003744378acdfa9170a8910edcc808ff61ae97d110b581efb931c22ec8b3540a`.
+- Rust stable-msvc 1.99.0, Visual Studio Build Tools C++ workload, Windows SDK,
+  Node.js 24.16.0/npm 11.13.0 and WebView2 were present or installed. Official
+  OpenCode CLI 1.18.33 was installed separately through winget.
+- OpenCode configuration uses `%USERPROFILE%\.config\opencode\opencode.jsonc`.
+  The reachable OpenAI-compatible endpoint at `192.168.31.71:1919/v1` was
+  configured as `local-qwen-next/qwen38-flash-next`; the V100 endpoint did not
+  respond and was not configured.
+- Frontend suite: **308 passed / 6 opt-in live skipped** with two workers. Rust
+  library suite: **33 passed**. TypeScript/Vite production build, `cargo check`,
+  formatting and the Windows NSIS release build passed.
+- Installed location is `%LOCALAPPDATA%\OpenCode Desktop`. The native process
+  is responsive, `/global/health` reports OpenCode 1.18.33 healthy, and provider
+  status reports `local-qwen-next` connected.
+- Live acceptance session `ses_ef9185746ffeFDPE6yD5Elz8sr` used directory
+  `C:\Dev\OpenCode Desktop Smoke\Проект тест`, provider `local-qwen-next`, model
+  `qwen38-flash-next`, and completed normally with exact text
+  `WINDOWS_QWEN_OK`. No automatic permission approval was enabled.
+- Pi 0.85.1 was installed from `@earendil-works/pi-coding-agent@0.85.1` and
+  configured in `%USERPROFILE%\.pi\agent\models.json` for the same endpoint.
+  The server rejected Pi's initial `developer` role, so the documented
+  `compat.supportsDeveloperRole: false` setting was applied. A no-tools,
+  no-session Medium request returned exact text `PI_WINDOWS_QWEN_OK`.
+  JSONL RPC responses for `get_available_models`, `get_state` and `get_commands`
+  all succeeded and reported the intended provider/model, Medium thinking,
+  262144-token context and 16384-token maximum output.
+- `scripts/check-windows-prereqs.ps1` passed for Git, Node 24.16.0/npm 11.13.0,
+  Rust, Visual Studio Build Tools C++ and WebView2 154.0.4258.53.
+  `scripts/verify-windows.ps1` verified the package, registry installation and
+  healthy OpenCode server.
+- NSIS artifact SHA256:
+  `0C87647FC0BA7D3FF6A0E714E934F3C57EE7D35EF3D8BFE12DB7C6179FEBF36B`.
+  This private local build is not Authenticode-signed.
+- Known limits: Agent Control/Factory have no Windows named-pipe implementation;
+  packaged-UI Pi integration, Pi LSP/approval UI and SSH were not live-tested;
+  Windows Job Object process-tree shutdown for Pi and a Windows completion-sound
+  player remain unimplemented.
+
 ## Pi startup and settings spacing — 0.2.14, 2026-09-30
 
 - Owner screenshot showed `env: node: No such file or directory` below the Pi

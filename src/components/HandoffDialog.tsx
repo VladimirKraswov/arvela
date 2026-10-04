@@ -4,9 +4,10 @@ import { store, useAppState } from "../state/store";
 import { deliverHandoff, handoffConnection, handoffText, prepareHandoff, recipientProfile,
   type HandoffConnection, type HandoffSource, type DeliveryReceipt } from "../state/handoff";
 import { Icon } from "./Icon";
+import { pathBasename } from "../util/paths";
 
 const errorText = (e: unknown) => e instanceof Error ? e.message : String(e);
-const folderName = (dir: string) => dir.split("/").filter(Boolean).pop() ?? dir;
+const folderName = pathBasename;
 
 export function HandoffDialog() {
   const s = useAppState();

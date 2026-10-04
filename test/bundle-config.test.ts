@@ -12,6 +12,7 @@ const read = (name: string) =>
 const base = read("tauri.conf.json");
 const macos = read("tauri.macos.conf.json");
 const linux = read("tauri.linux.conf.json");
+const windows = read("tauri.windows.conf.json");
 const pkg = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 );
@@ -58,13 +59,12 @@ it("re-declares the whole window object in the macOS overlay, since arrays are r
 it("gives each reviewed variant exactly one bundle target set", () => {
   expect(linux.bundle.targets).toEqual(["deb"]);
   expect(macos.bundle.targets).toEqual(["app", "dmg"]);
+  expect(windows.bundle.targets).toEqual(["nsis"]);
 });
 
-it("does not ship an untested Windows variant", () => {
-  // A Windows variant adds this file; its absence is the honest current state.
-  expect(
-    existsSync(new URL("../src-tauri/tauri.windows.conf.json", import.meta.url)),
-  ).toBe(false);
+it("ships the reviewed Windows variant as a per-user NSIS installer", () => {
+  expect(windows.bundle.windows.nsis.installMode).toBe("currentUser");
+  expect(pkg.scripts["build:windows"]).toBe("tauri build --bundles nsis");
 });
 
 it("keeps one product version across package, Cargo and Tauri", () => {

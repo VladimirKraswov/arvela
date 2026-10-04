@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { store, useAppState } from "../state/store";
 import { PI_CAPABILITIES } from "../agent/pi/backend";
 import { piAvailability } from "../state/engines";
+import { isAbsoluteLocalPath } from "../util/paths";
 
 function Row({
   title,
@@ -360,7 +361,7 @@ export function PiSettings() {
         <div className="btn-row">
           <button
             className="btn"
-            disabled={!serverPath.trim().startsWith("/")}
+            disabled={!isAbsoluteLocalPath(serverPath)}
             onClick={() => {
               const path = serverPath.trim();
               const current = settings.lspServerPaths ?? [];
@@ -402,7 +403,7 @@ export function PiSettings() {
         <div className="btn-row">
           <button
             className="btn"
-            disabled={!extension.trim().startsWith("/")}
+            disabled={!isAbsoluteLocalPath(extension)}
             onClick={() => {
               const path = extension.trim();
               if (!lspExtensions.includes(path))

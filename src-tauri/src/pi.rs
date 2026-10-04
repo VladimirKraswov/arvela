@@ -62,15 +62,30 @@ const DIALOG_METHODS: &[&str] = &["select", "confirm", "input", "editor"];
 fn candidate_programs() -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(data) = crate::paths::app_data_dir() {
+        #[cfg(target_os = "windows")]
+        out.push(data.join(r"pi-runtime\node_modules\@earendil-works\pi-coding-agent\dist\cli.js"));
+        #[cfg(not(target_os = "windows"))]
         out.push(data.join("pi-runtime/node_modules/.bin/pi"));
     }
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-        out.push(home.join(".local/bin/pi"));
-        out.push(home.join(".bun/bin/pi"));
+    if let Ok(home) = crate::paths::user_home() {
+        #[cfg(target_os = "windows")]
+        out.push(
+            home.join(
+                r"AppData\Roaming\npm\node_modules\@earendil-works\pi-coding-agent\dist\cli.js",
+            ),
+        );
+        #[cfg(not(target_os = "windows"))]
+        {
+            out.push(home.join(".local/bin/pi"));
+            out.push(home.join(".bun/bin/pi"));
+        }
     }
     // Homebrew on Apple Silicon, Homebrew/manual on Intel and Linux.
-    out.push(PathBuf::from("/opt/homebrew/bin/pi"));
-    out.push(PathBuf::from("/usr/local/bin/pi"));
+    #[cfg(not(target_os = "windows"))]
+    {
+        out.push(PathBuf::from("/opt/homebrew/bin/pi"));
+        out.push(PathBuf::from("/usr/local/bin/pi"));
+    }
     out
 }
 
@@ -119,12 +134,15 @@ fn resolve_program(configured: Option<&str>) -> Result<(PathBuf, &'static str), 
     if let Some(raw) = configured.map(str::trim).filter(|s| !s.is_empty()) {
         return Ok((validate_override(raw)?, "configured"));
     }
-    let managed = crate::paths::app_data_dir()
-        .map(|d| d.join("pi-runtime/node_modules/.bin/pi"))
+    let managed_root = crate::paths::app_data_dir()
+        .map(|d| d.join("pi-runtime"))
         .ok();
     for candidate in candidate_programs() {
         if candidate.is_file() {
-            let source = if Some(&candidate) == managed.as_ref() {
+            let source = if managed_root
+                .as_ref()
+                .is_some_and(|root| candidate.starts_with(root))
+            {
                 "managed"
             } else {
                 "system"
@@ -216,8 +234,48 @@ fn command_for_program(program: &Path, node_override: Option<&Path>) -> Result<C
 }
 
 #[cfg(not(unix))]
-fn command_for_program(program: &Path, _node_override: Option<&Path>) -> Result<Command, String> {
-    Ok(Command::new(program))
+fn command_for_program(program: &Path, node_override: Option<&Path>) -> Result<Command, String> {
+    let extension = program
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if extension.eq_ignore_ascii_case("exe") {
+        return Ok(Command::new(program));
+    }
+    if extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat") {
+        return Err("Для Pi укажите JavaScript entrypoint пакета, а не npm .cmd shim.".into());
+    }
+    if !matches!(
+        extension.to_ascii_lowercase().as_str(),
+        "js" | "mjs" | "cjs"
+    ) {
+        return Ok(Command::new(program));
+    }
+    let mut nodes = Vec::new();
+    if let Some(node) = node_override {
+        nodes.push(node.to_path_buf());
+    }
+    nodes.push(PathBuf::from(r"C:\Program Files\nodejs\node.exe"));
+    if let Ok(home) = crate::paths::user_home() {
+        nodes.push(home.join(r"AppData\Local\Programs\nodejs\node.exe"));
+    }
+    let node = nodes
+        .into_iter()
+        .find(|path| path.is_absolute() && path.is_file())
+        .ok_or("Pi найден, но абсолютный node.exe не найден.")?;
+    let mut command = Command::new(&node);
+    command.arg(program);
+    if let Some(parent) = node.parent() {
+        let mut paths = vec![parent.to_path_buf()];
+        if let Some(inherited) = std::env::var_os("PATH") {
+            paths.extend(std::env::split_paths(&inherited).filter(|entry| entry.is_absolute()));
+        }
+        command.env(
+            "PATH",
+            std::env::join_paths(paths).map_err(|e| e.to_string())?,
+        );
+    }
+    Ok(command)
 }
 
 #[tauri::command]
@@ -464,7 +522,7 @@ pub async fn pi_probe_directory() -> Result<String, String> {
 /// directory to the app's own chats root.
 #[tauri::command]
 pub async fn pi_prepare_chat_workspace(id: String) -> Result<crate::hosts::Workspace, String> {
-    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+    let home = crate::paths::user_home()?.to_string_lossy().to_string();
     crate::hosts::prepare_chat_workspace(id, None, home).await
 }
 

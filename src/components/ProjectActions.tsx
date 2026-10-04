@@ -2,11 +2,12 @@ import { useState } from "react";
 import { store, useAppState } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
+import { pathBasename } from "../util/paths";
 
 export function ProjectActions({ directory }: { directory: string }) {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [confirm, setConfirm] = useState(false);
-  const name = directory.split("/").filter(Boolean).pop();
+  const name = pathBasename(directory);
   return <>
     <button className="project-menu icon-btn" aria-label={`Действия проекта ${name}`} title="Действия проекта" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}><Icon name="dots" size={16} /></button>
     {anchor && <FloatingPopover anchor={anchor} className="task-popover" role="menu" label="Действия проекта" width={235} placement="bottom" align="end" onClose={() => setAnchor(null)}>
@@ -36,7 +37,7 @@ export function RemovedProjects() {
         <h3>Убранные проекты</h3>
         <p>Папки и сессии остаются в OpenCode. Восстановление возвращает их в боковую панель.</p>
         <div className="removed-list">{dirs.map((dir) => <div className="removed-row" key={dir}>
-          <span><b>{dir.split("/").filter(Boolean).pop()}</b><small className="project-path">{dir}</small></span>
+          <span><b>{pathBasename(dir)}</b><small className="project-path">{dir}</small></span>
           <button className="btn small" onClick={() => { if (dirs.length === 1) setOpen(false); store.restoreProject(dir); }}>Вернуть</button>
         </div>)}</div>
         <div className="btn-row"><button className="btn" autoFocus onClick={() => setOpen(false)}>Закрыть</button></div>

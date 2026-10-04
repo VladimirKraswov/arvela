@@ -11,6 +11,7 @@ import { store, useAppState } from "../state/store";
 import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../attachments/drafts";
 import { LARGE_PASTE_THRESHOLD, pastedTextFile } from "../attachments/prepare";
 import { filesFromNativeDrop } from "../attachments/native-drop";
+import { pathBasename } from "../util/paths";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { readFile, stat } from "@tauri-apps/plugin-fs";
@@ -427,7 +428,7 @@ export function Composer() {
           <Icon name={store.isProjectless() ? "chat" : "folder"} size={13} />
           {store.isProjectless()
             ? "Без проекта"
-            : s.directory?.split("/").filter(Boolean).pop()}
+            : s.directory ? pathBasename(s.directory) : undefined}
         </span>
         <ContextMeter />
         <span className="spacer" />

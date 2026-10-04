@@ -13,6 +13,7 @@ import { newMessageId, type QueuedPrompt } from "./queue";
 import type { AsrSettings } from "../voice/asr";
 import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../attachments/drafts";
 import { prepareAttachments } from "../attachments/prepare";
+import { pathIsWithin } from "../util/paths";
 import { DEFAULT_HELPER_ENDPOINT } from "../attachments/helper";
 // Central application store: connection lifecycle, project/session selection,
 // chat state driven by the pure stream reducer, and command actions.
@@ -1419,7 +1420,7 @@ class Store {
     const root = this.state.prefs.projectlessRoot;
     return (
       (this.state.prefs.projectlessDirectories ?? []).includes(dir) ||
-      (!!root && (dir === root || dir.startsWith(root + "/")))
+      (!!root && pathIsWithin(dir, root))
     );
   }
   isProjectless(): boolean {

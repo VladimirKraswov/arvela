@@ -1,3 +1,23 @@
+# OpenCode Desktop 0.2.14 — Windows 11 x64 port and installation (DONE 2026-10-04)
+
+Ported the supplied macOS/Linux source archive to Windows while preserving the
+existing product behavior. Added Windows path handling, OpenSSH and OpenCode CLI
+discovery, cross-process launch locking, NSIS current-user packaging and honest
+unsupported-platform status for Unix-socket Agent Control. Built and installed
+the unsigned NSIS package in `%LOCALAPPDATA%\OpenCode Desktop`; the native window
+and OpenCode 1.18.33 local server are healthy. Configured the reachable local
+OpenAI-compatible provider `local-qwen-next/qwen38-flash-next` without changing
+unrelated credentials. A live request in `C:\Dev\OpenCode Desktop Smoke\Проект
+тест` completed with exact text `WINDOWS_QWEN_OK`. Frontend: 308 passed, 6
+opt-in live skipped; Rust: 33 passed; Vite build, cargo check and Windows NSIS
+build passed. Pi 0.85.1 was installed, configured for the same Qwen, returned
+`PI_WINDOWS_QWEN_OK`, and its `get_available_models`, `get_state` and
+`get_commands` JSONL RPC calls passed. Installer SHA256:
+`0C87647FC0BA7D3FF6A0E714E934F3C57EE7D35EF3D8BFE12DB7C6179FEBF36B`.
+Agent Control/Factory remain unavailable on Windows; Pi integration inside the
+packaged UI, SSH, approval UI and Windows process-tree termination were not
+live-validated. No publication or remote push was performed.
+
 # OpenCode Desktop 0.2.14 — Pi startup, runtime paths and card spacing (RELEASED; INSTALL DEFERRED 2026-09-30)
 
 The owner showed a Pi capability card whose last row touches its border and

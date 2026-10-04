@@ -74,6 +74,7 @@ pub struct ControlCompletion {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentControlStatus {
+    supported: bool,
     ready: bool,
     command: String,
     descriptor_path: String,
@@ -167,6 +168,7 @@ pub fn agent_control_status(
     control: State<'_, AgentControl>,
 ) -> Result<AgentControlStatus, String> {
     Ok(AgentControlStatus {
+        supported: cfg!(unix),
         ready: control.ready.load(Ordering::Acquire),
         command: std::env::current_exe()
             .map_err(|e| e.to_string())?
@@ -275,7 +277,9 @@ pub fn start(app: AppHandle) -> Result<(), String> {
 
 #[cfg(not(unix))]
 pub fn start(_app: AppHandle) -> Result<(), String> {
-    Err("agent control is currently supported on macOS and Linux".into())
+    // Agent Control still requires the private Unix-socket transport. It is an
+    // optional integration, so lack of parity must not prevent Windows startup.
+    Ok(())
 }
 
 #[cfg(unix)]

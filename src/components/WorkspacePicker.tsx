@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { store, useAppState, errText } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
+import { pathBasename } from "../util/paths";
 
 export async function pickProjectFolder(): Promise<void> {
   if (store.currentHost()) {
@@ -76,7 +77,7 @@ export function WorkspacePicker() {
         <span>
           {projectless
             ? "Выбрать проект"
-            : s.directory?.split("/").filter(Boolean).pop()}
+            : s.directory ? pathBasename(s.directory) : undefined}
         </span>
         <Icon name="down" size={14} />
       </button>
@@ -127,7 +128,7 @@ export function WorkspacePicker() {
               >
                 <Icon name="folder" />
                 <span>
-                  {dir.split("/").filter(Boolean).pop()}
+                  {pathBasename(dir)}
                   <small>{dir}</small>
                 </span>
                 {dir === s.directory && <Icon name="check" size={16} />}

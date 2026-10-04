@@ -6,6 +6,7 @@ import type { Session } from "../api/types";
 import { store, useAppState } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
+import { pathBasename } from "../util/paths";
 export const pickFolder = pickProjectFolder;
 
 function ActivityMark({ id, pending = false }: { id: string; pending?: boolean }) {
@@ -27,7 +28,7 @@ export function Sidebar() {
     [title, setTitle] = useState(""),
     [all, setAll] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null);
-  const projectName = (dir: string) => dir.split("/").filter(Boolean).pop() ?? dir;
+  const projectName = pathBasename;
   const pinned = s.prefs.pinnedProjects ?? [];
   const dirs = store.projectDirectories().sort((a, b) => {
     const ai = pinned.indexOf(a), bi = pinned.indexOf(b);

@@ -1,6 +1,6 @@
 # Варианты сборки и поддержка платформ
 
-Версия продукта — **0.2.11**, одинаково в `package.json`, `package-lock.json`,
+Версия продукта — **0.2.14**, одинаково в `package.json`, `package-lock.json`,
 `src-tauri/Cargo.toml` и `src-tauri/tauri.conf.json` (проверяется тестом
 `test/bundle-config.test.ts`).
 
@@ -8,21 +8,25 @@
 
 | | Linux (Ubuntu 24.04, x86_64) | macOS (Apple Silicon) | Windows |
 |---|---|---|---|
-| Артефакт | `.deb` | `.app` + `.dmg` | **нет** |
-| Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | отсутствует намеренно |
-| Команда | `npm run build:linux` | `npm run build:macos` | — |
-| Собрано и запущено | да, на Ubuntu 24.04 | да, на Mac владельца | нет |
-| Оконный хром | системный заголовок GTK | overlay-светофор macOS | — |
-| Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | — |
-| Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | — |
-| Звук завершения | `canberra-gtk-play` → `paplay` → `pw-play` | `afplay` + `Glass.aiff` | таблица пуста |
-| Управление компьютером (Cua Driver) | недоступно, сообщается в настройках | да | — |
-| Движок Pi | проверен вживую (0.85.1) | проверен в нативном приложении с локальной Qwen | — |
-| LSP для Pi | typescript + rust проверены | TypeScript и Rust показаны как «готов» | — |
-| Каталог конфигурации OpenCode | `$XDG_CONFIG_HOME` → `$HOME/.config` | `$HOME/.config` | — |
-| Данные приложения | `$XDG_DATA_HOME` → `$HOME/.local/share` | `$HOME/.local/share` | — |
+| Артефакт | `.deb` | `.app` + `.dmg` | NSIS `.exe` |
+| Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | `src-tauri/tauri.windows.conf.json` |
+| Команда | `npm run build:linux` | `npm run build:macos` | `npm run build:windows` |
+| Собрано и запущено | да, на Ubuntu 24.04 | да, на Mac владельца | да, Windows 11 x64 |
+| Оконный хром | системный заголовок GTK | overlay-светофор macOS | системный заголовок Windows |
+| Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | нет сертификата издателя |
+| Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | WebView2/Windows |
+| Звук завершения | `canberra-gtk-play` → `paplay` → `pw-play` | `afplay` + `Glass.aiff` | без нативного проигрывателя |
+| Управление компьютером (Cua Driver) | недоступно, сообщается в настройках | да | недоступно, сообщается в настройках |
+| Движок Pi | проверен вживую (0.85.1) | проверен в нативном приложении с локальной Qwen | Pi 0.85.1 CLI + JSONL RPC проверены с локальной Qwen; packaged UI не проверен |
+| LSP для Pi | typescript + rust проверены | TypeScript и Rust показаны как «готов» | не проверено |
+| Каталог конфигурации OpenCode | `$XDG_CONFIG_HOME` → `$HOME/.config` | `$HOME/.config` | `%USERPROFILE%\.config\opencode` |
+| Данные приложения | `$XDG_DATA_HOME` → `$HOME/.local/share` | `$HOME/.local/share` | `%LOCALAPPDATA%\opencode-desktop` |
 
-**Windows не собран и не протестирован.** Пустых заглушек-артефактов нет.
+Windows-сборка 0.2.14 установлена и проверена с OpenCode 1.18.33 и локальным
+OpenAI-совместимым Qwen. Agent Control использует Unix domain socket и потому
+на Windows пока явно недоступен; Agent Factory, зависящая от него, также не
+имеет полного Windows-паритета. Pi CLI/RPC проверен отдельно, но интеграция Pi
+в установленном UI, его LSP и SSH на Windows не проходили живой тест.
 
 ## Как устроено разделение конфигурации
 
@@ -39,6 +43,7 @@ Tauri 2 автоматически сливает `tauri.<platform>.conf.json` �
 - `tauri.linux.conf.json` — цель `deb`. Runtime-зависимости пакета
   (`libwebkit2gtk-4.1-0`, `libgtk-3-0`) Tauri выводит из бинарника сам; дублировать
   их в конфиге не нужно — это лишь удваивает поле `Depends`.
+- `tauri.windows.conf.json` — цель `nsis`, установка для текущего пользователя.
 
 Соответствие в UI обеспечивает `src/native/platform.ts`: класс `mac-chrome`
 добавляется только на macOS, и только он включает отступы под светофор
@@ -86,6 +91,18 @@ python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode 
 `verify-macos.py` проверяет подпись, наличие entitlement аудиовхода и
 `NSMicrophoneUsageDescription` на **готовом артефакте**, а не в исходных plist.
 
+### Windows (NSIS .exe)
+
+```powershell
+npm run build:windows
+# src-tauri\target\release\bundle\nsis\OpenCode Desktop_0.2.14_x64-setup.exe
+```
+
+Нужны Rust stable-msvc, Visual Studio Build Tools с Desktop C++ workload,
+Node.js/npm и WebView2. Сборка 0.2.14 проверена на Windows 11 x64. Установщик
+предназначен для текущего пользователя и в локальной сборке не имеет цифровой
+подписи издателя.
+
 ## Проверка Linux-рантайма
 
 Без физического дисплея:
@@ -110,24 +127,16 @@ dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_0.2.11_amd64.
 
 В списке файлов не должно быть `Entitlements.plist`, `Info.plist` и `.icns`.
 
-## Точки расширения для Windows
+## Ограничения Windows
 
-Ничего из этого не реализовано; список описывает, что именно нужно добавить.
-
-1. `src-tauri/tauri.windows.conf.json` — цели (`nsis`/`msi`) и параметры
-   WebView2. Сейчас файла нет намеренно: его появление и есть включение варианта.
-2. `src-tauri/src/paths.rs` — арм `#[cfg(target_os = "windows")]` для
-   `%APPDATA%` / `%LOCALAPPDATA%`; XDG-переменных там нет.
-3. `src-tauri/src/sound.rs` — таблица `PLAYERS` для Windows пуста; заполнить её,
-   не меняя `completion_chime`.
-4. `src-tauri/src/hosts.rs` — `SSH_PROGRAMS` содержит только POSIX-пути; для
-   Windows нужен `%SystemRoot%\System32\OpenSSH\ssh.exe` (по-прежнему абсолютный,
-   без поиска по PATH).
-5. `src/native/platform.ts` — значение `"windows"` уже распознаётся, подсказки
-   микрофона и ярлык `Ctrl` уже заданы; оконный хром отдельной настройки не
-   требует.
-6. `scripts/` — аналог `check-linux-prereqs.sh` / `verify-macos.py` для
-   проверки готового артефакта.
-
-`src-tauri/src/computer.rs` (Cua Driver) остаётся macOS-only и на других
-платформах честно сообщает о недоступности, не отключая прочие инструменты.
+- Agent Control MCP и Agent Factory пока недоступны: текущая реализация сервера
+  использует Unix domain socket. UI сообщает об этом без падения приложения.
+- `src-tauri/src/computer.rs` (Cua Driver) остаётся macOS-only и на других
+  платформах честно сообщает о недоступности, не отключая прочие инструменты.
+- Поиск OpenCode CLI, каталоги данных, пути без проекта и системный OpenSSH
+  портированы; локальный OpenCode/Qwen проверен в пути с пробелами и кириллицей.
+- Windows-поиск Pi/Node реализован; Pi 0.85.1 установлен и его короткая генерация
+  плюс JSONL RPC (`get_available_models`, `get_state`, `get_commands`) проверены
+  с локальной Qwen. Интеграция в packaged UI, LSP и SSH-сценарий не проверялись.
+  Остановка всего дерева Pi через Windows Job Object пока не реализована.
+- Нативный проигрыватель системного звука завершения для Windows не добавлен.

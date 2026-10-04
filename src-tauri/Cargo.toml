@@ -27,6 +27,7 @@ serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "multipart", "blocking", "json"] }
 base64 = "0.22"
 url = "2"
+fs2 = "0.4"
 
 # Unix only, and only for process-*group* signalling: a Pi agent spawns language
 # servers, and killing just the direct child would orphan them.

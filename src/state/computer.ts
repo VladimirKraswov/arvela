@@ -1,4 +1,5 @@
 import {parseConfig,updateConfig} from "./configEditor";
+import {isAbsoluteLocalPath} from "../util/paths";
 export const COMPUTER_MCP="cua_desktop";
 export type ComputerStatus={installed:boolean;enabled:boolean;version:string;command:string;skillPath:string;
   permissions:{accessibility?:boolean;screen_recording?:boolean;screen_recording_capturable?:boolean|null;daemon_running?:boolean;status?:string;refusal?:{code?:string}}};
@@ -10,7 +11,7 @@ export function computerReadinessError(status:ComputerStatus):string|undefined{
   if(p.accessibility!==true||p.screen_recording!==true)return "Драйвер не подтвердил доступность и запись экрана. Откройте «Разрешения macOS…», затем проверьте подключение.";
 }
 export function computerConfig(source:string,status:ComputerStatus,enabled:boolean){
-  if(!status.command.startsWith("/")||!status.skillPath.startsWith("/"))throw new Error("Нужны абсолютные пути приложения и навыка.");
+  if(!isAbsoluteLocalPath(status.command)||!isAbsoluteLocalPath(status.skillPath))throw new Error("Нужны абсолютные пути приложения и навыка.");
   const value=parseConfig(source),existing=(value.mcp as Record<string,unknown>|undefined)?.[COMPUTER_MCP] as {command?:string[]}|undefined;
   if(existing&&existing.command?.[1]!=="--computer-mcp")throw new Error("Имя cua_desktop уже занято другой интеграцией. Существующие настройки сохранены.");
   const config={type:"local" as const,command:[status.command,"--computer-mcp"],enabled,timeout:45000};

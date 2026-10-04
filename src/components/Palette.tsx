@@ -2,6 +2,7 @@ import { useState } from "react";
 import { store, useAppState } from "../state/store";
 import { Icon } from "./Icon";
 import { pickFolder } from "./Sidebar";
+import { pathBasename } from "../util/paths";
 export function Palette() {
   const s = useAppState(),
     [query, setQuery] = useState("");
@@ -40,7 +41,7 @@ export function Palette() {
   const rows = [
     ...actions.map((a) => ({ ...a, detail: "Действие" })),
     ...dirs.map((dir) => ({
-      name: dir.split("/").pop() ?? dir,
+      name: pathBasename(dir),
       detail: dir,
       icon: "folder",
       run: () => store.setDirectory(dir, { restoreSession: true }),

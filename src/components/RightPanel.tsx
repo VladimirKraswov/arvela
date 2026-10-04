@@ -4,6 +4,7 @@ import { store, useAppState, errText } from "../state/store";
 import { OpenCodeClient } from "../api/client";
 import { sessionPatchFiles } from "../state/chatReducer";
 import { looksBinary, unifiedDiffLines } from "../util/diff";
+import { isAbsoluteLocalPath, normalizeLocalPath, pathDirname, pathIsWithin } from "../util/paths";
 
 /** Diff rebuilt from before/after content when the server gives no patch text (R8). */
 function GeneratedDiff({ before, after }: { before?: string; after?: string }) {
@@ -114,14 +115,14 @@ function ChangesTab() {
       if (sessionId) {
         // 1.18.18 may return no server diff after writes; patch parts are the truthful list.
         const toRel = (abs: string) => {
-          const clean = abs.replace(/^\/private(?=\/)/, "");
-          const root = dir.replace(/^\/private(?=\/)/, "");
-          return clean.startsWith(`${root}/`)
+          const clean = normalizeLocalPath(abs).replace(/^\/private(?=\/)/, "");
+          const root = normalizeLocalPath(dir).replace(/^\/private(?=\/)/, "");
+          return pathIsWithin(clean, root) && clean !== root
             ? clean.slice(root.length + 1)
-            : clean;
+            : clean.replace(/^\/+/, "");
         };
         const known = new Set(
-          result.map((r) => toRel(`/${r.file.replace(/^\/+/, "")}`)),
+          result.map((r) => toRel(isAbsoluteLocalPath(r.file) ? r.file : `${dir}/${r.file}`)),
         );
         const generated: SessionDiffFile[] = [];
         for (const abs of sessionPatchFiles(
@@ -322,7 +323,7 @@ function FilesTab() {
     }
   };
 
-  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  const parent = pathDirname(path);
 
   return (
     <>

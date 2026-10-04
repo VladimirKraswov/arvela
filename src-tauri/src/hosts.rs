@@ -5,7 +5,7 @@ use std::{
     fs,
     io::Read,
     net::TcpListener,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
     thread,
@@ -42,14 +42,23 @@ fn valid_target(s: &str) -> bool {
 /// Absolute paths only: resolving `ssh` through PATH would let a user-writable
 /// directory decide which binary opens the tunnel. macOS ships the first entry,
 /// Debian/Ubuntu the first or second, Nix/Homebrew installs the last.
+#[cfg(unix)]
 const SSH_PROGRAMS: &[&str] = &["/usr/bin/ssh", "/bin/ssh", "/usr/local/bin/ssh"];
 
-fn ssh_program() -> &'static str {
+fn ssh_program() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let system_root = std::env::var_os("SystemRoot")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+        return system_root.join(r"System32\OpenSSH\ssh.exe");
+    }
+    #[cfg(unix)]
     SSH_PROGRAMS
         .iter()
-        .copied()
-        .find(|p| PathBuf::from(p).is_file())
-        .unwrap_or(SSH_PROGRAMS[0])
+        .map(PathBuf::from)
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| PathBuf::from(SSH_PROGRAMS[0]))
 }
 
 fn ssh(target: &str) -> Result<Command, String> {
@@ -102,8 +111,10 @@ fn output_timeout(mut c: Command) -> Result<String, String> {
 
 #[tauri::command]
 pub fn ssh_aliases() -> Vec<String> {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let text = fs::read_to_string(PathBuf::from(home).join(".ssh/config")).unwrap_or_default();
+    let text = crate::paths::user_home()
+        .ok()
+        .and_then(|home| fs::read_to_string(home.join(".ssh/config")).ok())
+        .unwrap_or_default();
     let mut out = Vec::new();
     for line in text.lines() {
         let mut words = line
@@ -144,7 +155,7 @@ pub async fn prepare_chat_workspace(
             let root = directory.rsplit_once('/').ok_or("Некорректный путь")?.0.to_string();
             Ok(Workspace { directory, root })
         } else {
-            let home = PathBuf::from(std::env::var("HOME").map_err(|e| e.to_string())?);
+            let home = crate::paths::user_home()?;
             if fs::canonicalize(&home).ok() != fs::canonicalize(&server_home).ok() || !home.is_absolute() {
                 return Err("Сервер работает на другой машине. Выберите подключение SSH для создания чата.".into());
             }
@@ -154,7 +165,11 @@ pub async fn prepare_chat_workspace(
             fs::create_dir(&dir).map_err(|e| e.to_string())?;
             #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?; }
             let directory = fs::canonicalize(dir).map_err(|e| e.to_string())?.to_string_lossy().to_string();
-            let root = directory.rsplit_once('/').ok_or("Некорректный путь")?.0.to_string();
+            let root = Path::new(&directory)
+                .parent()
+                .ok_or("Некорректный путь")?
+                .to_string_lossy()
+                .to_string();
             Ok(Workspace { directory, root })
         }
     }).await.map_err(|e| e.to_string())?
@@ -271,8 +286,9 @@ mod tests {
     }
     #[test]
     fn ssh_is_only_ever_launched_from_an_absolute_path() {
+        #[cfg(unix)]
         assert!(SSH_PROGRAMS.iter().all(|p| p.starts_with('/')));
-        assert!(ssh_program().starts_with('/'));
+        assert!(ssh_program().is_absolute());
     }
     #[test]
     fn ssh_never_disables_host_key_verification() {

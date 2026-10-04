@@ -15,16 +15,20 @@
 //! on macOS always `$HOME/.config` and `$HOME/.local/share`, byte-for-byte what
 //! every verified 0.2.x build used.
 //!
-//! Windows extension point: neither variable exists there. A Windows variant adds
-//! a `#[cfg(target_os = "windows")]` arm resolving `%APPDATA%` / `%LOCALAPPDATA%`.
-//! It is intentionally absent — no Windows build has been produced or tested.
+//! On Windows OpenCode itself still reports `%USERPROFILE%\.config\opencode`,
+//! while Desktop-owned state belongs under `%LOCALAPPDATA%\opencode-desktop`.
 
 use std::path::PathBuf;
 
-fn home() -> Result<PathBuf, String> {
-    let home = PathBuf::from(std::env::var_os("HOME").ok_or("HOME недоступен")?);
+pub fn user_home() -> Result<PathBuf, String> {
+    #[cfg(target_os = "windows")]
+    let variable = "USERPROFILE";
+    #[cfg(not(target_os = "windows"))]
+    let variable = "HOME";
+    let home =
+        PathBuf::from(std::env::var_os(variable).ok_or_else(|| format!("{variable} недоступен"))?);
     if !home.is_absolute() {
-        return Err("HOME должен быть абсолютным путём".into());
+        return Err(format!("{variable} должен быть абсолютным путём"));
     }
     Ok(home)
 }
@@ -39,7 +43,7 @@ fn xdg_override(variable: &str) -> Option<PathBuf> {
 /// Candidate roots in preference order. macOS deliberately offers only the home
 /// location so an installed release keeps resolving exactly as it did before.
 fn candidates(variable: &str, fallback: &str) -> Result<Vec<PathBuf>, String> {
-    let home = home()?.join(fallback);
+    let home = user_home()?.join(fallback);
     if cfg!(target_os = "linux") {
         if let Some(xdg) = xdg_override(variable) {
             // Both are plausible: the engine may predate the XDG variable being set.
@@ -72,6 +76,16 @@ pub fn opencode_config_dir() -> Result<PathBuf, String> {
 
 /// Root of this application's own data (chat workspaces, computer-control gate).
 pub fn app_data_dir() -> Result<PathBuf, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let root =
+            PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA недоступен")?);
+        if !root.is_absolute() {
+            return Err("LOCALAPPDATA должен быть абсолютным путём".into());
+        }
+        return Ok(root.join("opencode-desktop"));
+    }
+    #[cfg(not(target_os = "windows"))]
     resolve("XDG_DATA_HOME", ".local/share", "opencode-desktop")
 }
 
@@ -136,8 +150,9 @@ mod tests {
             let _scoped = Scoped::set(VAR, Some(Path::new(ignored)));
             assert_eq!(xdg_override(VAR), None, "{ignored:?}");
         }
-        let _scoped = Scoped::set(VAR, Some(Path::new("/custom/xdg")));
-        assert_eq!(xdg_override(VAR), Some(PathBuf::from("/custom/xdg")));
+        let absolute = std::env::temp_dir().join("custom-xdg");
+        let _scoped = Scoped::set(VAR, Some(&absolute));
+        assert_eq!(xdg_override(VAR), Some(absolute));
     }
 
     /// The bug this guards: OpenCode keeps its config in `$HOME/.config/opencode`,
@@ -181,6 +196,7 @@ mod tests {
     /// Without XDG variables the result must be identical to the shipped 0.2.x
     /// behaviour on both platforms.
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn without_xdg_variables_both_platforms_use_the_home_layout() {
         let _guard = lock();
         let root = temp_dir("home-only");

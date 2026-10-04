@@ -10,6 +10,7 @@
     "test": "vitest run",
     "tauri": "tauri",
     "build:linux": "tauri build --bundles deb",
+    "build:windows": "tauri build --bundles nsis",
     "build:macos": "tauri build --bundles app,dmg --config '{\"bundle\":{\"macOS\":{\"signingIdentity\":\"-\"}}}'",
     "check:linux-prereqs": "./scripts/check-linux-prereqs.sh"
   },

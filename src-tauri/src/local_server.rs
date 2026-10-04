@@ -1,6 +1,7 @@
 //! Start the separately installed OpenCode CLI only when the selected local
 //! loopback endpoint is absent. Remote SSH endpoints are never passed here.
 
+use fs2::FileExt;
 use std::{
     fs::{self, File, OpenOptions},
     net::{TcpStream, ToSocketAddrs},
@@ -11,7 +12,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::{fd::AsRawFd, unix::fs::OpenOptionsExt, unix::process::CommandExt};
+use std::os::{unix::fs::OpenOptionsExt, unix::process::CommandExt};
 
 #[derive(Debug)]
 struct LocalEndpoint {
@@ -53,13 +54,8 @@ fn app_lock(dir: &Path) -> Result<File, String> {
     let file = options
         .open(dir.join("opencode-start.lock"))
         .map_err(|e| format!("Не удалось открыть блокировку запуска OpenCode: {e}"))?;
-    #[cfg(unix)]
-    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
-        return Err(format!(
-            "Не удалось заблокировать запуск OpenCode: {}",
-            std::io::Error::last_os_error()
-        ));
-    }
+    file.lock_exclusive()
+        .map_err(|e| format!("Не удалось заблокировать запуск OpenCode: {e}"))?;
     Ok(file)
 }
 
@@ -69,14 +65,40 @@ fn binary_candidates() -> Vec<PathBuf> {
         candidates.extend(
             std::env::split_paths(&path)
                 .filter(|p| p.is_absolute())
-                .map(|p| p.join("opencode")),
+                .flat_map(|p| {
+                    #[cfg(target_os = "windows")]
+                    let names = ["opencode.exe", "opencode"];
+                    #[cfg(not(target_os = "windows"))]
+                    let names = ["opencode", "opencode"];
+                    names.map(|name| p.join(name))
+                }),
         );
     }
-    if let Some(home) = std::env::var_os("HOME") {
-        let home = PathBuf::from(home);
-        if home.is_absolute() {
+    if let Ok(home) = crate::paths::user_home() {
+        #[cfg(target_os = "windows")]
+        {
+            candidates.push(home.join(r".opencode\bin\opencode.exe"));
+            candidates.push(home.join(r"AppData\Roaming\npm\opencode.exe"));
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
             candidates.push(home.join(".opencode/bin/opencode"));
             candidates.push(home.join(".bun/bin/opencode"));
+        }
+    }
+    #[cfg(target_os = "windows")]
+    if let Some(local) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+        let packages = local.join(r"Microsoft\WinGet\Packages");
+        if let Ok(entries) = fs::read_dir(packages) {
+            for entry in entries.flatten() {
+                if entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("SST.opencode_")
+                {
+                    candidates.push(entry.path().join("opencode.exe"));
+                }
+            }
         }
     }
     #[cfg(target_os = "macos")]
