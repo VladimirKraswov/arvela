@@ -1,4 +1,4 @@
-# 0.2.17 Mac integration and chat context — VERIFIED (2026-10-06)
+# 0.2.17 Mac integration and chat context — DONE (2026-10-06)
 
 Direct Opus 5.5 source-only review on Igor completed; only Read/Edit/Write/Glob/Grep.
 All 281 returned file hashes/archive verified before immediate remote copy cleanup.
@@ -11,7 +11,9 @@ keyboard form/panel closure and paused schedule quit/relaunch persistence passed
 Original OpenCode PID3714/config/model settings, browser dependencies and text draft
 retained; test-only task/attachment removed, no owner-chat inference. Windows/Linux
 0.2.17 remain unverified. See docs/VERIFICATION.md for hashes/provenance/limitations.
-Main publication/release receipt will be recorded after push and asset verification.
+Main source cc1fc0b was fast-forwarded and pushed; v0.2.17 targets that source.
+Published Mac DMG was downloaded back, SHA256 and hdiutil verify matched.
+Final installed Desktop remains open; all test-only UI items were removed.
 
 # Windows in-app browser projection — DONE (2026-10-05)
 

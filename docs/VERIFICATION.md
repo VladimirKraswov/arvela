@@ -1127,3 +1127,10 @@ projected page does not implement full IME, drag gestures, native Chromium menus
 or page clipboard copying. Multi-process profile lease coherence and live remote
 service restart were not newly exercised. macOS signing is ad-hoc, not notarized.
 Private transcripts, profiles, credentials and transfer receipts are outside Git.
+
+Publication receipt: main source `cc1fc0b13f51c67a3e1b90f627b88750c15879b9`
+was fast-forwarded from the preserved earlier main and pushed; remote SHA matched.
+Release [v0.2.17](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.17)
+targets that source and contains the final Mac DMG. GitHub asset digest and a fresh
+authenticated download both match the DMG SHA256 above; downloaded image passed
+`hdiutil verify`. Subsequent publication checkpoint changes are documentation only.
