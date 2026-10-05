@@ -612,3 +612,16 @@ Windows/Linux new release acceptance remains pending; exact source handoff and
 Windows rebuild/reinstall instructions prepared for the owner's Desktop.
 See docs/VERIFICATION.md for final hashes and limits. Publish only reviewed source,
 docs/tests/lockfiles and final Mac DMG; exclude private profiles/keys/receipts.
+
+
+# Windows result archive import — DONE 2026-10-05
+
+Owner asked to recover useful changes and the Windows installer into the project.
+Verified ZIP CRC/safe paths, complete bundle/HEAD and exact original bundle SHA.
+No new commits/patches: Windows compiled main2def382 unchanged. Imported honest
+evidence into platform/browser/verification docs: 375 frontend,55 Rust,32-tool
+headed browser smoke; supplied installed registry/health passes. Windows packaged
+toolbar/Pi chat/LSP/tree cleanup/file input/dictation/SSH/stop remain unverified.
+No runtime source, models, services or installed Mac app changed. Publish the
+verified unsigned Windows NSIS as a v0.2.16 asset; do not track executable/logs/
+private configuration in Git. See docs/WINDOWS-RESULT-0.2.16-20261005.md.

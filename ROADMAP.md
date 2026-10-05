@@ -13,7 +13,8 @@ removed; subsequent fixes and execution are Mac-only. See
 - [x] SSH bounded pipe drain and actual OpenSSH configuration resolution tested on Mac; live remote-server restart remains an integration follow-up.
 - [x] Real MCP transport proves delivered mutations are never replayed and pre-delivery token rotation recovers once.
 - [x] Final Mac package, installed Pi 0.85.1 bridge (32 tools), script-only upgrade, stop/re-enable and native settings/top-bar acceptance; external OpenCode and complete global configuration retained.
-- [ ] Windows: build, hidden consoles, Pi Job Object tree cleanup, browser daemon/installer jobs.
+- [x] Windows: unchanged main built/installed; 375 frontend, 55 Rust, actual headed browser smoke/owner-pipe cleanup; supplied report/logs and installer hash verified on Mac.
+- [ ] Windows: packaged toolbar/stop/re-enable, hidden-console live checks and Pi Job Object tree cleanup.
 - [ ] Linux: browser smoke with system Chromium libraries.
 
 ## M24 — Windows port integration (0.2.14 source, 2026-10-04)
@@ -25,7 +26,7 @@ removed; subsequent fixes and execution are Mac-only. See
 - [x] Reject an invalid explicit Windows Node path instead of silently selecting another interpreter.
 - [x] Fix prerequisite/verification scripts for PowerShell 5.1; installation and health failures must not count as acceptance.
 - [x] Frontend 313 passed / 6 opt-in live skipped; Mac Rust 39 passed, Cargo check and TypeScript/Vite build passed.
-- [ ] Rebuild and rerun the integrated main on Windows; the supplied acceptance report applies to the original port commit.
+- [x] Integrated main rebuilt unchanged on Windows for 0.2.16; source SHA and installer/report/logs verified. Remaining packaged scenarios are listed above.
 - [ ] Windows packaged Pi UI, approval/LSP, file drop/clipboard and dictation acceptance.
 - [ ] Windows Job Object process-tree cleanup and private Agent Control transport.
 

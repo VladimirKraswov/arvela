@@ -11,7 +11,7 @@
 | Артефакт | `.deb` | `.app` + `.dmg` | NSIS `.exe` |
 | Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | `src-tauri/tauri.windows.conf.json` |
 | Команда | `npm run build:linux` | `npm run build:macos` | `npm run build:windows` |
-| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.16, Mac владельца | 0.2.14, Windows 11 x64, по переданному отчёту |
+| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.16, Mac владельца | 0.2.16, Windows 11 x64, по переданным отчёту и логам |
 | Оконный хром | системный заголовок GTK | overlay-светофор macOS | системный заголовок Windows |
 | Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | нет сертификата издателя |
 | Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | WebView2/Windows |
@@ -22,11 +22,14 @@
 | Каталог конфигурации OpenCode | `$XDG_CONFIG_HOME` → `$HOME/.config` | `$HOME/.config` | `%USERPROFILE%\.config\opencode` |
 | Данные приложения | `$XDG_DATA_HOME` → `$HOME/.local/share` | `$HOME/.local/share` | `%LOCALAPPDATA%\opencode-desktop` |
 
-По переданному отчёту Windows-сборка 0.2.14 установлена и проверена с OpenCode 1.18.33 и локальным
-OpenAI-совместимым Qwen. Agent Control использует Unix domain socket и потому
+Windows 0.2.16 собран без изменения main, установлен и проверен с OpenCode
+1.18.33; 375 frontend / 55 Rust тестов и отдельный browser smoke прошли.
+[Подробное происхождение артефакта и ограничения](WINDOWS-RESULT-0.2.16-20261005.md).
+Генерации Qwen в этом прогоне не было; её проверка относится к прежнему 0.2.14.
+Agent Control использует Unix domain socket и потому
 на Windows пока явно недоступен; Agent Factory, зависящая от него, также не
-имеет полного Windows-паритета. Pi CLI/RPC проверен отдельно, но интеграция Pi
-в установленном UI, его LSP и SSH на Windows не проходили живой тест.
+имеет полного Windows-паритета. Pi обнаружен в настройках установленного UI;
+его чат, LSP и SSH на Windows не проходили живой тест.
 
 ## Как устроено разделение конфигурации
 
@@ -101,7 +104,7 @@ npm.cmd run build:windows
 ```
 
 Нужны Rust stable-msvc, Visual Studio Build Tools с Desktop C++ workload,
-Node.js 24 LTS >=24.15.0/npm и WebView2. По переданному отчёту сборка 0.2.14
+Node.js 24 LTS >=24.15.0/npm и WebView2. По переданным отчёту и логам сборка 0.2.16
 проверена на Windows 11 x64. Установщик
 предназначен для текущего пользователя и в локальной сборке не имеет цифровой
 подписи издателя.
@@ -111,9 +114,8 @@ PowerShell 7. `scripts/verify-windows.ps1` проверяет метаданны
 совпадение установленной версии и `/global/health`; отсутствие установки или
 здорового сервера — ошибка. `-ArtifactOnly` проверяет только файл установщика.
 Это не заменяет проверку окна, Pi, разрешений, вложений и диктовки в приложении.
-Исправления после импорта порта проверены на Mac; повторная Windows-сборка
-актуального main ещё не выполнена. Хеш установщика в отчёте относится к исходному
-Windows-коммиту `7c47d55`, а не к пересобранному main.
+Windows-артефакт 0.2.16 построен из main `2def38234eb4e06a6cf1f39d2e30edb4aed01703`
+без правок. SHA256 и проверенные/непроверенные сценарии указаны в отчёте импорта.
 
 ## Проверка Linux-рантайма
 
@@ -149,11 +151,14 @@ dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd
   портированы; локальный OpenCode/Qwen проверен в пути с пробелами и кириллицей.
 - Windows-поиск Pi/Node реализован; Pi 0.85.1 установлен и его короткая генерация
   плюс JSONL RPC (`get_available_models`, `get_state`, `get_commands`) проверены
-  с локальной Qwen. Интеграция в packaged UI, LSP и SSH-сценарий не проверялись.
+  с локальной Qwen в прежнем прогоне. Теперь обнаружение Pi проверено в packaged
+  settings; Pi chat, LSP и SSH-сценарий ещё не проверялись.
   В исходниках (обзор 2026-10-05) дерево Pi привязывается к Job Object с
   KILL_ON_JOB_CLOSE (best effort: при отказе Pi работает с прежней очисткой
-  только прямого потомка); это ещё не собрано и не проверено на Windows.
+  только прямого потомка); код собрался на Windows, но Pi tree cleanup ещё
+  не проверялся вживую.
 - Все консольные дочерние процессы Desktop (ssh.exe, node.exe для Pi/браузера,
   `opencode serve`, проверки `--version`) создаются с `CREATE_NO_WINDOW`
-  (общий модуль `src-tauri/src/process.rs`). Не проверено на Windows.
+  (общий модуль `src-tauri/src/process.rs`). Windows-сборка проходит;
+  отсутствие всплывающих консолей во всех сценариях не проверено.
 - Нативный проигрыватель системного звука завершения для Windows не добавлен.

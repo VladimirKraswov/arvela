@@ -1020,3 +1020,18 @@ See `docs/CLAUDE-REFACTOR-20261005.md` for retained changes and coordinator fixe
   hidden-console and Pi Job Object code has source coverage/review only; this Mac
   release does not claim Windows runtime validation. Live SSH-server restart and
   Finder/nvm launch are integration follow-ups, not measured results.
+
+
+## Windows result import — 0.2.16 (2026-10-05)
+
+The supplied result contains no new source changes: verified complete bundle and
+its SHA match the original main at 2def38234eb4e06a6cf1f39d2e30edb4aed01703.
+ZIP CRC and installer PE/size/SHA match the report and verification logs. Windows
+logs confirm 375 frontend / 55 Rust tests, build/check/NSIS and real headed MCP
+smoke (32 tools). Installed registry/version and healthy OpenCode 1.18.33 match.
+These are imported Windows results, not tests rerun by the Mac coordinator.
+Packaged toolbar opening, stop/re-enable, Pi chat/tree cleanup, LSP, file input,
+dictation and SSH remain unverified; Linux acceptance remains pending.
+Installer SHA256: 25c103a867e397f28416e84a251cb3549fc15916d7e0908fcc58f4ae31ec4790.
+Installer is an unsigned current-user NSIS release asset, not tracked source.
+See docs/WINDOWS-RESULT-0.2.16-20261005.md for provenance, evidence and limits.
