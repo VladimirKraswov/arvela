@@ -112,15 +112,21 @@ pub struct PiInstall {
     pub error: String,
 }
 
+/// `--version` probes are bounded: a hung CLI or interpreter must not pin a
+/// native worker thread (the UI already stops waiting after 10 seconds).
+const VERSION_PROBE: Duration = Duration::from_secs(15);
+
 fn program_version(program: &Path, node_override: Option<&Path>) -> Result<String, String> {
-    let output = command_for_program(program, node_override)?
-        .arg("--version")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .and_then(|child| child.wait_with_output())
-        .map_err(|e| e.to_string())?;
+    let mut command = command_for_program(program, node_override)?;
+    command.arg("--version");
+    let output = crate::process::output_with_timeout(&mut command, VERSION_PROBE, 64 * 1024)
+        .map_err(|error| match error {
+            crate::process::RunError::TimedOut => {
+                "Pi не ответил на --version за 15 секунд. Проверьте путь к Pi и Node.js."
+                    .to_string()
+            }
+            crate::process::RunError::Spawn(error) => error.to_string(),
+        })?;
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr)
             .chars()
@@ -484,13 +490,9 @@ fn runnable(program: &Path) -> bool {
     let Ok(mut command) = command_for_program(program, None) else {
         return false;
     };
-    command
-        .arg("--version")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|status| status.success())
+    command.arg("--version");
+    crate::process::output_with_timeout(&mut command, VERSION_PROBE, 4096)
+        .map(|output| output.status.success())
         .unwrap_or(false)
 }
 
@@ -601,6 +603,10 @@ pub struct PiProcess {
     pub directory: String,
     pub session_id: String,
     counter: u64,
+    /// Dropped after `Drop::drop` has run the graceful shutdown, so anything
+    /// still alive in Pi's tree is terminated last.
+    #[cfg(target_os = "windows")]
+    _job: Option<crate::process::KillOnCloseJob>,
 }
 
 /// Ordered shutdown of the whole agent process *tree*.
@@ -854,12 +860,18 @@ pub async fn pi_open(
                 _ => "ask",
             },
         );
+        crate::process::hide_console(&mut command);
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Не удалось запустить Pi: {e}"))?;
+        // Windows has no process groups: a kill-on-close job is what stops the
+        // language servers and the browser proxy Pi started. Best effort: Pi
+        // still runs (with direct-child cleanup only) if the job is refused.
+        #[cfg(target_os = "windows")]
+        let job = crate::process::KillOnCloseJob::attach(&child).ok();
 
         let stdin = Some(child.stdin.take().ok_or("Pi не принял ввод")?);
         let stdout = child.stdout.take().ok_or("Pi не выдал поток вывода")?;
@@ -891,6 +903,8 @@ pub async fn pi_open(
                 directory: request.directory.clone(),
                 session_id: request.session_id.clone(),
                 counter: 0,
+                #[cfg(target_os = "windows")]
+                _job: job,
             },
         );
         Ok(PiOpened {

@@ -246,6 +246,9 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
         .stderr(Stdio::from(stderr));
     #[cfg(unix)]
     command.process_group(0);
+    // The server is a background service with a private log, as on other
+    // platforms; a console window would also stop it when closed.
+    crate::process::hide_console(&mut command);
     let mut child = command
         .spawn()
         .map_err(|e| format!("Не удалось запустить OpenCode CLI: {e}"))?;

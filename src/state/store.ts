@@ -1,4 +1,5 @@
 import { configureLocalBrowser, invalidateBrowserSetup } from "../browser/integration";
+import { browserEnabled } from "../browser/preferences";
 import { applyAppearance, normalizeAppearance, type Appearance } from "./appearance";
 import {
   connectSsh,
@@ -268,7 +269,7 @@ class Store {
           return {
             program: settings.program,
             nodeProgram: settings.nodeProgram,
-            browserEnabled: this.state.prefs.browser?.enabled !== false,
+            browserEnabled: browserEnabled(this.state.prefs),
             provider: model?.providerID ?? settings.provider,
             model: model ? `${model.providerID}/${model.modelID}` : settings.model,
             thinking: model?.variant ?? settings.thinking,
@@ -578,8 +579,14 @@ class Store {
     };
   }
 
-  configureBrowser(force = false): Promise<unknown> {
-    if (force) invalidateBrowserSetup();
+  /**
+   * Background browser setup for the local engines. `force` restarts setup;
+   * `keepAttachments` is for engine-path/Pi changes that cannot affect an
+   * already confirmed OpenCode MCP connection, which must not be restarted
+   * under a running browser call.
+   */
+  configureBrowser(force = false, keepAttachments = false): Promise<unknown> {
+    if (force) invalidateBrowserSetup({ keepAttachments });
     const endpoint = this.state.prefs.endpoint;
     const enabled = this.state.prefs.browser?.enabled;
     const node = this.state.prefs.browser?.nodeProgram;
@@ -604,13 +611,13 @@ class Store {
   setPiSettings(patch: Partial<NonNullable<Prefs["pi"]>>): void {
     this.mutate((x) => ({ prefs: { ...x.prefs, pi: { ...x.prefs.pi, ...patch } } }));
     this.persistPrefs();
-    void this.configureBrowser(true);
+    void this.configureBrowser(true, true);
   }
 
   setLocalOpenCodeProgram(program?: string): void {
     this.mutate((x) => ({ prefs: { ...x.prefs, localOpenCodeProgram: program } }));
     this.persistPrefs();
-    void this.configureBrowser(true);
+    void this.configureBrowser(true, true);
   }
 
   /**
@@ -629,7 +636,8 @@ class Store {
     const health = await this.pi().describe(directory);
     this.piInstalled = health.install.installed;
     this.mutate({ piHealth: health });
-    void this.configureBrowser(true);
+    // Pi may have just been installed: rerun setup, keep OpenCode attachments.
+    void this.configureBrowser(true, true);
   }
 
   async refreshPiInstall(): Promise<void> {

@@ -7,6 +7,7 @@ mod hosts;
 mod local_server;
 mod paths;
 pub mod pi;
+mod process;
 mod sound;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,7 +17,12 @@ pub fn run() {
         .manage(browser::BrowserRuntime::default())
         .manage(control::AgentControl::default())
         .setup(|app| {
-            control::start(app.handle().clone()).map_err(std::io::Error::other)?;
+            // Agent Control is optional. A socket that cannot be created (for
+            // example a data path beyond the OS socket-name limit) must not stop
+            // Desktop from starting; its status then reports it as unavailable.
+            if let Err(error) = control::start(app.handle().clone()) {
+                eprintln!("Agent Control is unavailable: {error}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

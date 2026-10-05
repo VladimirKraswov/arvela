@@ -20,7 +20,7 @@ await fs.mkdir(workspace, { recursive: true });
 let child; let ready; let client; let fixture;
 const pause = ms => new Promise(r => setTimeout(r, ms));
 async function start() {
-  child = spawn(process.execPath, [path.join(runtime, 'daemon.mjs'), root], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: path.join(root, 'browsers') } });
+  child = spawn(process.execPath, [path.join(runtime, 'daemon.mjs'), root], { stdio: ['pipe', 'ignore', 'pipe'], env: { ...process.env, OCDESKTOP_BROWSER_OWNER_PIPE: '1', PLAYWRIGHT_BROWSERS_PATH: path.join(root, 'browsers') } });
   let stderr = ''; child.stderr.on('data', chunk => { stderr = (stderr + chunk.toString()).slice(-2048); });
   for (let count = 0; count < 300; count++) {
     try {
@@ -111,7 +111,15 @@ try {
   await stop(); await start();
   await call('browser_navigate', { url: fixtureUrl });
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'), 'Persistent fixture login must survive daemon restart');
-  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true }));
+  // Closing the owner pipe models a Desktop crash: no HTTP stop or signal.
+  child.stdin.end();
+  for (let count = 0; child.exitCode === null && count < 100; count++) await pause(100);
+  assert.equal(child.exitCode, 0, 'Lost owner must close the daemon and headed browser');
+  ready = undefined;
+  await start();
+  await call('browser_navigate', { url: fixtureUrl });
+  snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'));
+  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true }));
 } finally {
   await client?.close().catch(() => {});
   await stop();

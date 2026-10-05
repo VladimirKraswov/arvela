@@ -30,10 +30,11 @@ const serial = action => {
 };
 async function getContext() {
   if (!context) {
-    context = await chromium.launchPersistentContext(path.join(root, 'profile'), {
+    const opened = await chromium.launchPersistentContext(path.join(root, 'profile'), {
       headless: false, viewport: null, chromiumSandbox: true,
     });
-    context.on('close', () => { context = undefined; });
+    context = opened;
+    opened.on('close', () => { if (context === opened) context = undefined; });
   }
   return context;
 }
@@ -146,5 +147,13 @@ async function close() {
 }
 process.on('SIGTERM', () => void close());
 process.on('SIGINT', () => void close());
+// Desktop keeps the write end of this pipe for the daemon's whole lifetime.
+// EOF means the owner exited or crashed: close the browser instead of leaving
+// an orphaned service holding the profile. Manual smoke runs do not opt in.
+if (process.env.OCDESKTOP_BROWSER_OWNER_PIPE === '1') {
+  process.stdin.on('end', () => void close());
+  process.stdin.on('error', () => void close());
+  process.stdin.resume();
+}
 process.on('uncaughtException', () => { process.stderr.write('Browser runtime failed. Restart it from Desktop settings.\n'); void close(); });
 process.on('unhandledRejection', () => { process.stderr.write('Browser runtime failed. Restart it from Desktop settings.\n'); void close(); });

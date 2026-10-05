@@ -593,3 +593,22 @@ Final DMG verified and copied to Downloads. Only source/docs/tests/lockfiles
 are published; credentials/profiles/runtime installs/private acceptance receipts
 remain excluded. See docs/BROWSER.md, docs/WINDOWS-DRIVER-IMPORT-20261005.md and
 docs/VERIFICATION.md.
+
+
+# Browser/SSH ownership review and Windows handoff — 0.2.16 (DONE 2026-10-05)
+
+Owner requested direct Claude Code Opus 5.5 file-only review on Igor, immediate
+remote cleanup after verified transfer, then Mac review/testing/build/install.
+Completed with no project execution or GUI on Igor; verified remote copy removed.
+Retained process/browser lifecycle split, bounded pipe draining and Node discovery,
+script-only runtime refresh, nonfatal optional control startup, cancellation,
+exactly-once MCP proxy handling and truthful integration status. Coordinator fixed
+SSH alias forwarding interference, context identity and retained-attachment caption.
+Final frontend 375/375 (6 opt-in skipped), Rust 70/70, real headed MCP smoke and
+installed Pi bridge 32 tools, two real proxy cases, production build/signature/DMG
+verification passed. Installed/reopened final Mac 0.2.16, backed up 0.2.15; unchanged
+OpenCode PID3714/health and complete global JSONC; no model/session changes.
+Windows/Linux new release acceptance remains pending; exact source handoff and
+Windows rebuild/reinstall instructions prepared for the owner's Desktop.
+See docs/VERIFICATION.md for final hashes and limits. Publish only reviewed source,
+docs/tests/lockfiles and final Mac DMG; exclude private profiles/keys/receipts.

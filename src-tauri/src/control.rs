@@ -167,8 +167,15 @@ pub fn agent_control_ready(ready: bool, control: State<'_, AgentControl>) {
 pub fn agent_control_status(
     control: State<'_, AgentControl>,
 ) -> Result<AgentControlStatus, String> {
+    // Supported means the private socket really exists for this process, not
+    // merely that the platform could host one.
+    let transport = control
+        .runtime
+        .lock()
+        .map(|runtime| runtime.is_some())
+        .unwrap_or(false);
     Ok(AgentControlStatus {
-        supported: cfg!(unix),
+        supported: cfg!(unix) && transport,
         ready: control.ready.load(Ordering::Acquire),
         command: std::env::current_exe()
             .map_err(|e| e.to_string())?

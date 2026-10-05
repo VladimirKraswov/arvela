@@ -1,9 +1,9 @@
 //! Only app-owned directories and SSH tunnels. The OpenCode engine remains externally managed.
+use crate::process::{hide_console, output_with_timeout, OutputTail, RunError};
 use serde::Serialize;
 use std::{
     collections::HashMap,
     fs,
-    io::Read,
     net::TcpListener,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -13,11 +13,17 @@ use std::{
 };
 use tauri::State;
 
+/// Retained SSH diagnostics per tunnel. ssh keeps writing to stderr for the
+/// tunnel's whole life (for example a refused forwarded connection each time
+/// the remote server restarts), so the pipe is drained continuously.
+const SSH_STDERR_TAIL: usize = 4096;
+
 #[derive(Default, Clone)]
 pub struct Hosts(pub Arc<Mutex<HashMap<String, Tunnel>>>);
 pub struct Tunnel {
     child: Child,
     endpoint: String,
+    stderr: OutputTail,
 }
 impl Drop for Tunnel {
     fn drop(&mut self) {
@@ -79,34 +85,32 @@ fn ssh(target: &str) -> Result<Command, String> {
         "-o",
         "ServerAliveCountMax=3",
     ]);
+    hide_console(&mut c);
     Ok(c)
 }
 fn output_timeout(mut c: Command) -> Result<String, String> {
-    let mut child = c
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    let until = Instant::now() + Duration::from_secs(12);
-    loop {
-        if child.try_wait().map_err(|e| e.to_string())?.is_some() {
-            let out = child.wait_with_output().map_err(|e| e.to_string())?;
-            if !out.status.success() {
-                return Err(String::from_utf8_lossy(&out.stderr)
-                    .chars()
-                    .take(1200)
-                    .collect());
-            }
-            return Ok(String::from_utf8_lossy(&out.stdout).trim().to_string());
-        }
-        if Instant::now() >= until {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err("SSH: время ожидания истекло.".into());
-        }
-        thread::sleep(Duration::from_millis(50));
+    let out =
+        output_with_timeout(&mut c, Duration::from_secs(12), 64 * 1024).map_err(
+            |error| match error {
+                RunError::TimedOut => "SSH: время ожидания истекло.".to_string(),
+                RunError::Spawn(error) => error.to_string(),
+            },
+        )?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr)
+            .chars()
+            .take(1200)
+            .collect());
     }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// Workspace probes must not also open forwards inherited from an SSH alias.
+/// Tunnel commands keep their explicit -L; ClearAllForwardings would erase it.
+fn ssh_probe(target: &str) -> Result<Command, String> {
+    let mut command = ssh(target)?;
+    command.args(["-o", "ClearAllForwardings=yes"]);
+    Ok(command)
 }
 
 #[tauri::command]
@@ -145,7 +149,7 @@ pub async fn prepare_chat_workspace(
     }
     tauri::async_runtime::spawn_blocking(move || {
         if let Some(target) = ssh_target {
-            let mut c = ssh(&target)?;
+            let mut c = ssh_probe(&target)?;
             // Only the restricted, app-generated ID is interpolated. No arbitrary shell input.
             let remote = crate::paths::REMOTE_CHATS_SUBPATH;
             let script = format!("umask 077; d=\"$HOME/{remote}/{id}\"; mkdir -p -- \"$d\" && cd -- \"$d\" && pwd -P");
@@ -207,44 +211,64 @@ pub async fn connect_ssh(
             &format!("127.0.0.1:{local_port}:127.0.0.1:{port}"),
             &ssh_target,
         ]);
-        let child = command
+        let mut child = command
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| e.to_string())?;
+        let stderr = child
+            .stderr
+            .take()
+            .map(|pipe| OutputTail::follow(pipe, SSH_STDERR_TAIL))
+            .unwrap_or_default();
         let endpoint = format!("http://127.0.0.1:{local_port}");
         tunnels.insert(
             key,
             Tunnel {
                 child,
                 endpoint: endpoint.clone(),
+                stderr,
             },
         );
         Ok::<_, String>(endpoint)
     })
     .await
     .map_err(|e| e.to_string())??;
-    // Wait for the actual forwarded HTTP server, not just the SSH process to exist.
+    // Wait for the actual forwarded HTTP server, not just the SSH process to
+    // exist. The loopback probe never goes through an HTTP(S)_PROXY from the
+    // environment and never follows a redirect elsewhere.
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|e| e.to_string())?;
     let until = Instant::now() + Duration::from_secs(13);
     while Instant::now() < until {
-        {
+        let exited = {
             let mut tunnels = state.0.lock().map_err(|e| e.to_string())?;
             let key = format!("{target}:{port}");
-            if let Some(t) = tunnels.get_mut(&key) {
-                if t.child.try_wait().map_err(|e| e.to_string())?.is_some() {
-                    let mut error = String::new();
-                    if let Some(stderr) = t.child.stderr.take() {
-                        let _ = stderr.take(1600).read_to_string(&mut error);
-                    }
-                    tunnels.remove(&key);
-                    return Err(format!("SSH: {} Проверьте ключ и известный ключ сервера командой ssh {target} в терминале.", error.trim()));
-                }
+            let Some(t) = tunnels.get_mut(&key) else {
+                // Removed by app exit or a superseded failed attempt; never
+                // report a forward that no longer exists as ready.
+                return Err("SSH-туннель закрыт. Повторите подключение.".into());
+            };
+            if t.child.try_wait().map_err(|e| e.to_string())?.is_some() {
+                let stderr = t.stderr.clone();
+                tunnels.remove(&key);
+                Some(stderr)
+            } else {
+                None
             }
+        };
+        if let Some(stderr) = exited {
+            // The drain thread reaches EOF just after exit; let it catch up.
+            tauri::async_runtime::spawn_blocking(|| thread::sleep(Duration::from_millis(100)))
+                .await
+                .map_err(|e| e.to_string())?;
+            let error: String = stderr.text().chars().take(1600).collect();
+            return Err(format!("SSH: {} Проверьте ключ и известный ключ сервера командой ssh {target} в терминале.", error.trim()));
         }
         if let Ok(response) = client.get(format!("{endpoint}/global/health")).send().await {
             if response.status().is_success() || response.status().as_u16() == 401 {
@@ -299,6 +323,28 @@ mod tests {
             .collect();
         assert!(args.contains(&"StrictHostKeyChecking=yes".to_string()));
         assert!(args.contains(&"BatchMode=yes".to_string()));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn workspace_probes_clear_alias_forwards_without_changing_tunnel_policy() {
+        let config = std::env::temp_dir().join(format!("oc-ssh-config-{}", std::process::id()));
+        fs::write(
+            &config,
+            "Host fixture\n  HostName 127.0.0.1\n  LocalForward 127.0.0.1:55555 127.0.0.1:4096\n",
+        )
+        .unwrap();
+        let resolved = |mut command: Command| {
+            command.arg("-G").arg("-F").arg(&config).arg("fixture");
+            output_timeout(command).unwrap()
+        };
+        let tunnel = resolved(ssh("fixture").unwrap());
+        let probe = resolved(ssh_probe("fixture").unwrap());
+        let _ = fs::remove_file(config);
+        assert!(tunnel.lines().any(|line| line.starts_with("localforward ")));
+        assert!(!probe.lines().any(|line| line.starts_with("localforward ")));
+        assert!(probe.contains("stricthostkeychecking true"));
+        assert!(probe.contains("batchmode yes"));
     }
 }
 

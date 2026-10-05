@@ -161,6 +161,95 @@ it("does not mark a disconnected MCP inventory as ready or cache a failed attach
   expect(integration.browserSetupSnapshot().error).toBeUndefined();
 });
 
+it("adopts its own entry after the app bundle moved, rewriting only the executable path", () => {
+  const moved = "/Users/example/Downloads/OpenCode Desktop.app/Contents/MacOS/opencode-desktop";
+  const source = '// keep this comment\n' + JSON.stringify({ model: "local/qwen", mcp: { desktop_browser: { type: "local", command: [moved, "--browser-mcp"], enabled: true, timeout: 45000 } } });
+  const next = integration.browserConfig(source, installed, true);
+  const after = parseConfig(next.content);
+  expect((after.mcp as any).desktop_browser.command).toEqual([installed.command, "--browser-mcp"]);
+  expect(after.model).toBe("local/qwen");
+  expect(next.content).toContain("// keep this comment");
+});
+
+it("compares drive-letter executable names without case and still refuses relative or renamed programs", () => {
+  const status: BrowserStatus = { ...installed,
+    command: "C:\\Users\\Example\\AppData\\Local\\OpenCode Desktop\\opencode-desktop.exe",
+    skillPath: "C:\\Users\\Example\\AppData\\Local\\opencode-desktop\\browser-runtime\\current\\skills" };
+  const entry = (command: string) => JSON.stringify({ mcp: { desktop_browser: { type: "local", command: [command, "--browser-mcp"] } } });
+  expect(() => integration.browserConfig(entry("D:\\Portable\\OPENCODE-DESKTOP.EXE"), status, true)).not.toThrow();
+  expect(() => integration.browserConfig(entry("opencode-desktop.exe"), status, true)).toThrow("занято");
+  expect(() => integration.browserConfig(entry("D:\\Portable\\other-tool.exe"), status, true)).toThrow("занято");
+  // POSIX names stay case-sensitive.
+  expect(() => integration.browserConfig(entry("/opt/OpenCode-Desktop"), installed, true)).toThrow("занято");
+});
+
+it("disabling leaves a foreign desktop_browser entry untouched and still stops its own service", async () => {
+  const source = JSON.stringify({ mcp: { desktop_browser: { type: "local", command: ["/foreign/binary", "--browser-mcp"] } } });
+  const f = fixture({ source });
+  await f.run({ preferences: { enabled: false } });
+  expect(f.calls("browser_stop")).toHaveLength(1);
+  expect(f.calls("write_opencode_config")).toHaveLength(0);
+  expect(integration.browserSetupSnapshot().phase).toBe("disabled");
+});
+
+it("a config failure after disabling cannot leave a stopped browser labelled as running", async () => {
+  const f = fixture({ status: { ...installed, running: true, browserOpen: true }, override: command => {
+    if (command === "read_opencode_config") throw new Error("fixture config is unreadable");
+  } });
+  await f.run({ preferences: { enabled: false } });
+  expect(f.calls("browser_stop")).toHaveLength(1);
+  expect(integration.browserSetupSnapshot().phase).toBe("error");
+  expect(integration.browserSetupSnapshot().status?.running).toBe(false);
+  expect(integration.browserSetupSnapshot().status?.browserOpen).toBe(false);
+  expect(integration.browserSetupSnapshot().error).toContain("fixture config is unreadable");
+});
+
+it("a setup superseded without a successor (e.g. a host switch) settles instead of staying in progress", async () => {
+  const install = deferred<BrowserStatus>();
+  let active = true;
+  const f = fixture({ status: { ...installed, installed: false, running: false }, override: command => command === "browser_install" ? install.promise : undefined });
+  const pending = f.run({ current: () => active });
+  await vi.waitFor(() => expect(integration.browserSetupSnapshot().phase).toBe("installing"));
+  active = false;
+  install.resolve(installed);
+  await pending;
+  expect(integration.browserSetupSnapshot().phase).toBe("idle");
+  expect(f.calls("browser_start")).toHaveLength(0);
+  expect(f.calls("write_opencode_config")).toHaveLength(0);
+});
+
+it("engine-path changes rerun setup without restarting a confirmed OpenCode attachment", async () => {
+  const f = fixture();
+  await f.run();
+  expect(f.request).toHaveBeenCalledTimes(1);
+  integration.invalidateBrowserSetup({ keepAttachments: true });
+  await f.run();
+  expect(f.calls("detect_local_opencode")).toHaveLength(2);
+  expect(f.request).toHaveBeenCalledTimes(1);
+  expect(integration.browserSetupSnapshot().openCode).toBe("Подключён к выбранному проекту");
+  integration.invalidateBrowserSetup();
+  await f.run();
+  expect(f.request).toHaveBeenCalledTimes(2);
+});
+
+it("a failed attachment started by an invalidated setup is never reported as connected by the newer one", async () => {
+  const inventory = deferred<Record<string, { status?: string; error?: string }>>();
+  const f = fixture();
+  f.request.mockReturnValueOnce(inventory.promise);
+  const first = f.run();
+  await vi.waitFor(() => expect(f.request).toHaveBeenCalledTimes(1));
+  integration.invalidateBrowserSetup();
+  const second = f.run();
+  await vi.waitFor(() => expect(f.calls("browser_pi_support")).toHaveLength(2));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(f.request).toHaveBeenCalledTimes(1);
+  inventory.resolve({ desktop_browser: { status: "failed", error: "fixture transport refused" } });
+  await Promise.all([first, second]);
+  expect(integration.browserSetupSnapshot().openCode).not.toContain("Подключён");
+  expect(integration.browserSetupSnapshot().phase).toBe("error");
+  expect(integration.browserSetupSnapshot().error).toContain("fixture transport refused");
+});
+
 it("never sends stale Pi readiness into a newer setup after native support returns", async () => {
   const support = deferred<void>();
   const old = fixture({ pi: true, override: command => command === "browser_pi_support" ? support.promise : undefined });

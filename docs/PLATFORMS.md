@@ -1,6 +1,6 @@
 # Варианты сборки и поддержка платформ
 
-Версия продукта — **0.2.14**, одинаково в `package.json`, `package-lock.json`,
+Версия продукта — **0.2.16**, одинаково в `package.json`, `package-lock.json`,
 `src-tauri/Cargo.toml` и `src-tauri/tauri.conf.json` (проверяется тестом
 `test/bundle-config.test.ts`).
 
@@ -11,7 +11,7 @@
 | Артефакт | `.deb` | `.app` + `.dmg` | NSIS `.exe` |
 | Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | `src-tauri/tauri.windows.conf.json` |
 | Команда | `npm run build:linux` | `npm run build:macos` | `npm run build:windows` |
-| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.14, Mac владельца | 0.2.14, Windows 11 x64, по переданному отчёту |
+| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.16, Mac владельца | 0.2.14, Windows 11 x64, по переданному отчёту |
 | Оконный хром | системный заголовок GTK | overlay-светофор macOS | системный заголовок Windows |
 | Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | нет сертификата издателя |
 | Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | WebView2/Windows |
@@ -97,7 +97,7 @@ python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode 
 npm.cmd ci
 npm.cmd test -- --maxWorkers=2
 npm.cmd run build:windows
-# src-tauri\target\release\bundle\nsis\OpenCode Desktop_0.2.14_x64-setup.exe
+# src-tauri\target\release\bundle\nsis\OpenCode Desktop_0.2.16_x64-setup.exe
 ```
 
 Нужны Rust stable-msvc, Visual Studio Build Tools с Desktop C++ workload,
@@ -150,5 +150,10 @@ dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd
 - Windows-поиск Pi/Node реализован; Pi 0.85.1 установлен и его короткая генерация
   плюс JSONL RPC (`get_available_models`, `get_state`, `get_commands`) проверены
   с локальной Qwen. Интеграция в packaged UI, LSP и SSH-сценарий не проверялись.
-  Остановка всего дерева Pi через Windows Job Object пока не реализована.
+  В исходниках (обзор 2026-10-05) дерево Pi привязывается к Job Object с
+  KILL_ON_JOB_CLOSE (best effort: при отказе Pi работает с прежней очисткой
+  только прямого потомка); это ещё не собрано и не проверено на Windows.
+- Все консольные дочерние процессы Desktop (ssh.exe, node.exe для Pi/браузера,
+  `opencode serve`, проверки `--version`) создаются с `CREATE_NO_WINDOW`
+  (общий модуль `src-tauri/src/process.rs`). Не проверено на Windows.
 - Нативный проигрыватель системного звука завершения для Windows не добавлен.

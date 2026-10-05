@@ -1,5 +1,21 @@
 # OpenCode Desktop roadmap
 
+## M25 — Browser/SSH/process ownership review (0.2.16)
+
+Claude performed the source review directly through its CLI on Igor with only
+file tools. The verified result was transferred and the remote copy immediately
+removed; subsequent fixes and execution are Mac-only. See
+`docs/CLAUDE-REFACTOR-20261005.md` and `docs/VERIFICATION.md`.
+
+- [x] Mac: 375 frontend tests, TypeScript/Vite build and 70 Rust tests on reviewed/fixed source.
+- [x] Mac: explicit stop/exit cancels installers; real headed daemon exits on owner-pipe loss; script refresh and dependency-lock mismatch regressions.
+- [x] Moved app/Node-manager discovery covered by source regression tests; live Finder/nvm acceptance remains optional follow-up.
+- [x] SSH bounded pipe drain and actual OpenSSH configuration resolution tested on Mac; live remote-server restart remains an integration follow-up.
+- [x] Real MCP transport proves delivered mutations are never replayed and pre-delivery token rotation recovers once.
+- [x] Final Mac package, installed Pi 0.85.1 bridge (32 tools), script-only upgrade, stop/re-enable and native settings/top-bar acceptance; external OpenCode and complete global configuration retained.
+- [ ] Windows: build, hidden consoles, Pi Job Object tree cleanup, browser daemon/installer jobs.
+- [ ] Linux: browser smoke with system Chromium libraries.
+
 ## M24 — Windows port integration (0.2.14 source, 2026-10-04)
 
 - [x] Import the owner's Windows port without replacing the existing main history or dropping the Linux prerequisite script's executable mode.

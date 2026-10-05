@@ -976,3 +976,47 @@ Final release acceptance completed:
   distinguishes the Desktop gate from unrelated driver sessions.
 
 Published release: [v0.2.15](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.15).
+
+
+## 0.2.16 — browser/SSH refactor, verified on Mac (2026-10-05)
+
+Claude Code Opus 5.5 reviewed a private source copy directly through its CLI on
+Igor. Only Read/Edit/Write/Glob/Grep were available: no tests, builds, applications,
+MCP connections or project execution ran there. All tool paths remained inside
+that copy. The 252-file result and SHA256 were verified on Mac, then the owned
+remote directory was immediately removed before local review and execution.
+See `docs/CLAUDE-REFACTOR-20261005.md` for retained changes and coordinator fixes.
+
+- Final full frontend: 375 passed, 6 opt-in live tests skipped. Rust: 70 passed.
+  TypeScript/Vite production build, Cargo all-target check, formatting and diff
+  checks passed. A late attachment-caption regression was first reproduced and
+  fixed; the final complete run includes it and the stopped/config-read failure.
+- Real headed official Playwright MCP 0.0.83 smoke exposes 32 tools and verifies
+  authenticated loopback/Origin rejection, lazy launch, password fixture, upload
+  isolation, screenshots, persistent profile, same-client daemon restart and
+  owner-pipe EOF cleanup. Real SDK proxy tests prove delivered mutations are not
+  replayed and token rotation before delivery retries exactly once (2/2).
+- Final macOS app/DMG build passed. Strict codesign, microphone entitlement and
+  usage description passed; DMG passed `hdiutil verify`. Ad-hoc signed, not
+  notarized. Final binary SHA256:
+  `2f0c913ebdbc2dc853411e213902c07f53eda34c76edc59b7a13d9588ea951f7`.
+  Final DMG SHA256:
+  `233b1105ebe32d7be163a2229ecfaff3a52d1661303252710f8813f789604c1b`.
+  Earlier intermediate packages are superseded and were never installed.
+- Installed `/Applications/OpenCode Desktop.app` reports 0.2.16. Old 0.2.15 is
+  retained in the owner's private backup. Settings show ready browser tools,
+  confirmed project connection and Pi 0.85.1. Stop/disable, re-enable, settings
+  opening and top-bar opening were exercised. Project-connected caption remains
+  correct after checking Pi. Authenticated daemon health confirms its window open.
+- Actual installed Pi loader and argument validation through the final app's
+  `--browser-mcp` expose 32 tools and navigate/snapshot a disposable fixture.
+  No model requests or user sessions were created, aborted or restarted.
+- Script refresh matches bundled sources without dependency reinstall or browser
+  download: Chromium hash/inode, dependency manifest inode and installedAt stayed
+  unchanged. Complete global OpenCode JSONC deep comparison matches pre-update
+  configuration after re-enabling; providers/models/plugins/permissions retained.
+  Existing OpenCode 1.18.18 listener PID3714 stayed healthy and unchanged.
+- Windows/Linux 0.2.16 compilation and live acceptance remain pending. Windows
+  hidden-console and Pi Job Object code has source coverage/review only; this Mac
+  release does not claim Windows runtime validation. Live SSH-server restart and
+  Finder/nvm launch are integration follow-ups, not measured results.

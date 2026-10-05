@@ -147,6 +147,16 @@ export function newPiSessionId(): string {
   return `chat-${random.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
 }
 
+/**
+ * Capability probes run as one native process per (directory, id). Two probes
+ * started in the same millisecond must not share a process, or the first to
+ * finish would close the other's. The prefix keeps them out of chat listings.
+ */
+export function probeSessionId(): string {
+  const random = Math.random().toString(36).slice(2, 10) || "0";
+  return `probe-${Date.now().toString(36)}-${random}`;
+}
+
 export class PiBackend implements AgentBackend {
   readonly id = PI_BACKEND_ID;
   readonly capabilities = PI_CAPABILITIES;
@@ -196,7 +206,7 @@ export class PiBackend implements AgentBackend {
       error: install.error,
     };
     if (!install.installed || !directory) return empty;
-    const probeId = `probe-${Date.now().toString(36)}`;
+    const probeId = probeSessionId();
     try {
       const opened = await this.bridge.open({
         directory,
@@ -244,7 +254,7 @@ export class PiBackend implements AgentBackend {
     if (!directory) throw new Error("Нет рабочего каталога для проверки.");
     const opened = await this.bridge.open({
       directory,
-      sessionId: `probe-${Date.now().toString(36)}`,
+      sessionId: probeSessionId(),
       ephemeral: true,
       provider: choice.providerID,
       model: `${choice.providerID}/${choice.modelID}`,
