@@ -710,6 +710,9 @@ pub struct PiOpenRequest {
     /// can never appear in the user's chat list.
     #[serde(default)]
     pub ephemeral: bool,
+    /// Desktop-managed browser is optional and never loaded for metadata probes.
+    #[serde(default)]
+    pub browser_enabled: bool,
     /// "ask" (default) or "full". Anything else is treated as "ask".
     pub tool_policy: Option<String>,
 }
@@ -805,6 +808,15 @@ pub async fn pi_open(
             args.push("--extension".into());
             args.push(gate.display().to_string());
         }
+        let browser_extension = if request.browser_enabled && !request.ephemeral {
+            crate::browser::installed_pi_extension()
+        } else {
+            None
+        };
+        if let Some(extension) = &browser_extension {
+            args.push("--extension".into());
+            args.push(extension.display().to_string());
+        }
         for extension in &request.extensions {
             let path = validate_override(extension)?;
             args.push("--extension".into());
@@ -814,6 +826,12 @@ pub async fn pi_open(
         let mut command =
             command_for_program(&program, request.node_program.as_deref().map(Path::new))?;
         command.args(&args).current_dir(&directory);
+        if browser_extension.is_some() {
+            command.env(
+                "OCDESKTOP_BROWSER_COMMAND",
+                std::env::current_exe().map_err(|e| e.to_string())?,
+            );
+        }
         #[cfg(unix)]
         {
             // Own process group: language servers Pi spawns inherit it, so the
@@ -1149,6 +1167,16 @@ pub fn shutdown(app: &tauri::AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn older_pi_requests_do_not_implicitly_enable_browser() {
+        let request: PiOpenRequest =
+            serde_json::from_value(json!({"directory":"/tmp", "sessionId":"test-legacy"})).unwrap();
+        assert!(!request.browser_enabled);
+        assert!(!request.ephemeral);
+        let request: PiOpenRequest = serde_json::from_value(json!({"directory":"/tmp", "sessionId":"test-enabled", "browserEnabled":true, "ephemeral":true})).unwrap();
+        assert!(request.browser_enabled && request.ephemeral);
+    }
 
     #[test]
     fn session_ids_cannot_escape_the_session_directory() {

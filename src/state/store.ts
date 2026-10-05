@@ -1,3 +1,4 @@
+import { configureLocalBrowser, invalidateBrowserSetup } from "../browser/integration";
 import { applyAppearance, normalizeAppearance, type Appearance } from "./appearance";
 import {
   connectSsh,
@@ -267,6 +268,7 @@ class Store {
           return {
             program: settings.program,
             nodeProgram: settings.nodeProgram,
+            browserEnabled: this.state.prefs.browser?.enabled !== false,
             provider: model?.providerID ?? settings.provider,
             model: model ? `${model.providerID}/${model.modelID}` : settings.model,
             thinking: model?.variant ?? settings.thinking,
@@ -576,14 +578,39 @@ class Store {
     };
   }
 
+  configureBrowser(force = false): Promise<unknown> {
+    if (force) invalidateBrowserSetup();
+    const endpoint = this.state.prefs.endpoint;
+    const enabled = this.state.prefs.browser?.enabled;
+    const node = this.state.prefs.browser?.nodeProgram;
+    return configureLocalBrowser({
+      endpoint, directory: this.state.directory, remote: !!this.currentHost(),
+      preferences: this.state.prefs.browser,
+      openCodeProgram: this.state.prefs.localOpenCodeProgram,
+      piProgram: this.state.prefs.pi?.program, piNodeProgram: this.state.prefs.pi?.nodeProgram,
+      current: () => !this.currentHost() && this.state.prefs.endpoint === endpoint
+        && this.state.prefs.browser?.enabled === enabled && this.state.prefs.browser?.nodeProgram === node,
+      activeDirectory: () => this.state.directory,
+      request: (method, path, options) => this.client.request(method, path, options),
+    });
+  }
+
+  setBrowserSettings(patch: Partial<NonNullable<Prefs["browser"]>>): void {
+    this.mutate(x => ({ prefs: { ...x.prefs, browser: { ...x.prefs.browser, ...patch } } }));
+    this.persistPrefs();
+    void this.configureBrowser(true);
+  }
+
   setPiSettings(patch: Partial<NonNullable<Prefs["pi"]>>): void {
     this.mutate((x) => ({ prefs: { ...x.prefs, pi: { ...x.prefs.pi, ...patch } } }));
     this.persistPrefs();
+    void this.configureBrowser(true);
   }
 
   setLocalOpenCodeProgram(program?: string): void {
     this.mutate((x) => ({ prefs: { ...x.prefs, localOpenCodeProgram: program } }));
     this.persistPrefs();
+    void this.configureBrowser(true);
   }
 
   /**
@@ -602,6 +629,7 @@ class Store {
     const health = await this.pi().describe(directory);
     this.piInstalled = health.install.installed;
     this.mutate({ piHealth: health });
+    void this.configureBrowser(true);
   }
 
   async refreshPiInstall(): Promise<void> {
@@ -944,6 +972,8 @@ class Store {
         await this.setDirectory(this.state.directory, { restoreSession: true });
       else await this.setDirectory(null);
       if (gen !== this.connectionGeneration) return false;
+      invalidateBrowserSetup();
+      void this.configureBrowser();
       this.startGlobalStream(backend, gen);
       void this.reconcileUnreadSessions();
       return true;
@@ -1253,6 +1283,7 @@ class Store {
     ) {
       // keep "new conversation" state by default; do not auto-open old sessions
     }
+    void this.configureBrowser();
     this.startEventStream(directory, gen);
     this.startPiStream(directory, gen);
     if (opts.restoreSession && this.state.activeSessionId) {

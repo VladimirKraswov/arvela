@@ -12,6 +12,11 @@ fn main() {
             eprintln!("{error}");
             std::process::exit(1);
         }
+    } else if std::env::args().nth(1).as_deref() == Some("--browser-mcp") {
+        if let Err(error) = opencode_desktop_lib::browser::mcp_main() {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
     } else {
         opencode_desktop_lib::run()
     }

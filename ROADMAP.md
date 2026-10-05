@@ -284,3 +284,12 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Attachment chips scroll within a bounded area, and long model/agent names shrink in the idle toolbar. The text area also respects viewport height.
 - [x] Microphone capture no longer waits for Web Audio visualization to resume. Cancellation stops late grants and does not transcribe.
 - [x] Native Mac acceptance with three long-name images, active recording, cancel and clean draft; installed app smoke. Linux `.deb` built and window-smoked from the same source. See VERIFICATION.
+
+## M19 — Managed agent browser (0.2.15)
+
+- [x] Official Playwright MCP, headed persistent Chromium, private lifecycle proxy, shared serialized tools with per-project file roots.
+- [x] Local first-start/after-install setup for installed OpenCode/Pi, absent-engine skip, JSONC preservation and normal engine permissions.
+- [x] Browser window button and settings, optional Node path, bounded install/start/error recovery.
+- [x] Windows archive native-driver import with window guards; honest Linux unsupported native-control UI.
+- [x] Final packaged Mac acceptance and installation (see VERIFICATION).
+- [ ] Live Windows/Linux browser acceptance. Shared source implemented; no claim of live verification.

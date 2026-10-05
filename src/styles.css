@@ -2703,3 +2703,11 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .pi-settings .pi-model-list .kv:first-child { border-top: 0; }
 .pi-settings .kv span small { display: block; color: var(--text-dim); font-size: .85em; }
 .switch-label { display: inline-flex; gap: 8px; align-items: center; }
+
+.browser-button { gap: 6px; flex-shrink: 0; }
+.browser-button span:last-child { font-size: var(--ui-font-size, 13px); }
+.settings-path { overflow-wrap: anywhere; font-size: 0.9em; }
+
+@media (max-width: 1000px) { .browser-button > span { display: none; } }
+
+.settings-inline-error { overflow-wrap: anywhere; }

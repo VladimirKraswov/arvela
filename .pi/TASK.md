@@ -554,3 +554,42 @@ persisted user message and busy status. No other server, model or user chat was
 restarted. A packaged missing-server end-to-end run was not performed against
 the owner's active profile; the native fake-CLI integration test covers that
 startup path.
+
+
+# Managed browser and Windows admin archive — 0.2.15 (DONE 2026-10-05)
+
+Owner authorized parallel delegation, useful Windows archive import, a shared
+cross-platform browser, first-start/after-install configuration and Mac-only
+acceptance, Git push and Desktop reinstall. Adapted Windows Cua Driver source
+with exact-window guards and honest OS readiness. Browser uses official pinned
+Playwright MCP and persistent headed Chromium, an authenticated private loopback
+daemon, and `--browser-mcp` stdio proxy. Desktop owns lifecycle/setup; OpenCode
+owns agent/model/session/permissions; Pi receives a thin official-tool extension
+for enabled real sessions. No agent loop duplication or model runtime bundling.
+
+Auto setup skips absent engines and remote hosts; global JSONC compare/save adds
+only the reserved browser MCP and managed skill directory. Deep pre/post compare
+confirms existing providers/models/plugins/permissions retained. Skill discovery
+is subject to the engine's existing configuration cache/reload; live MCP attached
+dynamically without server restart. Settings include readiness, window/address,
+enable/disable and optional Node path. Owned installer/start cancel on Quit.
+
+Verification: all 365 frontend tests passed across the full run and one isolated
+retry of a five-second acceptance timeout; final full Rust 53/53, TypeScript/Vite,
+fmt, diff check, optimized Mac app/DMG build and signature/microphone checks pass.
+Real test-owned Chromium smoke covers password forms, upload isolation, images,
+profile persistence and same-client daemon restart. Actual Pi 0.85.1 loader and
+argument validator via final installed app register 32 tools and navigate/snapshot
+a disposable fixture without inference/session/global Pi changes. Final native
+UI proves first-start browser install, local OpenCode autostart, ready browser,
+OpenCode/Pi configuration and top-bar/settings opening. Windows/Linux live
+acceptance remains pending. No user session was submitted/aborted.
+
+Installed/reopened `/Applications/OpenCode Desktop.app` 0.2.15; old 0.2.13 retained
+in private backup. Existing OpenCode PID3714 survived final replacement unchanged.
+Binary SHA256 `97804d10882bd9b64ccf8609c672030a0b880adfbfdc7d293167e661bcb0f1dd`;
+DMG SHA256 `58073b7b51d17c69ba4ecf29c2b9c970071e96c9ce1bf93ea55085ae674cf3cc`.
+Final DMG verified and copied to Downloads. Only source/docs/tests/lockfiles
+are published; credentials/profiles/runtime installs/private acceptance receipts
+remain excluded. See docs/BROWSER.md, docs/WINDOWS-DRIVER-IMPORT-20261005.md and
+docs/VERIFICATION.md.

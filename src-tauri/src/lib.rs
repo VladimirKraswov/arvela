@@ -1,4 +1,5 @@
 mod asr;
+pub mod browser;
 pub mod computer;
 mod config;
 pub mod control;
@@ -12,6 +13,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(hosts::Hosts::default())
         .manage(pi::PiSessions::default())
+        .manage(browser::BrowserRuntime::default())
         .manage(control::AgentControl::default())
         .setup(|app| {
             control::start(app.handle().clone()).map_err(std::io::Error::other)?;
@@ -19,6 +21,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
+            browser::browser_status,
+            browser::browser_install,
+            browser::browser_start,
+            browser::browser_open,
+            browser::browser_stop,
+            browser::browser_pi_support,
             hosts::ssh_aliases,
             hosts::prepare_chat_workspace,
             hosts::connect_ssh,
@@ -57,6 +65,7 @@ pub fn run() {
                 }
                 // No Pi agent may outlive the window that started it.
                 pi::shutdown(app);
+                browser::shutdown(app);
                 control::shutdown(app);
             }
         });

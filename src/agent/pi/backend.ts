@@ -91,6 +91,7 @@ export interface PiRuntimeChoice {
   thinking?: string;
   program?: string;
   nodeProgram?: string;
+  browserEnabled?: boolean;
   extensions?: string[];
   /** Approval policy for Pi's built-in tools; "ask" when unset. */
   toolPolicy?: "ask" | "full";
@@ -681,6 +682,7 @@ export class PiBackend implements AgentBackend {
       program: choice.program,
       nodeProgram: choice.nodeProgram,
       extensions: choice.extensions,
+      browserEnabled: choice.browserEnabled,
       toolPolicy: choice.toolPolicy,
     });
     this.keys.set(sessionID, opened.key);

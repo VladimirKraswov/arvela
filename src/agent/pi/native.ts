@@ -30,6 +30,7 @@ export interface PiOpenRequest {
   thinking?: string;
   program?: string;
   nodeProgram?: string;
+  browserEnabled?: boolean;
   extensions?: string[];
   /** Probe only: `--no-session`, so it leaves no transcript behind. */
   ephemeral?: boolean;

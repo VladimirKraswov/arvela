@@ -1,3 +1,4 @@
+import { BrowserButton } from "./BrowserSettings";
 import { PI_BACKEND_ID } from "../agent/pi/backend";
 import { piAvailability } from "../state/engines";
 import { store, useAppState } from "../state/store";
@@ -56,6 +57,7 @@ export function TopBar() {
       {session && engineId !== PI_BACKEND_ID && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected" || !store.backend.capabilities.fork} onClick={() => store.setUi({ handoffSource: session })}>
         <Icon name="handoff" size={17} /><span>Передать</span>
       </button>}
+      <BrowserButton/>
       {s.ui.vcs?.branch && (
         <span className="branch-label">
           <Icon name="branch" size={14} />

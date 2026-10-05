@@ -7,6 +7,13 @@ it("never treats an MCP transport connection as ready after driver revocation",(
   expect(computerReadinessError({...status,enabled:true,permissions:{accessibility:true,screen_recording:false}})).toContain("не подтвердил");
   expect(computerReadinessError({...status,enabled:true,permissions:{accessibility:true,screen_recording:true}})).toBeUndefined();
 });
+it("requires an interactive Windows desktop and UI Automation before connecting",()=>{
+  const win={...status,platform:"windows",command:"C:\\Program Files\\OpenCode Desktop\\opencode-desktop.exe",skillPath:"C:\\Users\\fixture\\AppData\\Local\\opencode-desktop\\computer\\skill"};
+  expect(computerReadinessError({...win,permissions:{interactive_session:false,uia:true,windows_visible:true}})).toContain("интерактивный");
+  expect(computerReadinessError({...win,permissions:{interactive_session:true,uia:false,windows_visible:true}})).toContain("UI Automation");
+  expect(computerReadinessError({...win,permissions:{interactive_session:true,uia:true,windows_visible:true}})).toBeUndefined();
+  expect(computerConfig("{}",win,true).config.command).toEqual([win.command,"--computer-mcp"]);
+});
 it("preserves comments, models, credentials, permissions and other MCP servers",()=>{
   const source='// keep\n{"model":"local/next","provider":{"local":{"options":{"apiKey":"fixture"}}},"permission":{"bash":"ask"},"mcp":{"existing":{"type":"remote","url":"https://example.test"}},"skills":{"paths":["/old/skills"]}}';
   const next=computerConfig(source,status,true);expect(next.content).toContain('// keep');
@@ -22,8 +29,14 @@ it("updates only its own MCP entry and never duplicates the skill",()=>{
   expect(computerConfig(once,status,false).config.enabled).toBe(false);
   expect(()=>computerConfig('{"mcp":{"cua_desktop":{"type":"remote","url":"https://example.test"}}}',status,true)).toThrow("занято");
 });
-it("does not register Mac commands in a remote OpenCode server",()=>{
+it("does not register local computer commands in a remote OpenCode server",()=>{
   expect(isLocalComputer("http://127.0.0.1:4096",false)).toBe(true);
   expect(isLocalComputer("http://127.0.0.1:4501",true)).toBe(false);
   expect(isLocalComputer("http://192.168.31.10:4096",false)).toBe(false);
+});
+
+it("shows unsupported native-window control without asking Linux users for macOS grants",()=>{
+  expect(computerReadinessError({...status,platform:"linux",supported:false,permissions:{status:"unsupported"}})).toContain("браузера");
+  expect(computerReadinessError({...status,platform:"other",permissions:{}})).toContain("недоступно");
+  expect(computerReadinessError({...status,platform:"windows",permissions:{status:"refused",refusal:{code:"authorization_suspended"},interactive_session:true,uia:true,windows_visible:true}})).toContain("экстренной остановкой");
 });

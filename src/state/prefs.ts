@@ -1,3 +1,4 @@
+import type { BrowserPreferences } from "../browser/integration";
 import { DEFAULT_APPEARANCE, normalizeAppearance, type Appearance } from "./appearance";
 import type { RemoteHost } from "../native/hosts";
 import type { Session } from "../api/types";
@@ -57,6 +58,8 @@ export interface PiSettings {
 
 export interface Prefs {
   appearance: Appearance;
+  /** Local browser lifecycle and executable choice; engines retain their own permissions. */
+  browser?: BrowserPreferences;
   /** Preferred engine per project folder. Absent means OpenCode. */
   projectEngine?: Record<string, string>;
   /** Per-chat engine override. Absent means the folder preference. */
@@ -237,6 +240,7 @@ export function switchEndpointPrefs(
     asr: prefs.asr,
     helperEndpoint: prefs.helperEndpoint,
     pi: prefs.pi,
+    browser: prefs.browser,
     piSessions: prefs.piSessions,
     sessionEngine: prefs.sessionEngine,
     handoffOrigins: prefs.handoffOrigins,

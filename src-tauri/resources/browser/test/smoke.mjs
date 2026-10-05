@@ -1,0 +1,119 @@
+// Opt-in real headed Chromium acceptance. Run against an already installed,
+// test-owned /tmp/oc-browser-* runtime; never against a user's browser profile.
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import http from 'node:http';
+import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import assert from 'node:assert/strict';
+const root = await fs.realpath(process.argv[2]);
+const temporaryRoot = await fs.realpath(os.tmpdir());
+const allowedTemporaryRoots = [temporaryRoot];
+if (process.platform !== 'win32') allowedTemporaryRoots.push(await fs.realpath('/tmp'));
+assert(allowedTemporaryRoots.includes(path.dirname(root)) && path.basename(root).startsWith('oc-browser-'), 'Use a test-owned temporary runtime');
+const runtime = path.join(root, 'current');
+const { Client } = await import(pathToFileURL(path.join(runtime, 'node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js')));
+const { StdioClientTransport } = await import(pathToFileURL(path.join(runtime, 'node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js')));
+const workspace = path.join(root, 'project-workspace');
+await fs.mkdir(workspace, { recursive: true });
+let child; let ready; let client; let fixture;
+const pause = ms => new Promise(r => setTimeout(r, ms));
+async function start() {
+  child = spawn(process.execPath, [path.join(runtime, 'daemon.mjs'), root], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: path.join(root, 'browsers') } });
+  let stderr = ''; child.stderr.on('data', chunk => { stderr = (stderr + chunk.toString()).slice(-2048); });
+  for (let count = 0; count < 300; count++) {
+    try {
+      const value = JSON.parse(await fs.readFile(path.join(root, 'ready.json')));
+      const response = await fetch(`http://127.0.0.1:${value.port}/health`, { headers: { Authorization: `Bearer ${value.token}` }, signal: AbortSignal.timeout(500) });
+      if (response.ok && (await response.json()).instanceId === value.instanceId) { ready = value; return; }
+    } catch {}
+    if (child.exitCode !== null) throw new Error('Test daemon exited');
+    await pause(100);
+  }
+  throw new Error('Test daemon startup timed out' + (stderr ? ': ' + stderr : ''));
+}
+async function stop() {
+  if (ready) {
+    await fetch(`http://127.0.0.1:${ready.port}/stop`, { method: 'POST', headers: { Authorization: `Bearer ${ready.token}`, 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(3000) }).catch(() => {});
+  }
+  for (let count = 0; child?.exitCode === null && count < 50; count++) await pause(100);
+  if (child?.exitCode === null) child.kill('SIGKILL');
+  ready = undefined;
+}
+async function connect(cwd = workspace) {
+  const value = new Client({ name: 'desktop-browser-mac-acceptance', version: '1.0.0' });
+  await value.connect(new StdioClientTransport({ command: process.execPath, args: [path.join(runtime, 'proxy.mjs'), root], cwd, stderr: 'pipe' }));
+  return value;
+}
+async function call(name, args = {}, active = client) {
+  const result = await active.callTool({ name, arguments: args });
+  assert(!result.isError, `Official tool failed: ${name}`);
+  return result;
+}
+function text(result) { return result.content.filter(c => c.type === 'text').map(c => c.text).join('\n'); }
+function target(snapshot, label) {
+  const line = snapshot.split('\n').find(l => l.includes(`"${label}"`) && l.includes('[ref='));
+  const match = line?.match(/\[ref=([^\]]+)\]/); assert(match, `Missing current snapshot target: ${label}`); return match[1];
+}
+try {
+  try {
+    const stale = JSON.parse(await fs.readFile(path.join(root, 'ready.json')));
+    const alive = await fetch(`http://127.0.0.1:${stale.port}/health`, { headers: { Authorization: `Bearer ${stale.token}` }, signal: AbortSignal.timeout(1000) });
+    assert(!alive.ok, 'Stop the existing test daemon before this test');
+  } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ECONNREFUSED' && error.name === 'AssertionError') throw error; }
+  fixture = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(`<!doctype html><title>Desktop Browser Acceptance</title><label>Name<input id="name" aria-label="Name"></label><label>Password<input id="password" type="password" aria-label="Password"></label><button onclick="document.querySelector('#result').textContent = document.querySelector('#name').value && document.querySelector('#password').value ? 'FORM_OK' : 'FORM_BAD';localStorage.setItem('fixture-session','PERSIST_OK')">Save fixture login</button><button onclick="document.querySelector('#upload').click()">Upload fixture</button><input id="upload" type="file" hidden onchange="document.querySelector('#result').textContent=this.files.length?'UPLOAD_OK':'UPLOAD_BAD'"><div id="result">WAITING</div><div id="persist"></div><script>document.querySelector('#persist').textContent=localStorage.getItem('fixture-session')||'NO_SESSION'</script>`);
+  });
+  await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
+  const fixtureUrl = `http://127.0.0.1:${fixture.address().port}`;
+  await fs.writeFile(path.join(workspace, 'upload.txt'), 'Test-owned fixture upload');
+  await start();
+  const endpoint = `http://127.0.0.1:${ready.port}`;
+  const headers = { Authorization: `Bearer ${ready.token}` };
+  assert.equal((await fetch(`${endpoint}/health`)).status, 403);
+  assert.equal((await fetch(`${endpoint}/health`, { headers: { ...headers, Origin: 'https://example.com' } })).status, 403);
+  assert.equal((await (await fetch(`${endpoint}/health`, { headers })).json()).browserOpen, false);
+  client = await connect();
+  const tools = await client.listTools(); assert(tools.tools.some(t => t.name === 'browser_snapshot'));
+  assert.equal((await (await fetch(`${endpoint}/health`, { headers })).json()).browserOpen, false);
+  await call('browser_navigate', { url: fixtureUrl });
+  const revealed = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'desktop/reveal' }) });
+  assert(revealed.ok, 'Existing browser window reveal failed');
+  let snapshot = text(await call('browser_snapshot'));
+  assert(snapshot.includes(fixtureUrl), 'Window reveal must preserve the current page');
+  await call('browser_fill_form', { fields: [
+    { target: target(snapshot, 'Name'), name: 'Name', type: 'textbox', value: 'Acceptance' },
+    { target: target(snapshot, 'Password'), name: 'Password', type: 'textbox', value: 'fixture-only-password-never-logged' },
+  ] });
+  snapshot = text(await call('browser_snapshot'));
+  await call('browser_click', { target: target(snapshot, 'Save fixture login') });
+  snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('FORM_OK'));
+  await call('browser_click', { target: target(snapshot, 'Upload fixture') });
+  const rejected = await client.callTool({ name: 'browser_file_upload', arguments: { paths: [path.join(root, 'current/package.json')] } });
+  assert(rejected.isError, 'Out-of-workspace upload must be rejected');
+  await call('browser_file_upload', { paths: [path.join(workspace, 'upload.txt')] });
+  snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('UPLOAD_OK'));
+  const screenshot = await call('browser_take_screenshot', { scale: 'css', type: 'png' });
+  assert(screenshot.content.some(c => c.type === 'image' && c.data.length > 100));
+  const otherWorkspace = path.join(root, 'other-workspace'); await fs.mkdir(otherWorkspace, { recursive: true });
+  const other = await connect(otherWorkspace);
+  try {
+    await fs.writeFile(path.join(otherWorkspace, 'other.txt'), 'Other workspace');
+    await call('browser_navigate', { url: fixtureUrl }, other);
+    snapshot = text(await call('browser_snapshot', {}, other));
+    await call('browser_click', { target: target(snapshot, 'Upload fixture') }, other);
+    const forbidden = await other.callTool({ name: 'browser_file_upload', arguments: { paths: [path.join(workspace, 'upload.txt')] } });
+    assert(forbidden.isError, 'A second workspace must not inherit the first workspace file access');
+    await call('browser_file_upload', { paths: [path.join(otherWorkspace, 'other.txt')] }, other);
+  } finally { await other.close(); }
+  await stop(); await start();
+  await call('browser_navigate', { url: fixtureUrl });
+  snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'), 'Persistent fixture login must survive daemon restart');
+  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true }));
+} finally {
+  await client?.close().catch(() => {});
+  await stop();
+  await new Promise(resolve => fixture ? fixture.close(resolve) : resolve());
+}

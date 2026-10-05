@@ -1,3 +1,4 @@
+import { BrowserSettings } from "./BrowserSettings";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { version as appVersion } from "../../package.json";
 import { store, useAppState } from "../state/store";
@@ -19,6 +20,7 @@ export const SETTINGS_SECTIONS = [
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
+  { id: "browser", title: "Браузер", group: "Интеграции", icon: "browser", description: "Управляемый Chromium и автонастройка OpenCode / Pi", keywords: "browser playwright chromium MCP окна вкладки формы пароли" },
   { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
   { id: "agentControl", title: "API для агентов", group: "Интеграции", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
   { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
@@ -158,6 +160,7 @@ export function SettingsScreen() {
           <p className="settings-muted">Запись — до 2 минут. Аудио не сохраняется на диск. Для удалённого сервиса используйте HTTPS.</p>
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
+        {section === "browser" && <BrowserSettings/>}
         {section === "computer" && <ComputerSettings/>}
         {section === "agentControl" && <AgentControlSettings/>}
         {section === "pi" && <PiSettings/>}

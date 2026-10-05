@@ -48,28 +48,29 @@ export function ComputerSettings(){
     }catch(e){if(enabled)await invoke("computer_set_enabled",{enabled:false}).catch(()=>{});setError(`${written?"Конфигурация сохранена с резервной копией, но подключение не завершилось. ":""}${err(e)}`);await refresh().catch(()=>{});}
     finally{setBusy(false);}
   };
-  const p=status?.permissions;
+  const p=status?.permissions, os=platform(), windows=os==="windows";
   return <section className="computer-settings" aria-label="Управление компьютером">
     <h4>Отдельный курсор агента</h4>
     <p>OpenCode читает интерфейс выбранного окна, видит его снимок, нажимает и вводит текст через Cua Driver. Ваш указатель остаётся свободным. Снимки и текст окон получает выбранная модель.</p>
-    {platform()!=="macos"?<p role="status">Cua Driver управляет окнами только на macOS. На этом компьютере интеграция недоступна; остальные инструменты OpenCode работают как обычно.</p>
-      :!native?<p>Откройте установленное приложение на Mac.</p>:<>
+    {!["macos","windows"].includes(os)?<p role="status">Управление окнами Cua Driver на этой платформе недоступно. Управляемый браузер доступен в отдельном разделе настроек.</p>
+      :!native?<p>Откройте установленное приложение Desktop.</p>:<>
       <div className="kv"><span>Драйвер</span><b>{status?status.installed?status.version:"Не установлен":"Проверка…"}</b></div>
       <div className="kv"><span>Управление</span><b>{status?.enabled?computerReadinessError(status)?"Не готово":"Включено":"Выключено"}</b></div>
       <div className="kv"><span>OpenCode · текущий проект</span><b>{connection==="connected"?"Подключён":connection==="not_configured"?"Не подключён":connection||"—"}</b></div>
-      <div className="kv"><span>Доступность macOS</span><b>{p?.accessibility===true?"Разрешена":p?.accessibility===false?"Нужен доступ":"Не проверена"}</b></div>
-      <div className="kv"><span>Запись экрана</span><b>{p?.screen_recording===true?"Разрешена":p?.screen_recording===false?"Нужен доступ":"Не проверена"}</b></div>
+      {!windows&&<><div className="kv"><span>Доступность macOS</span><b>{p?.accessibility===true?"Разрешена":p?.accessibility===false?"Нужен доступ":"Не проверена"}</b></div>
+      <div className="kv"><span>Запись экрана</span><b>{p?.screen_recording===true?"Разрешена":p?.screen_recording===false?"Нужен доступ":"Не проверена"}</b></div></>}
+      {windows&&<><div className="kv"><span>Интерактивный сеанс Windows</span><b>{p?.interactive_session===true?"Доступен":"Не подтверждён"}</b></div><div className="kv"><span>UI Automation</span><b>{p?.uia===true&&p?.windows_visible===true?"Готово":"Не подтверждено"}</b></div></>}
       {p?.status==="refused"&&status&&<p role="status">{computerReadinessError(status)}</p>}
-      <p className="handoff-note">Окно должно быть на текущем рабочем столе macOS. Фоновые действия поддерживаются не всеми приложениями: если окно требует переднего плана, агент сообщит об этом. Захват вашей мыши, управление всем рабочим столом и скрытая выдача разрешений отключены.</p>
-      {!local&&<p role="status">Эта интеграция управляет Mac, на котором открыт Desktop. Для настройки выберите «Этот компьютер» и локальный сервер OpenCode.</p>}
+      <p className="handoff-note">Окно должно быть доступно в текущем интерактивном сеансе. Фоновые действия поддерживаются не всеми приложениями: если окно требует переднего плана, агент сообщит об этом. Захват вашей мыши, управление всем рабочим столом и скрытая выдача разрешений отключены.</p>
+      {!local&&<p role="status">Эта интеграция управляет компьютером, на котором открыт Desktop. Для настройки выберите «Этот компьютер» и локальный сервер OpenCode.</p>}
       {running&&<p role="status">Подключение можно менять после завершения агента. Экстренная остановка доступна сейчас.</p>}
       <div className="btn-row computer-actions">
         <button className="btn" disabled={busy} onClick={()=>void refresh().catch(e=>setError(err(e)))}>Проверить</button>
-        {status?.installed?<button className="btn" disabled={busy} onClick={()=>void action("permissions")}>Разрешения macOS…</button>:<button className="btn" onClick={()=>void import("@tauri-apps/plugin-opener").then(x=>x.openUrl("https://cua.ai/docs/cua-driver"))}>Установка Cua Driver</button>}
+        {status?.installed?<button className="btn" disabled={busy} onClick={()=>void action("permissions")}>{windows?"Диагностика драйвера…":"Разрешения macOS…"}</button>:<button className="btn" onClick={()=>void import("@tauri-apps/plugin-opener").then(x=>x.openUrl("https://cua.ai/docs/cua-driver"))}>Установка Cua Driver</button>}
         <button className="btn primary" disabled={busy||running||!local||!status?.installed} onClick={()=>void apply(true)}>Подключить</button>
         <button className="btn" disabled={busy||running||!local||!status?.enabled} onClick={()=>void apply(false)}>Выключить</button>
       </div>
-      <div className="computer-stop"><button className="btn" disabled={busy||!status?.installed} onClick={()=>void action("stop")}>Остановить управление Mac</button><small>Выключает новые действия Desktop и отзывает все текущие сеансы Cua Driver на этом Mac. Следующее нажатие «Подключить» заново запускает отозванный драйвер.</small></div>
+      <div className="computer-stop"><button className="btn" disabled={busy||!status?.installed} onClick={()=>void action("stop")}>Остановить управление</button><small>{windows ? "Выключает новые действия Desktop; сеансы драйвера других приложений сохраняются." : "Выключает новые действия Desktop и отзывает все текущие сеансы Cua Driver на этом Mac. Следующее нажатие «Подключить» заново запускает отозванный драйвер."}</small></div>
     </>}
     {error&&<p className="composer-error" role="alert">{error}</p>}{notice&&<p className="settings-notice" role="status">{notice}</p>}
   </section>;

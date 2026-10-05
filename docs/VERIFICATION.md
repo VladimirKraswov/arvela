@@ -900,3 +900,79 @@ Not yet verified at the time of writing: Finder launch with restricted PATH, nat
   Rust tests pass, TypeScript/Vite production build, Cargo check/fmt and
   `git diff --check` pass. Ad-hoc app signature verifies. DMG verifies with SHA256
   `dc23b5e68e76d221eea0623b44cd8861f9f0dd55e68c83d362c3ab3e6cdc869d`.
+
+
+## M19 managed browser and Windows driver source import — 0.2.15, 2026-10-05
+
+The owner authorized archive review, cross-platform browser implementation, Mac
+acceptance, Git publication and installation. Useful Windows Cua Driver changes
+from the supplied archive were adapted and reviewed; the Windows-only InPrivate
+WebView browser was replaced by the official Playwright integration described
+in [BROWSER.md](BROWSER.md). Neither an agent loop nor model runtime is bundled.
+
+Source verification:
+
+- Full frontend run: 364 passed, 6 opt-in live skipped, one existing acceptance
+  test timed out at its five-second limit. Its complete suite subsequently passed
+  9/9 in isolation. All 365 frontend tests therefore passed across these runs.
+  An earlier full run before the additional 15 browser UI tests passed 350/350.
+- TypeScript/Vite production build, Cargo check, fmt and diff check passed.
+  Final Rust library suite passed 53/53, including shutdown cancellation.
+- Pi extension tests use real tool schemas, bounded discovery, no-process metadata
+  loading, failure/abort handling, image/text results and the existing permission
+  gate. The extension typechecks against installed Pi 0.85.1.
+- Real headed Chromium smoke uses a disposable profile and HTTP fixtures. Passed:
+  32 official tools, authenticated loopback and Origin rejection, lazy window
+  startup, DOM snapshots, test-password form entry, project upload and outside-root
+  rejection, workspace isolation, PNG screenshots, retained login state after
+  restart, same SDK connection after daemon restart and reveal preserving a form.
+
+Installed Mac acceptance:
+
+- Desktop 0.2.15 opened from LaunchServices, rendered its native settings and
+  restored the existing TinyCAD history/draft. The previously absent local
+  service was automatically started: health reports OpenCode 1.18.18. No model
+  request was submitted and no user session was aborted.
+- First-start browser setup installed Playwright MCP 0.0.83 and Chromium using
+  the discovered Node executable. UI confirms readiness and the Browser button
+  opens the ordinary visible Chromium window. OpenCode's directory-scoped
+  `/mcp` inventory reports `desktop_browser` connected. `/experimental/tool/ids`
+  is the engine registry, not the MCP inventory, and is not used as proof of
+  browser-tool exposure.
+- Global JSONC deep comparison, after removing only the managed MCP entry and
+  added skills directory, exactly matches the pre-install configuration. All
+  providers, models, plugins and permission rules are preserved. The directory
+  skill is discovered on normal engine configuration reload; the existing
+  instance's cached `/skill` inventory did not yet show it. Browser tools are
+  attached dynamically without restarting an externally managed server.
+- Windows and Linux share the implementation, but native browser execution and
+  packaging for this release were not tested there. Windows archive reports are
+  historical evidence. Mac packages use an ad-hoc signature, not notarization.
+
+Final release acceptance completed:
+
+- `npm run build:macos` produced the final app and DMG; optimized native build
+  completed in 7m43s. `scripts/verify-macos.py` and strict codesign verification
+  passed. Installed binary exactly matches the final candidate:
+  `97804d10882bd9b64ccf8609c672030a0b880adfbfdc7d293167e661bcb0f1dd`.
+- DMG passed `hdiutil verify`; its checked copy is in Downloads. SHA256:
+  `58073b7b51d17c69ba4ecf29c2b9c970071e96c9ce1bf93ea55085ae674cf3cc`.
+  Earlier intermediate packages were superseded and must not be published.
+- The final package was installed to `/Applications/OpenCode Desktop.app` and
+  reopened. Native UI reports 0.2.15, ready tools, connected OpenCode and configured
+  Pi. Both top-bar and settings browser buttons were exercised; the browser is
+  left on `about:blank`.
+- The real installed Pi 0.85.1 loader and argument validator, via the final
+  app's `--browser-mcp`, register 32 tools, enforce the required URL argument
+  and successfully navigate/snapshot a disposable local fixture. No prompts,
+  model calls, global Pi changes or session history were created.
+- Existing OpenCode listener PID3714 remained the same across the final app
+  replacement; health and directory-scoped MCP connection remain healthy.
+  Old Desktop 0.2.13 is retained in the owner's private app backup.
+- Final full Rust suite passed 53/53. The new cancellation test proves its own
+  installer child is reaped; review confirms shutdown signals before acquiring
+  the owner mutex. Short Node/health/termination deadlines remain, but Quit no
+  longer waits for the complete download. Windows shutdown copy correctly
+  distinguishes the Desktop gate from unrelated driver sessions.
+
+Published release: [v0.2.15](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.15).
