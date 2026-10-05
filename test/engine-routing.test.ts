@@ -106,6 +106,11 @@ beforeEach(async () => {
   vi.spyOn(store.client, "pendingPermissions").mockResolvedValue([]);
   vi.spyOn(store.client, "pendingQuestions").mockResolvedValue([]);
   vi.spyOn(store.client, "messages").mockResolvedValue({ messages: [] });
+  // Runtime metadata reads are part of a directory switch; never query a user's
+  // live server from a unit-test setup (it can time out or change these fixtures).
+  vi.spyOn(store.client, "providers").mockResolvedValue({ all: [], connected: [], default: {} });
+  vi.spyOn(store.client, "agents").mockResolvedValue([]);
+  vi.spyOn(store.client, "config").mockResolvedValue({});
   await store.setDirectory("/test/A");
   // Directory restore can replace the provider snapshot; keep this fixture
   // independent of whichever real provider the host has configured.

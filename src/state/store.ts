@@ -1,4 +1,6 @@
-import type { ScheduledTask, DispatchResult } from "../schedules/tasks";
+import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
+import { chatBlocker, liveModelProblem, modelProblem } from "../schedules/preflight";
+import { untilAborted } from "../util/abort";
 import { configureLocalBrowser, invalidateBrowserSetup, browserSetupSnapshot } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
 import { isLocalComputer } from "./computer";
@@ -592,22 +594,24 @@ class Store {
    * Background browser setup for the local engines. `force` restarts setup;
    * `keepAttachments` is for engine-path/Pi changes that cannot affect an
    * already confirmed OpenCode MCP connection, which must not be restarted
-   * under a running browser call.
+   * under a running browser call. `backgroundDirectory` attaches a directory other
+   * than the open one; `null` prepares the runtime only (Pi loads it itself).
    */
-  configureBrowser(force = false, keepAttachments = false, backgroundDirectory?: string): Promise<unknown> {
+  configureBrowser(force = false, keepAttachments = false, backgroundDirectory?: string | null): Promise<unknown> {
     if (force) invalidateBrowserSetup({ keepAttachments });
     const endpoint = this.state.prefs.endpoint;
     const client = this.client, generation = this.connectionGeneration;
     const enabled = this.state.prefs.browser?.enabled;
     const node = this.state.prefs.browser?.nodeProgram;
+    const background = backgroundDirectory !== undefined;
     return configureLocalBrowser({
-      endpoint, directory: backgroundDirectory ?? this.state.directory, remote: !!this.currentHost(),
+      endpoint, directory: background ? backgroundDirectory : this.state.directory, remote: !!this.currentHost(),
       preferences: this.state.prefs.browser,
       openCodeProgram: this.state.prefs.localOpenCodeProgram,
       piProgram: this.state.prefs.pi?.program, piNodeProgram: this.state.prefs.pi?.nodeProgram,
       current: () => generation === this.connectionGeneration && !this.currentHost() && this.state.prefs.endpoint === endpoint
         && this.state.prefs.browser?.enabled === enabled && this.state.prefs.browser?.nodeProgram === node,
-      activeDirectory: backgroundDirectory ? undefined : () => this.state.directory,
+      activeDirectory: background ? undefined : () => this.state.directory,
       request: (method, path, options) => client.request(method, path, options),
     });
   }
@@ -1506,12 +1510,27 @@ class Store {
     this.persistPrefs();
   }
 
+  /** Metadata of the open chat also includes children hidden from root listings. */
+  activeSession(): Session | undefined {
+    const id = this.state.activeSessionId;
+    if (!id) return;
+    // The root list already belongs to the open directory; cached children need
+    // an explicit directory check because activity spans several projects.
+    const listed = this.state.sessions.find(s => s.id === id);
+    if (listed) return listed;
+    const cached = this.activitySessions.get(id);
+    return cached?.directory === this.state.directory ? cached : undefined;
+  }
+
   async openChat(session: Session): Promise<void> {
+    const generation = this.connectionGeneration;
     if (session.directory !== this.state.directory)
       await this.setDirectory(session.directory);
     // setDirectory may have been superseded by a user's later selection.
-    if (this.state.directory === session.directory)
+    if (generation === this.connectionGeneration && this.state.directory === session.directory) {
+      this.rememberActivitySession(session);
       await this.selectSession(session.id);
+    }
   }
   private rememberChatListing(directory: string, sessions: Session[]): void {
     if (!this.isProjectlessDirectory(directory)) return;
@@ -1815,7 +1834,7 @@ class Store {
     if (sessionChoice && this.state.connectedProviderIds.includes(sessionChoice.providerID))
       return sessionChoice;
     const active = sessionId
-      ? this.state.sessions.find((s) => s.id === sessionId)?.model
+      ? this.activeSession()?.model
       : undefined;
     if (active?.id && this.state.connectedProviderIds.includes(active.providerID)) {
       return {
@@ -2047,7 +2066,7 @@ class Store {
     if (sessionId) {
       const selected = this.state.prefs.agentChoice[`session:${sessionId}`];
       if (selected) return selected;
-      const active = this.state.sessions.find((s) => s.id === sessionId)?.agent;
+      const active = this.activeSession()?.agent;
       if (active) return active;
     }
     const explicit =
@@ -2153,54 +2172,107 @@ class Store {
   // ---------- execution ----------
 
   private scheduledLocks = new Set<string>();
-  /** A scheduled request never consumes the user's draft, files or queue. */
-  async runScheduledTask(task: ScheduledTask): Promise<DispatchResult> {
+  /**
+   * One scheduled prompt under the same guards as a manual send. It never consumes
+   * the user's draft, files or queue, never answers a permission or question and
+   * never substitutes the saved server, chat, model or agent. Read-only checks stop
+   * when `signal` aborts; once the prompt is being sent it is neither aborted nor
+   * repeated. Throws `ScheduleBlocked` for definite "not sent, needs the user"
+   * outcomes; any other throw is uncertain delivery.
+   */
+  async runScheduledTask(task: ScheduledTask, signal: AbortSignal = new AbortController().signal): Promise<DispatchResult> {
     const waiting = (detail: string): DispatchResult => ({ kind: "waiting", detail });
     const server = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
-    if (task.server !== server || (task.engine !== PI_BACKEND_ID && (this.state.connection.phase !== "connected" || this.state.connection.streamState !== "open")))
-      return waiting("Ожидает подключения к исходному серверу");
+    const pi = task.engine === PI_BACKEND_ID;
+    if (task.server !== server) return waiting("Ожидает подключения к исходному серверу");
+    if (!pi && (this.state.connection.phase !== "connected" || this.state.connection.streamState !== "open"))
+      return waiting("Ожидает подключения к серверу OpenCode");
     if (this.state.ui.sending || this.scheduledLocks.size || this.accessChanging || this.state.ui.workspacePreparing || this.state.ui.runtimeLoading)
       return waiting("Ожидает завершения текущей отправки");
     if (this.engineIdFor(task.sessionID, task.directory) !== task.engine)
-      throw new Error("Агент чата изменился; требуется новая настройка задания.");
-    if (!this.engineReady(task.engine as EngineId)) return waiting("Агент недоступен");
+      throw new ScheduleBlocked("Агент этого чата изменился. Создайте задание заново для текущего агента.");
+    if (!this.engineReady(task.engine as EngineId)) return waiting(pi ? "Pi сейчас недоступен" : "Агент недоступен");
     const backend = this.engine(task.engine as EngineId), gen = this.connectionGeneration;
-    const current = () => gen === this.connectionGeneration && server === (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
+    const current = () => gen === this.connectionGeneration && this.engineStillActive(backend)
+      && server === (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
       && this.engineIdFor(task.sessionID, task.directory) === task.engine;
+    const blocker = (status: SessionStatus | undefined, permissions: PermissionRequest[], questions: QuestionRequest[]) =>
+      chatBlocker(task.sessionID, {
+        status, permissions, questions,
+        queued: this.getQueue(task.sessionID).length,
+        running: this.isRunning(task.sessionID),
+        locked: this.queueLocks.has(task.sessionID) || this.compactLocks.has(task.sessionID),
+        dialog: this.state.ui.piDialog?.sessionId === task.sessionID,
+      });
+    let sending = false;
     this.scheduledLocks.add(task.sessionID);
     try {
-      const [session, statuses, permissions, questions] = await Promise.all([
-        backend.getSession(task.sessionID, task.directory), backend.sessionStatuses(task.directory),
-        backend.pendingPermissions(task.directory), backend.pendingQuestions(task.directory),
-      ]);
+      const [session, statuses, permissions, questions, providers, agents] = await untilAborted(Promise.all([
+        backend.getSession(task.sessionID, task.directory, signal).catch((error: unknown) => {
+          // A missing chat is a fact, not a hiccup: OpenCode answers 404; Pi has no record of it.
+          if (pi || (error instanceof ApiError && error.status === 404))
+            throw new ScheduleBlocked("Чат удалён или больше недоступен. Задание приостановлено.");
+          throw error;
+        }),
+        backend.sessionStatuses(task.directory, signal),
+        backend.pendingPermissions(task.directory, signal),
+        backend.pendingQuestions(task.directory, signal),
+        pi ? null : backend.providers(signal, task.directory),
+        pi ? null : backend.agents(signal, task.directory),
+      ]), signal);
       if (!current()) return waiting("Подключение изменилось");
-      if (session.directory !== task.directory || session.time.archived) throw new Error("Чат недоступен.");
-      if (statuses[task.sessionID]?.type && statuses[task.sessionID].type !== "idle" || this.isRunning(task.sessionID)
-        || this.queueLocks.has(task.sessionID) || this.compactLocks.has(task.sessionID) || this.getQueue(task.sessionID).length
-        || permissions.some(p => p.sessionID === task.sessionID) || questions.some(q => q.sessionID === task.sessionID))
-        return waiting("Агент занят или ждёт ответа");
+      if (session.directory !== task.directory || session.time.archived)
+        throw new ScheduleBlocked("Чат архивирован или перенесён в другую папку. Задание приостановлено.");
+      const busy = blocker(statuses[task.sessionID], permissions, questions);
+      if (busy) return waiting(busy);
+      const unavailable = modelProblem(task, providers, agents);
+      if (unavailable) throw new ScheduleBlocked(unavailable);
+      if (pi) {
+        const live = await untilAborted(this.pi().liveModel(task.sessionID), signal);
+        const mismatch = live.running ? liveModelProblem(task, live.model) : null;
+        if (mismatch) throw new ScheduleBlocked(mismatch);
+      }
       if (isNative() && isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && browserEnabled(this.state.prefs)) {
-        await this.configureBrowser(false, false, task.directory);
-        if (browserSetupSnapshot().phase === "error") throw new Error("Браузер не подключён.");
+        // OpenCode needs this directory's MCP attachment; Pi only the installed runtime it loads itself.
+        const status = await untilAborted(this.configureBrowser(false, false, pi ? null : task.directory), signal);
+        if (pi ? !status : browserSetupSnapshot().phase === "error")
+          throw new ScheduleBlocked("Браузерные инструменты не подключились; запрос не отправлен. Проверьте «Настройки → Браузер» и возобновите задание.");
       }
       // Browser setup can take time. Re-check authoritative interaction state before dispatch.
-      const [freshStatus, freshPermissions, freshQuestions] = await Promise.all([
-        backend.sessionStatuses(task.directory), backend.pendingPermissions(task.directory), backend.pendingQuestions(task.directory),
-      ]);
+      const [freshStatus, freshPermissions, freshQuestions] = await untilAborted(Promise.all([
+        backend.sessionStatuses(task.directory, signal), backend.pendingPermissions(task.directory, signal), backend.pendingQuestions(task.directory, signal),
+      ]), signal);
       if (!current() || this.state.ui.sending) return waiting("Подключение или текущая отправка изменились");
-      if (freshStatus[task.sessionID]?.type && freshStatus[task.sessionID].type !== "idle" || this.getQueue(task.sessionID).length
-        || freshPermissions.some(p => p.sessionID === task.sessionID) || freshQuestions.some(q => q.sessionID === task.sessionID))
-        return waiting("Агент занят или ждёт ответа");
+      const late = blocker(freshStatus[task.sessionID], freshPermissions, freshQuestions);
+      if (late) return waiting(late);
+      if (signal.aborted) return { kind: "cancelled" };
       // Use the model/agent the user explicitly saved with this task, including its reasoning variant.
+      // No signal: a prompt that may have been delivered is never abandoned as if it was not.
+      sending = true;
       const seq = this.statusSequence;
-      await backend.prompt(task.sessionID, task.directory, {
-        messageID: newMessageId(), model: { providerID: task.model.providerID, modelID: task.model.modelID },
-        variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
-      });
+      try {
+        await backend.prompt(task.sessionID, task.directory, {
+          messageID: newMessageId(), model: { providerID: task.model.providerID, modelID: task.model.modelID },
+          variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
+        });
+      } catch (error) {
+        // The server answered with a refusal, so it accepted nothing. Its body is not kept.
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408)
+          throw new ScheduleBlocked(`OpenCode отклонил запрос (HTTP ${error.status}). Проверьте чат, модель и агента; затем возобновите задание.`);
+        throw error;
+      }
       if (current() && (this.statusVersions.get(task.sessionID) ?? 0) <= seq)
         this.observeSessionStatus(task.sessionID, { type: "busy" }, task.directory);
       return { kind: "sent" };
-    } finally { this.scheduledLocks.delete(task.sessionID); }
+    } catch (error) {
+      if (sending || error instanceof ScheduleBlocked) throw error;
+      // A read-only check failed or was withdrawn: nothing was sent, so trying later is safe.
+      return signal.aborted ? { kind: "cancelled" } : waiting("Не удалось проверить состояние чата; запрос не отправлен. Повторная проверка позже.");
+    } finally {
+      this.scheduledLocks.delete(task.sessionID);
+      // A user prompt queued meanwhile must not wait for the next status event.
+      if (task.sessionID === this.state.activeSessionId) void this.drainQueue();
+    }
   }
 
   async sendPrompt(text: string, attachments: DraftAttachment[] = [], onProgress: (label: string) => void = () => {}): Promise<boolean> {
@@ -2208,11 +2280,15 @@ class Store {
       !this.engineReady() ||
       (!text.trim() && !attachments.length) ||
       this.state.ui.sending ||
-      this.scheduledLocks.has(this.state.activeSessionId ?? "") ||
       this.state.ui.workspacePreparing ||
       this.state.ui.runtimeLoading
     )
       return false;
+    if (this.scheduledLocks.has(this.state.activeSessionId ?? "")) {
+      // Never interleave with a scheduled prompt for the same chat; the draft stays as typed.
+      this.patchUi({ sendError: "Сейчас проверяется или отправляется запланированное задание этого чата. Черновик сохранён — отправьте его через несколько секунд." });
+      return false;
+    }
     const initialScope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.state.directory, this.state.activeSessionId);
     if (!this.state.directory && !(await this.ensureChatWorkspace()))
       return false;
@@ -2493,9 +2569,7 @@ class Store {
   }
 
   getAccessMode() {
-    const session = this.state.sessions.find(
-      (x) => x.id === this.state.activeSessionId,
-    );
+    const session = this.activeSession();
     return session
       ? accessMode(session.permission)
       : (this.state.prefs.newAccess ?? "inherit");
@@ -2518,10 +2592,12 @@ class Store {
         { permission: accessRules(mode) },
         directory,
       );
-      if (backend === this.backend && directory === this.state.directory)
+      if (backend === this.backend && directory === this.state.directory) {
+        this.rememberActivitySession(updated);
         this.mutate((s) => ({
           sessions: s.sessions.map((x) => (x.id === id ? updated : x)),
         }));
+      }
     } catch (e) {
       this.patchUi({ toast: `Не удалось изменить доступ: ${errText(e)}` });
     } finally {

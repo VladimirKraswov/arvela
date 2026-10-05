@@ -94,7 +94,7 @@ npm run build:windows
 
 ## Репозиторий и установщик
 
-[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [релиз 0.2.16](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.16) содержит macOS Apple Silicon `.dmg` и Windows x64 NSIS `.exe`; Linux x86_64 `.deb` доступен в [релизе 0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10). Windows 0.2.16 собран без правок исходников; логи подтверждают 375 frontend / 55 Rust тестов и отдельный headed browser smoke. Часть packaged UI-сценариев Windows и Linux 0.2.16 ещё не проверены. [Происхождение и ограничения Windows](docs/WINDOWS-RESULT-0.2.16-20261005.md). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [релиз 0.2.17](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.17) содержит проверенный macOS Apple Silicon `.dmg` со встроенным браузером, панелью контекста и расписаниями. Windows x64 NSIS `.exe` 0.2.16 доступен в [релизе 0.2.16](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.16), Linux x86_64 `.deb` — в [релизе 0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10). Windows/Linux 0.2.17 ещё не собраны и не проверены. [Проверки и ограничения](docs/VERIFICATION.md). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
 
 Параметры двух локальных моделей и решение по V100/NInfer описаны в [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md).
 Полная схема пути от приложения через OpenCode к обеим VM, настройки, расширения и сохранённые измерения — в [карте AI-среды](docs/AI-ENVIRONMENT.md).
@@ -122,4 +122,6 @@ DOM-инструменты OpenCode/Pi. Также восстанавливае�
 Кнопка списка в заголовке открывает расписание, файлы результатов, дочерние
 сессии и источники. Повторяющиеся задания сохраняют выбранную модель/агента и
 выполняются, пока Desktop открыт; занятый чат ждёт, пропущенные запуски не
-накапливаются. [Описание и границы](docs/CHAT-CONTEXT.md).
+накапливаются. Неподтверждённая отправка приостанавливает задание и никогда не
+повторяется автоматически; причины, по которым ничего не отправлено, показываются
+отдельно. [Описание и границы](docs/CHAT-CONTEXT.md).

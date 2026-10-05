@@ -15,15 +15,16 @@ Closing hides the panel; it does not interrupt the task.
 
 Mac adjustments: direct view smoke accepts canonical /tmp as well as platform
 TEMP; panel uses existing text-dim theme color and its narrow-window overlay is
-anchored to center-main. Version0.2.17 keeps published0.2.16 binaries immutable.
+anchored to chat-col so it does not cover the browser. Version0.2.17 keeps published0.2.16 binaries immutable.
 
-Mac source:398 frontend passed/6 opt-in skipped,71 Rust passed, all-target
+Initial imported Mac source:398 frontend passed/6 opt-in skipped,71 Rust passed, all-target
 check/fmt and TypeScript/Vite build passed. Real official32-tool Chromium smoke
 proves live JPEG projection, DOM-derived cursor, manual input, shared tabs/history,
 stale-input rejection, auth/Origin, password fixture, file-root isolation,
 persistence/same-client restart and owner-pipe cleanup. Direct backend/view test
-passed; real MCP proxy regressions2/2 passed. Final Mac package and installed UI
-acceptance remain in progress until recorded below.
+passed; real MCP proxy regressions2/2 passed. Final reviewed source:451 frontend passed/6 opt-in skipped,71 Rust passed;
+TypeScript/Vite, fmt/all-target check and MCP proxy2/2 passed. Final Mac package
+and installed UI acceptance passed on 2026-10-06 (see VERIFICATION.md).
 
 Supplied Windows398/56tests and packaged panel/model task apply to archived
 7452a0e/0.2.16, not final0.2.17. Linux untested. Projection roughly3fps,

@@ -1,13 +1,17 @@
-# 0.2.17 Mac integration and chat context — IN PROGRESS (2026-10-05)
+# 0.2.17 Mac integration and chat context — VERIFIED (2026-10-06)
 
-Reviewed imported Windows source and added owner-requested context panel plus
-recurring chat tasks. 415 frontend passed / 6 opt-in skipped; 71 Mac Rust passed
-for unchanged native code, cargo check/fmt and TypeScript/Vite passed. Real
-headless MCP/view/transport checks already passed. Final Mac build running;
-next verify package, preserve installed 0.2.16 backup, replace Desktop only,
-check installed browser/manual input and context/schedule UI, then main/push/release.
-External OpenCode PID3714 and model/permission configuration must be preserved.
-Private before receipts in .local/embedded-browser-20261005; no secrets in commits.
+Direct Opus 5.5 source-only review on Igor completed; only Read/Edit/Write/Glob/Grep.
+All 281 returned file hashes/archive verified before immediate remote copy cleanup.
+Coordinator fixed additional child routing, storage/delivery, streaming cache and
+stale browser/endpoint issues. Final 451 frontend passed / 6 opt-in skipped,
+71 Rust passed, TypeScript/Vite, Cargo fmt/check-all-targets, MCP proxy2/2 passed.
+Mac package built/verified/reinstalled. Native exact DOM input/key/click, Pi 0.85.1
+loader/32 tools, context positioning/history jump, source chooser acceptance/cancel,
+keyboard form/panel closure and paused schedule quit/relaunch persistence passed.
+Original OpenCode PID3714/config/model settings, browser dependencies and text draft
+retained; test-only task/attachment removed, no owner-chat inference. Windows/Linux
+0.2.17 remain unverified. See docs/VERIFICATION.md for hashes/provenance/limitations.
+Main publication/release receipt will be recorded after push and asset verification.
 
 # Windows in-app browser projection — DONE (2026-10-05)
 

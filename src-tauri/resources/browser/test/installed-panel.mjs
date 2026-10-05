@@ -37,7 +37,10 @@ try {
     const snapshot = await client.callTool({ name: 'browser_snapshot', arguments: {} });
     assert(!snapshot.isError && text(snapshot).includes('PANEL_UI_OK'));
     const dom = await client.callTool({ name: 'browser_evaluate', arguments: { function: "() => ({ input: document.querySelector('#input').value, result: document.querySelector('#result').textContent, scrollY: window.scrollY })" } });
-    assert(!dom.isError && text(dom).match(/PANEL_UI_OK/g)?.length >= 2, 'Both real input and result must match');
+    assert(!dom.isError);
+    const evaluated = JSON.parse(text(dom).split('### Result\n')[1].split('\n###')[0]);
+    assert.equal(evaluated.input, 'PANEL_UI_OK', 'Real input must match exactly');
+    assert.equal(evaluated.result, 'PANEL_UI_OK', 'Button must submit the exact real input');
     console.log(JSON.stringify({ installedAppCli: true, tools: tools.tools.length, liveProjection: true, panelManualInputAndClick: true, realDomEvaluation: true }));
     break;
   }

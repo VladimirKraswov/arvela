@@ -98,6 +98,12 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
       controller.current?.pause(); controller.current?.intent("up");
       const scroll = scrollRef.current; scroll.scrollTop += row.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 24;
       controller.current?.onScroll();
+      // Keyboard and screen-reader users land on the revealed message, not back on the toolbar.
+      row.tabIndex = -1; row.focus({ preventScroll: true });
+      store.setUi({ revealMessage: null });
+    } else if (slot && !s.ui.historyLoading && !order.includes(reveal.messageID)) {
+      // The message left the loaded history (reload, deletion): drop the stale request
+      // instead of jumping unexpectedly when it reappears later.
       store.setUi({ revealMessage: null });
     }
   }, [reveal]);

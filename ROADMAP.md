@@ -319,12 +319,13 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Final packaged Mac acceptance and installation (see VERIFICATION).
 - [ ] Live Windows/Linux browser acceptance. Shared source implemented; no claim of live verification.
 
-## M20 — Embedded browser and chat context (0.2.17)
+## M26 — Embedded browser and chat context (0.2.17)
 
 - [x] Reviewed Windows ca99367/7452a0e archive, retained later main documentation.
 - [x] Shared headless Chromium projection, manual input/cursor/tabs/history, stale input guards and first-prompt attachment; no privileged remote HTML or new network exposure.
 - [x] Chat context: real sources/results/children, history navigation and existing composer picker/draft actions.
 - [x] Durable recurring prompts scoped to server/directory/chat/engine/model, normal permission checks, no catch-up bursts or ambiguous retries.
-- [x] 415 frontend / 71 Mac Rust checks and official browser transport/view smoke.
-- [ ] Final Mac package installation and native browser/context acceptance.
+- [x] 451 frontend / 71 Mac Rust checks and official browser transport/view smoke.
+- [x] Reviewed direct source-only Opus 5.5 changes; fixed additional storage/delivery, child routing, stream cache and stale endpoint cases on Mac. All 451 frontend / 71 Rust checks pass; see `docs/CLAUDE-CONTEXT-REVIEW-20261005.md`.
+- [x] Final Mac package installed: exact DOM input/key/click, real Pi loader/32 tools, context placement/history navigation, source chooser acceptance/cancel and paused schedule persistence passed. Original engine, configuration and draft preserved. See VERIFICATION.
 - [ ] Live Windows/Linux 0.2.17 acceptance; archived Windows 0.2.16 results remain separate evidence.

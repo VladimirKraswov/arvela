@@ -216,3 +216,32 @@ it("rechecks busy state after asynchronous setup, rejects archived and changed-e
  await expect(store.runScheduledTask(scheduled())).rejects.toThrow();
  await expect(store.runScheduledTask({...scheduled(),engine:"pi"})).rejects.toThrow();
 });
+it("a deleted chat, a vanished model and a server refusal are definite non-deliveries, not uncertain ones",async()=>{
+ const { ApiError } = await import("../src/api/client"), { ScheduleBlocked } = await import("../src/schedules/tasks");
+ scheduledSetup();const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+ vi.mocked(store.client.getSession).mockRejectedValueOnce(new ApiError(404,"secret body"));
+ await expect(store.runScheduledTask(scheduled())).rejects.toBeInstanceOf(ScheduleBlocked);
+ vi.mocked(store.client.providers).mockResolvedValueOnce({all:[{id:"local-qwen-next",models:{other:{id:"other",providerID:"local-qwen-next"}}}],connected:["local-qwen-next"],default:{}});
+ await expect(store.runScheduledTask(scheduled())).rejects.toThrow(/qwen38-flash-next/);
+ expect(prompt).not.toHaveBeenCalled();
+ prompt.mockRejectedValueOnce(new ApiError(400,"secret body"));
+ const refused=store.runScheduledTask(scheduled());
+ await expect(refused).rejects.toBeInstanceOf(ScheduleBlocked);await expect(refused).rejects.not.toThrow(/secret/);
+});
+it("a withdrawn or failed read-only check sends nothing and is simply retried later",async()=>{
+ scheduledSetup();const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+ vi.mocked(store.client.getSession).mockImplementationOnce(()=>new Promise(()=>{}));
+ const abort=new AbortController(),pending=store.runScheduledTask(scheduled(),abort.signal);abort.abort();
+ expect(await pending).toEqual({kind:"cancelled"});
+ vi.mocked(store.client.sessionStatuses).mockRejectedValueOnce(new Error("network"));
+ expect((await store.runScheduledTask(scheduled())).kind).toBe("waiting");expect(prompt).not.toHaveBeenCalled();
+ // Every lock was released: the next check proceeds and sends exactly once.
+ expect(await store.runScheduledTask(scheduled())).toEqual({kind:"sent"});expect(prompt).toHaveBeenCalledOnce();
+});
+it("a manual send blocked by a scheduled check explains itself and keeps the draft",async()=>{
+ scheduledSetup();store.setDraft("mine");let resolve!:(s:unknown)=>void;
+ vi.mocked(store.client.getSession).mockImplementation(()=>new Promise(r=>{resolve=r;}));
+ vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);const pending=store.runScheduledTask(scheduled());
+ expect(await store.sendPrompt("mine")).toBe(false);expect(store.state.ui.sendError).toMatch(/запланированное/);expect(store.getDraft()).toBe("mine");
+ resolve(session("ses_a"));await pending;
+});

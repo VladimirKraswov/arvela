@@ -2,7 +2,7 @@
 //! The readiness record is the only rendezvous. Its token leaves this module
 //! only as an Authorization header: never in a URL, log or error message.
 use serde_json::Value;
-use std::{fs, path::Path, time::Duration};
+use std::{fs, path::Path, sync::OnceLock, time::Duration};
 
 pub(super) const STOPPED: &str = "Браузер остановлен. Запустите его в настройках Desktop.";
 
@@ -82,13 +82,34 @@ pub(super) fn health(root: &Path) -> Result<(Ready, Value), String> {
     Ok((ready, value))
 }
 
-fn request_to(ready: &Ready, endpoint: Endpoint, body: Option<&Value>) -> Result<Value, String> {
-    let client = reqwest::blocking::Client::builder()
+/// One client per timeout class. A blocking client owns an internal runtime
+/// thread, so building one per call (frames are polled several times a second)
+/// spawned and joined a thread for every frame. Idle connections are not pooled:
+/// every request still uses a fresh connection, exactly as before, so a request
+/// can never be silently resent on a stale keep-alive socket.
+fn client(endpoint: Endpoint) -> Result<&'static reqwest::blocking::Client, String> {
+    static RPC: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+    static QUICK: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+    let cell = if endpoint == Endpoint::Rpc {
+        &RPC
+    } else {
+        &QUICK
+    };
+    if let Some(client) = cell.get() {
+        return Ok(client);
+    }
+    let built = reqwest::blocking::Client::builder()
         .timeout(endpoint.timeout())
         .no_proxy()
+        .pool_max_idle_per_host(0)
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|e| e.to_string())?;
+    Ok(cell.get_or_init(|| built))
+}
+
+fn request_to(ready: &Ready, endpoint: Endpoint, body: Option<&Value>) -> Result<Value, String> {
+    let client = client(endpoint)?;
     let url = format!("http://127.0.0.1:{}/{}", ready.port, endpoint.path());
     let builder = match body {
         Some(body) => client.post(url).json(body),

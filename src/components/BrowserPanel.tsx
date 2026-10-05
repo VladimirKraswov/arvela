@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { browserNative } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
 import { browserPoint, parseFrame, type BrowserFrame } from "../browser/view";
+import { InputQueue, TEXT_LIMIT_BYTES, WHEEL_LIMIT, textBytes } from "../browser/inputQueue";
+import { fileChooserOpen } from "../attachments/composerBridge";
 import { isNative } from "../native/platform";
 import { isLocalComputer } from "../state/computer";
 import { store, useAppState } from "../state/store";
@@ -31,6 +33,11 @@ export function BrowserPresence() {
   return null;
 }
 
+const FRAME_MS = 250, MAX_BACKOFF_MS = 2000, SUSPENDED_MS = 400;
+const NAV_KEYS = ["Enter", "Tab", "Backspace", "Delete", "Escape", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
+/** Frames nobody can see are not fetched: hidden window or a native file chooser in front. */
+const suspended = () => document.hidden || fileChooserOpen();
+
 export function BrowserPanel() {
   const app = useAppState();
   const [frame, setFrame] = useState<BrowserFrame>();
@@ -40,41 +47,60 @@ export function BrowserPanel() {
   const [working, setWorking] = useState(false);
   const image = useRef<HTMLImageElement>(null);
   const screen = useRef<HTMLDivElement>(null);
-  const flight = useRef<Promise<unknown>>(Promise.resolve());
+  const editingAddress = useRef(false);
   const alive = useRef(true);
   const generation = useRef(0);
   const local = isNative() && isLocalComputer(app.prefs.endpoint, !!store.currentHost()) && browserEnabled(app.prefs);
+  // User actions share the daemon's tool queue. A failed action is never replayed.
+  const queue = useRef<InputQueue | null>(null);
+  queue.current ??= new InputQueue(async ({ action, args }) => {
+    if (!alive.current || !browserEnabled(store.state.prefs) || !isLocalComputer(store.state.prefs.endpoint, !!store.currentHost())) return;
+    const epoch = generation.current;
+    const current = () => alive.current && epoch === generation.current;
+    setWorking(true);
+    try { await browserNative("browser_input", { action, args }); if (current()) setError(""); }
+    catch (e) { if (current()) setError(e instanceof Error ? e.message : String(e)); }
+    finally { if (current()) setWorking(false); }
+  });
   useEffect(() => {
-    const epoch = ++generation.current;
+    generation.current++;
     alive.current = local;
-    setFrame(undefined);
+    setFrame(undefined); setWorking(false); setError(""); setFrameError("");
+    editingAddress.current = false;
     if (!local) return;
-    let cancelled = false;
+    let cancelled = false, failures = 0, first = true;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
+      if (cancelled) return;
+      // The first frame always loads; afterwards nothing is captured while nobody can see it.
+      if (!first && suspended()) { timer = setTimeout(() => void poll(), SUSPENDED_MS); return; }
+      first = false;
       try {
         const next = parseFrame(await browserNative<unknown>("browser_view"));
-        if (!cancelled) { setFrame(next); setFrameError(""); }
-      } catch { if (!cancelled) setFrameError("Нет свежего кадра. Проверьте подключение браузера."); }
-      if (!cancelled) timer = setTimeout(() => void poll(), 250);
+        if (!cancelled) { setFrame(next); setFrameError(""); failures = 0; }
+      } catch {
+        failures++;
+        if (!cancelled) setFrameError("Нет свежего кадра. Проверьте подключение браузера.");
+      }
+      // A failing service is not hammered four times a second.
+      if (!cancelled) timer = setTimeout(() => void poll(), failures ? Math.min(MAX_BACKOFF_MS, FRAME_MS * 2 ** failures) : FRAME_MS);
     };
     void poll();
-    return () => { cancelled = true; alive.current = false; if (generation.current === epoch) generation.current++; clearTimeout(timer); };
-  }, [local, app.prefs.endpoint]);
-  useEffect(() => { setAddress(frame?.url || ""); }, [frame?.url]);
+    return () => { cancelled = true; alive.current = false; generation.current++; queue.current?.clear(); clearTimeout(timer); };
+  }, [local, app.prefs.endpoint, app.prefs.workspaceKey, app.directory, app.prefs.browser?.nodeProgram]);
+  // Never overwrite an address the user is typing; show the real URL otherwise.
+  useEffect(() => { if (!editingAddress.current) setAddress(frame?.url || ""); }, [frame?.url]);
   function input(action: string, args: Record<string, unknown> = {}) {
     if (!local || frame?.busy) return;
     if (["click", "wheel", "text", "key"].includes(action) && (!frame?.image || frameError)) return;
-    const epoch = generation.current;
+    if (action === "text" && textBytes(String(args.text ?? "")) > TEXT_LIMIT_BYTES) {
+      setError("Текст больше 16 КБ панель не вставляет. Поручите ввод агенту через инструменты браузера.");
+      return;
+    }
+    // Bound to the page the user saw: a changed page/revision rejects it instead of acting elsewhere.
     const expected = frame?.pageId ? { pageId: frame.pageId, revision: frame.revision, url: frame.url } : undefined;
-    // User actions share the daemon's tool queue. Never replay a failed action.
-    flight.current = flight.current.catch(() => {}).then(async () => {
-      if (!alive.current || epoch !== generation.current || !browserEnabled(store.state.prefs) || !isLocalComputer(store.state.prefs.endpoint, !!store.currentHost())) return;
-      setWorking(true);
-      try { await browserNative("browser_input", { action, args: { ...args, ...(expected ? { expected } : {}) } }); if (alive.current) setError(""); }
-      catch (e) { if (alive.current) setError(e instanceof Error ? e.message : String(e)); }
-      finally { if (alive.current) setWorking(false); }
-    });
+    if (!queue.current?.push({ action, args: { ...args, ...(expected ? { expected } : {}) } }))
+      setError("Слишком много действий ждут выполнения. Дождитесь обновления страницы.");
   }
   const latestInput = useRef(input);
   latestInput.current = input;
@@ -83,7 +109,7 @@ export function BrowserPanel() {
     if (!node) return;
     const wheel = (event: WheelEvent) => {
       event.preventDefault(); event.stopPropagation();
-      latestInput.current("wheel", { dy: Math.max(-2000, Math.min(2000, event.deltaY)) });
+      latestInput.current("wheel", { dy: Math.max(-WHEEL_LIMIT, Math.min(WHEEL_LIMIT, event.deltaY)) });
     };
     node.addEventListener("wheel", wheel, { passive: false });
     return () => node.removeEventListener("wheel", wheel);
@@ -96,21 +122,29 @@ export function BrowserPanel() {
         <button role="tab" aria-selected={tab.active} disabled={frame.busy} onClick={() => input("select", { index: tab.index })}>{tab.title || "Новая вкладка"}</button>
         <button aria-label={`Закрыть вкладку ${tab.title || tab.index + 1}`} disabled={frame.busy} onClick={() => input("close", { index: tab.index })}>×</button>
       </div>)}<button className="icon-btn" aria-label="Новая вкладка браузера" disabled={frame?.busy} onClick={() => input("new")}>+</button></div>
-      <form className="browser-address" onSubmit={e => { e.preventDefault(); input("navigate", { url: address }); }}>
+      <form className="browser-address" onSubmit={e => { e.preventDefault(); editingAddress.current = false; input("navigate", { url: address }); }}>
         <button type="button" aria-label="Назад в браузере" disabled={frame?.busy} onClick={() => input("back")}>←</button>
         <button type="button" aria-label="Вперёд в браузере" disabled={frame?.busy} onClick={() => input("forward")}>→</button>
         <button type="button" aria-label="Обновить страницу" disabled={frame?.busy} onClick={() => input("reload")}>↻</button>
-        <input aria-label="Адрес браузера" value={address} placeholder="https://…" onChange={e => setAddress(e.target.value)} spellCheck={false}/>
+        <input aria-label="Адрес браузера" value={address} placeholder="https://…" spellCheck={false}
+          onChange={e => { editingAddress.current = true; setAddress(e.target.value); }}
+          onBlur={() => { editingAddress.current = false; }}
+          onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editingAddress.current = false; setAddress(frame?.url || ""); } }}/>
         <button disabled={frame?.busy}>Перейти</button>
       </form>
       {(error || frameError) && <p className="browser-error" role="alert">{error || frameError}</p>}
-      <div className="browser-scroll"><div ref={screen} className={`browser-screen${frameError ? " stale" : ""}`} tabIndex={0} role="application" aria-label="Страница браузера: клик, ввод и прокрутка" style={{ aspectRatio: `${frame?.width || 1280}/${frame?.height || 800}` }}
+      <div className="browser-scroll"><div ref={screen} className={`browser-screen${frameError ? " stale" : ""}`} tabIndex={0} role="application"
+        aria-label="Страница браузера: клик, ввод и прокрутка. Shift+Tab — выйти из страницы." style={{ aspectRatio: `${frame?.width || 1280}/${frame?.height || 800}` }}
         onClick={e => { e.currentTarget.focus(); if (image.current && frame) { const p = browserPoint(e.clientX, e.clientY, image.current.getBoundingClientRect(), frame); if (p) input("click", p); } }}
         onPaste={e => { e.preventDefault(); input("text", { text: e.clipboardData.getData("text/plain") }); }}
         onKeyDown={e => {
+          // IME composition is not projected; half-composed keys must not reach the page.
+          if (e.nativeEvent.isComposing) return;
           if (e.ctrlKey || e.metaKey) { if (e.key.toLowerCase() === "a") { e.preventDefault(); input("key", { key: "ControlOrMeta+a" }); } return; }
+          // Shift+Tab leaves the projection (no keyboard trap); a plain Tab moves focus inside the page.
+          if (e.key === "Tab" && e.shiftKey) return;
           if (e.key.length === 1 && !e.altKey) { e.preventDefault(); input("text", { text: e.key }); }
-          else if (["Enter","Tab","Backspace","Delete","Escape","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","PageUp","PageDown"].includes(e.key)) { e.preventDefault(); input("key", { key: e.key }); }
+          else if (NAV_KEYS.includes(e.key)) { e.preventDefault(); input("key", { key: e.key }); }
         }}>
         {frame?.image ? <img ref={image} src={`data:image/jpeg;base64,${frame.image}`} alt={frame.title || "Страница Chromium"} draggable={false}/> : <p>Откройте браузер кнопкой в верхней панели или задайте адрес страницы.</p>}
         {cursor && frame?.width && frame?.height && <div className={`browser-agent-cursor ${cursor.owner}`} style={{ left: `${cursor.x / frame.width * 100}%`, top: `${cursor.y / frame.height * 100}%` }} aria-label={cursor.owner === "agent" ? "Курсор агента" : "Курсор пользователя"}><span>➤</span><small>{cursor.owner === "agent" ? "Агент" : "Вы"}</small></div>}

@@ -699,6 +699,26 @@ export class PiBackend implements AgentBackend {
     return opened.key;
   }
 
+  /**
+   * The model of the running Pi process for a chat. A live process keeps the model
+   * it was started with and ignores the one in a prompt. `running: false` means the
+   * next prompt starts a process with the prompt's own model.
+   */
+  async liveModel(sessionID: string): Promise<
+    { running: false } | { running: true; model: { providerID: string; modelID: string; thinking?: string } | null }
+  > {
+    const key = this.keys.get(sessionID);
+    if (!key) return { running: false };
+    const state = await this.command<PiState>(key, { type: "get_state" }, 10_000);
+    const model = state?.model;
+    return {
+      running: true,
+      model: model?.provider && model.id
+        ? { providerID: model.provider, modelID: model.id, ...(state?.thinkingLevel ? { thinking: state.thinkingLevel } : {}) }
+        : null,
+    };
+  }
+
   async closeSession(sessionID: string): Promise<void> {
     const key = this.keys.get(sessionID);
     if (!key) return;

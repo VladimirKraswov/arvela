@@ -2744,17 +2744,29 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 
 .settings-inline-error { overflow-wrap: anywhere; }
 
-/* Chat context is a compact disclosure, independent of the browser/review pane. */
-.context-panel { position:absolute; right:12px; top:8px; z-index:40; width:min(360px,calc(100% - 24px)); max-height:calc(100% - 20px); overflow:auto; padding:12px 16px 16px; background:var(--bg-raised); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:0 12px 40px #0004; outline:none; }
+/* Chat context is a compact disclosure anchored to the chat column, so it never
+   covers the browser projection or the review pane beside it. */
+.chat-col { position:relative; }
+.context-panel { position:absolute; right:12px; top:8px; z-index:40; width:min(360px,calc(100% - 24px)); max-height:calc(100% - 20px); overflow:auto; overscroll-behavior:contain; padding:12px 16px 16px; background:var(--bg-raised); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:0 12px 40px #0004; outline:none; box-sizing:border-box; }
+.context-panel:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .context-panel-header,.context-section-title,.context-row { display:flex; align-items:center; gap:8px; min-width:0; }
 .context-panel-header { justify-content:space-between; }
+.context-panel-header h2 { margin:0; font-size:14px; font-weight:600; }
 .context-panel section { padding:12px 0; border-bottom:1px solid var(--border); }
 .context-section-title { justify-content:space-between; color:var(--text-dim); font-size:13px; margin-bottom:6px; }
-.context-note { font-size:12px; line-height:1.5; color:var(--text-dim); margin:8px 0 0; }
-.context-file { display:flex; align-items:center; gap:10px; width:100%; min-width:0; text-align:left; border:0; background:transparent; color:var(--text); border-radius:7px; padding:8px 4px; cursor:pointer; }
+.context-section-title h3 { margin:0; font:inherit; color:inherit; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.context-note { font-size:12px; line-height:1.5; color:var(--text-dim); margin:8px 0 0; overflow-wrap:anywhere; }
+.context-list { list-style:none; margin:0; padding:0; }
+.context-item { display:flex; align-items:flex-start; gap:10px; min-width:0; padding:4px 0; }
+.context-item > svg { flex-shrink:0; margin-top:8px; }
+.context-item > div { flex:1; min-width:0; }
+.context-file { display:block; width:100%; min-width:0; text-align:left; border:0; background:transparent; color:var(--text); border-radius:7px; padding:6px 4px 2px; cursor:pointer; font:inherit; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .context-file:hover { background:var(--bg-input); }
-.context-file>span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.context-file small,.context-task small { display:block; font-size:11px; color:var(--text-dim); white-space:normal; line-height:1.5; }
+.context-file:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.context-item small,.context-task small { display:block; padding:0 4px; font-size:11px; color:var(--text-dim); white-space:normal; line-height:1.5; overflow-wrap:anywhere; }
+.context-interval { display:flex; gap:8px; }
+.context-interval label { flex:1; min-width:0; }
+.context-task-form select { width:100%; font:inherit; padding:8px; }
 .context-task { padding:8px 0; }
 .context-row strong { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:500; }
 .context-row>span { flex-shrink:0; color:var(--text-dim); font-size:11px; }

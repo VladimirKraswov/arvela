@@ -11,7 +11,7 @@
 | Артефакт | `.deb` | `.app` + `.dmg` | NSIS `.exe` |
 | Конфиг варианта | `src-tauri/tauri.linux.conf.json` | `src-tauri/tauri.macos.conf.json` | `src-tauri/tauri.windows.conf.json` |
 | Команда | `npm run build:linux` | `npm run build:macos` | `npm run build:windows` |
-| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.16, Mac владельца | 0.2.16, Windows 11 x64, по переданным отчёту и логам |
+| Последняя проверенная сборка | 0.2.10, Ubuntu 24.04 | 0.2.17, Mac владельца | 0.2.16, Windows 11 x64, по переданным отчёту и логам |
 | Оконный хром | системный заголовок GTK | overlay-светофор macOS | системный заголовок Windows |
 | Подпись | нет | ad-hoc `signingIdentity: "-"`, Hardened Runtime | нет сертификата издателя |
 | Микрофон | портал/PulseAudio | entitlement `com.apple.security.device.audio-input` | WebView2/Windows |
@@ -171,3 +171,9 @@ dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd
 опубликованный релиз. Windows-артефакты 0.2.16 и их отчёты не являются сборками
 окончательного main 0.2.17.
 [Проверки импорта и ограничения](EMBEDDED-BROWSER-IMPORT-20261005.md).
+
+Mac 0.2.17 собран и установлен после проверки 451 frontend / 71 Rust тестов.
+В установленной программе проверены ввод и кнопки Chromium по DOM, нативный
+выбор/отмена источника, панель контекста и сохранение паузы расписания после
+перезапуска. Установленный Pi 0.85.1 загрузил 32 браузерных инструмента;
+проверены navigate/snapshot без обращений к модели. Подробности в VERIFICATION.

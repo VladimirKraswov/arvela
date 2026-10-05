@@ -1035,3 +1035,95 @@ dictation and SSH remain unverified; Linux acceptance remains pending.
 Installer SHA256: 25c103a867e397f28416e84a251cb3549fc15916d7e0908fcc58f4ae31ec4790.
 Installer is an unsigned current-user NSIS release asset, not tracked source.
 See docs/WINDOWS-RESULT-0.2.16-20261005.md for provenance, evidence and limits.
+
+
+## 0.2.17 — embedded browser, chat context and source review (2026-10-06)
+
+The owner authorized direct Claude Code Opus 5.5 review on Igor, file changes
+only, followed by Mac review/tests, main publication and Desktop replacement.
+Claude ran directly (no Cloud Tasks), exact model `claude-opus-5-5`, with only
+Read/Edit/Write/Glob/Grep and no project execution, builds, tests or app launches.
+Tool audit: 54 Read, 5 Glob, 38 Grep, 14 Write, 56 Edit, all inside the unique
+working copy. Its complete 281-file result was verified against per-file hashes
+and archive SHA256 before that remote working copy was immediately removed.
+No remote copy was retained for testing. Source manifests, locks, versions and
+instruction files were unchanged by Claude.
+
+Transfer SHA256:
+
+- Input source: `524f6e02633ad74701cecc8ec90d25bba4318626d7665a5dfa6013a17c25b446`.
+- Returned source: `1f97aee40ebc77231a8b1b57224b26a3749b4547c9af154a3c7e89812c580a6a`.
+
+Imported Windows browser source/provenance is documented separately in
+EMBEDDED-BROWSER-IMPORT-20261005.md. Its archived Windows installer/report are
+historical 0.2.16 evidence, not a Windows build of final 0.2.17.
+
+Reviewed improvements:
+
+- Scoped recurring chat tasks retain server, directory, engine, model, reasoning
+  variant and agent. Bounded read-only preflight rechecks busy queues, questions,
+  permissions and model availability; Pi's live model is checked before scheduled
+  sends. Sending does not abort/replay an ambiguously delivered prompt. Storage
+  failure after acceptance stops scheduling, including if localStorage access
+  itself throws; failed corrupt-data backup preserves the original data.
+- Context sections are separated, labelled and keyboard accessible. Results keep
+  actual provenance, children retain their model/agent/permissions, changed stream
+  parts update lists, and late child reads cannot cross connection identities.
+- A scoped composer bridge uses the existing chooser/draft. Browser input queues
+  are bounded and coalesce waiting text/wheel input without replaying failures.
+  Hidden-window/chooser polling pauses; address drafts survive frame refresh;
+  stale input completions are isolated. Native HTTP clients are reused without
+  idle connection pooling. Context is anchored inside the chat column.
+- Coordinator regression checks reproduced and fixed additional child metadata,
+  localStorage getter, mutable stream-container memo, corrupt-backup failure and
+  stale browser/SSH endpoint cases before accepting the source. Existing runtime
+  metadata dependencies in a unit fixture were mocked, preserving its assertions.
+
+Mac validation of final production source:
+
+- `npm test -- --maxWorkers=4`: **451 passed / 6 opt-in live skipped**.
+- `npm run build`: TypeScript and Vite passed.
+- `cargo fmt --check`, `cargo test`: **71 passed**, and `cargo check --all-targets` passed.
+- Two real MCP proxy transport regressions passed; earlier official 32-tool/view
+  smoke covered projected pixels, manual input, tabs/history, stale guards,
+  auth/Origin, password fixture, file-root isolation, persistence and owner cleanup.
+- `npm run build:macos`, `scripts/verify-macos.py`, strict ad-hoc signature and
+  microphone capability checks, and `hdiutil verify` passed. Final bundled app
+  replaced only `/Applications/OpenCode Desktop.app`; installed binary matched.
+
+Final installed Mac acceptance:
+
+- Real installed CLI exposes 32 official browser tools. Visible projected local
+  fixture accepted paste, Backspace, replacement character and button click.
+  Browser snapshot plus exact DOM assertions verified both input and button result
+  equal `PANEL_UI_OK` (substring matches are insufficient).
+- Real installed Pi 0.85.1 extension loader/argument validator registered 32 tools,
+  navigated and read the local fixture through the installed Desktop CLI. No model
+  requests or global Pi configuration writes were used for this check.
+- Native context displayed 41 actual results and 12 child sessions from loaded
+  history. It stayed in the chat column beside the browser. Result navigation,
+  Tab and separate Escape closure of task form/panel passed.
+- Sources + opened the native Mac file chooser with browser panel present. A
+  test-owned text file was selected and attached to the original draft, then
+  removed. A second native chooser was cancelled and the UI remained responsive.
+  Earlier CUA modal timeouts were not reproduced in this final bounded check.
+- A test-owned 15-minute task retained the chosen model/variant/agent; it was paused
+  immediately, survived normal Desktop quit/relaunch as paused, and was removed
+  before first execution. Native scheduled inference was not run; dispatch guard,
+  persistence failure, cancellation and refusal cases are unit-tested.
+- Original chat and text draft survived. No prompt was sent to the owner's chat.
+  External OpenCode stayed healthy (1.18.18, original PID3714); complete global
+  JSONC parsed configuration matched the before snapshot. Cached Chromium SHA256
+  and inode, MCP dependency inode were unchanged; installed runtime scripts match
+  source. Browser returned to about:blank and test-only task/attachment removed.
+
+Final artifact SHA256:
+
+- Mac installed binary: `f54ad4fba99f2b50cd6df2b7f775e20a0c0783ed145fdfcd51cf1d9eb2d2f4a3`.
+- Mac DMG: `1f06f287f45ad895c0e119afe270f56f98eed558d7f72b1629a684e872ef14b0`.
+
+Windows/Linux 0.2.17 compilation and native acceptance remain unverified. The
+projected page does not implement full IME, drag gestures, native Chromium menus
+or page clipboard copying. Multi-process profile lease coherence and live remote
+service restart were not newly exercised. macOS signing is ad-hoc, not notarized.
+Private transcripts, profiles, credentials and transfer receipts are outside Git.

@@ -12,6 +12,7 @@ import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../atta
 import { LARGE_PASTE_THRESHOLD, pastedTextFile } from "../attachments/prepare";
 import { filesFromNativeDrop } from "../attachments/native-drop";
 import { pathBasename } from "../util/paths";
+import { openFileInput, registerComposer } from "../attachments/composerBridge";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { readFile, stat } from "@tauri-apps/plugin-fs";
@@ -44,7 +45,7 @@ export function Composer() {
   const draft = store.getDraft();
   const choice = store.getModelChoice();
   const providers = store.connectedProvidersWithModels();
-  const session = s.sessions.find((x) => x.id === s.activeSessionId) ?? null;
+  const session = store.activeSession() ?? null;
   const status = session
     ? (s.chat.sessions[session.id]?.status ?? s.statuses[session.id])
     : s.ui.sending
@@ -55,19 +56,29 @@ export function Composer() {
   const connected = store.engineReady();
 
   useEffect(() => { void attachmentDrafts.ensure(scope).catch(error => setAttachmentError(String(error))); }, [scope]);
-  const addFiles = (files: File[]) => {
+  // Files from a chooser belong to the chat it was opened for, even if the user
+  // switched chats while the native dialog was open.
+  const chooserScope = useRef<string | null>(null);
+  const addFiles = (files: File[], target = scope) => {
     if (!files.length) return;
     if (s.ui.sending) { setAttachmentError("Дождитесь подтверждения текущего запроса, затем добавьте файлы."); return; }
     setAttachmentError("");
-    void attachmentDrafts.add(scope, files).catch(error => setAttachmentError(error instanceof Error ? error.message : String(error)));
+    void attachmentDrafts.add(target, files).catch(error => setAttachmentError(error instanceof Error ? error.message : String(error)));
   };
-  useEffect(() => {
-    const open = () => { if (!store.state.ui.sending) fileInputRef.current?.click(); };
-    window.addEventListener("composer-add-files", open);
-    return () => window.removeEventListener("composer-add-files", open);
-  }, []);
   const addFilesRef = useRef(addFiles);
   addFilesRef.current = addFiles;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const openChooser = () => {
+    if (store.state.ui.sending) return false;
+    chooserScope.current = scopeRef.current;
+    return openFileInput(fileInputRef.current);
+  };
+  useEffect(() => registerComposer({
+    scope: () => scopeRef.current,
+    openFiles: openChooser,
+    focus: () => textareaRef.current?.focus(),
+  }), []);
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
@@ -90,12 +101,12 @@ export function Composer() {
     };
     const drop = (event: DragEvent) => {
       if (!Array.from(event.dataTransfer?.types ?? []).includes("Files")) return;
-      event.preventDefault(); setDragging(false); addFiles(Array.from(event.dataTransfer?.files ?? []));
+      event.preventDefault(); setDragging(false); addFilesRef.current(Array.from(event.dataTransfer?.files ?? []));
     };
     const leave = (event: DragEvent) => { if (!event.relatedTarget) setDragging(false); };
     window.addEventListener("dragover", over); window.addEventListener("drop", drop); window.addEventListener("dragleave", leave);
     return () => { window.removeEventListener("dragover", over); window.removeEventListener("drop", drop); window.removeEventListener("dragleave", leave); };
-  });
+  }, []);
 
   const engineId = store.engineIdFor();
   const engines = engineOptions(s.prefs, store.piInstalled);
@@ -286,8 +297,11 @@ export function Composer() {
             <button className="composer-plus" aria-label="Открыть команды" title="Команды и действия" onClick={() => store.setUi({paletteOpen: true})}>
               <Icon name="plus" size={19} />
             </button>
-            <input ref={fileInputRef} type="file" multiple hidden disabled={s.ui.sending} aria-label="Выбрать файлы" onChange={event => { addFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }}/>
-            <button className="composer-plus" type="button" disabled={s.ui.sending} aria-label="Приложить файлы" title="Приложить файлы" onClick={() => fileInputRef.current?.click()}><Icon name="file" size={18}/></button>
+            <input ref={fileInputRef} type="file" multiple hidden disabled={s.ui.sending} aria-label="Выбрать файлы" onChange={event => {
+              addFiles(Array.from(event.currentTarget.files ?? []), chooserScope.current ?? scope);
+              chooserScope.current = null; event.currentTarget.value = "";
+            }}/>
+            <button className="composer-plus" type="button" disabled={s.ui.sending} aria-label="Приложить файлы" title="Приложить файлы" onClick={openChooser}><Icon name="file" size={18}/></button>
             {isPi ? (
               // OpenCode's permission rules do not govern Pi. Pi chats get their
               // own approval policy instead of a control that would lie.

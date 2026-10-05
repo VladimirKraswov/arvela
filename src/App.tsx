@@ -134,8 +134,9 @@ export default function App() {
         <div className="center-col">
           <TopBar />
           <div className="center-main">
-            {s.ui.contextOpen && <ContextPanel />}
             <div className="chat-col">
+              {/* Anchored to the chat column so it never covers the browser or review pane. */}
+              {s.ui.contextOpen && <ContextPanel />}
               {s.connection.phase === "connected" ||
               s.connection.phase === "connecting" ||
               // A Pi chat runs locally: an unreachable OpenCode server must not

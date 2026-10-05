@@ -3,10 +3,11 @@ import { PI_BACKEND_ID } from "../agent/pi/backend";
 import { piAvailability } from "../state/engines";
 import { store, useAppState } from "../state/store";
 import { Icon } from "./Icon";
+import { CONTEXT_PANEL_ID } from "./ContextPanel";
 export function TopBar() {
   const s = useAppState(),
     l = s.prefs.layout,
-    session = s.sessions.find((x) => x.id === s.activeSessionId);
+    session = store.activeSession();
   const engineId = store.engineIdFor();
   // Only name the engine when it is not the default, so OpenCode chats look
   // exactly as they did before.
@@ -57,7 +58,7 @@ export function TopBar() {
       {session && engineId !== PI_BACKEND_ID && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected" || !store.backend.capabilities.fork} onClick={() => store.setUi({ handoffSource: session })}>
         <Icon name="handoff" size={17} /><span>Передать</span>
       </button>}
-      <button className={`icon-btn${s.ui.contextOpen ? " on" : ""}`} aria-label="Контекст задачи" aria-expanded={s.ui.contextOpen} title="Расписание, результаты, субагенты и источники" onClick={() => store.setUi({ contextOpen: !s.ui.contextOpen })}><Icon name="context" /></button>
+      <button className={`icon-btn${s.ui.contextOpen ? " on" : ""}`} aria-label="Контекст задачи" aria-expanded={s.ui.contextOpen} aria-controls={s.ui.contextOpen ? CONTEXT_PANEL_ID : undefined} title="Расписание, результаты, субагенты и источники" onClick={() => store.setUi({ contextOpen: !s.ui.contextOpen })}><Icon name="context" /></button>
       <BrowserButton/>
       {s.ui.vcs?.branch && (
         <span className="branch-label">
