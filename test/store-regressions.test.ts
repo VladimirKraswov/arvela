@@ -127,6 +127,31 @@ it("R5: accepting a prompt must preserve a new draft typed while awaiting acknow
   expect(store.getDraft()).toBe("next task typed during request");
 });
 
+it("waits for local browser MCP attachment before delivering the first prompt", async () => {
+  const platform = await import("../src/native/platform");
+  vi.spyOn(platform, "isNative").mockReturnValue(true);
+  store.state = { ...store.state, activeSessionId: "ses_a", sessions: [session("ses_a")],
+    connectedProviderIds: ["local-qwen-next"], prefs: { ...store.state.prefs, browser: { enabled: true } } };
+  store.setModelChoice("local-qwen-next", "qwen38-flash-next", "medium");
+  let resolve!: () => void;
+  const setup = vi.spyOn(store, "configureBrowser").mockReturnValue(new Promise<void>(r => { resolve = r; }));
+  const prompt = vi.spyOn(store.client, "prompt").mockResolvedValue(undefined);
+  const pending = store.sendPrompt("Use the built-in browser");
+  await flush(); expect(setup).toHaveBeenCalledOnce(); expect(prompt).not.toHaveBeenCalled();
+  resolve(); await pending; expect(prompt).toHaveBeenCalledOnce();
+});
+
+it("does not attach local browser tools when delivering to a remote endpoint", async () => {
+  const platform = await import("../src/native/platform");
+  vi.spyOn(platform, "isNative").mockReturnValue(true);
+  store.state = { ...store.state, activeSessionId: "ses_a", sessions: [session("ses_a")],
+    connectedProviderIds: ["local-qwen-next"], prefs: { ...store.state.prefs, endpoint: "http://192.168.1.22:4096", browser: { enabled: true } } };
+  store.setModelChoice("local-qwen-next", "qwen38-flash-next", "medium");
+  const setup = vi.spyOn(store, "configureBrowser").mockResolvedValue(undefined);
+  const prompt = vi.spyOn(store.client, "prompt").mockResolvedValue(undefined);
+  await store.sendPrompt("Remote task"); expect(setup).not.toHaveBeenCalled(); expect(prompt).toHaveBeenCalledOnce();
+});
+
 it("aborts a session with its own project directory, not whichever project is open", async () => {
   // The sidebar shows running work from other projects. Aborting used the open
   // project's directory, so OpenCode answered 404 and the run kept going.
@@ -159,4 +184,35 @@ it("routes a stop to the project the session was created in, not the one now ope
   await store.setDirectory("/test/B");
   await store.stopSession("ses_created");
   expect(abort).toHaveBeenCalledWith("ses_created", "/test/A");
+});
+
+const scheduled = () => ({ id: "job", server: store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, directory: "/test/A", sessionID: "ses_a", engine: "opencode", title: "CI", prompt: "check", minutes: 15, model: { providerID: "local-qwen-next", modelID: "qwen38-flash-next", variant: "medium" }, enabled: true, nextAt: 0, state: "ready" as const });
+const scheduledSetup = () => {
+ store.state = { ...store.state, activeSessionId: "ses_a", sessions: [session("ses_a")], connection: { ...store.state.connection, streamState: "open" } };
+ vi.spyOn(store.client, "getSession").mockResolvedValue(session("ses_a"));
+};
+it("scheduled prompts preserve drafts, attachments and the saved reasoning model", async()=>{
+ scheduledSetup();store.setDraft("user typing");const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+ expect(await store.runScheduledTask(scheduled())).toEqual({kind:"sent"});expect(store.getDraft()).toBe("user typing");
+ expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"}]}));
+});
+it("scheduled prompts never route to another server or bypass a pending permission",async()=>{
+ scheduledSetup();const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+ expect((await store.runScheduledTask({...scheduled(),server:"other"})).kind).toBe("waiting");
+ vi.mocked(store.client.pendingPermissions).mockResolvedValue([{id:"approval",sessionID:"ses_a"}] as any);
+ expect((await store.runScheduledTask(scheduled())).kind).toBe("waiting");expect(prompt).not.toHaveBeenCalled();
+});
+it("scheduled preflight is cancelled by a connection switch and locks manual sends",async()=>{
+ scheduledSetup();let resolve!:(s:unknown)=>void;vi.mocked(store.client.getSession).mockImplementation(()=>new Promise(r=>{resolve=r;}));
+ const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined),pending=store.runScheduledTask(scheduled());
+ expect(await store.sendPrompt("manual")).toBe(false);store.connectionGeneration++;resolve(session("ses_a"));
+ expect((await pending).kind).toBe("waiting");expect(prompt).not.toHaveBeenCalled();
+});
+it("rechecks busy state after asynchronous setup, rejects archived and changed-engine chats",async()=>{
+ scheduledSetup();const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+ vi.mocked(store.client.sessionStatuses).mockResolvedValueOnce({}).mockResolvedValueOnce({ses_a:{type:"busy"}});
+ expect((await store.runScheduledTask(scheduled())).kind).toBe("waiting");expect(prompt).not.toHaveBeenCalled();
+ vi.mocked(store.client.getSession).mockResolvedValue({...session("ses_a"),time:{created:1,updated:1,archived:2}});
+ await expect(store.runScheduledTask(scheduled())).rejects.toThrow();
+ await expect(store.runScheduledTask({...scheduled(),engine:"pi"})).rejects.toThrow();
 });

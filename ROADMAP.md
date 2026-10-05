@@ -2,6 +2,13 @@
 
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 
+Windows in-app panel follow-up (2026-10-05): headless Chromium projection with
+real DOM tools, tabs/history/manual input/cursor and first-prompt MCP readiness.
+398 frontend / 56 Rust tests, official browser smoke, final NSIS install, native
+panel manual interaction and one real Qwen Medium first-prompt task pass. Offline
+admin handoff prepared; Desktop left open. See
+`docs/WINDOWS-EMBEDDED-BROWSER-20261005.md` for evidence and projection limits.
+
 Claude performed the source review directly through its CLI on Igor with only
 file tools. The verified result was transferred and the remote copy immediately
 removed; subsequent fixes and execution are Mac-only. See
@@ -15,6 +22,7 @@ removed; subsequent fixes and execution are Mac-only. See
 - [x] Final Mac package, installed Pi 0.85.1 bridge (32 tools), script-only upgrade, stop/re-enable and native settings/top-bar acceptance; external OpenCode and complete global configuration retained.
 - [x] Windows: unchanged main built/installed; 375 frontend, 55 Rust, actual headed browser smoke/owner-pipe cleanup; supplied report/logs and installer hash verified on Mac.
 - [ ] Windows: packaged toolbar/stop/re-enable, hidden-console live checks and Pi Job Object tree cleanup.
+- [x] Windows browser follow-up: native MSIX executable-path resolution, disconnected MCP recovery, 377 frontend/55 Rust tests and real headed browser smoke including virtual AppData aliases (2026-10-05). Pi tree cleanup is not claimed by this browser fix.
 - [ ] Linux: browser smoke with system Chromium libraries.
 
 ## M24 — Windows port integration (0.2.14 source, 2026-10-04)
@@ -310,3 +318,13 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Windows archive native-driver import with window guards; honest Linux unsupported native-control UI.
 - [x] Final packaged Mac acceptance and installation (see VERIFICATION).
 - [ ] Live Windows/Linux browser acceptance. Shared source implemented; no claim of live verification.
+
+## M20 — Embedded browser and chat context (0.2.17)
+
+- [x] Reviewed Windows ca99367/7452a0e archive, retained later main documentation.
+- [x] Shared headless Chromium projection, manual input/cursor/tabs/history, stale input guards and first-prompt attachment; no privileged remote HTML or new network exposure.
+- [x] Chat context: real sources/results/children, history navigation and existing composer picker/draft actions.
+- [x] Durable recurring prompts scoped to server/directory/chat/engine/model, normal permission checks, no catch-up bursts or ambiguous retries.
+- [x] 415 frontend / 71 Mac Rust checks and official browser transport/view smoke.
+- [ ] Final Mac package installation and native browser/context acceptance.
+- [ ] Live Windows/Linux 0.2.17 acceptance; archived Windows 0.2.16 results remain separate evidence.

@@ -1,4 +1,4 @@
-# Managed browser in OpenCode Desktop 0.2.15
+# In-app browser in OpenCode Desktop 0.2.17
 
 Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same official MCP tools; there is no second agent loop or copied browser implementation.
 
@@ -14,11 +14,13 @@ Only the reserved `mcp.desktop_browser` entry and the browser skill path are add
 
 Pi receives `--extension` only for real, enabled Desktop sessions, and only after the runtime is installed. Metadata probes never start a browser proxy. Tool discovery runs in the background with bounded timeouts. Native sessions keep their existing approval gate; full access applies only if the owner selected it explicitly. Pi's existing model/credential settings are not rewritten. Reopen an already running Pi session to load newly installed tools.
 
-## Window and profile
+## Panel and profile
 
-The top bar's Browser button and Settings → Browser open a visible, ordinary Chromium window. The service starts without a window; navigation opens one lazily. One persistent app-owned profile is shared by Desktop, OpenCode and Pi. Ordinary browsers are unaffected; cookies/logins in this profile survive Desktop restarts. No special password-field restriction is imposed: official browser tools can fill fields under the agent's normal permissions and the user's task authorization. This is not an OS credential vault or a new password manager.
+The top bar's Browser button and Settings → Browser open a live Browser panel inside Desktop. Agent navigation also reveals it once; hiding the panel does not stop a task. Chromium runs headless in its own app-owned process: no external Chrome window or extension is opened. The panel projects actual JPEG viewport frames (up to 1920×1200, roughly 3 frames/second), with tabs, address, back/forward/reload, clicking, plain text/paste, scrolling and basic navigation keys. This is a pixel projection, not a remote-HTML webview or video stream. Agent tools retain the actual DOM/accessibility tree, evaluation and screenshots through official Playwright MCP. A cursor indicates the true element bounding-box center or supplied coordinates for pointer actions, not an invented animation for DOM-only operations. Dragging, native Chromium menus, clipboard copy from a page and full IME composition in the projection are not implemented. Use agent DOM tools for richer interaction.
 
-The browser is a separate Playwright Chromium process, not a webview with privileged Tauri IPC. Chromium's sandbox stays enabled. There is no publicly exposed CDP or LAN listener. A private authenticated loopback gateway and stdio MCP proxy connect engines to Microsoft's unmodified Playwright implementation. Native browser configuration commands accept only Desktop's main window. Gateway credentials are not put into URLs or logs.
+One persistent app-owned profile is shared by Desktop, OpenCode and Pi. Ordinary browsers are unaffected; cookies/logins in this profile survive Desktop restarts. No special password-field restriction is imposed: official browser tools can fill fields under the agent's normal permissions and the user's task authorization. This is not an OS credential vault or a new password manager.
+
+Remote HTML never enters the privileged Tauri WebView: it receives only pixels and plain-text metadata, not page scripts. Chromium's sandbox stays enabled. There is no publicly exposed CDP or LAN listener. A private authenticated loopback gateway and stdio MCP proxy connect engines to Microsoft's unmodified Playwright implementation. Native browser commands accept only Desktop's main window; panel input uses a bounded action allowlist, not arbitrary JavaScript. Frames use the same bearer/Host/Origin checks as tools. Gateway credentials are not put into URLs, React state or logs. Frame captures are coalesced and do not queue behind long agent actions. Hidden panels do not capture screenshots; lightweight presence polling does not spawn Node probes. Queued manual input with an old page identity/URL/agent revision is rejected, not replayed. The first native local prompt waits for directory-scoped MCP attachment; remote prompts never attach local tools.
 
 Calls are serialized. Each project has its own official MCP connection and file roots while sharing the browser context. Uploads outside that connection's project roots are rejected by Playwright MCP. Snapshots, clicks, forms, tabs, uploads, downloads, screenshots and PDF capabilities come from official tools. Default outputs go into a private per-project subdirectory of the managed browser workspace. Official MCP also permits that connection's own output directory for file operations. The bounded cache supports up to 32 workspace connections per service lifetime; restart the browser to release older connections. Agents must reinspect the current tab because another session or the user can change it.
 
@@ -39,7 +41,7 @@ Settings shows the actual installation, service, OpenCode and Pi state. The prox
 After preparing a test-owned runtime, transport-only regressions can run with
 `node src-tauri/resources/browser/test/proxy.mjs /absolute/test-runtime/current`.
 They use a disposable HTTP gateway and the real MCP SDK/proxy, with no model
-requests or user browser profile. The headed smoke additionally verifies the
+requests or user browser profile. The Chromium smoke additionally verifies the
 daemon's owner-pipe shutdown and persistence after another restart.
 
 Prepare a test-owned `/tmp/oc-browser-*` root with the installed runtime under `current` and Chromium under `browsers`, then run its fixture from the repository:
@@ -48,7 +50,7 @@ Prepare a test-owned `/tmp/oc-browser-*` root with the installed runtime under `
 node src-tauri/resources/browser/test/smoke.mjs /tmp/oc-browser-test-runtime
 ```
 
-Use the script's actual invocation/arguments documented in its header. It owns a temporary profile/fixture/children, never uses real credentials and never requests model inference. Acceptance checks cover auth/Origin rejection, lazy headed startup, navigation/snapshot, form/password filling, project file upload and rejection outside roots, screenshots, and persisted browser state after daemon restart.
+Use the script's actual invocation/arguments documented in its header. It owns a temporary profile/fixture/children, never uses real credentials and never requests model inference. Acceptance checks cover auth/Origin rejection, lazy headless startup, navigation/snapshot, form/password filling, project file upload and rejection outside roots, screenshots, persisted browser state, live frames, DOM-derived cursor, panel text input, shared tabs and history.
 
 Primary implementation: https://github.com/microsoft/playwright-mcp
 OpenCode MCP configuration: https://opencode.ai/docs/mcp-servers/

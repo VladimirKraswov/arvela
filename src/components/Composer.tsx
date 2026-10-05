@@ -61,6 +61,11 @@ export function Composer() {
     setAttachmentError("");
     void attachmentDrafts.add(scope, files).catch(error => setAttachmentError(error instanceof Error ? error.message : String(error)));
   };
+  useEffect(() => {
+    const open = () => { if (!store.state.ui.sending) fileInputRef.current?.click(); };
+    window.addEventListener("composer-add-files", open);
+    return () => window.removeEventListener("composer-add-files", open);
+  }, []);
   const addFilesRef = useRef(addFiles);
   addFilesRef.current = addFiles;
   useEffect(() => {

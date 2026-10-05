@@ -1,4 +1,4 @@
-// Opt-in real headed Chromium acceptance. Run against an already installed,
+// Opt-in real in-app projected Chromium acceptance. Run against an installed,
 // test-owned /tmp/oc-browser-* runtime; never against a user's browser profile.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -13,6 +13,10 @@ const allowedTemporaryRoots = [temporaryRoot];
 if (process.platform !== 'win32') allowedTemporaryRoots.push(await fs.realpath('/tmp'));
 assert(allowedTemporaryRoots.includes(path.dirname(root)) && path.basename(root).startsWith('oc-browser-'), 'Use a test-owned temporary runtime');
 const runtime = path.join(root, 'current');
+// Optional read-only binary location to exercise Windows AppData/MSIX aliases.
+// Profile, uploads and all writes still belong to the temporary test runtime.
+const browserPath = process.argv[3] || path.join(root, 'browsers');
+assert(path.isAbsolute(browserPath), 'Use an absolute browser binary directory');
 const { Client } = await import(pathToFileURL(path.join(runtime, 'node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js')));
 const { StdioClientTransport } = await import(pathToFileURL(path.join(runtime, 'node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js')));
 const workspace = path.join(root, 'project-workspace');
@@ -20,7 +24,7 @@ await fs.mkdir(workspace, { recursive: true });
 let child; let ready; let client; let fixture;
 const pause = ms => new Promise(r => setTimeout(r, ms));
 async function start() {
-  child = spawn(process.execPath, [path.join(runtime, 'daemon.mjs'), root], { stdio: ['pipe', 'ignore', 'pipe'], env: { ...process.env, OCDESKTOP_BROWSER_OWNER_PIPE: '1', PLAYWRIGHT_BROWSERS_PATH: path.join(root, 'browsers') } });
+  child = spawn(process.execPath, [path.join(runtime, 'daemon.mjs'), root], { stdio: ['pipe', 'ignore', 'pipe'], env: { ...process.env, OCDESKTOP_BROWSER_OWNER_PIPE: '1', PLAYWRIGHT_BROWSERS_PATH: browserPath } });
   let stderr = ''; child.stderr.on('data', chunk => { stderr = (stderr + chunk.toString()).slice(-2048); });
   for (let count = 0; count < 300; count++) {
     try {
@@ -75,10 +79,27 @@ try {
   assert.equal((await fetch(`${endpoint}/health`)).status, 403);
   assert.equal((await fetch(`${endpoint}/health`, { headers: { ...headers, Origin: 'https://example.com' } })).status, 403);
   assert.equal((await (await fetch(`${endpoint}/health`, { headers })).json()).browserOpen, false);
+  const frame = async () => {
+    const response = await fetch(`${endpoint}/view`, { headers, signal: AbortSignal.timeout(4000) });
+    assert(response.ok, 'Live frame failed'); return response.json();
+  };
+  assert.equal((await fetch(`${endpoint}/view`)).status, 403);
+  assert.equal((await fetch(`${endpoint}/view`, { headers: { ...headers, Origin: 'https://example.com' } })).status, 403);
+  assert.equal((await frame()).browserOpen, false);
   client = await connect();
   const tools = await client.listTools(); assert(tools.tools.some(t => t.name === 'browser_snapshot'));
   assert.equal((await (await fetch(`${endpoint}/health`, { headers })).json()).browserOpen, false);
   await call('browser_navigate', { url: fixtureUrl });
+  let projected = await frame();
+  assert.equal(projected.url, fixtureUrl + '/');
+  assert.equal(projected.width, 1280); assert.equal(projected.height, 800);
+  assert.equal(Buffer.from(projected.image, 'base64').subarray(0, 2).toString('hex'), 'ffd8');
+  assert(projected.tabs.some(tab => tab.active && tab.url === projected.url));
+  const staleFrame = { pageId: projected.pageId, revision: projected.revision, url: projected.url };
+  await call('browser_snapshot');
+  const staleInput = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method: 'desktop/type', text: 'MUST_NOT_APPEAR', expected: staleFrame }) });
+  assert.equal(staleInput.status, 400, 'Old frame input must fail closed after an agent action');
   const revealed = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'desktop/reveal' }) });
   assert(revealed.ok, 'Existing browser window reveal failed');
   let snapshot = text(await call('browser_snapshot'));
@@ -89,6 +110,9 @@ try {
   ] });
   snapshot = text(await call('browser_snapshot'));
   await call('browser_click', { target: target(snapshot, 'Save fixture login') });
+  projected = await frame();
+  assert.equal(projected.cursor.owner, 'agent'); assert.equal(projected.cursor.action, 'browser_click');
+  assert(projected.cursor.x >= 0 && projected.cursor.y >= 0, 'Cursor derives from actual DOM bounds');
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('FORM_OK'));
   await call('browser_click', { target: target(snapshot, 'Upload fixture') });
   const rejected = await client.callTool({ name: 'browser_file_upload', arguments: { paths: [path.join(root, 'current/package.json')] } });
@@ -97,6 +121,29 @@ try {
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('UPLOAD_OK'));
   const screenshot = await call('browser_take_screenshot', { scale: 'css', type: 'png' });
   assert(screenshot.content.some(c => c.type === 'image' && c.data.length > 100));
+  const panel = async (method, params = {}) => {
+    const response = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, workspace, owner: 'user', ...params }) });
+    assert(response.ok, `Panel action failed: ${method}`);
+    const result = (await response.json()).result; assert(!result.isError); return result;
+  };
+  await panel('tools/call', { params: { name: 'browser_mouse_click_xy', arguments: { x: 100, y: 18 } } });
+  assert.equal((await frame()).cursor.owner, 'user');
+  await panel('desktop/type', { text: 'PANEL_INPUT_OK' });
+  assert(text(await call('browser_snapshot')).includes('PANEL_INPUT_OK'), 'Panel and agent must share actual DOM');
+  await panel('tools/call', { params: { name: 'browser_tabs', arguments: { action: 'new' } } });
+  projected = await frame(); assert.equal(projected.tabs.length, 2);
+  await call('browser_navigate', { url: fixtureUrl + '/second' });
+  assert.equal((await frame()).url, fixtureUrl + '/second');
+  await panel('tools/call', { params: { name: 'browser_tabs', arguments: { action: 'select', index: 0 } } });
+  assert.equal((await frame()).url, fixtureUrl + '/');
+  assert(text(await call('browser_snapshot')).includes('PANEL_INPUT_OK'), 'Agent follows manually selected tab');
+  await panel('desktop/reload');
+  await call('browser_navigate', { url: fixtureUrl + '/history' });
+  await call('browser_navigate_back');
+  await panel('desktop/forward'); assert.equal((await frame()).url, fixtureUrl + '/history');
+  await panel('tools/call', { params: { name: 'browser_tabs', arguments: { action: 'close', index: 1 } } });
+  assert.equal((await frame()).tabs.length, 1);
   const otherWorkspace = path.join(root, 'other-workspace'); await fs.mkdir(otherWorkspace, { recursive: true });
   const other = await connect(otherWorkspace);
   try {
@@ -119,7 +166,7 @@ try {
   await start();
   await call('browser_navigate', { url: fixtureUrl });
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'));
-  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true }));
+  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true }));
 } finally {
   await client?.close().catch(() => {});
   await stop();

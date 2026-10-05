@@ -15,7 +15,7 @@ Official API provenance:
   therefore uses a separate backend per workspace, one shared persistent Chromium
   context, and a single tool queue. Each workspace has a private output directory.
 
-## Real headed Chromium
+## Real headless Chromium and in-app projection
 
 Use an already installed **test-owned** runtime under `/tmp/oc-browser-*` or the
 platform temporary directory. Its `current` directory must contain the runtime
@@ -26,12 +26,28 @@ scripts, pinned `node_modules`, and the downloaded browser must be under
 node src-tauri/resources/browser/test/smoke.mjs /tmp/oc-browser-runtime-20261005
 ```
 
+An optional second argument supplies a read-only Chromium binary directory.
+On Windows use the virtual AppData alias (not its resolved package path) to
+regress MSIX `spawn UNKNOWN`. All profiles/files remain in the test-owned temp
+runtime. The 2026-10-05 Windows run passed both with a junction to the relocated
+cache and with a fresh cache under virtualized AppData; the latter failed with
+the old launcher and passed with native executable path resolution.
+
 This script launches only its own daemon and local HTTP fixture. It checks lazy
 startup, bearer authentication and Origin rejection, official DOM navigation and
 fresh snapshot references, form entry including a test password, clicks, file
 upload, isolation between two project workspaces, image screenshot content,
 profile persistence after a daemon restart, and reuse of the same SDK client
-across that restart. Showing an existing window preserves its URL and form.
+across that restart. Revealing the panel preserves its URL and form. The current
+smoke checks JPEG frames, agent/user cursor ownership, panel text input, the
+agent following manually selected tabs, and back/forward/reload. `view.mjs`
+directly tests official-backend initialization and first-tab synchronization.
+`installed-panel.mjs <installed-app-exe> <managed-current-runtime>` opens a
+test-owned local fixture in the installed panel and waits for manual/UI input.
+Type PANEL_UI_OK, click its verification button, then send `verify` to the
+runner. It confirms real DOM input/result through the installed MCP CLI,
+without inference or global configuration writes. Coordinate this live
+shared-browser navigation with the user.
 It closes its children, clients and fixture in `finally`. Password values,
 snapshots, auth tokens and image bytes are never written to test output.
 
@@ -55,5 +71,5 @@ leaving the user's app-owned daemon running. This validates the loader/transport
 Pi tool approval and agent-loop behavior are covered by their separate tests.
 
 Windows and Linux paths/process handling are implemented, including a Windows
-kill-on-close Job Object. These scripts have been exercised on macOS; they are
-not evidence of a live Windows or Linux browser run.
+kill-on-close Job Object. The headed smoke has also passed on Windows (see
+`docs/WINDOWS-BROWSER-FIX-20261005.md`). Linux remains unverified.

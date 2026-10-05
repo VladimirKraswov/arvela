@@ -25,6 +25,9 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   const order = slot?.messageOrder ?? [];
   // Keep the same first visible message as new messages arrive. Never evict what is being read.
   if (!first.current && order.length) first.current = order[Math.max(0, order.length - 60)];
+  const reveal = s.ui.revealMessage?.sessionID === sessionId && s.ui.revealMessage.directory === s.directory
+    && s.ui.revealMessage.server === (s.prefs.workspaceKey ?? s.prefs.endpoint) ? s.ui.revealMessage : null;
+  if (reveal && order.includes(reveal.messageID) && order.indexOf(reveal.messageID) < order.indexOf(first.current ?? "")) first.current = reveal.messageID;
   const start = Math.max(0, order.indexOf(first.current ?? ''));
   const messages = order.slice(start).map(id => slot!.messages[id]).filter(Boolean);
   const rows = groupConversation(order.map(id => slot!.messages[id]).filter(Boolean));
@@ -88,6 +91,17 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   // Before paint, preserve anchors for React updates; ResizeObserver handles async height changes.
   useLayoutEffect(() => { controller.current?.layout(); });
 
+  useLayoutEffect(() => {
+    if (!reveal || !scrollRef.current) return;
+    const row = Array.from(scrollRef.current.querySelectorAll<HTMLElement>("[data-message-ids]")).find(el => el.dataset.messageIds?.split(" ").includes(reveal.messageID));
+    if (row) {
+      controller.current?.pause(); controller.current?.intent("up");
+      const scroll = scrollRef.current; scroll.scrollTop += row.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 24;
+      controller.current?.onScroll();
+      store.setUi({ revealMessage: null });
+    }
+  }, [reveal]);
+
   const older = async () => {
     controller.current?.pause();
     if (start) { first.current = order[Math.max(0, start - 60)]; redraw(n => n + 1); }
@@ -130,7 +144,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
           const firstMessage = row.kind === 'user' ? row.message : shown[0];
           const previous = visibleRows[index - 1];
           const previousTime = previous ? previous.kind === 'user' ? previous.message.time.created : previous.messages[previous.messages.length - 1].time.created : 0;
-          return <div className="history-message" key={row.key}>
+          return <div className="history-message" key={row.key} data-message-ids={row.kind === "user" ? row.message.id : shown.map(m => m.id).join(" ")}>
             {dayKey(firstMessage.time.created) && (index === 0 || dayKey(previousTime) !== dayKey(firstMessage.time.created)) &&
               <div className="history-date">{dayLabel(firstMessage.time.created)}</div>}
             {row.kind === 'user' ? <UserMessageView message={row.message} /> : <AssistantTurnView sessionId={sessionId!} messages={shown} progressState={progressState.current} progressKey={row.key}

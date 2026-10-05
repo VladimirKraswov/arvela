@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, string> = {
+  context: "M4 5h2v2H4zM10 6h10M4 11h2v2H4zM10 12h10M4 17h2v2H4zM10 18h10",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 7v5l-3 3",
   arrowDown: "M12 4v16m-6-6 6 6 6-6",
   copy: "M9 3h11v13H9zM5 7H3v14h12v-2",
   edit: "m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15z",

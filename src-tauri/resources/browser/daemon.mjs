@@ -1,6 +1,8 @@
 // A private lifecycle/transport bridge. Browser behavior is implemented by
-// Microsoft's unmodified Playwright MCP; no page scripts/selectors live here.
+// Microsoft's unmodified Playwright MCP; the trusted panel projects pixels.
 import fs from 'node:fs/promises';
+import { realpath } from 'node:fs';
+import { promisify } from 'node:util';
 import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -10,6 +12,7 @@ import { createConnection } from '@playwright/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { createView } from './view.mjs';
 
 const root = process.argv[2];
 if (!root || !path.isAbsolute(root)) throw new Error('An absolute managed runtime directory is required');
@@ -21,6 +24,7 @@ await fs.mkdir(workspace, { recursive: true, mode: 0o700 });
 await fs.mkdir(path.join(root, 'profile'), { recursive: true, mode: 0o700 });
 const connections = new Map();
 let context;
+const view = createView(getContext);
 let closing = false;
 let queue = Promise.resolve();
 const serial = action => {
@@ -30,8 +34,14 @@ const serial = action => {
 };
 async function getContext() {
   if (!context) {
+    // MSIX callers can see a virtual AppData alias. Windows' SxS loader cannot
+    // resolve Chromium's sibling assembly through that alias (spawn UNKNOWN).
+    // The native handle-based realpath resolves package redirection/junctions;
+    // JS realpath does not. Keep the managed profile and official packages intact.
+    const executablePath = process.platform === 'win32'
+      ? await promisify(realpath.native)(chromium.executablePath()) : undefined;
     const opened = await chromium.launchPersistentContext(path.join(root, 'profile'), {
-      headless: false, viewport: null, chromiumSandbox: true,
+      headless: true, viewport: { width: 1280, height: 800 }, chromiumSandbox: true, executablePath,
     });
     context = opened;
     opened.on('close', () => { if (context === opened) context = undefined; });
@@ -88,6 +98,12 @@ async function body(req) {
 const server = http.createServer(async (req, res) => {
   if (!authorized(req)) return reply(res, 403, { error: 'Unauthorized browser connection' });
   if (req.method === 'GET' && req.url === '/health') return reply(res, 200, { instanceId, version: '0.0.83', running: !closing, browserOpen: !!context });
+  // Frames do not wait behind a long navigation/tool call, so the panel stays
+  // live while the agent acts. Bound to one capture at a time below.
+  if (req.method === 'GET' && req.url === '/view') {
+    try { return reply(res, 200, await captureFrame()); }
+    catch { return reply(res, 503, { error: 'Browser frame unavailable' }); }
+  }
   if (req.method !== 'POST') return reply(res, 404, { error: 'Unknown endpoint' });
   try {
     const request = await body(req);
@@ -100,16 +116,32 @@ const server = http.createServer(async (req, res) => {
     if (req.url !== '/rpc') return reply(res, 404, { error: 'Unknown endpoint' });
     const result = await serial(async () => {
       if (cancellation.signal.aborted) throw new Error('Cancelled');
+      if (request.expected) view.assertCurrent(request.expected);
       if (request.method === 'desktop/reveal') {
-        const browser = await getContext();
-        const page = browser.pages().at(-1) || await browser.newPage();
-        await page.bringToFront();
+        await view.page();
         return { revealed: true };
+      }
+      if (request.method === 'desktop/type') {
+        if (typeof request.text !== 'string' || Buffer.byteLength(request.text) > 16384) throw new Error('Invalid text');
+        await (await view.page()).keyboard.insertText(request.text);
+        return { typed: true };
+      }
+      if (request.method === 'desktop/reload' || request.method === 'desktop/forward') {
+        const page = await view.page();
+        if (request.method === 'desktop/reload') await page.reload({ timeout: 60000 });
+        else await page.goForward({ timeout: 60000 });
+        return { navigated: true };
       }
       const client = await connection(request.workspace);
       if (request.method === 'tools/list') return client.listTools();
       if (request.method === 'tools/call') {
-        const result = await client.callTool(request.params, undefined, { signal: cancellation.signal });
+        // Listing tools stays lazy; only actual actions create the browser.
+        await view.before(client, request.params, request.owner === 'user' ? 'user' : 'agent');
+        let result;
+        try {
+          result = await client.callTool(request.params, undefined, { signal: cancellation.signal });
+          if (request.params.name !== 'browser_close') await view.after(client, request.params, result);
+        } finally { view.failed(); }
         if (request.reveal && !result.isError && context) {
           const pages = context.pages();
           const page = pages.find(page => page.url() === request.params?.arguments?.url) || pages.at(-1);
@@ -126,6 +158,11 @@ const server = http.createServer(async (req, res) => {
     reply(res, 400, { error: 'Browser request failed; check its tool arguments, workspace and browser state' });
   }
 });
+let frameFlight;
+function captureFrame() {
+  if (!frameFlight) frameFlight = view.frame(context).finally(() => { frameFlight = undefined; });
+  return frameFlight;
+}
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
 const temporary = `${readyFile}.${instanceId}.tmp`;

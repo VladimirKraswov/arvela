@@ -57,6 +57,7 @@ export function TopBar() {
       {session && engineId !== PI_BACKEND_ID && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected" || !store.backend.capabilities.fork} onClick={() => store.setUi({ handoffSource: session })}>
         <Icon name="handoff" size={17} /><span>Передать</span>
       </button>}
+      <button className={`icon-btn${s.ui.contextOpen ? " on" : ""}`} aria-label="Контекст задачи" aria-expanded={s.ui.contextOpen} title="Расписание, результаты, субагенты и источники" onClick={() => store.setUi({ contextOpen: !s.ui.contextOpen })}><Icon name="context" /></button>
       <BrowserButton/>
       {s.ui.vcs?.branch && (
         <span className="branch-label">

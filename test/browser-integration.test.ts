@@ -10,6 +10,31 @@ const installed: BrowserStatus = {
   runtimePath: "/tmp/browser-fixture/current", profilePath: "/tmp/browser-fixture/profile", version: "0.0.83",
 };
 beforeEach(async () => { vi.resetModules(); integration = await import("../src/browser/integration"); });
+
+it("rechecks a cached proxy and reattaches only after a confirmed disconnect", async () => {
+  const f = fixture();
+  await f.run();
+  f.request.mockClear();
+  await f.run();
+  expect(f.request).toHaveBeenCalledExactlyOnceWith("GET", "/mcp", {
+    query: { directory: f.setup.directory }, timeoutMs: 10000,
+  });
+  f.request.mockClear();
+  f.request.mockResolvedValueOnce({ desktop_browser: { status: "failed" } });
+  await f.run();
+  expect(f.request.mock.calls.map(([method]) => method)).toEqual(["GET", "POST"]);
+  expect(integration.browserSetupSnapshot().phase).toBe("ready");
+});
+
+it("does not restart a cached proxy when inventory cannot be checked", async () => {
+  const f = fixture();
+  await f.run();
+  f.request.mockClear();
+  f.request.mockRejectedValueOnce(new Error("inventory unavailable"));
+  await f.run();
+  expect(f.request.mock.calls.map(([method]) => method)).toEqual(["GET"]);
+  expect(integration.browserSetupSnapshot().phase).toBe("error");
+});
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(yes => { resolve = yes; });
@@ -123,8 +148,8 @@ it("coalesces parallel setup and attachments, then attaches independently to ano
   expect(f.calls("browser_install")).toHaveLength(1); expect(f.calls("write_opencode_config")).toHaveLength(1);
   expect(f.request).toHaveBeenCalledTimes(1);
   expect(f.request).toHaveBeenCalledWith("POST", "/mcp", { query: { directory: f.setup.directory }, body: { name: "desktop_browser", config: { type: "local", command: [installed.command, "--browser-mcp"], enabled: true, timeout: 45000 } }, timeoutMs: 45000 });
-  await f.run(); expect(f.request).toHaveBeenCalledTimes(1);
-  await f.run({ directory: "/tmp/another-project-fixture" }); expect(f.request).toHaveBeenCalledTimes(2);
+  await f.run(); expect(f.request.mock.calls.map(([method]) => method)).toEqual(["POST", "GET"]);
+  await f.run({ directory: "/tmp/another-project-fixture" }); expect(f.request.mock.calls.map(([method]) => method)).toEqual(["POST", "GET", "POST"]);
   expect(f.calls("browser_install")).toHaveLength(1);
 });
 
@@ -225,11 +250,11 @@ it("engine-path changes rerun setup without restarting a confirmed OpenCode atta
   integration.invalidateBrowserSetup({ keepAttachments: true });
   await f.run();
   expect(f.calls("detect_local_opencode")).toHaveLength(2);
-  expect(f.request).toHaveBeenCalledTimes(1);
+  expect(f.request.mock.calls.map(([method]) => method)).toEqual(["POST", "GET"]);
   expect(integration.browserSetupSnapshot().openCode).toBe("Подключён к выбранному проекту");
   integration.invalidateBrowserSetup();
   await f.run();
-  expect(f.request).toHaveBeenCalledTimes(2);
+  expect(f.request.mock.calls.map(([method]) => method)).toEqual(["POST", "GET", "POST"]);
 });
 
 it("a failed attachment started by an invalidated setup is never reported as connected by the newer one", async () => {

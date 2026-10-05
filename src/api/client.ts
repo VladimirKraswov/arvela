@@ -364,6 +364,10 @@ export class OpenCodeClient {
     });
   }
 
+  sessionChildren(sessionID: string, directory: string, signal?: AbortSignal): Promise<Session[]> {
+    return this.request<Record<string, unknown>[]>("GET", `/session/${encodeURIComponent(sessionID)}/children`, { query: { directory }, signal }).then(rows => rows.map(normalizeSession));
+  }
+
   sessionStatuses(
     directory: string | null,
     signal?: AbortSignal,

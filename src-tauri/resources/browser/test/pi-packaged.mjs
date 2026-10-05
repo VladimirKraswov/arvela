@@ -1,4 +1,4 @@
-// Opt-in installed macOS acceptance: real Pi loader + actual app CLI MCP bridge.
+// Opt-in installed app acceptance: real Pi loader + actual app CLI MCP bridge.
 // No prompts, model calls, session history or global Pi configuration writes.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -47,6 +47,9 @@ try {
 } finally {
   for (const handler of extension?.handlers.get('session_shutdown') || []) await handler({ type: 'session_shutdown' }, context);
   if (previous === undefined) delete process.env.OCDESKTOP_BROWSER_COMMAND; else process.env.OCDESKTOP_BROWSER_COMMAND = previous;
+  // The shared headed browser remains alive after this test, and may keep a
+  // fixture socket open. Close only our HTTP connections before awaiting exit.
+  fixture.closeAllConnections();
   await new Promise(resolve => fixture.close(resolve));
   await fs.rm(workspace, { recursive: true, force: true });
 }

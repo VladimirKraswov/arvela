@@ -27,6 +27,7 @@ pub(super) const DEPENDENCIES: &[(&str, &str)] = &[
 /// Desktop-owned scripts. A newer Desktop refreshes these in place, so a
 /// script-only change never downloads packages or Chromium again.
 pub(super) const SCRIPTS: &[(&str, &str)] = &[
+    ("view.mjs", include_str!("../../resources/browser/view.mjs")),
     (
         "daemon.mjs",
         include_str!("../../resources/browser/daemon.mjs"),

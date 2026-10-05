@@ -1,3 +1,50 @@
+# 0.2.17 Mac integration and chat context — IN PROGRESS (2026-10-05)
+
+Reviewed imported Windows source and added owner-requested context panel plus
+recurring chat tasks. 415 frontend passed / 6 opt-in skipped; 71 Mac Rust passed
+for unchanged native code, cargo check/fmt and TypeScript/Vite passed. Real
+headless MCP/view/transport checks already passed. Final Mac build running;
+next verify package, preserve installed 0.2.16 backup, replace Desktop only,
+check installed browser/manual input and context/schedule UI, then main/push/release.
+External OpenCode PID3714 and model/permission configuration must be preserved.
+Private before receipts in .local/embedded-browser-20261005; no secrets in commits.
+
+# Windows in-app browser projection — DONE (2026-10-05)
+
+Implemented headless persistent Chromium with live trusted pixel panel, real
+DOM tools, tabs/history/manual input/cursor and stale-input guards. No external
+Chrome UI, exposed CDP, remote HTML in Tauri or expanded capabilities. First
+native local prompt waits for MCP attachment. 398 frontend tests passed / 6
+opt-in skipped; 56 Windows Rust tests, cargo check/fmt, TypeScript/Vite,
+headless official MCP projection smoke, direct view and 2 transport tests pass.
+Final NSIS build/silent install passed, installed binary matches extracted NSIS.
+Native panel navigation, fixture input/click/scroll, real installed CLI DOM
+evaluation and headless process/window checks passed. One local Qwen Medium
+first-prompt test completed 6 browser tools without retry/fallback, returning
+EMBEDDED_BROWSER_OK with IANA URL/title. Desktop left open on the result/panel.
+Private profile/WebView/config backup retained; original session still 151
+messages; external engine healthy. See docs/WINDOWS-EMBEDDED-BROWSER-20261005.md.
+Offline admin handoff includes both commits since upstream: source, full bundle,
+email patches/diff, installer, report and test logs, no private data. No push.
+Projection limitations and unverified Pi/OS/Factory/Linux work remain explicit.
+
+# Windows managed browser repair — DONE (2026-10-05)
+
+Reviewed the latest Desktop session (151 messages) and reproduced Chromium
+spawn UNKNOWN through MSIX virtual AppData. Native handle-based executable
+realpath fixes SxS loading without moving profiles, hardcoded account paths,
+third-party patches or sandbox weakening. Cached OpenCode MCP attachments now
+check live directory-scoped status and reconnect only confirmed disconnections.
+377 frontend tests passed, 6 opt-in skipped; 55 Windows Rust tests passed;
+TypeScript/Vite, cargo fmt, NSIS build and silent installation passed. Headed
+official MCP acceptance passed via both a cache junction and fresh virtualized
+AppData binaries. Installed toolbar, same-chat MCP recovery, public navigation,
+real Pi 0.85.1 loader/validator/32 tools and two proxy transport regressions
+passed without inference. Chats, settings, external engine and profile retained.
+See docs/WINDOWS-BROWSER-FIX-20261005.md. Offline admin archive contains source,
+full-history bundle, patch, installer, report and test logs; no private data.
+No push. Pi agent-loop/dictation/Factory/Linux are not newly verified here.
+
 # Windows port integration — reviewed source (2026-10-04)
 
 Imported port `7c47d55` from the owner's verified bundle onto existing main via

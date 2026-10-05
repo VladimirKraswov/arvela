@@ -78,7 +78,7 @@ it("opens the entered URL locally with the explicit browser Node path", async ()
   fake.state.prefs.browser.nodeProgram = "/Applications/Node Runtime/node";
   await mount(); input("browser-address", "  https://example.com/project?q=code  "); await enter();
   expect(opens()).toEqual([["browser_open", { url: "https://example.com/project?q=code", nodeProgram: "/Applications/Node Runtime/node" }]]);
-  expect(document.body.textContent).toContain("Окно открыто");
+  expect(document.body.textContent).toContain("Браузер открыт внутри Desktop");
   expect(fake.setBrowserSettings).not.toHaveBeenCalled();
 });
 
@@ -99,7 +99,7 @@ it("shows a failed open honestly and clears its alert after a successful refresh
   });
   await mount(); await enter();
   expect(document.querySelector('[role="alert"]')?.textContent).toBe("Chromium could not start");
-  expect(document.body.textContent).not.toContain("Окно открыто");
+  expect(document.body.textContent).not.toContain("Браузер открыт внутри Desktop");
   await act(async () => button("Обновить состояние").click());
   expect(document.querySelector('[role="alert"]')).toBeNull();
 });
@@ -141,5 +141,5 @@ it("waits for toolbar configuration, prevents duplicate clicks, and opens a blan
   await act(async () => control.click()); expect(fake.configureBrowser).toHaveBeenCalledOnce();
   await act(async () => pending.resolve());
   expect(opens()).toEqual([["browser_open", { url: null, nodeProgram: "/opt/homebrew/bin/node" }]]);
-  expect(control.disabled).toBe(false); expect(fake.setUi).not.toHaveBeenCalled();
+  expect(control.disabled).toBe(false); expect(fake.setUi).toHaveBeenCalledWith({ browserOpen: true });
 });

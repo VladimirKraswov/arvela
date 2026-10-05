@@ -1,5 +1,8 @@
-import { configureLocalBrowser, invalidateBrowserSetup } from "../browser/integration";
+import type { ScheduledTask, DispatchResult } from "../schedules/tasks";
+import { configureLocalBrowser, invalidateBrowserSetup, browserSetupSnapshot } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
+import { isLocalComputer } from "./computer";
+import { isNative } from "../native/platform";
 import { applyAppearance, normalizeAppearance, type Appearance } from "./appearance";
 import {
   connectSsh,
@@ -118,6 +121,9 @@ export interface UiState {
   sendError: string | null;
   vcs: VcsInfo | null;
   settingsOpen: boolean;
+  browserOpen: boolean;
+  contextOpen: boolean;
+  revealMessage: { server: string; directory: string | null; sessionID: string; messageID: string } | null;
   paletteOpen: boolean;
   confirmDelete: Session | null;
   handoffSource: Session | null;
@@ -209,6 +215,9 @@ function initialState(): AppState {
       sendError: null,
       vcs: null,
       settingsOpen: false,
+      browserOpen: false,
+      contextOpen: false,
+      revealMessage: null,
       paletteOpen: false,
       confirmDelete: null,
       handoffSource: null,
@@ -585,20 +594,21 @@ class Store {
    * already confirmed OpenCode MCP connection, which must not be restarted
    * under a running browser call.
    */
-  configureBrowser(force = false, keepAttachments = false): Promise<unknown> {
+  configureBrowser(force = false, keepAttachments = false, backgroundDirectory?: string): Promise<unknown> {
     if (force) invalidateBrowserSetup({ keepAttachments });
     const endpoint = this.state.prefs.endpoint;
+    const client = this.client, generation = this.connectionGeneration;
     const enabled = this.state.prefs.browser?.enabled;
     const node = this.state.prefs.browser?.nodeProgram;
     return configureLocalBrowser({
-      endpoint, directory: this.state.directory, remote: !!this.currentHost(),
+      endpoint, directory: backgroundDirectory ?? this.state.directory, remote: !!this.currentHost(),
       preferences: this.state.prefs.browser,
       openCodeProgram: this.state.prefs.localOpenCodeProgram,
       piProgram: this.state.prefs.pi?.program, piNodeProgram: this.state.prefs.pi?.nodeProgram,
-      current: () => !this.currentHost() && this.state.prefs.endpoint === endpoint
+      current: () => generation === this.connectionGeneration && !this.currentHost() && this.state.prefs.endpoint === endpoint
         && this.state.prefs.browser?.enabled === enabled && this.state.prefs.browser?.nodeProgram === node,
-      activeDirectory: () => this.state.directory,
-      request: (method, path, options) => this.client.request(method, path, options),
+      activeDirectory: backgroundDirectory ? undefined : () => this.state.directory,
+      request: (method, path, options) => client.request(method, path, options),
     });
   }
 
@@ -2142,11 +2152,63 @@ class Store {
 
   // ---------- execution ----------
 
+  private scheduledLocks = new Set<string>();
+  /** A scheduled request never consumes the user's draft, files or queue. */
+  async runScheduledTask(task: ScheduledTask): Promise<DispatchResult> {
+    const waiting = (detail: string): DispatchResult => ({ kind: "waiting", detail });
+    const server = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
+    if (task.server !== server || (task.engine !== PI_BACKEND_ID && (this.state.connection.phase !== "connected" || this.state.connection.streamState !== "open")))
+      return waiting("Ожидает подключения к исходному серверу");
+    if (this.state.ui.sending || this.scheduledLocks.size || this.accessChanging || this.state.ui.workspacePreparing || this.state.ui.runtimeLoading)
+      return waiting("Ожидает завершения текущей отправки");
+    if (this.engineIdFor(task.sessionID, task.directory) !== task.engine)
+      throw new Error("Агент чата изменился; требуется новая настройка задания.");
+    if (!this.engineReady(task.engine as EngineId)) return waiting("Агент недоступен");
+    const backend = this.engine(task.engine as EngineId), gen = this.connectionGeneration;
+    const current = () => gen === this.connectionGeneration && server === (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)
+      && this.engineIdFor(task.sessionID, task.directory) === task.engine;
+    this.scheduledLocks.add(task.sessionID);
+    try {
+      const [session, statuses, permissions, questions] = await Promise.all([
+        backend.getSession(task.sessionID, task.directory), backend.sessionStatuses(task.directory),
+        backend.pendingPermissions(task.directory), backend.pendingQuestions(task.directory),
+      ]);
+      if (!current()) return waiting("Подключение изменилось");
+      if (session.directory !== task.directory || session.time.archived) throw new Error("Чат недоступен.");
+      if (statuses[task.sessionID]?.type && statuses[task.sessionID].type !== "idle" || this.isRunning(task.sessionID)
+        || this.queueLocks.has(task.sessionID) || this.compactLocks.has(task.sessionID) || this.getQueue(task.sessionID).length
+        || permissions.some(p => p.sessionID === task.sessionID) || questions.some(q => q.sessionID === task.sessionID))
+        return waiting("Агент занят или ждёт ответа");
+      if (isNative() && isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && browserEnabled(this.state.prefs)) {
+        await this.configureBrowser(false, false, task.directory);
+        if (browserSetupSnapshot().phase === "error") throw new Error("Браузер не подключён.");
+      }
+      // Browser setup can take time. Re-check authoritative interaction state before dispatch.
+      const [freshStatus, freshPermissions, freshQuestions] = await Promise.all([
+        backend.sessionStatuses(task.directory), backend.pendingPermissions(task.directory), backend.pendingQuestions(task.directory),
+      ]);
+      if (!current() || this.state.ui.sending) return waiting("Подключение или текущая отправка изменились");
+      if (freshStatus[task.sessionID]?.type && freshStatus[task.sessionID].type !== "idle" || this.getQueue(task.sessionID).length
+        || freshPermissions.some(p => p.sessionID === task.sessionID) || freshQuestions.some(q => q.sessionID === task.sessionID))
+        return waiting("Агент занят или ждёт ответа");
+      // Use the model/agent the user explicitly saved with this task, including its reasoning variant.
+      const seq = this.statusSequence;
+      await backend.prompt(task.sessionID, task.directory, {
+        messageID: newMessageId(), model: { providerID: task.model.providerID, modelID: task.model.modelID },
+        variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
+      });
+      if (current() && (this.statusVersions.get(task.sessionID) ?? 0) <= seq)
+        this.observeSessionStatus(task.sessionID, { type: "busy" }, task.directory);
+      return { kind: "sent" };
+    } finally { this.scheduledLocks.delete(task.sessionID); }
+  }
+
   async sendPrompt(text: string, attachments: DraftAttachment[] = [], onProgress: (label: string) => void = () => {}): Promise<boolean> {
     if (
       !this.engineReady() ||
       (!text.trim() && !attachments.length) ||
       this.state.ui.sending ||
+      this.scheduledLocks.has(this.state.activeSessionId ?? "") ||
       this.state.ui.workspacePreparing ||
       this.state.ui.runtimeLoading
     )
@@ -2205,6 +2267,13 @@ class Store {
     let sessionId = this.state.activeSessionId;
     try {
       if (attachments.length && scope !== initialScope) await attachmentDrafts.move(initialScope, scope);
+      // Do not submit the first prompt before its directory's MCP is attached.
+      if (isNative() && isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && browserEnabled(this.state.prefs)) {
+        onProgress("Подключение браузерных инструментов…");
+        await this.configureBrowser(browserSetupSnapshot().phase === "error");
+        if (browserSetupSnapshot().phase === "error") throw new Error(browserSetupSnapshot().error || "Браузер не подключён.");
+        if (!sameContext() || this.state.activeSessionId !== selected) return false;
+      }
       const parts = attachments.length && modelInfo
         ? await prepareAttachments(attachments, modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress)
         : [];
@@ -2576,6 +2645,7 @@ class Store {
       this.isRunning(sid) ||
       this.state.ui.sending ||
       this.queueLocks.has(sid) ||
+      this.scheduledLocks.has(sid) ||
       this.compactLocks.has(sid)
     )
       return;
@@ -2610,6 +2680,7 @@ class Store {
       endpoint = backend.endpoint;
     if (
       this.queueLocks.has(sid) ||
+      this.scheduledLocks.has(sid) ||
       this.state.ui.sending ||
       this.accessChanging ||
       sid !== this.state.activeSessionId ||

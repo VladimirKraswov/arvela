@@ -50,11 +50,12 @@ export function BrowserSettings() {
       const value = await browserNative<BrowserStatus>(command, command === "browser_open"
         ? { url: url.trim() || null, nodeProgram } : undefined);
       setStatus(value);
+      if (command === "browser_open") store.setUi({ browserOpen: true, settingsOpen: false });
     } catch (error) { setError(message(error)); }
     finally { setBusy(false); }
   };
   return <>
-    <p className="settings-intro">Отдельное окно Chromium для действий агента. Playwright MCP читает страницы, управляет вкладками, заполняет формы и парольные поля, загружает файлы проекта и делает снимки. Логины сохраняются в отдельном профиле OpenCode Desktop.</p>
+    <p className="settings-intro">Chromium внутри панели OpenCode Desktop. Агент читает структуру страниц через Playwright MCP; панель показывает живую страницу и его курсор. Логины сохраняются в отдельном профиле.</p>
     {!native && <p role="status">Откройте установленное приложение, чтобы настроить браузер.</p>}
     {!local && <p role="status">Инструменты браузера подключаются к локальному OpenCode и Pi. Для настройки выберите «Этот компьютер».</p>}
     <section className="setting-group" aria-label="Настройка браузера"><h2>Подключение</h2><div className="setting-card">
@@ -65,9 +66,9 @@ export function BrowserSettings() {
       <div className="setting-row"><div className="setting-label"><span>Разрешения на действия</span><small>Действуют настройки доступа выбранного агента. Подключение браузера не изменяет их автоматически.</small></div><div className="setting-control"><span>Настройки OpenCode / Pi</span></div></div>
       <div className="settings-actions"><span className="settings-muted" role="status">{setupSummary(setup, enabled)}</span><button className="btn" disabled={!native || !local || busy || configuring} onClick={() => { setError(""); void store.configureBrowser(true); }}>Настроить и проверить</button></div>
     </div></section>
-    <section className="setting-group" aria-label="Окно браузера"><h2>Окно браузера</h2><div className="setting-card">
-      <div className="setting-row engine-field-row"><div className="setting-label"><label htmlFor="browser-address">Адрес страницы</label><small>Пустой адрес покажет открытое окно, сохранив текущую страницу.</small></div><div className="setting-control"><input id="browser-address" type="url" value={url} placeholder="https://example.com" onChange={event => setUrl(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && native && local && enabled && status?.installed && !busy && !configuring) void action("browser_open"); }}/></div></div>
-      <div className="setting-row"><div className="setting-label"><span>Состояние</span></div><div className="setting-control"><span>{status?.browserOpen ? "Окно открыто" : status?.running ? "Сервис готов; окно откроется по запросу" : "Остановлен"}</span></div></div>
+    <section className="setting-group" aria-label="Панель браузера"><h2>Панель браузера</h2><div className="setting-card">
+      <div className="setting-row engine-field-row"><div className="setting-label"><label htmlFor="browser-address">Адрес страницы</label><small>Пустой адрес покажет панель, сохранив текущую страницу.</small></div><div className="setting-control"><input id="browser-address" type="url" value={url} placeholder="https://example.com" onChange={event => setUrl(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && native && local && enabled && status?.installed && !busy && !configuring) void action("browser_open"); }}/></div></div>
+      <div className="setting-row"><div className="setting-label"><span>Состояние</span></div><div className="setting-control"><span>{status?.browserOpen ? "Браузер открыт внутри Desktop" : status?.running ? "Сервис готов; страница откроется по запросу" : "Остановлен"}</span></div></div>
       <div className="setting-row"><div className="setting-label"><span>Отдельный профиль</span><small>Cookies и входы принадлежат этому браузеру; обычные браузеры не затрагиваются.</small></div><div className="setting-control"><span className="settings-path">{status?.profilePath ?? "—"}</span></div></div>
       <div className="settings-actions"><button className="btn primary" disabled={!native || !local || !enabled || !status?.installed || busy || configuring} onClick={() => void action("browser_open")}>Открыть браузер</button><button className="btn" disabled={!native || busy || (!status?.running && !configuring)} title={configuring ? "Останавливает и отменяет текущую установку или запуск" : undefined} onClick={() => void action("browser_stop")}>Остановить управление</button><button className="btn" disabled={!native || busy} onClick={() => void refresh().catch(error => setError(message(error)))}>Обновить состояние</button></div>
     </div></section>
@@ -84,7 +85,7 @@ function browserButtonTitle(local: boolean, native: boolean, enabled: boolean, p
   if (!local) return "Браузер агента работает только на этом компьютере";
   if (!enabled) return "Браузер агента выключен в настройках";
   if (IN_PROGRESS.includes(phase)) return "Настройка браузера выполняется; окно откроется после её завершения";
-  return "Открыть отдельный браузер для работы агента";
+  return "Открыть встроенную панель браузера агента";
 }
 
 export function BrowserButton() {
@@ -99,6 +100,7 @@ export function BrowserButton() {
     void store.configureBrowser(browserSetupSnapshot().phase === "error").then(() => {
       const setup = browserSetupSnapshot();
       if (setup.phase === "error") throw new Error(setup.error || "Инструменты браузера не подключены.");
+      store.setUi({ browserOpen: true });
       return browserNative("browser_open", { url: null, nodeProgram: browserNodeProgram(app.prefs) });
     }).catch(error => store.setUi({ toast: `Браузер: ${message(error)}` })).finally(() => setBusy(false));
   }}><Icon name="browser" size={17}/><span>{busy ? "Открываю…" : "Браузер"}</span></button>;

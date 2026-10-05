@@ -80,7 +80,7 @@ export interface SetupOptions {
   endpoint: string; directory: string | null; remote: boolean;
   preferences?: BrowserPreferences; openCodeProgram?: string; piProgram?: string; piNodeProgram?: string;
   current: () => boolean; activeDirectory?: () => string | null;
-  request: (method: "POST", path: string, options: { query: { directory: string }; body: unknown; timeoutMs: number }) => Promise<Record<string, { status?: string; error?: string }>>;
+  request: (method: "GET" | "POST", path: string, options: { query: { directory: string }; body?: unknown; timeoutMs: number }) => Promise<Record<string, { status?: string; error?: string }>>;
 }
 type Invoke = typeof browserNative;
 type Document = { path: string; content: string };
@@ -214,8 +214,20 @@ export async function configureLocalBrowser(o: SetupOptions, invoke: Invoke = br
   const config: McpConfig = { type: "local", command: [status.command, "--browser-mcp"], enabled: true, timeout: 45000 };
   const attachKey = JSON.stringify([o.endpoint, directory, config.command]);
   if (attached.has(attachKey)) {
-    publish({ phase: "ready", error: undefined, openCode: "Подключён к выбранному проекту" });
-    return status;
+    // A confirmed proxy may subsequently exit. Check the live inventory rather
+    // than declaring a cached connection ready; never restart a healthy proxy.
+    try {
+      const inventory = await o.request("GET", "/mcp", { query: { directory }, timeoutMs: 10000 });
+      if (!current(o, revision) || !activeHere(o)) return status;
+      if (inventory[BROWSER_MCP]?.status === "connected") {
+        publish({ phase: "ready", error: undefined, openCode: "Подключён к выбранному проекту" });
+        return status;
+      }
+      attached.delete(attachKey);
+    } catch (error) {
+      if (current(o, revision)) publish({ phase: "error", error: message(error) });
+      return status;
+    }
   }
   let pending = attaching.get(attachKey);
   if (!pending) {

@@ -547,6 +547,119 @@ pub async fn browser_stop(
     .await
 }
 
+/// Read-only pixel projection; tokens remain in the native gateway. Only the
+/// trusted main window can invoke this, never the remote page being displayed.
+#[tauri::command]
+pub async fn browser_view(window: tauri::Window) -> Result<Value, String> {
+    main_window(&window)?;
+    blocking(move || gateway::request(&root_dir()?, Endpoint::View, None)).await
+}
+
+/// Lightweight presence polling must not spawn Node version probes or capture
+/// page pixels while the panel is hidden.
+#[tauri::command]
+pub async fn browser_presence(window: tauri::Window) -> Result<Value, String> {
+    main_window(&window)?;
+    blocking(move || {
+        Ok(gateway::health(&root_dir()?)
+            .map(|(_, value)| value)
+            .unwrap_or_else(|_| json!({"browserOpen":false,"running":false})))
+    })
+    .await
+}
+
+fn panel_tool(action: &str, args: &Value) -> Result<Value, String> {
+    let coord = |key: &str, max: f64| -> Result<f64, String> {
+        args[key]
+            .as_f64()
+            .filter(|n| n.is_finite() && *n >= 0.0 && *n <= max)
+            .ok_or_else(|| "Некорректные координаты браузера.".into())
+    };
+    let (name, arguments) = match action {
+        "navigate" => (
+            "browser_navigate",
+            json!({"url": validated_url(Some(args["url"].as_str().ok_or("Нужен адрес страницы.")?))?}),
+        ),
+        "click" => (
+            "browser_mouse_click_xy",
+            json!({"x":coord("x",1920.0)?,"y":coord("y",1200.0)?}),
+        ),
+        "wheel" => {
+            let dy = args["dy"]
+                .as_f64()
+                .filter(|n| n.is_finite() && n.abs() <= 2000.0)
+                .ok_or("Некорректная прокрутка.")?;
+            ("browser_mouse_wheel", json!({"deltaY":dy,"deltaX":0}))
+        }
+        "text" => {
+            let text = args["text"]
+                .as_str()
+                .filter(|s| s.len() <= 16384)
+                .ok_or("Слишком большой текст.")?;
+            ("desktop/type", json!({"text":text}))
+        }
+        "key" => {
+            let key = args["key"].as_str().ok_or("Нужна клавиша.")?;
+            if !matches!(
+                key,
+                "Enter"
+                    | "Tab"
+                    | "Backspace"
+                    | "Delete"
+                    | "Escape"
+                    | "ArrowLeft"
+                    | "ArrowRight"
+                    | "ArrowUp"
+                    | "ArrowDown"
+                    | "Home"
+                    | "End"
+                    | "PageUp"
+                    | "PageDown"
+                    | "ControlOrMeta+a"
+            ) {
+                return Err("Эта клавиша не поддерживается браузером.".into());
+            }
+            ("browser_press_key", json!({"key":key}))
+        }
+        "back" => ("browser_navigate_back", json!({})),
+        "reload" => ("desktop/reload", json!({})),
+        "forward" => ("desktop/forward", json!({})),
+        "new" => ("browser_tabs", json!({"action":"new"})),
+        "select" | "close" => {
+            let index = args["index"]
+                .as_u64()
+                .filter(|n| *n < 128)
+                .ok_or("Некорректная вкладка.")?;
+            ("browser_tabs", json!({"action":action,"index":index}))
+        }
+        _ => return Err("Действие браузера не поддерживается.".into()),
+    };
+    Ok(json!({"name":name,"arguments":arguments}))
+}
+
+#[tauri::command]
+pub async fn browser_input(
+    window: tauri::Window,
+    action: String,
+    args: Value,
+) -> Result<(), String> {
+    main_window(&window)?;
+    let params = panel_tool(&action, &args)?;
+    let expected = args.get("expected").cloned();
+    blocking(move || {
+        let root = root_dir()?;
+        let mut payload = if params["name"].as_str().is_some_and(|name| name.starts_with("desktop/")) {
+            json!({"method":params["name"], "text":params["arguments"]["text"]})
+        } else { json!({
+            "method":"tools/call", "workspace":root.join("workspace"), "owner":"user", "params":params
+        }) };
+        if let Some(expected) = expected { payload["expected"] = expected; }
+        let result = gateway::request(&root, Endpoint::Rpc, Some(&payload))?;
+        if result["result"]["isError"] == true { return Err("Действие не выполнено. Проверьте страницу и повторите.".into()); }
+        Ok(())
+    }).await
+}
+
 /// Desktop exit: cancel install/start, wait (bounded) for them to clean up,
 /// then stop only the daemon this process owns.
 pub fn shutdown(app: &tauri::AppHandle) {
@@ -643,6 +756,39 @@ pub fn mcp_main() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn panel_inputs_are_bounded_and_do_not_accept_arbitrary_tools() {
+        for (action, args) in [
+            ("evaluate", json!({"function":"() => window.__TAURI__"})),
+            ("navigate", json!({"url":"javascript:alert(1)"})),
+            ("navigate", json!({"url":"file:///C:/Users/private.txt"})),
+            ("click", json!({"x":-1,"y":20})),
+            ("click", json!({"x":1921,"y":20})),
+            ("wheel", json!({"dy":2001})),
+            ("key", json!({"key":"Alt+F4"})),
+            ("select", json!({"index":128})),
+            ("close", json!({"index":-1})),
+            ("text", json!({"text":"a".repeat(16385)})),
+        ] {
+            assert!(panel_tool(action, &args).is_err(), "{action}");
+        }
+        assert_eq!(
+            panel_tool("click", &json!({"x":12,"y":34})).unwrap()["name"],
+            "browser_mouse_click_xy"
+        );
+        assert_eq!(
+            panel_tool("new", &json!({})).unwrap()["arguments"]["action"],
+            "new"
+        );
+        assert_eq!(
+            panel_tool("text", &json!({"text":"Привет"})).unwrap()["name"],
+            "desktop/type"
+        );
+        assert_eq!(
+            panel_tool("reload", &json!({})).unwrap()["name"],
+            "desktop/reload"
+        );
+    }
     #[test]
     fn navigation_rejects_privileged_and_credential_urls() {
         for bad in [

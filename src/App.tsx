@@ -1,4 +1,7 @@
+import { ContextPanel } from "./components/ContextPanel";
+import { ScheduleRuntime } from "./schedules/Runtime";
 import { HandoffDialog } from "./components/HandoffDialog";
+import { BrowserPanel, BrowserPresence } from "./components/BrowserPanel";
 import { PiDialog } from "./components/PiDialog";
 import { EngineSwitchDialog } from "./components/EngineSwitchDialog";
 import { HostDialogs } from "./components/HostDialogs";
@@ -87,6 +90,7 @@ export default function App() {
         e.preventDefault();
         void store.toggleTerminal();
       } else if (e.key === "Escape") {
+        if (store.state.ui.contextOpen) store.setUi({ contextOpen: false });
         if (store.state.ui.paletteOpen) store.setUi({ paletteOpen: false });
         if (store.state.ui.hostDialogOpen || store.state.ui.remoteFolderOpen) return;
         if (store.state.ui.confirmDelete) store.setUi({ confirmDelete: null });
@@ -109,6 +113,8 @@ export default function App() {
     >
       <div className="app-body" inert={s.ui.settingsOpen} aria-hidden={s.ui.settingsOpen || undefined} style={s.ui.settingsOpen ? { visibility: "hidden" } : undefined}>
         {layout.sidebarOpen && <Sidebar />}
+        <BrowserPresence />
+        <ScheduleRuntime />
         <div
           className="resizer-v"
           style={{ display: layout.sidebarOpen ? undefined : "none" }}
@@ -128,6 +134,7 @@ export default function App() {
         <div className="center-col">
           <TopBar />
           <div className="center-main">
+            {s.ui.contextOpen && <ContextPanel />}
             <div className="chat-col">
               {s.connection.phase === "connected" ||
               s.connection.phase === "connecting" ||
@@ -142,7 +149,8 @@ export default function App() {
                 <ConnectionGate />
               )}
             </div>
-            {layout.rightOpen && capabilities.vcsDiff && (
+            {s.ui.browserOpen && <BrowserPanel />}
+            {!s.ui.browserOpen && layout.rightOpen && capabilities.vcsDiff && (
               <>
                 <div
                   className="resizer-v"

@@ -1,6 +1,6 @@
 # Варианты сборки и поддержка платформ
 
-Версия продукта — **0.2.16**, одинаково в `package.json`, `package-lock.json`,
+Версия продукта — **0.2.17**, одинаково в `package.json`, `package-lock.json`,
 `src-tauri/Cargo.toml` и `src-tauri/tauri.conf.json` (проверяется тестом
 `test/bundle-config.test.ts`).
 
@@ -100,7 +100,7 @@ python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode 
 npm.cmd ci
 npm.cmd test -- --maxWorkers=2
 npm.cmd run build:windows
-# src-tauri\target\release\bundle\nsis\OpenCode Desktop_0.2.16_x64-setup.exe
+# src-tauri\target\release\bundle\nsis\OpenCode Desktop_<version>_x64-setup.exe
 ```
 
 Нужны Rust stable-msvc, Visual Studio Build Tools с Desktop C++ workload,
@@ -162,3 +162,12 @@ dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd
   (общий модуль `src-tauri/src/process.rs`). Windows-сборка проходит;
   отсутствие всплывающих консолей во всех сценариях не проверено.
 - Нативный проигрыватель системного звука завершения для Windows не добавлен.
+
+
+## Встроенная панель 0.2.17
+
+Панель импортирована из Windows-ветки 7452a0e (её локальный установщик сохранял
+номер 0.2.16). На Mac интеграция получает новый номер 0.2.17, чтобы не подменять
+опубликованный релиз. Windows-артефакты 0.2.16 и их отчёты не являются сборками
+окончательного main 0.2.17.
+[Проверки импорта и ограничения](EMBEDDED-BROWSER-IMPORT-20261005.md).
