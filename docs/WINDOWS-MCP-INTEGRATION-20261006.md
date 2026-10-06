@@ -26,6 +26,7 @@ The supplied NSIS installer was built by the Windows agent from `8ae3e93`. Mac-s
 
 - Installer: `OpenCode Desktop_0.2.18_x64-setup.exe`, **2,825,828 bytes**. SHA256: `C31F6E8A6A93821597B464393521257EB75D33646B9395B279258537A3643462`.
 - Standalone executable: **7,841,280 bytes**. SHA256: `3BFB7428D17A223121D01FCF1889C9EBA31A8DC615C07FA77827A6542BDF853A`.
+- GitHub normalizes the uploaded installer filename to `OpenCode.Desktop_0.2.18_x64-setup.exe`. The published asset was downloaded back; its length, SHA256 and GitHub asset digest all matched the supplied installer. Release `v0.2.18` targets reviewed source `c36480e5d19332c57d6d959290c9d21d53338f7b`.
 - [Windows release assets](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.18); executables are assets rather than committed Git binaries.
 - [Original Windows 0.2.18 report](WINDOWS-RESULT-0.2.18-20261006.md) records the state before Mac import/publication, including pending manual installation.
 
