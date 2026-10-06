@@ -1,3 +1,16 @@
+# Windows 0.2.17 rebuild — INSTALL BLOCKED (2026-10-06)
+
+Verified supplied archive/source hashes and offline bundle; built exact main
+36da30ef006b44ee3dda2494ce90eb784fe2d03f without production source changes.
+451 frontend passed / 6 opt-in skipped; 56 Windows Rust passed; fmt/check-all-targets,
+TypeScript/Vite, official 32-tool headless smoke and 2 proxy regressions passed.
+NSIS built successfully and passed 7-Zip integrity test. Private old executable,
+WebView/browser profile and config backup completed. External OpenCode stayed healthy.
+Installation command was rejected by execution policy before running. No bypass
+attempted; installed version remains 0.2.16. Owner must manually install the generated
+0.2.17 NSIS, then native installed acceptance remains pending. No source fixes/push,
+no model requests. See docs/WINDOWS-RESULT-0.2.17-20261006.md for evidence/limitations.
+
 # 0.2.17 Mac integration and chat context — DONE (2026-10-06)
 
 Direct Opus 5.5 source-only review on Igor completed; only Read/Edit/Write/Glob/Grep.
