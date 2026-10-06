@@ -213,4 +213,74 @@ mod tests {
         );
         std::fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn cancellation_during_copy_keeps_original_and_does_not_publish() {
+        let root = fixture();
+        let calls = std::cell::Cell::new(0);
+        let result = import(&root.join("legacy"), &root.join("shared"), || {
+            calls.set(calls.get() + 1);
+            if calls.get() >= 3 {
+                Err("cancelled during copying".into())
+            } else {
+                Ok(())
+            }
+        });
+        assert!(result.is_err());
+        assert!(calls.get() >= 3);
+        assert!(!root.join("shared/profile").exists());
+        assert_eq!(
+            std::fs::read(root.join("legacy/profile/fixture")).unwrap(),
+            b"preserved"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn outside_cache_manifest_is_not_published() {
+        let root = fixture();
+        std::fs::create_dir_all(root.join("legacy/current")).unwrap();
+        std::fs::write(
+            root.join("legacy/current/installed.json"),
+            serde_json::json!({
+                "browserExecutable": root.join("unmanaged/chrome.exe")
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert!(import(&root.join("legacy"), &root.join("shared"), || Ok(())).is_err());
+        assert!(!root.join("shared/profile").exists());
+        assert!(!root.join("shared/current").exists());
+        assert!(root.join("legacy/profile/fixture").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nested_link_is_not_followed_or_published() {
+        let root = fixture();
+        std::fs::create_dir_all(root.join("outside")).unwrap();
+        std::fs::write(root.join("outside/fixture"), "outside").unwrap();
+        std::os::unix::fs::symlink(root.join("outside"), root.join("legacy/profile/linked"))
+            .unwrap();
+        assert!(import(&root.join("legacy"), &root.join("shared"), || Ok(())).is_err());
+        assert!(!root.join("shared/profile").exists());
+        assert_eq!(
+            std::fs::read(root.join("outside/fixture")).unwrap(),
+            b"outside"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn non_windows_command_and_migration_remain_unchanged() {
+        let root = fixture();
+        migrate(&root.join("shared"), || {
+            Err("must not run on this OS".into())
+        })
+        .unwrap();
+        assert!(!root.join("shared/profile").exists());
+        assert_eq!(command().unwrap(), std::env::current_exe().unwrap());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -1,3 +1,7 @@
+# Windows 0.2.18 MCP import — VERIFIED, PUBLICATION PENDING (2026-10-06)
+
+Owner archive imported through complete verified Git history 5132356/8ae3e93; 15 manifest hashes and 288 source files verified (CRLF-only differences accepted). Retained common Windows browser root/versioned bridge and cancellable non-overwriting migration. Added four regression checks; final Mac451 frontend/78 Rust, fmt/check/build, actual isolated CLI32tools, headless browser and proxy2/2 passed. No model requests/owner profile/config or installed app changes. Windows installer is built from8ae3e93 and production code remains identical; only tests/docs added on Mac. Main push and release asset publication/download verification are pending, then update checkpoint. See docs/WINDOWS-MCP-INTEGRATION-20261006.md for limitations.
+
 # Windows 0.2.18 MCP repair — BUILD READY, MANUAL INSTALL PENDING (2026-10-06)
 
 Owner authorized fixing the browser connection and producing a new version.

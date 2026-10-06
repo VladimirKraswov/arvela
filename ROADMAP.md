@@ -336,3 +336,12 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Copy legacy browser profile/cache without deleting originals or overwriting an existing shared profile.
 - [x] 451 frontend / 59 Windows Rust checks, final NSIS build and debug/release cross-AppData real CLI regression (32 tools, one disposable browser).
 - [ ] Manual installation and installed native 0.2.18 acceptance; Mac/Linux new source acceptance remains pending.
+
+## M27 — Shared Windows browser MCP runtime (0.2.18)
+
+- [x] Imported verified Windows history 5132356/8ae3e93; all archive checksums and source content matched.
+- [x] Shared USERPROFILE browser runtime and versioned executable bridge outside MSIX AppData redirection, with cancellable profile migration preserving originals.
+- [x] 451 frontend and 78 Mac Rust tests; TypeScript/Vite, Cargo fmt/all-targets check and native CLI build passed.
+- [x] Disposable Mac native CLI: 32 shared tools; headless browser and two proxy regressions passed without inference or user configuration changes.
+- [x] Windows NSIS preserved as a release asset with checksum and original build provenance.
+- [ ] Installed Windows 0.2.18 normal/MSIX acceptance and real-profile migration. Mac 0.2.18 installation and Linux runtime acceptance are not claimed.

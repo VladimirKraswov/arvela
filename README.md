@@ -94,7 +94,7 @@ npm run build:windows
 
 ## Репозиторий и установщик
 
-[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [релиз 0.2.17](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.17) содержит проверенный macOS Apple Silicon `.dmg` со встроенным браузером, панелью контекста и расписаниями. Windows x64 NSIS `.exe` 0.2.16 доступен в [релизе 0.2.16](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.16), Linux x86_64 `.deb` — в [релизе 0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10). Windows 0.2.17 собрана локально; Windows 0.2.18 с исправлением MCP передаётся отдельно, установленная приёмка ожидает ручного обновления. Linux 0.2.17/0.2.18 не проверены. [Проверки и ограничения](docs/VERIFICATION.md). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [релиз 0.2.17](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.17) содержит проверенный macOS Apple Silicon `.dmg` со встроенным браузером, панелью контекста и расписаниями. Windows x64 NSIS `.exe` 0.2.16 доступен в [релизе 0.2.16](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.16), Linux x86_64 `.deb` — в [релизе 0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10). Windows x64 0.2.18 с исправлением MCP доступна в [релизе 0.2.18](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.18); проверка установленной версии на Windows ожидает ручного обновления. Исходники 0.2.18 проверены на Mac, установленная Mac-версия остаётся 0.2.17. Linux 0.2.17/0.2.18 не проверены. [Проверки и ограничения](docs/VERIFICATION.md). Репозиторий приватный; для скачивания нужна авторизация владельца или предоставленный доступ. Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
 
 Параметры двух локальных моделей и решение по V100/NInfer описаны в [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md).
 Полная схема пути от приложения через OpenCode к обеим VM, настройки, расширения и сохранённые измерения — в [карте AI-среды](docs/AI-ENVIRONMENT.md).
@@ -111,7 +111,8 @@ Windows 0.2.18 исправляет разрыв MCP при разных пре�
 каталог `%USERPROFILE%/.opencode-desktop/browser-runtime` и версионный MCP-мост.
 Старый браузерный профиль копируется, оригинал сохраняется; каталоги чатов,
 модели, разрешения и сервер OpenCode не переносятся и не перезапускаются.
-Эта Windows-сборка передаётся владельцу отдельно и не опубликована как релиз.
+Windows-установщик и его SHA256 опубликованы отдельно от macOS-пакета.
+[Проверка импорта на Mac и происхождение сборки](docs/WINDOWS-MCP-INTEGRATION-20261006.md).
 
 Кнопка «Браузер» открывает живую панель внутри Desktop: вкладки, адрес, клики, ввод, прокрутка и курсор агента. Отдельное окно Chrome не открывается: app-owned Chromium работает в фоне, а панель показывает его реальные кадры. Агент получает DOM, accessibility-layout и содержимое этой же страницы через официальный Playwright MCP. Desktop устанавливает закреплённые инструменты и подключает их к локальным OpenCode и Pi, сохраняя модели, плагины, разрешения и профиль браузера. [Архитектура, ограничения и настройка](docs/BROWSER.md).
 

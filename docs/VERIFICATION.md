@@ -1,5 +1,9 @@
 # Verification record
 
+## Windows 0.2.18 MCP integration — 2026-10-06
+
+Verified archive/history and imported the shared Windows browser runtime without changing the production code in the supplied installer. Independent Mac checks: 451 frontend / 78 Rust tests, TypeScript/Vite, Cargo fmt/all-targets check, native CLI, real 32-tool headless browser and two proxy regressions passed. Installer provenance, hashes and remaining installed Windows/Mac/Linux checks are detailed in [the integration report](WINDOWS-MCP-INTEGRATION-20261006.md).
+
 ## Windows port integration review on Mac — 2026-10-04
 
 - The owner supplied a ZIP containing the original port bundle, patch and Windows
