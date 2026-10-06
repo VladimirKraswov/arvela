@@ -25,6 +25,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, ChildStdin, Command, Stdio},
     sync::{
+        atomic::{AtomicBool, Ordering},
         mpsc::{channel, Sender},
         Arc, Mutex,
     },
@@ -603,6 +604,7 @@ pub struct PiProcess {
     pub directory: String,
     pub session_id: String,
     counter: u64,
+    stopping: Arc<AtomicBool>,
     /// Dropped after `Drop::drop` has run the graceful shutdown, so anything
     /// still alive in Pi's tree is terminated last.
     #[cfg(target_os = "windows")]
@@ -675,6 +677,7 @@ fn shutdown_tree(child: &mut Child, stdin: Option<ChildStdin>) {
 
 impl PiProcess {
     fn shutdown(&mut self) {
+        self.stopping.store(true, Ordering::Release);
         let stdin = self.stdin.take();
         shutdown_tree(&mut self.child, stdin);
     }
@@ -879,6 +882,7 @@ pub async fn pi_open(
         let pending: Arc<Mutex<HashMap<String, Sender<Value>>>> = Arc::default();
         let dialogs: Arc<Mutex<HashMap<String, Instant>>> = Arc::default();
         let stderr = Arc::new(Mutex::new(String::new()));
+        let stopping = Arc::new(AtomicBool::new(false));
 
         spawn_reader(
             app.clone(),
@@ -889,6 +893,7 @@ pub async fn pi_open(
             pending.clone(),
             dialogs.clone(),
             handles.clone(),
+            stopping.clone(),
         );
         spawn_stderr(stderr_pipe, stderr.clone());
 
@@ -903,6 +908,7 @@ pub async fn pi_open(
                 directory: request.directory.clone(),
                 session_id: request.session_id.clone(),
                 counter: 0,
+                stopping,
                 #[cfg(target_os = "windows")]
                 _job: job,
             },
@@ -951,9 +957,13 @@ fn spawn_reader(
     pending: Arc<Mutex<HashMap<String, Sender<Value>>>>,
     dialogs: Arc<Mutex<HashMap<String, Instant>>>,
     handles: Arc<Mutex<HashMap<String, PiProcess>>>,
+    stopping: Arc<AtomicBool>,
 ) {
     thread::spawn(move || {
         read_jsonl_lines(stdout, |line| {
+            if stopping.load(Ordering::Acquire) {
+                return;
+            }
             let Ok(value) = serde_json::from_str::<Value>(line) else {
                 return;
             };
@@ -992,8 +1002,11 @@ fn spawn_reader(
                 },
             );
         });
-        // The child ended: tell the UI so it can show a real error instead of a
-        // conversation that silently stopped responding.
+        // An intentional close (fork/delete/app exit) is not an agent failure.
+        if stopping.load(Ordering::Acquire) {
+            return;
+        }
+        // Unexpected exit must still be visible instead of silently hanging.
         emit(
             &app,
             PiEnvelope {

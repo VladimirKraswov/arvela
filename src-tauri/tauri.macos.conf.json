@@ -3,7 +3,7 @@
   "app": {
     "windows": [
       {
-        "title": "OpenCode Desktop",
+        "title": "AgentMesh Desktop",
         "width": 1360,
         "height": 900,
         "minWidth": 900,

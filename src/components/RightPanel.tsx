@@ -49,6 +49,8 @@ function ChangesTab() {
   const s = useAppState();
   const [files, setFiles] = useState<SessionDiffFile[] | null>(null);
   const [source, setSource] = useState<"session" | "worktree">("session");
+  const engineId = store.engineIdFor();
+  const effectiveSource = engineId === "pi" ? "worktree" : source;
   const [open, setOpen] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +101,7 @@ function ChangesTab() {
     setOpen(null);
     ++openGen.current;
     const dir = s.directory;
-    const sessionId = source === "session" ? s.activeSessionId : null;
+    const sessionId = effectiveSource === "session" ? s.activeSessionId : null;
     if (!dir) return;
     setLoading(true);
     setError(null);
@@ -143,7 +145,7 @@ function ChangesTab() {
     } finally {
       if (stillCurrent()) setLoading(false);
     }
-  }, [s.directory, s.activeSessionId, source, client]);
+  }, [s.directory, s.activeSessionId, effectiveSource, client]);
 
   useEffect(() => {
     void load();
@@ -156,15 +158,15 @@ function ChangesTab() {
   return (
     <>
       <div className="panel-toolbar">
-        <button
-          className={`panel-tab${source === "session" ? " on" : ""}`}
+        {engineId !== "pi" && <button
+          className={`panel-tab${effectiveSource === "session" ? " on" : ""}`}
           disabled={!s.activeSessionId}
           onClick={() => setSource("session")}
         >
           Эта задача
-        </button>
+        </button>}
         <button
-          className={`panel-tab${source === "worktree" ? " on" : ""}`}
+          className={`panel-tab${effectiveSource === "worktree" ? " on" : ""}`}
           onClick={() => setSource("worktree")}
         >
           Рабочая копия
@@ -185,7 +187,7 @@ function ChangesTab() {
       )}
       {files && files.length === 0 && (
         <div className="panel-note">
-          {source === "session"
+          {effectiveSource === "session"
             ? "No file changes recorded for this session yet."
             : "No changes in the working tree versus HEAD."}
         </div>

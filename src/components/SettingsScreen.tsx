@@ -1,3 +1,4 @@
+import { ModelServicesSettings } from "./ModelServicesSettings";
 import { BrowserSettings } from "./BrowserSettings";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { version as appVersion } from "../../package.json";
@@ -16,20 +17,22 @@ import { DEFAULT_HELPER_ENDPOINT, helperHealth, validHelperEndpoint, type Helper
 import { detectLocalOpenCode } from "../native/localServer";
 
 export const SETTINGS_SECTIONS = [
-  { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Подключение к OpenCode и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
+  { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Рабочее пространство и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
+  { id: "engines", title: "Агенты", group: "Приложение", icon: "chat", description: "OpenCode и Pi: возможности и отдельные настройки", keywords: "engine движок агент Pi OpenCode модель" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
   { id: "browser", title: "Браузер", group: "Интеграции", icon: "browser", description: "Управляемый Chromium и автонастройка OpenCode / Pi", keywords: "browser playwright chromium MCP окна вкладки формы пароли" },
   { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
   { id: "agentControl", title: "API для агентов", group: "Интеграции", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
+  { id: "modelServices", title: "Сервисы моделей", group: "Интеграции", icon: "server", description: "Переключение моделей, загрузка и доступные агенты", keywords: "inference api модели loader прогресс Pi OpenCode" },
   { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
   { id: "tools", title: "Инструменты", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
   { id: "skills", title: "Навыки", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
   { id: "plugins", title: "Плагины", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
   { id: "mcp", title: "MCP-серверы", group: "OpenCode", icon: "server", description: "Подключения инструментов и их статус", keywords: "mcp интеграции серверы" },
-  { id: "agents", title: "Агенты", group: "OpenCode", icon: "chat", description: "Доступные агенты и агент по умолчанию", keywords: "agents build plan" },
-  { id: "pi", title: "Движок Pi", group: "Pi", icon: "chat", description: "Установка, модели, расширения и LSP локального агента Pi", keywords: "pi rpc движок engine модель расширение lsp язык сервер" },
+  { id: "agents", title: "Профили OpenCode", group: "OpenCode", icon: "chat", description: "Профили инструкций и инструментов OpenCode", keywords: "agents build plan" },
+  { id: "pi", title: "Агент Pi", group: "Pi", icon: "chat", description: "Установка, модели, расширения и LSP локального агента Pi", keywords: "pi rpc движок engine модель расширение lsp язык сервер" },
   { id: "about", title: "О приложении", group: "Приложение", icon: "code", description: "Версия приложения и состояние сервера", keywords: "диагностика поток событий SSE провайдеры" },
 ] as const;
 type Section = typeof SETTINGS_SECTIONS[number]["id"];
@@ -72,7 +75,7 @@ function AppearanceSettings() {
       <Row title="Ширина сообщений" description="Доступная ширина зависит от размера окна и боковых панелей."><select aria-label="Ширина сообщений" value={a.chatWidth} onChange={e => store.setAppearance({ chatWidth: e.target.value as typeof a.chatWidth })}><option value="standard">Обычная</option><option value="wide">Широкая</option><option value="full">На всю ширину</option></select></Row>
       <Row title="Межстрочный интервал"><select aria-label="Межстрочный интервал" value={a.lineSpacing} onChange={e => store.setAppearance({ lineSpacing: e.target.value as typeof a.lineSpacing })}><option value="standard">Обычный</option><option value="relaxed">Свободный</option></select></Row>
     </Group>
-    <section className="appearance-preview" aria-label="Предпросмотр оформления"><h2>Предпросмотр</h2><div className="preview-chat"><div className="preview-label"><span className="preview-dot"/>OpenCode Desktop</div><Markdown source={'Так будет выглядеть ответ в чате. **Важное легко заметить**, а код удобно читать.\n\n```typescript\nconst greeting = "Привет, мир!";\nconsole.log(greeting);\n```'}/><span className="preview-caption">Размеры текста и кода настраиваются отдельно.</span></div></section>
+    <section className="appearance-preview" aria-label="Предпросмотр оформления"><h2>Предпросмотр</h2><div className="preview-chat"><div className="preview-label"><span className="preview-dot"/>AgentMesh Desktop</div><Markdown source={'Так будет выглядеть ответ в чате. **Важное легко заметить**, а код удобно читать.\n\n```typescript\nconst greeting = "Привет, мир!";\nconsole.log(greeting);\n```'}/><span className="preview-caption">Размеры текста и кода настраиваются отдельно.</span></div></section>
     <div className="settings-actions"><span className="settings-muted">Сохранено автоматически</span><button className="btn" onClick={() => { store.setAppearance(DEFAULT_APPEARANCE); store.setTheme("dark"); }}>Сбросить оформление</button></div>
   </>;
 }
@@ -124,7 +127,7 @@ export function SettingsScreen() {
       <button ref={back} className="settings-back" onClick={() => requestExit("close")} disabled={connecting}><Icon name="arrowDown" size={17} style={{ transform: "rotate(90deg)" }}/>Вернуться в приложение</button>
       <div className="settings-search"><Icon name="search" size={16}/><input type="search" aria-label="Поиск настроек" placeholder="Поиск настроек…" value={query} onChange={e => setQuery(e.target.value)}/></div>
       <nav aria-label="Разделы настроек">{["Приложение", "Интеграции", "OpenCode", "Pi"].map(group => <div className="settings-nav-group" key={group}><div className="settings-nav-label">{group}</div>{SETTINGS_SECTIONS.filter(x => x.group === group).map(item => <button key={item.id} aria-current={!query && section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={17}/>{item.title}</button>)}</div>)}</nav>
-      <span className="settings-sidebar-version">OpenCode Desktop {appVersion}</span>
+      <span className="settings-sidebar-version">AgentMesh Desktop {appVersion}</span>
     </aside>
     <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
       <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1><p>{query.trim() ? `Результаты для «${query.trim()}»` : selected.description}</p></header>
@@ -164,13 +167,24 @@ export function SettingsScreen() {
         {section === "computer" && <ComputerSettings/>}
         {section === "agentControl" && <AgentControlSettings/>}
         {section === "pi" && <PiSettings/>}
+        {section === "engines" && <>
+        <p className="settings-intro">У каждого чата свой агент и модель. Для новых проектов по умолчанию выбран OpenCode; Pi можно выбрать при создании проекта или чата. Существующий диалог переносится через «Продолжить в…», сохраняя исходную историю.</p>
+        <Group title="Агенты">
+          <Row title="OpenCode" description="Сессии и исполнение на подключённом локальном или удалённом сервере. Свои модели, профили, плагины и разрешения."><span>{s.connection.phase === "connected" ? `Подключён · ${s.connection.version ?? ""}` : "Не подключён"}</span><button className="btn" onClick={() => navigate("agents")}>Настроить OpenCode</button></Row>
+          <Row title="Pi" description="Локальный агент с отдельными моделями, расширениями, LSP и подтверждениями инструментов."><span>{store.piInstalled ? "Установлен" : "Не найден"}</span><button className="btn" onClick={() => navigate("pi")}>Настроить Pi</button></Row>
+        </Group>
+        <Group title="Общие функции">
+          <p className="handoff-note">Чат, рассуждения, остановка, ветвление, сжатие, диктовка, вложения, браузер, источники, результаты, расписания и статистика доступны для обоих агентов. Терминал и просмотр файлов и Git используют сервер рабочего пространства; они доступны в чате Pi, когда этот сервер подключён. Удалённое исполнение Pi через SSH пока не реализовано.</p>
+        </Group>
+      </>}
+      {section === "modelServices" && <ModelServicesSettings/>}
         {section === "helper" && <>
           <p className="settings-intro">CPU-помощник в контейнере Proxmox подготавливает вложения для выбранной модели. Если модель поддерживает формат, файл идёт напрямую. Иначе помощник извлекает текст, кадры и звук. Аудио распознаёт отдельный GigaAM ASR из раздела «Диктовка».</p>
           <Group title="Подключение"><Row title="Локальный адрес помощника" description="SSH-туннель на этом компьютере; удалённый адрес контейнера сюда не вводится."><input aria-label="Адрес помощника" spellCheck={false} value={helper} onChange={event => { setHelper(event.target.value); setHelperStatus(null); }}/></Row><Row title="Состояние"><span>{helperStatus?.ok ? `Работает · версия ${helperStatus.version}` : "Проверка не выполнялась"}</span></Row><Row title="Доступные сервисы"><span>{helperStatus?.services.join(", ") || "—"}</span></Row></Group>
           <p className="settings-muted">MCP-подключения OpenCode настраиваются отдельно в разделе «MCP-серверы». Файлы не хранятся в контейнере после обработки.</p>
           <div className="settings-actions"><button className="btn" disabled={testingHelper} onClick={async () => { setError(""); setNotice(""); setTestingHelper(true); try { setHelperStatus(await helperHealth(helper.trim())); setNotice("Помощник доступен."); } catch (problem) { setHelperStatus(null); setError(problem instanceof Error ? problem.message : String(problem)); } finally { setTestingHelper(false); } }}>{testingHelper ? "Проверка…" : "Проверить подключение"}</button><button className="btn primary" disabled={!helperDirty} onClick={() => { const next = helper.trim().replace(/\/$/, ""); if (!validHelperEndpoint(next)) { setError("Укажите локальный HTTP-адрес без пути и учётных данных."); return; } store.setHelperEndpoint(next); setHelper(next); setError(""); setNotice("Адрес помощника сохранён."); }}>Сохранить</button></div>
         </>}
-        {section === "about" && <Group title="Состояние приложения"><Row title="OpenCode Desktop"><span>{appVersion}</span></Row><Row title="Версия OpenCode"><span>{s.connection.version ?? "—"}</span></Row><Row title="Подключение"><span>{s.connection.phase === "connected" ? "Подключено" : s.connection.phase}</span></Row><Row title="Поток событий"><span>{s.connection.streamState}</span></Row><Row title="Подключённые провайдеры"><span>{s.connectedProviderIds.length}</span></Row><Row title="Агенты"><span>{s.agents.map(a => a.name).join(", ") || "—"}</span></Row></Group>}
+        {section === "about" && <Group title="Состояние приложения"><Row title="AgentMesh Desktop"><span>{appVersion}</span></Row><Row title="Версия OpenCode"><span>{s.connection.version ?? "—"}</span></Row><Row title="Подключение"><span>{s.connection.phase === "connected" ? "Подключено" : s.connection.phase}</span></Row><Row title="Поток событий"><span>{s.connection.streamState}</span></Row><Row title="Подключённые провайдеры"><span>{s.connectedProviderIds.length}</span></Row><Row title="Агенты"><span>{s.agents.map(a => a.name).join(", ") || "—"}</span></Row></Group>}
       </>}
       <div hidden={!!query.trim() || !isEngine(section)}>{engineVisited && <OpenCodeSettings section={engineSection} onDirtyChange={setEngineDirty}/>}</div>
       {error && <p role="alert" className="composer-error">{error}</p>}{notice && <p role="status" className="settings-notice">{notice}</p>}

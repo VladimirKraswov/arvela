@@ -57,6 +57,7 @@ export interface PiSettings {
 }
 
 export interface Prefs {
+  modelServices?: import("../models/services").ModelService[];
   appearance: Appearance;
   /** Local browser lifecycle and executable choice; engines retain their own permissions. */
   browser?: BrowserPreferences;
@@ -239,6 +240,7 @@ export function switchEndpointPrefs(
     // must survive switching to another OpenCode server.
     asr: prefs.asr,
     helperEndpoint: prefs.helperEndpoint,
+    modelServices: prefs.modelServices,
     pi: prefs.pi,
     browser: prefs.browser,
     piSessions: prefs.piSessions,

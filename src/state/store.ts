@@ -1,3 +1,4 @@
+import { modelServices, type ModelService } from "../models/services";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
 import { chatBlocker, liveModelProblem, modelProblem } from "../schedules/preflight";
 import { untilAborted } from "../util/abort";
@@ -2003,6 +2004,7 @@ class Store {
       return { ok: false, detail: "Модель для Pi не выбрана." };
     const id = `${choice.providerID}/${choice.modelID}`;
     try {
+      await modelServices.ensure(choice.providerID, choice.modelID, PI_BACKEND_ID);
       const detail = await this.pi().checkAccess(
         await piBridge().probeDirectory().catch(() => ""),
         choice,
@@ -2035,6 +2037,11 @@ class Store {
     variant?: string | null,
   ): void {
     const engine = this.engineIdFor();
+    if (!modelServices.allowed(providerID, modelID, engine)) {
+      this.patchUi({ sendError: "Эта модель недоступна выбранному агенту. Проверьте сервис моделей." });
+      return;
+    }
+    void modelServices.ensure(providerID, modelID, engine).catch(error => this.patchUi({ sendError: errText(error) }));
     const dir =
       engine === PI_BACKEND_ID
         ? (this.state.directory ?? "@chats")
@@ -2125,16 +2132,16 @@ class Store {
     if (this.editBranchBusy) throw new Error("Ветка уже создаётся.");
     if (!this.conversation().capabilities.fork)
       throw new Error("Этот агент не поддерживает ветвление разговора.");
-    const id = this.state.activeSessionId, directory = this.state.directory, backend = this.backend;
+    const id = this.state.activeSessionId, directory = this.state.directory, engine = this.engineIdFor(), backend = this.engine(engine);
     const generation = this.connectionGeneration, directoryGeneration = this.directoryGeneration;
     const message = id ? this.state.chat.sessions[id]?.messages[messageID] : undefined;
-    if (!id || !directory || !text.trim() || message?.role !== "user" || this.state.connection.phase !== "connected")
+    if (!id || !directory || !text.trim() || message?.role !== "user" || !this.engineReady(engine))
       throw new Error("Откройте исходное сообщение и проверьте подключение.");
     const parts = this.state.chat.sessions[id]?.partsByMessage[messageID] ?? [];
     if (parts.some(p => this.state.chat.sessions[id].parts[p]?.type === "file"))
       throw new Error("Сообщение содержит вложения. Отправьте уточнение новым сообщением, чтобы сохранить их.");
     const model = this.getModelChoice(), agent = this.getAgentChoice();
-    const current = () => backend === this.backend && generation === this.connectionGeneration &&
+    const current = () => backend === this.engine(engine) && generation === this.connectionGeneration &&
       directoryGeneration === this.directoryGeneration && this.state.activeSessionId === id;
     this.editBranchBusy = true;
     try {
@@ -2152,13 +2159,13 @@ class Store {
       const branch = await backend.updateSession(fork.id, {
         title: `${source.title} · правка`, permission: source.permission ?? [],
       }, directory);
-      if (backend !== this.backend || generation !== this.connectionGeneration)
-        throw new Error("Подключение изменилось. Ветка сохранена на исходном сервере; сообщение не отправлено.");
+      if (backend !== this.engine(engine) || generation !== this.connectionGeneration)
+        throw new Error("Подключение изменилось. Ветка сохранена у исходного агента; сообщение не отправлено.");
       this.rememberActivitySession(branch);
       this.updateSidebarSession(branch);
       this.mutate(s => ({ sessions: s.directory === directory ? [...s.sessions.filter(x => x.id !== branch.id), branch] : s.sessions, prefs: { ...s.prefs,
         drafts: { ...s.prefs.drafts, [branch.id]: text },
-        modelChoice: { ...s.prefs.modelChoice, ...(model ? { [`session:${branch.id}`]: model } : {}) },
+        modelChoice: { ...s.prefs.modelChoice, ...(model ? { [modelScope(engine, `session:${branch.id}`)]: model } : {}) },
         agentChoice: { ...s.prefs.agentChoice, ...(agent ? { [`session:${branch.id}`]: agent } : {}) },
       } }));
       this.persistPrefs();
@@ -2251,6 +2258,8 @@ class Store {
       sending = true;
       const seq = this.statusSequence;
       try {
+        await modelServices.ensure(task.model.providerID, task.model.modelID, task.engine);
+        if (!current()) return waiting("Подключение изменилось");
         await backend.prompt(task.sessionID, task.directory, {
           messageID: newMessageId(), model: { providerID: task.model.providerID, modelID: task.model.modelID },
           variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
@@ -2342,6 +2351,8 @@ class Store {
     this.patchUi({ sending: true, sendError: null });
     let sessionId = this.state.activeSessionId;
     try {
+      if (modelServices.manages(model.providerID, model.modelID)) await modelServices.ensure(model.providerID, model.modelID, engineId);
+      if (!sameContext() || this.state.activeSessionId !== selected) return false;
       if (attachments.length && scope !== initialScope) await attachmentDrafts.move(initialScope, scope);
       // Do not submit the first prompt before its directory's MCP is attached.
       if (isNative() && isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && browserEnabled(this.state.prefs)) {
@@ -2351,7 +2362,7 @@ class Store {
         if (!sameContext() || this.state.activeSessionId !== selected) return false;
       }
       const parts = attachments.length && modelInfo
-        ? await prepareAttachments(attachments, modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress)
+        ? await prepareAttachments(attachments, engineId === PI_BACKEND_ID ? { ...modelInfo, capabilities: { ...modelInfo.capabilities, input: { ...modelInfo.capabilities?.input, pdf: false, audio: false, video: false } } } : modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress)
         : [];
       if (!sameContext() || this.state.activeSessionId !== selected)
         throw new Error("Чат изменился во время подготовки вложений. Вложения остались в черновике.");
@@ -2534,6 +2545,11 @@ class Store {
       return;
     this.compactLocks.add(sessionId);
     try {
+      const engine = this.engineIdFor(sessionId, directory);
+      if (modelServices.manages(model.providerID, model.modelID))
+        await modelServices.ensure(model.providerID, model.modelID, engine);
+      if (directory !== this.state.directory || engine !== this.engineIdFor(sessionId, directory))
+        throw new Error("Рабочее пространство изменилось; сжатие отменено.");
       await this.conversation().summarize(
         sessionId,
         directory,
@@ -2607,6 +2623,11 @@ class Store {
 
   setAsr(settings: AsrSettings) {
     this.mutate((s) => ({ prefs: { ...s.prefs, asr: settings } }));
+    this.persistPrefs();
+  }
+  setModelServices(services: ModelService[]) {
+    modelServices.configure(services);
+    this.mutate(s => ({ prefs: { ...s.prefs, modelServices: services } }));
     this.persistPrefs();
   }
   setHelperEndpoint(endpoint: string) {
@@ -2783,6 +2804,8 @@ class Store {
     try {
       // OpenCode persists a new user message, then joins the existing run loop.
       // No abort: the correction is seen at the next model/tool boundary.
+      await modelServices.ensure(item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory));
+      if (backend !== this.backend || sid !== this.state.activeSessionId || this.state.directory !== item.directory) throw new Error("Чат изменился; запрос не отправлен.");
       await backend.prompt(sid, item.directory, {
         messageID: newMessageId(),
         model: {
@@ -3292,9 +3315,14 @@ class Store {
     if (patch.settingsOpen === false) this.markReadIfViewing();
   }
 
+  /** Shell/Git belong to the connected workspace, independently of the chat's agent. */
+  workspaceToolsAvailable(): boolean {
+    return this.state.connection.phase === "connected" && this.backend.capabilities.pty;
+  }
+
   async toggleTerminal(): Promise<void> {
     const next = !this.state.prefs.layout.bottomOpen;
-    if (next && !this.conversation().capabilities.pty) {
+    if (next && !this.workspaceToolsAvailable()) {
       this.patchUi({ toast: "Этот агент не предоставляет терминал." });
       return;
     }
@@ -3383,6 +3411,11 @@ export function errText(e: unknown): string {
 }
 
 export const store = new Store();
+try {
+  modelServices.configure(store.state.prefs.modelServices ?? []);
+} catch (error) {
+  store.state = { ...store.state, ui: { ...store.state.ui, toast: `Проверьте настройки сервисов моделей: ${errText(error)}` } };
+}
 // Both engines live in the registry, so `listBackendDescriptors()` is the honest
 // list of what this build can drive.
 registerBackendDescriptor(piDescriptor(() => store.pi()));

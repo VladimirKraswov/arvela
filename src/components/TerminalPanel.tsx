@@ -222,7 +222,7 @@ export function TerminalPanel() {
       }
       if (!pty) {
         pty = await client.ptyCreate(
-          { cwd: dir, title: "OpenCode Desktop" },
+          { cwd: dir, title: "AgentMesh Desktop" },
           dir,
         );
         if (gen !== genRef.current) {

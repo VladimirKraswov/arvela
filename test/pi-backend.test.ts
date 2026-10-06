@@ -113,7 +113,7 @@ it("declares only the surfaces Pi actually has", () => {
     permissions: false,
     questions: false,
     vcsDiff: false,
-    fork: false,
+    fork: true,
     compaction: true,
   });
 });
@@ -172,7 +172,7 @@ it("refuses attachments Pi cannot accept instead of silently dropping them", asy
         { type: "file", mime: "application/pdf", url: "data:application/pdf;base64,AA" },
       ],
     } as any),
-  ).rejects.toThrow(/только изображения/);
+  ).rejects.toThrow(/не подготовлен/);
 });
 
 it("forwards an image attachment in Pi's own format", async () => {
@@ -362,6 +362,7 @@ it("passes Pi's own model id form so a custom model is not matched against the c
     },
     request: async (_key, command) => {
       sent.push(command);
+      if ((command as any).type === "get_state") return { type: "response", success: true, data: { model: { provider: "deepseek", id: "deepseek-flash" }, isStreaming: false } };
       return { type: "response", success: true };
     },
   });
@@ -373,7 +374,7 @@ it("passes Pi's own model id form so a custom model is not matched against the c
   } as any);
   // A bare id would be looked up in Pi's bundled catalog and rejected.
   expect(opens[0].model).toBe("deepseek/deepseek-flash");
-  expect(sent[0].type).toBe("prompt");
+  expect(sent.find(command => command.type === "prompt")?.message).toBe("hi");
 });
 
 it("carries the tool-approval policy into every real session", async () => {
@@ -393,4 +394,97 @@ it("carries the tool-approval policy into every real session", async () => {
   const session = await pi.createSession({ directory: "/work", title: "t" });
   await pi.prompt(session.id, "/work", { parts: [{ type: "text", text: "x" }] } as any);
   expect(opens[0].toolPolicy).toBe("ask");
+});
+
+it("switches a live Pi model explicitly and refuses an unconfirmed or busy change", async () => {
+  let actual = { provider: "local", id: "old" }, busy = false, confirm = true;
+  const sent: any[] = [];
+  respond = (command) => {
+    sent.push(command);
+    if (command.type === "get_state") return { type: "response", success: true, data: { model: actual, isStreaming: busy } };
+    if (command.type === "set_model" && confirm) actual = { provider: command.provider, id: command.modelId };
+    return { type: "response", success: true, data: {} };
+  };
+  const pi = new PiBackend(host()), chat = await pi.createSession({ directory: "/work", title: "t" });
+  const request = (id: string) => pi.prompt(chat.id, "/work", { model: { providerID: "local", modelID: id }, parts: [{ type: "text", text: "run" }] } as any);
+  await request("new");
+  expect(sent.find(command => command.type === "set_model")).toMatchObject({ provider: "local", modelId: "new" });
+  expect(sent.filter(command => command.type === "prompt")).toHaveLength(1);
+  busy = true;
+  await expect(request("other")).rejects.toThrow("остановите");
+  busy = false; await pi.abort(chat.id); confirm = false;
+  await expect(request("other")).rejects.toThrow("не подтвердил");
+  expect(sent.filter(command => command.type === "prompt")).toHaveLength(1);
+});
+
+it("sends prepared UTF-8 text alongside images without inventing an image from the text", async () => {
+  const sent: any[] = [];
+  respond = command => { sent.push(command); return { type: "response", success: true }; };
+  const pi = new PiBackend(host()), chat = await pi.createSession({ directory: "/work", title: "t" });
+  const contents = "Русский текст\\nconst value = 42;";
+  const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(contents)));
+  await pi.prompt(chat.id, "/work", { parts: [{ type: "text", text: "read" }, { type: "file", filename: "данные.txt", mime: "text/plain", url: `data:text/plain;base64,${encoded}` }, { type: "file", mime: "image/png", url: "data:image/png;base64,AAAA" }] } as any);
+  const prompt = sent.find(command => command.type === "prompt");
+  expect(prompt.message).toContain(contents);
+  expect(prompt.message).toContain("данные.txt");
+  expect(prompt.images).toEqual([{ type: "image", mimeType: "image/png", data: "AAAA" }]);
+});
+
+it("forks a durable user entry through Pi and keeps the original metadata and transcript identity", async () => {
+  let forked = false;
+  const sent: any[] = [];
+  respond = command => {
+    sent.push(command);
+    const data = command.type === "get_state" ? { sessionId: forked ? "new-pi-id" : "original-id", isStreaming: false }
+      : command.type === "get_entries" ? { entries: [{ type: "message", id: "user-entry", message: { role: "user", content: "old prompt" } }] }
+      : command.type === "fork" ? (forked = true, { cancelled: false }) : {};
+    return { type: "response", success: true, data };
+  };
+  const pi = new PiBackend(host()), original = await pi.createSession({ directory: "/work", title: "source" });
+  const branch = await pi.forkSession(original.id, "/work", "user-entry");
+  expect(branch.id).toBe("new-pi-id");
+  expect(meta[original.id].title).toBe("source");
+  expect(meta[branch.id].directory).toBe("/work");
+  expect(closed).toEqual([`/work\u0000${original.id}`]);
+  expect(sent.some(command => command.type === "prompt")).toBe(false);
+});
+
+it("does not register a fork cancelled by an extension", async () => {
+  respond = command => ({ type: "response", success: true, data: command.type === "get_entries" ? { entries: [{ type: "message", id: "u", message: { role: "user", content: "x" } }] } : command.type === "fork" ? { cancelled: true } : { isStreaming: false } });
+  const pi = new PiBackend(host()), original = await pi.createSession({ directory: "/work", title: "source" });
+  await expect(pi.forkSession(original.id, "/work", "u")).rejects.toThrow("отменило");
+  expect(Object.keys(meta)).toEqual([original.id]);
+  expect(closed).toEqual([]);
+});
+
+it("confirms the chosen model before compacting an unopened or existing Pi session", async () => {
+  let actual = { provider: "local", id: "old" }, streaming = false;
+  const sent: any[] = [];
+  respond = command => {
+    sent.push(command);
+    if (command.type === "set_model") actual = { provider: command.provider, id: command.modelId };
+    return { type: "response", success: true, data: command.type === "get_state" ? { model: actual, isStreaming: streaming } : {} };
+  };
+  const pi = new PiBackend(host()), chat = await pi.createSession({ directory: "/work", title: "compact" });
+  await pi.summarize(chat.id, "/work", "local", "new");
+  expect(actual.id).toBe("new");
+  expect(sent.findIndex(c => c.type === "set_model")).toBeLessThan(sent.findIndex(c => c.type === "compact"));
+  streaming = true;
+  await expect(pi.summarize(chat.id, "/work", "local", "new")).rejects.toThrow("остановите");
+  expect(sent.filter(c => c.type === "compact")).toHaveLength(1);
+});
+
+it("does not report intentional close or late closed-session events as an agent failure", async () => {
+  const pi = new PiBackend(host());
+  const chat = await pi.createSession({ directory: "/work", title: "close" });
+  await pi.prompt(chat.id, "/work", { parts: [{ type: "text", text: "fixture" }] } as any);
+  const events: ServerEvent[] = [], ctrl = new AbortController();
+  pi.subscribeDirectory("/work", { signal: ctrl.signal, onEvent: e => events.push(e), onState: () => {} });
+  await pi.closeSession(chat.id);
+  emit({ type: "pi_exited" }, chat.id);
+  emit({ type: "agent_start" }, chat.id);
+  expect(notices).toEqual([]);
+  expect(events).toEqual([]);
+  expect(meta[chat.id]).toBeDefined();
+  ctrl.abort();
 });

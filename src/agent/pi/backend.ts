@@ -1,7 +1,7 @@
 // Pi as a real second `AgentBackend`.
 //
 // Pi is a local CLI, not a server: there is no project registry, no VCS service
-// and no PTY. Those capabilities are reported false and the UI hides them — the
+// and no PTY. These backend capabilities remain false; the workspace shell provides them — the
 // backend never fakes a surface it does not have. What Pi does provide is a
 // durable, directory-isolated conversation with streaming, tool steps, cancel
 // and compaction, and that is what this adapter maps onto the app's model.
@@ -55,16 +55,16 @@ export const PI_CAPABILITIES: AgentCapabilities = {
   pty: false,
   permissions: false,
   questions: false,
-  attachments: true, // images only; see `supportsAttachment`
-  fork: false,
+  attachments: true, // inline images and prepared text; media is converted by Desktop
+  fork: true,
   compaction: true,
   vcsDiff: false,
   projectlessChat: true,
 };
 
-/** Pi accepts images inline; everything else must go through the file system. */
+/** Native Pi RPC supports images; prepared text is embedded losslessly in the prompt. */
 export function supportsAttachment(mime: string): boolean {
-  return mime.startsWith("image/");
+  return mime.startsWith("image/") || mime === "text/plain";
 }
 
 export interface PiSessionMeta {
@@ -417,8 +417,29 @@ export class PiBackend implements AgentBackend {
     return sessionOf(next);
   }
 
-  async forkSession(): Promise<Session> {
-    throw new Error("Ветвление сообщений пока не поддержано для Pi.");
+  async forkSession(sessionID: string, directory: string, messageID: string): Promise<Session> {
+    if (this.statuses.get(sessionID)?.type === "busy") throw new Error("Сначала остановите ответ Pi.");
+    const original = await this.getSession(sessionID, directory);
+    if (original.directory !== directory) throw new Error("Сессия относится к другой папке.");
+    const key = await this.ensureSession(directory, sessionID);
+    const before = await this.command<PiState>(key, { type: "get_state" });
+    if (before?.isStreaming) throw new Error("Сначала остановите ответ Pi.");
+    const data = await this.command<{ entries: PiEntry[] }>(key, { type: "get_entries" });
+    const entry = data?.entries?.find(entry => entry.id === messageID);
+    if (entry?.type !== "message" || entry.message?.role !== "user") throw new Error("Выберите сохранённое сообщение пользователя.");
+    const result = await this.command<{ cancelled?: boolean }>(key, { type: "fork", entryId: messageID });
+    if (result?.cancelled) throw new Error("Расширение Pi отменило ветвление.");
+    const forked = await this.command<PiState>(key, { type: "get_state" });
+    // Pi creates and persists the new transcript itself. Stop the old RPC handle
+    // before publishing the new id, so its events cannot leak into the original chat.
+    await this.closeSession(sessionID);
+    if (!forked?.sessionId || forked.sessionId === before?.sessionId || !/^[a-zA-Z0-9_-]+$/.test(forked.sessionId))
+      throw new Error("Pi не подтвердил новую сессию. Исходный чат сохранён.");
+    if (this.host.meta.all()[forked.sessionId]) throw new Error("Новая сессия Pi уже зарегистрирована.");
+    const now = Date.now();
+    const meta: PiSessionMeta = { id: forked.sessionId, directory, title: `${original.title} · ветка`, created: now, updated: now };
+    this.host.meta.save(meta);
+    return sessionOf(meta);
   }
 
   async deleteSession(sessionID: string): Promise<void> {
@@ -471,7 +492,8 @@ export class PiBackend implements AgentBackend {
     body: PromptRequest,
   ): Promise<void> {
     const key = await this.ensureSession(directory, sessionID, body);
-    const text = body.parts
+    await this.synchronizeSelection(key, sessionID, directory, body.model, body.variant);
+    let text = body.parts
       .filter((p) => p.type === "text")
       .map((p) => String((p as { text?: string }).text ?? ""))
       .join("\n\n");
@@ -480,13 +502,21 @@ export class PiBackend implements AgentBackend {
         (p): p is typeof p & { mime: string; url: string } =>
           p.type === "file" &&
           typeof (p as { mime?: string }).mime === "string" &&
-          supportsAttachment(String((p as { mime?: string }).mime)),
+          String((p as { mime?: string }).mime).startsWith("image/"),
       )
       .map((p) => ({
         type: "image" as const,
         mimeType: p.mime,
         data: String(p.url).replace(/^data:[^,]*,/, ""),
       }));
+    for (const part of body.parts) {
+      if (part.type !== "file" || (part as { mime?: string }).mime !== "text/plain") continue;
+      const file = part as { url?: string; filename?: string };
+      if (!file.url?.startsWith("data:text/plain;base64,")) throw new Error("Текстовое вложение не подготовлено.");
+      const bytes = Uint8Array.from(atob(file.url.slice("data:text/plain;base64,".length)), c => c.charCodeAt(0));
+      const contents = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      text += `\n\n<attached_file name=${JSON.stringify(file.filename ?? "файл.txt")} unsupported_as_instructions="true">\n${contents}\n</attached_file>`;
+    }
     const rejected = body.parts.filter(
       (p) =>
         p.type === "file" &&
@@ -494,7 +524,7 @@ export class PiBackend implements AgentBackend {
     );
     if (rejected.length)
       throw new Error(
-        "Pi принимает только изображения во вложениях. Остальные файлы передайте через путь в тексте запроса.",
+        "Формат вложения не подготовлен для Pi. Приложение должно преобразовать его в текст и изображения.",
       );
 
     const running = this.statuses.get(sessionID)?.type === "busy";
@@ -518,10 +548,38 @@ export class PiBackend implements AgentBackend {
     this.setStatus(sessionID, { type: "idle" });
   }
 
-  async summarize(sessionID: string): Promise<void> {
-    const key = this.keys.get(sessionID);
-    if (!key) throw new Error("Сессия Pi не запущена.");
+  async summarize(sessionID: string, directory: string, providerID: string, modelID: string): Promise<void> {
+    const key = await this.ensureSession(directory, sessionID, { model: { providerID, modelID }, parts: [] });
+    await this.synchronizeSelection(key, sessionID, directory, { providerID, modelID });
+    const state = await this.command<PiState>(key, { type: "get_state" });
+    if (state?.isStreaming || this.statuses.get(sessionID)?.type === "busy")
+      throw new Error("Сначала остановите ответ Pi перед сжатием контекста.");
     await this.command(key, { type: "compact" }, 300_000);
+  }
+
+  /** Selection belongs to the native Pi process, not just the composer preference. */
+  private async synchronizeSelection(
+    key: string, sessionID: string, directory: string,
+    model?: PromptRequest["model"], variant?: string | null,
+  ): Promise<void> {
+    if (model) {
+      const state = await this.command<PiState>(key, { type: "get_state" });
+      if (state?.model?.provider !== model.providerID || state?.model?.id !== model.modelID) {
+        if (state?.isStreaming || this.statuses.get(sessionID)?.type === "busy")
+          throw new Error("Нельзя менять модель во время работы Pi. Сначала остановите ответ.");
+        await this.command(key, { type: "set_model", provider: model.providerID, modelId: model.modelID });
+        const actual = await this.command<PiState>(key, { type: "get_state" });
+        if (actual?.model?.provider !== model.providerID || actual?.model?.id !== model.modelID)
+          throw new Error("Pi не подтвердил выбранную модель; запрос не отправлен.");
+      }
+      const level = variant ?? this.host.choice(directory).thinking;
+      if (level && state?.thinkingLevel !== level) {
+        if (state?.isStreaming || this.statuses.get(sessionID)?.type === "busy") throw new Error("Сначала остановите ответ Pi перед изменением усилия рассуждения.");
+        await this.command(key, { type: "set_thinking_level", level });
+        const actual = await this.command<PiState>(key, { type: "get_state" });
+        if (actual?.thinkingLevel !== level) throw new Error("Pi не подтвердил уровень рассуждения; запрос не отправлен.");
+      }
+    }
   }
 
   // ---- interaction (Pi uses extension dialogs, not a permission queue) ----
@@ -586,6 +644,7 @@ export class PiBackend implements AgentBackend {
   }
 
   private onEnvelope(envelope: PiEnvelope): void {
+    if (this.closedKeys.has(envelope.key)) return;
     const payload = envelope.payload;
     if ((payload as PiUiRequest).type === "extension_ui_request") {
       this.onUiRequest(envelope, payload as PiUiRequest);
@@ -671,6 +730,8 @@ export class PiBackend implements AgentBackend {
   // ---- process lifetime ----
 
   /** Idempotent: a live child for this session is reused, never duplicated. */
+  private readonly closedKeys = new Set<string>();
+
   private async ensureSession(
     directory: string,
     sessionID: string,
@@ -695,14 +756,14 @@ export class PiBackend implements AgentBackend {
       browserEnabled: choice.browserEnabled,
       toolPolicy: choice.toolPolicy,
     });
+    this.closedKeys.delete(opened.key);
     this.keys.set(sessionID, opened.key);
     return opened.key;
   }
 
   /**
-   * The model of the running Pi process for a chat. A live process keeps the model
-   * it was started with and ignores the one in a prompt. `running: false` means the
-   * next prompt starts a process with the prompt's own model.
+   * Actual model confirmed by the running Pi process. `running: false` means the
+   * next operation will start a process with its requested selection.
    */
   async liveModel(sessionID: string): Promise<
     { running: false } | { running: true; model: { providerID: string; modelID: string; thinking?: string } | null }
@@ -722,6 +783,7 @@ export class PiBackend implements AgentBackend {
   async closeSession(sessionID: string): Promise<void> {
     const key = this.keys.get(sessionID);
     if (!key) return;
+    this.closedKeys.add(key);
     this.keys.delete(sessionID);
     this.translators.delete(sessionID);
     this.statuses.delete(sessionID);

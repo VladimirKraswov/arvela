@@ -131,7 +131,7 @@ it("describes Pi's real surface, not OpenCode's", () => {
     pty: false,
     permissions: false,
     vcsDiff: false,
-    fork: false,
+    fork: true,
     compaction: true,
     attachments: true,
   });

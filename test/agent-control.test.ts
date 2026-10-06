@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { store } from "../src/state/store";
 import { agentControlConfig } from "../src/state/agentControl";
 import { agentControlForTest } from "../src/control/bridge";
 import type { ManagedRun } from "../src/control/managedRuns";
@@ -68,6 +69,15 @@ describe("agent control MCP", () => {
     await expect(
       agentControlForTest.execute("configure", { provider_id: "local-only" }),
     ).rejects.toThrow(/supplied together/);
+  });
+
+  it("rejects an explicit model that resolves to another model instead of allowing a send", async () => {
+    const choose = vi.spyOn(store, "setModelChoice").mockImplementation(() => {});
+    const current = vi.spyOn(store, "getModelChoice").mockReturnValue({ providerID: "local", modelID: "other", variant: null });
+    try {
+      await expect(agentControlForTest.execute("configure", { provider_id: "local", model_id: "unverified" }))
+        .rejects.toThrow("No prompt was sent");
+    } finally { choose.mockRestore(); current.mockRestore(); }
   });
 
   it("reports an already idle session immediately instead of timing out", async () => {

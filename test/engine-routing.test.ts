@@ -18,6 +18,7 @@ vi.mock("../src/api/events", () => ({
 let store: any;
 let piPrompts: any[] = [];
 let piOpened: string[] = [];
+let livePiModel = { provider: "deepseek", id: "deepseek-v4-flash" };
 
 const piBridge: PiBridge = {
   detect: async () => ({
@@ -38,6 +39,8 @@ const piBridge: PiBridge = {
     };
   },
   request: async (_key, command: any) => {
+    if (command.type === "get_state") return { type: "response", success: true, data: { model: livePiModel, isStreaming: false } };
+    if (command.type === "set_model") livePiModel = { provider: command.provider, id: command.modelId };
     if (command.type === "prompt") piPrompts.push(command);
     if (command.type === "get_available_models")
       return { type: "response", success: true, data: { models: [
@@ -76,6 +79,7 @@ beforeEach(async () => {
   captured.stream = null;
   piPrompts = [];
   piOpened = [];
+  livePiModel = { provider: "deepseek", id: "deepseek-v4-flash" };
   // `vi.resetModules()` gives the store a fresh copy of the native bridge
   // module, so the fake has to be installed on *that* copy.
   const native = await import("../src/agent/pi/native");

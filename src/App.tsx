@@ -101,10 +101,7 @@ export default function App() {
   }, []);
 
   const layout = s.prefs.layout;
-  // The review panel and the terminal are OpenCode-specific surfaces: they reach
-  // the transport directly through `store.client`. Mount them only when the
-  // active agent backend actually provides them, so the escape hatch can never
-  // be hit during render.
+  // Workspace tools are shared by chats; their server is independent of the agent.
   const capabilities = store.backend.capabilities;
 
   return (
@@ -151,7 +148,7 @@ export default function App() {
               )}
             </div>
             {s.ui.browserOpen && <BrowserPanel />}
-            {!s.ui.browserOpen && layout.rightOpen && capabilities.vcsDiff && (
+            {!s.ui.browserOpen && layout.rightOpen && store.workspaceToolsAvailable() && (
               <>
                 <div
                   className="resizer-v"
@@ -176,7 +173,7 @@ export default function App() {
               </>
             )}
           </div>
-          {layout.bottomOpen && capabilities.pty && (
+          {layout.bottomOpen && store.workspaceToolsAvailable() && (
             <>
               <div
                 className="resizer-h"

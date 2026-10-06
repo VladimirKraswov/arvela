@@ -54,6 +54,13 @@ it("keeps local engine paths when switching to and from a remote workspace", () 
   expect(back.localOpenCodeProgram).toBe(current.localOpenCodeProgram);
   expect(back.pi).toEqual(current.pi);
 });
+it("keeps model service bindings global across OpenCode workspace switches", () => {
+  const modelServices = [{ id: "gpu", providerID: "local", endpoint: "http://127.0.0.1:18008", bindings: { qwen: "qwen-v100" } }];
+  const current = { ...DEFAULT_PREFS, modelServices, endpointState: { remote: { modelServices: [] } } };
+  const remote = switchEndpointPrefs(current, "http://127.0.0.1:5000", "remote");
+  expect(remote.modelServices).toEqual(modelServices);
+  expect(switchEndpointPrefs(remote, DEFAULT_PREFS.endpoint).modelServices).toEqual(modelServices);
+});
 it("keeps arbitrary accent labels and filled buttons legible in both themes", () => {
   for (const color of ["#ffffff", "#000000", "#5599ee", "#e3b341", "#9b83ee", "#4caa86", "#e78060"]) for (const dark of [true, false]) {
     const a = accentColors(color, dark); expect(contrast(a.ink, dark ? "#202020" : "#ffffff")).toBeGreaterThanOrEqual(4.5); expect(contrast(a.fill, a.on)).toBeGreaterThanOrEqual(4.5);

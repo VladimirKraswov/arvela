@@ -141,7 +141,7 @@ export function Sidebar() {
     >
       <div className="sidebar-brand" data-tauri-drag-region="deep">
         <Icon name="code" size={21} />
-        <strong>OpenCode</strong>
+        <strong>AgentMesh</strong>
         <span className="spacer" />
         <button
           className="icon-btn"
@@ -236,7 +236,7 @@ export function Sidebar() {
             <Icon name="code" size={17} />
           </span>
           <span>
-            <b>OpenCode Desktop</b>
+            <b>AgentMesh Desktop</b>
             <small>
               <i
                 className={`conn-dot ${s.connection.phase === "connected" ? "ok" : "bad"}`}

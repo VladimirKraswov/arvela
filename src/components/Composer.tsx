@@ -1,3 +1,4 @@
+import { modelServices, switchPhaseLabels } from "../models/services";
 import { HostPicker } from "./WorkspacePicker";
 import { ContextMeter } from "./ContextMeter";
 import { VoiceInput } from "./VoiceInput";
@@ -34,6 +35,8 @@ function AttachmentChip({ file, onRemove, disabled }: { file: DraftAttachment; o
 
 export function Composer() {
   const s = useAppState();
+  const switches = useSyncExternalStore(modelServices.subscribe, modelServices.snapshot);
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [attachmentError, setAttachmentError] = useState("");
@@ -44,6 +47,9 @@ export function Composer() {
   const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
   const choice = store.getModelChoice();
+  const switchState = choice ? modelServices.statusFor(choice.providerID, choice.modelID) : undefined;
+  const switchError = choice ? modelServices.errorFor(choice.providerID, choice.modelID) : undefined;
+  const switching = !!switchState && !switchState.ready && switchState.phase !== "failed" && switchState.phase !== "unloaded";
   const providers = store.connectedProvidersWithModels();
   const session = store.activeSession() ?? null;
   const status = session
@@ -122,7 +128,7 @@ export function Composer() {
     if (isPi) {
       // Pi keeps its own catalog; OpenCode providers must not leak into it.
       // Only models which answered a real request are selectable here.
-      for (const m of store.piModelOptions())
+      for (const m of store.piModelOptions().filter(m => modelServices.allowed(m.providerID, m.modelID, engineId)))
         out.push({
           providerID: m.providerID,
           modelID: m.modelID,
@@ -133,7 +139,7 @@ export function Composer() {
     }
     for (const p of providers) {
       for (const m of Object.values(p.models)) {
-        if (m.status === "deprecated") continue;
+        if (m.status === "deprecated" || !modelServices.allowed(p.id, m.id, engineId)) continue;
         out.push({
           providerID: p.id,
           modelID: m.id,
@@ -142,7 +148,7 @@ export function Composer() {
       }
     }
     return out;
-  }, [providers, isPi, s.piHealth, s.prefs.pi?.verifiedModels, s.prefs.pi?.verifiedModel]);
+  }, [providers, isPi, s.piHealth, s.prefs.pi?.verifiedModels, s.prefs.pi?.verifiedModel, switches.revision]);
 
   const variantOptions = useMemo(() => {
     if (!choice || isPi) return [];
@@ -161,7 +167,7 @@ export function Composer() {
   const send = () => {
     const text = store.getDraft();
     // s.ui.sending also blocks a second Enter while the first request awaits acknowledgement.
-    if ((!text.trim() && !attachments.length) || s.ui.sending || !connected) return;
+    if ((!text.trim() && !attachments.length) || s.ui.sending || switching || !connected) return;
     if (running) {
       if (attachments.length) { setAttachmentError("Вложения можно отправить после завершения текущего ответа. Они сохранены в черновике."); return; }
       store.enqueuePrompt(text);
@@ -200,6 +206,12 @@ export function Composer() {
         </div>
       )}
       {attachmentError && <div className="composer-error" role="alert">{attachmentError}</div>}
+      {(switchState ? [switchState] : []).map(state => <div key={state.operation_id} className="workspace-progress" role="status" aria-live="polite">
+        <span>{switchPhaseLabels[state.phase] ?? "Подготовка модели"} · {state.target_model ?? state.active_model} · {Math.floor(state.elapsed_seconds)} с</span>
+        {state.loader?.unit === "bytes" && state.loader.total > 0 && <progress aria-label="Загрузка весов" value={state.loader.current} max={state.loader.total}/>}
+        {state.error && <span role="alert">{state.error}</span>}
+      </div>)}
+      {switchError && <div className="composer-error" role="alert">{switchError}</div>}
       {attachmentProgress && <div className="workspace-progress" role="status">{attachmentProgress}</div>}
       {store.getQueue().length > 0 && (
         <div className="prompt-queue" aria-label="Очередь запросов">
@@ -223,7 +235,7 @@ export function Composer() {
                 {item.state === "ready" ? (
                   <>
                     <button
-                      disabled={!connected || s.ui.sending}
+                      disabled={!connected || switching || s.ui.sending}
                       title="Передать уточнение на следующий шаг агента без остановки инструмента"
                       onClick={() => void store.steerQueued(item.id)}
                     >
@@ -330,9 +342,9 @@ export function Composer() {
           </div>
           <div className="composer-controls-right">
           <SelectMenu
-            label="Движок"
+            label="Агент"
             className="composer-engine-picker"
-            disabled={!connected || running}
+            disabled={!connected || running || switching || s.ui.sending}
             value={engineId}
             options={engines.map((e) => ({
               value: e.id,
@@ -345,7 +357,7 @@ export function Composer() {
           <SelectMenu
             label="Модель"
             className="composer-model-picker"
-            disabled={!connected || (isPi && modelList.length === 0)}
+            disabled={!connected || running || s.ui.sending || switching || (isPi && modelList.length === 0)}
             value={isPi && modelList.length === 0
               ? "Проверьте модель в настройках Pi"
               : choice ? `${choice.providerID}/${choice.modelID}` : ""}
@@ -388,7 +400,7 @@ export function Composer() {
             />
           )}
           {!isPi && <SelectMenu
-            label="Агент"
+            label="Профиль OpenCode"
             className="composer-agent-picker"
             value={store.getAgentChoice() ?? ""}
             options={store
@@ -416,6 +428,7 @@ export function Composer() {
               !connected ||
               (!draft.trim() && !attachments.length) ||
               s.ui.sending ||
+              switching ||
               s.ui.workspacePreparing ||
               s.ui.runtimeLoading
             }

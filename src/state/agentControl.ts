@@ -18,7 +18,7 @@ export function agentControlConfig(
   enabled: boolean,
 ) {
   if (!isAbsoluteLocalPath(status.command) || !isAbsoluteLocalPath(status.descriptorPath))
-    throw new Error("OpenCode Desktop returned non-absolute control paths.");
+    throw new Error("AgentMesh Desktop returned non-absolute control paths.");
   const value = parseConfig(source);
   const existing = (value.mcp as Record<string, unknown> | undefined)?.[
     AGENT_CONTROL_MCP

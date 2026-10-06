@@ -1,5 +1,7 @@
-# OpenCode Desktop
+# AgentMesh Desktop
 
+
+Общий интерфейс для OpenCode и Pi с отдельным выбором агента и модели в каждом чате. OpenCode остаётся агентом по умолчанию; история и настройки каждого движка сохраняются отдельно. [Возможности агентов и переключение моделей](docs/MODEL-SERVICES.md).
 
 ### Цельный ход работы
 
@@ -17,7 +19,7 @@
 
 Нативная оболочка на **Tauri 2 + React + TypeScript** с двумя отдельно установленными движками: OpenCode и Pi. Каждый движок хранит собственную историю, инструменты, модели и разрешения и обновляется независимо от приложения.
 
-На macOS приложение устанавливается в `/Applications/OpenCode Desktop.app` (плюс ярлыки в `~/Applications` и на рабочем столе); на Linux `.deb` ставит `/usr/bin/opencode-desktop` и пункт меню «OpenCode Desktop»; на Windows NSIS устанавливает приложение для текущего пользователя в `%LOCALAPPDATA%\OpenCode Desktop`. Для чатов OpenCode нужен его сервер (по умолчанию `http://127.0.0.1:4096`). Если установленный отдельно OpenCode ещё не запущен, Desktop запускает локальный `opencode serve` и подключается после проверки `/global/health`. Уже работающий сервер не перезапускается; при закрытии приложения он продолжает работать. Удалённые SSH-серверы Desktop не запускает. Локальные чаты Pi работают без OpenCode.
+На macOS приложение устанавливается в `/Applications/AgentMesh Desktop.app` (плюс ярлыки в `~/Applications` и на рабочем столе); на Linux `.deb` ставит `/usr/bin/opencode-desktop` и пункт меню «AgentMesh Desktop»; на Windows NSIS устанавливает приложение для текущего пользователя в `%LOCALAPPDATA%\AgentMesh Desktop`. Для чатов OpenCode нужен его сервер (по умолчанию `http://127.0.0.1:4096`). Если установленный отдельно OpenCode ещё не запущен, Desktop запускает локальный `opencode serve` и подключается после проверки `/global/health`. Уже работающий сервер не перезапускается; при закрытии приложения он продолжает работать. Удалённые SSH-серверы Desktop не запускает. Локальные чаты Pi работают без OpenCode. Переименование сохраняет идентификатор и хранилище; обновление установленной версии на Windows/Linux требует отдельной проверки.
 
 ## Работа
 
@@ -67,14 +69,14 @@ macOS — `.app` + `.dmg` (Apple Silicon), ad-hoc подпись и Hardened Run
 
 ```sh
 npm run build:macos
-python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode Desktop.app"
+python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/AgentMesh Desktop.app"
 ```
 
 Windows — NSIS `.exe` для текущего пользователя (0.2.16 собран и установлен на Windows 11 x64 по переданным отчёту и логам):
 
 ```powershell
 npm run build:windows
-# src-tauri\target\release\bundle\nsis\OpenCode Desktop_<version>_x64-setup.exe
+# src-tauri\target\release\bundle\nsis\AgentMesh Desktop_<version>_x64-setup.exe
 ```
 
 Локальный Windows-установщик не подписан сертификатом издателя. Agent Control

@@ -145,7 +145,7 @@ async function selectDirectory(directory: string): Promise<void> {
   if (known) await store.setDirectory(directory);
   else await store.addProjectDirectory(directory);
   if (store.state.directory !== directory)
-    throw new Error(`OpenCode Desktop did not select ${directory}`);
+    throw new Error(`AgentMesh Desktop did not select ${directory}`);
 }
 
 async function selectSession(directory: string, sessionId?: string): Promise<void> {
@@ -169,6 +169,9 @@ function configure(params: Params): void {
     if (variant !== undefined && variant !== null && typeof variant !== "string")
       throw new Error("variant must be a string or null");
     store.setModelChoice(providerID, modelID, (variant as string | null | undefined) ?? null);
+    const selected = store.getModelChoice();
+    if (selected?.providerID !== providerID || selected.modelID !== modelID)
+      throw new Error("Requested model is not selectable; verify model access and service policy in settings. No prompt was sent.");
   }
   const agent = text(params, "agent", false);
   if (agent) store.setAgentOverride(store.state.directory ?? "*", agent);

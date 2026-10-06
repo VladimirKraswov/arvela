@@ -4,7 +4,7 @@ import { platform, type DesktopPlatform } from "../native/platform";
 function permissionHint(p: DesktopPlatform): string {
   switch (p) {
     case "macos":
-      return "macOS не разрешила доступ к микрофону. Откройте «Системные настройки → Конфиденциальность и безопасность → Микрофон» и включите OpenCode Desktop.";
+      return "macOS не разрешила доступ к микрофону. Откройте «Системные настройки → Конфиденциальность и безопасность → Микрофон» и включите AgentMesh Desktop.";
     case "windows":
       return "Windows не разрешила доступ к микрофону. Откройте «Параметры → Конфиденциальность и защита → Микрофон» и включите доступ для приложений.";
     case "linux":
@@ -32,7 +32,7 @@ export function micUnavailableMessage(
 ): string {
   const where =
     host === "macos"
-      ? "Проверьте разрешение микрофона для OpenCode Desktop в системных настройках."
+      ? "Проверьте разрешение микрофона для AgentMesh Desktop в системных настройках."
       : host === "windows"
         ? "Проверьте доступ к микрофону для приложений в параметрах Windows."
         : "Проверьте, что установлен и запущен xdg-desktop-portal и микрофон доступен системе.";
@@ -52,7 +52,7 @@ export function captureErrorMessage(
     case "NotAllowedError":
     case "PermissionDeniedError":
     case "SecurityError":
-      return `${permissionHint(host)} Если доступ уже включён, перезапустите приложение; если ошибка повторится — установите последнюю версию OpenCode Desktop.`;
+      return `${permissionHint(host)} Если доступ уже включён, перезапустите приложение; если ошибка повторится — установите последнюю версию AgentMesh Desktop.`;
     case "NotFoundError":
     case "DevicesNotFoundError":
       return `Микрофон не найден. Подключите его или выберите устройство ввода в ${soundSettingsHint(host)}.`;

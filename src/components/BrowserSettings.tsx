@@ -55,7 +55,7 @@ export function BrowserSettings() {
     finally { setBusy(false); }
   };
   return <>
-    <p className="settings-intro">Chromium внутри панели OpenCode Desktop. Агент читает структуру страниц через Playwright MCP; панель показывает живую страницу и его курсор. Логины сохраняются в отдельном профиле.</p>
+    <p className="settings-intro">Chromium внутри панели AgentMesh Desktop. Агент читает структуру страниц через Playwright MCP; панель показывает живую страницу и его курсор. Логины сохраняются в отдельном профиле.</p>
     {!native && <p role="status">Откройте установленное приложение, чтобы настроить браузер.</p>}
     {!local && <p role="status">Инструменты браузера подключаются к локальному OpenCode и Pi. Для настройки выберите «Этот компьютер».</p>}
     <section className="setting-group" aria-label="Настройка браузера"><h2>Подключение</h2><div className="setting-card">

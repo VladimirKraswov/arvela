@@ -5,6 +5,7 @@ mod config;
 pub mod control;
 mod hosts;
 mod local_server;
+mod model_credentials;
 mod paths;
 pub mod pi;
 mod process;
@@ -27,6 +28,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
+            model_credentials::model_service_key,
             browser::browser_status,
             browser::browser_install,
             browser::browser_start,

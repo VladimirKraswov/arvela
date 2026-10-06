@@ -1,0 +1,266 @@
+{
+  "date": "2026-10-06/07",
+  "pi_version": "0.85.1",
+  "native_rpc": true,
+  "concurrency": 1,
+  "initial_phase": [
+    {
+      "model": "qwen-v100",
+      "effort": "medium",
+      "task": "intervals",
+      "seconds": 26.180178624999996,
+      "toolCalls": 6,
+      "usage": {
+        "input": 3845,
+        "output": 1651,
+        "cacheRead": 15943,
+        "cacheWrite": 0
+      },
+      "passed": false,
+      "agentTestsPassed": true,
+      "oracleError": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\nAssertionError\n"
+    },
+    {
+      "model": "qwen-v100",
+      "effort": "medium",
+      "task": "ledger",
+      "seconds": 21.05988129199999,
+      "toolCalls": 5,
+      "usage": {
+        "input": 2184,
+        "output": 1656,
+        "cacheRead": 8986,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100",
+      "effort": "medium",
+      "task": "schedule",
+      "seconds": 40.91885712500001,
+      "toolCalls": 5,
+      "usage": {
+        "input": 2438,
+        "output": 3045,
+        "cacheRead": 14702,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100",
+      "effort": "xhigh",
+      "task": "intervals",
+      "seconds": 39.33684087499999,
+      "toolCalls": 7,
+      "usage": {
+        "input": 3107,
+        "output": 2703,
+        "cacheRead": 24699,
+        "cacheWrite": 0
+      },
+      "passed": false,
+      "agentTestsPassed": true,
+      "oracleError": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\nAssertionError\n"
+    },
+    {
+      "model": "qwen-v100",
+      "effort": "xhigh",
+      "task": "ledger",
+      "seconds": 30.103442540999996,
+      "toolCalls": 5,
+      "usage": {
+        "input": 2474,
+        "output": 2410,
+        "cacheRead": 13360,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100",
+      "effort": "xhigh",
+      "task": "schedule",
+      "seconds": 107.61697533399999,
+      "toolCalls": 5,
+      "usage": {
+        "input": 2720,
+        "output": 8486,
+        "cacheRead": 22325,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "medium",
+      "task": "intervals",
+      "seconds": 33.950545417000015,
+      "toolCalls": 6,
+      "usage": {
+        "input": 3082,
+        "output": 1742,
+        "cacheRead": 17455,
+        "cacheWrite": 0
+      },
+      "passed": false,
+      "agentTestsPassed": true,
+      "oracleError": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\nAssertionError\n"
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "medium",
+      "task": "ledger",
+      "seconds": 41.21868808300002,
+      "toolCalls": 9,
+      "usage": {
+        "input": 2896,
+        "output": 2265,
+        "cacheRead": 22270,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "medium",
+      "task": "schedule",
+      "seconds": 150.42566725000006,
+      "toolCalls": 15,
+      "usage": {
+        "input": 6181,
+        "output": 6912,
+        "cacheRead": 103498,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "xhigh",
+      "task": "intervals",
+      "seconds": 29.66389850000001,
+      "toolCalls": 4,
+      "usage": {
+        "input": 2575,
+        "output": 1454,
+        "cacheRead": 9065,
+        "cacheWrite": 0
+      },
+      "passed": false,
+      "agentTestsPassed": true,
+      "oracleError": "Traceback (most recent call last):\n  File \"<string>\", line 3, in <module>\nAssertionError\n"
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "xhigh",
+      "task": "ledger",
+      "seconds": 38.31632995799999,
+      "toolCalls": 6,
+      "usage": {
+        "input": 2632,
+        "output": 2080,
+        "cacheRead": 13307,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "xhigh",
+      "task": "schedule",
+      "seconds": 76.51069000000005,
+      "toolCalls": 6,
+      "usage": {
+        "input": 2634,
+        "output": 4379,
+        "cacheRead": 19906,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    }
+  ],
+  "explicit_type_confirmation": [
+    {
+      "model": "qwen-v100",
+      "effort": "medium",
+      "task": "intervals",
+      "seconds": 29.799145833,
+      "toolCalls": 6,
+      "usage": {
+        "input": 2881,
+        "output": 1963,
+        "cacheRead": 17710,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100",
+      "effort": "xhigh",
+      "task": "intervals",
+      "seconds": 47.383079125,
+      "toolCalls": 7,
+      "usage": {
+        "input": 3389,
+        "output": 3414,
+        "cacheRead": 31080,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "medium",
+      "task": "intervals",
+      "seconds": 33.074880957999994,
+      "toolCalls": 7,
+      "usage": {
+        "input": 2600,
+        "output": 1548,
+        "cacheRead": 16103,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    },
+    {
+      "model": "qwen-v100-pi",
+      "effort": "xhigh",
+      "task": "intervals",
+      "seconds": 49.315704375,
+      "toolCalls": 4,
+      "usage": {
+        "input": 2620,
+        "output": 2726,
+        "cacheRead": 11660,
+        "cacheWrite": 0
+      },
+      "passed": true,
+      "agentTestsPassed": true,
+      "oracleError": null
+    }
+  ]
+}

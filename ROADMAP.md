@@ -1,4 +1,4 @@
-# OpenCode Desktop roadmap
+# AgentMesh Desktop roadmap
 
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 
@@ -345,3 +345,15 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Disposable Mac native CLI: 32 shared tools; headless browser and two proxy regressions passed without inference or user configuration changes.
 - [x] Windows NSIS preserved as a release asset with checksum and original build provenance.
 - [ ] Installed Windows 0.2.18 normal/MSIX acceptance and real-profile migration. Mac 0.2.18 installation and Linux runtime acceptance are not claimed.
+
+
+## AgentMesh 0.2.19 — in progress
+
+- [x] Neutral product name and equal agent overview/badges; stable identity and data paths.
+- [x] Pi native model/effort confirmation, unopened-session compaction, prepared text attachments and durable message branching.
+- [x] Shared workspace terminal/Git for Pi, without inventing Pi PTY/permission-queue capabilities.
+- [x] Generic model-service bindings, catalog agent policy and real switch progress, ordinary/queued/scheduled/compact readiness gates.
+- [ ] Native Mac UI/package acceptance, real V100 model qualification and switch deployment.
+- [ ] Final reviewed source publication and installation.
+
+See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linux new release acceptance remains pending.

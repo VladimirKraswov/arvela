@@ -9,13 +9,12 @@ export function TopBar() {
     l = s.prefs.layout,
     session = store.activeSession();
   const engineId = store.engineIdFor();
-  // Only name the engine when it is not the default, so OpenCode chats look
-  // exactly as they did before.
-  const engineLabel = engineId === PI_BACKEND_ID ? "Pi" : "";
-  const canContinueInPi =
-    engineId !== PI_BACKEND_ID &&
-    store.piInstalled &&
-    piAvailability(s.prefs).available;
+  const engineLabel = engineId === PI_BACKEND_ID ? "Pi" : "OpenCode";
+  const otherEngine = engineId === PI_BACKEND_ID ? "opencode" : PI_BACKEND_ID;
+  const otherLabel = engineId === PI_BACKEND_ID ? "OpenCode" : "Pi";
+  const canContinueOnOtherEngine = engineId === PI_BACKEND_ID
+    ? s.connection.phase === "connected"
+    : store.piInstalled && piAvailability(s.prefs).available;
   return (
     <header className="topbar" data-tauri-drag-region="deep">
       {!l.sidebarOpen && (
@@ -39,20 +38,20 @@ export function TopBar() {
         </span>
       )}
       {engineLabel && (
-        <span className="execution-badge" title="Движок этого чата">
+        <span className="execution-badge" title="Агент этого чата">
           {engineLabel}
         </span>
       )}
-      {session && canContinueInPi && (
+      {session && canContinueOnOtherEngine && (
         <button
           className="icon-btn handoff-button"
-          title="Создать чат Pi и перенести в него контекст этого разговора"
-          aria-label="Продолжить в Pi"
+          title={`Создать чат ${otherLabel} и перенести контекст`}
+          aria-label={`Продолжить в ${otherLabel}`}
           disabled={s.connection.phase !== "connected"}
-          onClick={() => void store.continueOnEngine(session, PI_BACKEND_ID)}
+          onClick={() => void store.continueOnEngine(session, otherEngine)}
         >
           <Icon name="handoff" size={17} />
-          <span>В Pi</span>
+          <span>В {otherLabel}</span>
         </button>
       )}
       {session && engineId !== PI_BACKEND_ID && <button className="icon-btn handoff-button" title="Передать задачу в другую сессию" aria-label="Передать задание" disabled={s.connection.phase !== "connected" || !store.backend.capabilities.fork} onClick={() => store.setUi({ handoffSource: session })}>
@@ -66,7 +65,7 @@ export function TopBar() {
           {s.ui.vcs.branch}
         </span>
       )}
-      {engineId !== PI_BACKEND_ID && <button
+      {<button
         className={`icon-btn${l.bottomOpen ? " on" : ""}`}
         aria-label="Терминал"
         aria-pressed={l.bottomOpen}
@@ -76,8 +75,9 @@ export function TopBar() {
       >
         <Icon name="terminal" />
       </button>}
-      {engineId !== PI_BACKEND_ID && <button
+      {<button
         className={`icon-btn review-button${l.rightOpen ? " on" : ""}`}
+        disabled={!store.workspaceToolsAvailable()}
         aria-label="Изменения и файлы"
         aria-pressed={l.rightOpen}
         onClick={() => store.setLayout({ rightOpen: !l.rightOpen })}
