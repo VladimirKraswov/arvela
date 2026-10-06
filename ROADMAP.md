@@ -329,3 +329,10 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Reviewed direct source-only Opus 5.5 changes; fixed additional storage/delivery, child routing, stream cache and stale endpoint cases on Mac. All 451 frontend / 71 Rust checks pass; see `docs/CLAUDE-CONTEXT-REVIEW-20261005.md`.
 - [x] Final Mac package installed: exact DOM input/key/click, real Pi loader/32 tools, context placement/history navigation, source chooser acceptance/cancel and paused schedule persistence passed. Original engine, configuration and draft preserved. See VERIFICATION.
 - [ ] Live Windows/Linux 0.2.17 acceptance; archived Windows 0.2.16 results remain separate evidence.
+
+## M27 — Windows shared browser transport (0.2.18)
+
+- [x] Browser-only runtime outside per-process MSIX AppData redirection; versioned MCP executable outside shadowed install paths.
+- [x] Copy legacy browser profile/cache without deleting originals or overwriting an existing shared profile.
+- [x] 451 frontend / 59 Windows Rust checks, final NSIS build and debug/release cross-AppData real CLI regression (32 tools, one disposable browser).
+- [ ] Manual installation and installed native 0.2.18 acceptance; Mac/Linux new source acceptance remains pending.

@@ -53,6 +53,13 @@ snapshots, auth tokens and image bytes are never written to test output.
 
 ## Installed macOS app and real Pi loader
 
+Windows 0.2.18 cross-process regression:
+`node windows-shared.mjs <absolute-built-exe> <absolute-test-owned-runtime>`.
+It starts a disposable daemon and invokes the real Desktop MCP CLI twice with
+different LOCALAPPDATA values but the same disposable USERPROFILE. Both must
+discover 32 tools and observe the same browser. It never migrates or opens the
+user profile, edits global configuration, or requests inference.
+
 Wait until the installed Desktop has completed browser setup and its daemon is
 running. This acceptance uses Pi 0.85.1's actual extension loader and the app's
 real `--browser-mcp` CLI. It navigates the shared browser to a local fixture;

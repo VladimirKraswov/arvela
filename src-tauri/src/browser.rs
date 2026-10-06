@@ -9,6 +9,7 @@
 mod files;
 mod gateway;
 mod node;
+mod shared;
 
 pub use files::{root_dir, support_dir};
 pub use node::node_program;
@@ -200,10 +201,7 @@ fn status(configured: Option<&str>) -> Result<BrowserStatus, String> {
         installed,
         running: health.as_ref().is_some_and(|v| v["running"] == true),
         browser_open: health.as_ref().is_some_and(|v| v["browserOpen"] == true),
-        command: std::env::current_exe()
-            .map_err(|e| e.to_string())?
-            .to_string_lossy()
-            .into_owned(),
+        command: shared::command()?.to_string_lossy().into_owned(),
         node_program: node.as_ref().ok().map(|p| p.to_string_lossy().into_owned()),
         error: node.err(),
         skill_path: current.join("skills").to_string_lossy().into_owned(),
@@ -338,6 +336,7 @@ fn install(
         &root,
         "Установка браузера уже выполняется другим процессом Desktop.",
     )?;
+    shared::migrate(&root, || cancel.check())?;
     let current = support_dir()?;
     if installed_at(&current) {
         return Ok(());
@@ -704,7 +703,7 @@ pub async fn browser_pi_support(
             "extensionPath": current.join("pi-extension.ts"),
             "runtimePath": current,
             "nodeProgram": node,
-            "command": std::env::current_exe().map_err(|e| e.to_string())?,
+            "command": shared::command()?,
             "skillPath": current.join("skills"),
         }))
     })

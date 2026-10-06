@@ -1,4 +1,4 @@
-# In-app browser in OpenCode Desktop 0.2.17
+# In-app browser in OpenCode Desktop 0.2.18
 
 Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same official MCP tools; there is no second agent loop or copied browser implementation.
 
@@ -30,7 +30,18 @@ Stopping browser control disables automatic setup and stops the owned service; t
 
 macOS: `~/.local/share/opencode-desktop/browser-runtime`.
 Linux: existing app data directory or absolute `XDG_DATA_HOME/opencode-desktop`.
-Windows: `%LOCALAPPDATA%/opencode-desktop/browser-runtime`.
+Windows: `%USERPROFILE%/.opencode-desktop/browser-runtime` (0.2.18).
+This deliberately avoids per-process MSIX AppData redirection. Desktop and an
+independently running engine use the same readiness record, runtime and profile.
+The MCP executable is an exact, versioned copy of Desktop under
+`browser-runtime/bridge/<version>/opencode-desktop.exe`, also outside AppData,
+so the engine cannot accidentally launch a shadowed older Desktop binary.
+Normal Desktop installation imports its own legacy AppData browser profile,
+packages and Chromium cache by copying, not moving/deleting them. Completed
+shared profiles are never overwritten or merged with another legacy view.
+Migration checks cancellation and publishes only after the copy completes;
+an interruption during publication can leave a preserved profile and cause a
+fresh package installation on retry. No existing chat directories are moved.
 
 `current` holds pinned tooling, `skills/desktop-browser/SKILL.md`, and the Pi extension; `browsers` holds Chromium; `profile` holds browser state; `workspace` holds outputs. The ready record is private and short-lived. Do not copy live authentication records into reports or Git.
 

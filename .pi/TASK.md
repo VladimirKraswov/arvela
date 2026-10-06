@@ -1,3 +1,21 @@
+# Windows 0.2.18 MCP repair — BUILD READY, MANUAL INSTALL PENDING (2026-10-06)
+
+Owner authorized fixing the browser connection and producing a new version.
+Actual normal Desktop UI is now 0.2.17; the MSIX server sees an older 0.2.16
+shadow executable/runtime in virtual AppData. Native proxy probe reproduced
+Connection closed / browser not responding while normal Desktop's daemon was ready.
+0.2.18 puts browser runtime and a byte-identical versioned MCP executable under
+USERPROFILE/.opencode-desktop/browser-runtime, outside AppData redirection.
+Copies legacy profile/packages/cache, leaves originals, refuses overwrite of
+existing shared data, validates cache manifest and supports cancellation.
+451 frontend passed / 6 opt-in skipped, 59 Windows Rust passed, fmt/check-all-targets
+and final NSIS build passed. Both debug and final release real CLI regressions
+connected 32 tools from two AppData values to the same disposable browser.
+No user profile migration/installed 0.2.18 UI was exercised; manual install is
+required after the earlier installer policy rejection. External OpenCode remains
+healthy, no model requests/config writes or push. Offline archive contains full
+bundle/source/patch/installer/report, no private data. See Windows 0.2.18 report.
+
 # Windows 0.2.17 rebuild — INSTALL BLOCKED (2026-10-06)
 
 Verified supplied archive/source hashes and offline bundle; built exact main
