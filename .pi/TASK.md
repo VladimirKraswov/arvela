@@ -1,3 +1,7 @@
+# Public repository and Windows handoff — DONE / PUBLIC (2026-10-07)
+
+Owner explicitly authorized public visibility, HTTPS Windows clone/pull and Windows-agent feature branches/PRs for Mac review. GitHub visibility confirmed PUBLIC; runtime source unchanged from verified0.2.21. Before publication, focused credential signatures over1098historicalblobs found no candidates (bounded signature scan, not a complete privacy audit). Windows prompt documents existing toolchain/scripts, native command exit checks, data preservation, latest browser modes/resize/shared MCP acceptance, stale installed-name helper, HTTPS browser login/fork PR workflow. No Windows0.2.21 build/install claim. Anonymous GitHub API confirms public/main; full prompt copied byte-for-byte to Desktop. Documentation commit will be pushed and exact remote main confirmed before handoff.
+
 # Embedded browser 0.2.21 — DONE / MAC VERIFIED (2026-10-07)
 
 Owner requested compact Codex-like panel, fast semantic-first vs human mouse/keyboard modes, resize recovery. Implemented actual native mode preference (no MCP restart), real Chromium viewport reflow/debounce, per-client/page/revision/viewport agent stale-coordinate rejection with fresh screenshot (no action replay), Pi recovery image propagation. Panel clicks bind decoded image and clamp valid viewport coordinates. Existing32official +1bounded keyboard tool; no sandbox/root/permission expansion.
