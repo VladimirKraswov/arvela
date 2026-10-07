@@ -55,3 +55,28 @@ it("never publishes pre-resize pixels as a post-resize frame", async () => {
   await expect(pending).rejects.toMatchObject({ frameChanged: true });
   const current = await f.view.frame(f.context); expect(current.width).toBe(640); expect(current.height).toBe(480);
 });
+
+it("manual scroll invalidates both old panel pixels and agent coordinates without replay", async () => {
+  const f=fixture();await f.observe();
+  const old=await f.view.frame(f.context);
+  await f.view.before(f.client,{name:"browser_mouse_wheel",arguments:{deltaY:200}},"user");
+  await f.view.after(f.client,{name:"browser_mouse_wheel"},{content:[]});
+  const fresh=await f.view.frame(f.context);expect(fresh.revision).toBeGreaterThan(old.revision);
+  expect(()=>f.view.assertCurrent(old)).toThrow("Page changed");
+  await expect(f.view.before(f.client,click)).rejects.toMatchObject({recovery:"geometry"});
+  await f.observe();await expect(f.view.before(f.client,click)).resolves.toBeUndefined();
+});
+it("a scroll during capture cannot publish old pixels as fresh", async () => {
+  const f=fixture();await f.observe();
+  let release!: (buffer:Buffer)=>void;
+  f.page.screenshot.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;}));
+  const pending=f.view.frame(f.context);
+  await f.view.before(f.client,{name:"browser_mouse_wheel",arguments:{deltaY:200}},"user");
+  f.view.failed();release(Buffer.from("old pixels"));
+  await expect(pending).rejects.toMatchObject({frameChanged:true});
+});
+it("continuous manual keyboard entry retains the panel revision", async () => {
+  const f=fixture();await f.observe();const old=await f.view.frame(f.context);
+  await f.view.before(f.client,{name:"browser_keyboard_type",arguments:{text:"a"}},"user");f.view.failed();
+  expect(()=>f.view.assertCurrent(old)).not.toThrow();
+});

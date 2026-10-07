@@ -71,7 +71,14 @@ export function createView(getContext) {
     const current = await page();
     guard(client, params, owner);
     if (!reads.has(params.name) && !['browser_mouse_move_xy', 'browser_mouse_down', 'browser_wait_for'].includes(params.name) && !(params.name === 'browser_tabs' && params.arguments?.action === 'list')) {
-      if (owner === 'agent') revision++; else observationEpoch++;
+      if (owner === 'agent') revision++;
+      else {
+        observationEpoch++;
+        // A manual wheel changes every screen coordinate. Invalidate old
+        // panel frames as well as agent observations, without invalidating
+        // each character of an otherwise continuous manual typing burst.
+        if (params.name === 'browser_mouse_wheel') { revision++; cursor = undefined; }
+      }
     }
     if (selected.get(client) !== current) {
       // The official backend's tab list is initially empty until its first

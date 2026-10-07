@@ -1,3 +1,45 @@
+# Arvela 0.2.25 — passive browser monitor and scroll recovery (2026-10-07)
+
+Separate fixed420×308 native JPEG viewer, restore/hide controls and native close
+handling; one existing Chromium, no page input/resize or extra agent/control/
+scheduler loop in the viewer. Label-gated frame/presentation IPC and a minimal
+window-drag capability; hidden viewers do not capture screenshots. Restore
+retains settings drafts; remote/disabled support hides the viewer. Main-window
+close exits the app even with an auxiliary window still allocated.
+
+550frontend tests pass/6opt-in skipped;87Rust pass/1unchanged vault ignored.
+Rust fmt/all-targets, TypeScript/Vite and Mac app/DMG package pass. Isolated real
+Chromium36tools acceptance passes auth/workspace/profile/transport/modes plus
+new manual-wheel invalidation of both agent and panel coordinates, fresh recovery
+images and interrupted composed actions with no replay. The same-JPEG edge case
+is tested: new decoded frame revision unlocks the panel even if pixels are unchanged.
+
+Installed `/Applications/Arvela.app`0.2.25: actual separate native viewer shows
+live own-fixture frames; passive click/keyboard cannot edit the page. Detached
+viewport706×698/page/tab preserved; restore returns the same page, full-panel
+manual typing and click confirmed by actual DOM. Hide retains page/tab/form and
+viewport; Browser button restores it. Actual full-panel manual wheel shows the
+refresh barrier and returns to ready; real DOM confirms scrolling, preserved
+input and one button click. Main window close with a hidden observer exits the
+original app process cleanly; fresh launch/About/healthy OpenCode verified.
+CUA native coordinate wheel/drag against the floating window returned
+`noWindowsAvailable`, so live OS edge-drag/window-move and floating-wheel input
+were not independently performed; fixed-size/forbidden-input guards are covered
+by native configuration and behavioral tests. No live Windows/Linux acceptance.
+
+Installed and built executable SHA256:
+`70ec7ee833fb08e3a586fa726f35f6feb5623317ec3c8583fb357bb44e6c6c8b`.
+DMG SHA256:
+`9dd3e40aee734f97f65f524de96c2fa5427a2c7116ea07a8cbbf086e53f8de30`.
+Strict/deep signature, microphone entitlement and DMG integrity pass. Ad-hoc
+signed, not notarized;0.2.24 privately retained. Compatibility aliases remain.
+Installed browser scripts match source; actual installedCLI+Pi0.85.1 loader/
+validator/scoped OpenCode attachment and no-replay/disable acceptance pass.
+Own fixtures removed, sidebar restored, app left open on About. Original
+external OpenCode PID3714 remains healthy1.18.18; models, GPU services, owner
+history/providers/permissions preserved. Publication verification follows after
+pushing the reviewed source.
+
 # Arvela 0.2.24 — product rename, Mac installed (2026-10-07)
 
 Public product name is **Arvela**: window/menu/settings/messages, bundle/installer

@@ -3,8 +3,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 const fake = vi.hoisted(() => ({ invoke: vi.fn(), native: true, host: null as object | null,
-  state: {} as any, setUi: vi.fn(), setBrowserSettings: vi.fn() }));
+  state: {} as any, monitorEvent: undefined as undefined | ((event: {payload:string}) => void), setUi: vi.fn(), setBrowserSettings: vi.fn() }));
 vi.mock("../src/browser/integration", () => ({ browserNative: fake.invoke }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: async (_name: string, handler: (event: {payload:string}) => void) => {
+  fake.monitorEvent = handler; return () => { fake.monitorEvent = undefined; };
+} }));
 vi.mock("../src/native/platform", () => ({ isNative: () => fake.native }));
 vi.mock("../src/state/store", () => ({ useAppState: () => fake.state, store: {
   get state() { return fake.state; }, currentHost: () => fake.host, setUi: fake.setUi, setBrowserSettings: fake.setBrowserSettings,
@@ -16,8 +19,8 @@ const frame = { browserOpen: true, busy: false, tabs: [{ index: 0, title: "Real 
   width: 1280, height: 800, image: "/9j/", url: "https://example.com", cursor: { x: 100, y: 50, owner: "agent", action: "browser_click", at: 1 } };
 beforeEach(() => {
   vi.resetAllMocks(); vi.useFakeTimers(); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  fake.native = true; fake.host = null;
-  fake.state = { prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true } } };
+  fake.native = true; fake.host = null; fake.monitorEvent = undefined;
+  fake.state = { ui: {browserOpen:false,settingsOpen:false}, prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true } } };
   fake.invoke.mockImplementation(async command => command === "browser_view" ? frame : command === "browser_presence" ? { browserOpen: true } : undefined);
   const node = document.createElement("div"); document.body.append(node); root = createRoot(node);
 });
@@ -163,4 +166,79 @@ it.each([false,true])("uses two idle or four active visible captures per second 
   visible(); fake.invoke.mockImplementation(async command => command === "browser_view" ? {...frame,busy} : undefined);
   try { await mount(); await act(async () => vi.advanceTimersByTimeAsync(1000)); expect(views()).toBe(busy ? 5 : 3); }
   finally { delete (document as {hidden?:boolean}).hidden; }
+});
+
+it("a visible native monitor does not auto-reveal a competing browser panel",async()=>{
+  fake.invoke.mockResolvedValue({browserOpen:true,monitorOpen:true});
+  await mount(BrowserPresence);expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:true});
+});
+it("restoring the monitor respects unsaved settings rather than forcibly closing them",async()=>{
+  fake.state.ui.settingsOpen=true;fake.invoke.mockResolvedValue({browserOpen:true,monitorOpen:true});
+  await mount(BrowserPresence);expect(fake.monitorEvent).toBeTypeOf("function");
+  await act(async()=>fake.monitorEvent!({payload:"panel"}));
+  expect(fake.setUi).toHaveBeenCalledWith({browserOpen:true});
+  expect(fake.setUi).not.toHaveBeenCalledWith(expect.objectContaining({settingsOpen:false}));
+});
+it("remote scope hides the observer and cannot be reopened by its stale restore event",async()=>{
+  fake.host={};await mount(BrowserPresence);
+  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"hide"});
+  await act(async()=>fake.monitorEvent!({payload:"panel"}));
+  expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:true});
+  expect(fake.invoke.mock.calls.some(([name])=>name==="browser_presence"||name==="browser_view")).toBe(false);
+});
+it("detaching keeps the panel on failure and never issues browser_stop",async()=>{
+  await mount();fake.invoke.mockRejectedValueOnce(new Error("fixture"));
+  await act(async()=>document.querySelector<HTMLButtonElement>('[aria-label="Вынести браузер в окно наблюдения"]')!.click());
+  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"detach"});
+  expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:false});
+  expect(document.querySelector('[role=alert]')?.textContent).toContain("остаётся в панели");
+  expect(fake.invoke.mock.calls.some(([name])=>name==="browser_stop")).toBe(false);
+});
+it("allows passive detaching during agent work without attempting page input",async()=>{
+  fake.invoke.mockImplementation(async name=>name==="browser_view"?{...frame,busy:true}:undefined);
+  await mount();await act(async()=>document.querySelector<HTMLButtonElement>('[aria-label="Вынести браузер в окно наблюдения"]')!.click());
+  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"detach"});
+  expect(fake.setUi).toHaveBeenCalledWith({browserOpen:false});
+  expect(fake.invoke.mock.calls.some(([name])=>name==="browser_input")).toBe(false);
+});
+
+it("blocks stale manual clicks immediately after wheel until a newer frame is decoded", async () => {
+  visible();
+  try {
+    let revision=10;
+    fake.invoke.mockImplementation(async command => command === "browser_view" ? {...frame,pageId:"p",revision} : undefined);
+    await mount();
+    const screen=document.querySelector<HTMLElement>('[role="application"]')!;
+    const img=document.querySelector<HTMLImageElement>('img')!;
+    img.getBoundingClientRect=()=>({left:0,top:0,width:640,height:400} as DOMRect);
+    await act(async()=>img.dispatchEvent(new Event("load")));
+    await act(async()=>screen.dispatchEvent(new WheelEvent("wheel",{deltaY:200,bubbles:true,cancelable:true})));
+    expect(document.body.textContent).toContain("Обновляю после прокрутки");
+    await act(async()=>screen.dispatchEvent(new MouseEvent("click",{clientX:100,clientY:100,bubbles:true})));
+    expect(fake.invoke.mock.calls.filter(c=>c[0]==="browser_input").map(c=>c[1].action)).toEqual(["wheel"]);
+    revision=11;
+    await act(async()=>vi.advanceTimersByTimeAsync(600));
+    // New pixels must be decoded, not merely received.
+    await act(async()=>screen.dispatchEvent(new MouseEvent("click",{clientX:100,clientY:100,bubbles:true})));
+    expect(fake.invoke.mock.calls.filter(c=>c[0]==="browser_input")).toHaveLength(1);
+    await act(async()=>img.dispatchEvent(new Event("load")));
+    await act(async()=>screen.dispatchEvent(new MouseEvent("click",{clientX:100,clientY:100,bubbles:true})));
+    expect(fake.invoke.mock.calls.filter(c=>c[0]==="browser_input").map(c=>c[1].action)).toEqual(["wheel","click"]);
+  } finally { delete (document as {hidden?:boolean}).hidden; }
+});
+it("unlocks after scroll at a page edge even when fresh JPEG bytes are unchanged", async () => {
+  visible();
+  try {
+    let revision=20;
+    fake.invoke.mockImplementation(async command=>command==="browser_view"?{...frame,pageId:"p",revision}:undefined);
+    await mount();const img=document.querySelector<HTMLImageElement>('img')!;
+    Object.defineProperty(img,"complete",{value:true});Object.defineProperty(img,"naturalWidth",{value:1280});
+    img.decode=vi.fn(async()=>undefined);
+    await act(async()=>img.dispatchEvent(new Event("load")));
+    const screen=document.querySelector<HTMLElement>('[role="application"]')!;
+    await act(async()=>screen.dispatchEvent(new WheelEvent("wheel",{deltaY:200,bubbles:true,cancelable:true})));
+    expect(document.body.textContent).toContain("Обновляю после прокрутки");revision=21;
+    await act(async()=>vi.advanceTimersByTimeAsync(600));
+    expect(img.decode).toHaveBeenCalled();expect(document.body.textContent).not.toContain("Обновляю после прокрутки");
+  }finally{delete(document as {hidden?:boolean}).hidden;}
 });

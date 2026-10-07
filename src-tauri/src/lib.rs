@@ -38,6 +38,8 @@ pub fn run() {
             browser::browser_view,
             browser::browser_presence,
             browser::browser_input,
+            browser::monitor::browser_monitor,
+            browser::monitor::browser_monitor_frame,
             browser::browser_stop,
             browser::browser_pi_support,
             hosts::ssh_aliases,
@@ -77,6 +79,11 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            // The observer is auxiliary: closing the main window still exits
+            // the app and cleans up its browser/Pi children as before.
+            if matches!(&event, tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::Destroyed, .. } if label == "main") {
+                app.exit(0);
+            }
             if let tauri::RunEvent::Exit = event {
                 use tauri::Manager;
                 if let Ok(mut tunnels) = app.state::<hosts::Hosts>().0.lock() {

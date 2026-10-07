@@ -1,6 +1,18 @@
-# In-app browser in Arvela 0.2.24
+# In-app browser in Arvela 0.2.25
 
 Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus four bounded Desktop adapters (keyboard input, observe, action and sequence); there is no second agent loop or copied browser implementation.
+
+## Passive observation window (0.2.25)
+
+The panel header has **Вынести браузер в окно наблюдения**. It moves the projection into a separate fixed 420×308 native window, above other windows, with the real page, agent cursor and busy/stale status. Drag its header to move it. Its image accepts no clicks, scrolling, typing or pasted content; resizing/maximizing is disabled. This is a local JPEG viewer, never a second Chromium instance or privileged remote webview. Detaching leaves the actual page viewport and tabs unchanged, including while an agent is running. Pending panel input/resize is discarded before detachment.
+
+**Вернуть браузер в приложение** hides the viewer and restores the interactive panel. The panel can then reflow Chromium to its current size; normal fresh-frame/coordinate guards still apply. Settings with unsaved edits are retained: returning the browser does not close settings, and a notice asks you to return to the application. **Скрыть окно наблюдения**, an OS window close, or closing the panel only hides the projection; agent work continues. The existing **Браузер** button restores the panel later. Only **Остановить управление** stops browser management.
+
+The secondary window does not start agent/control/scheduler loops. It has only the window-drag core permission; native window labels restrict its browser IPC to frame reads and restore/hide. Hidden viewers capture no frames; visible polling is serial with error backoff, and unavailable frames are explicitly marked stale. Switching to a remote computer or disabling browser support hides the viewer. Closing the main application exits and cleans up its owned children even if the viewer was open. macOS live acceptance and Windows/Linux limitations are recorded in [VERIFICATION](VERIFICATION.md).
+
+## Manual scrolling and recovery
+
+Manual scrolling in the interactive panel immediately drops queued input and locks page input with **Обновляю после прокрутки…** until newer pixels are decoded. The daemon increments the panel frame revision for a manual wheel as well as invalidating each agent's observation. Old manual XY clicks are refused; the next stale agent XY action receives a fresh screenshot and no click is sent/replayed. A pending composed action/sequence is interrupted on receipt of manual input, before it can execute further steps. Already completed actions are reported honestly; an in-flight action may have started before interruption. Agents can observe the new page and continue, with no automatic scroll reversal or replay. Continuous manual typing retains its existing revision so characters in a typing burst are not lost to this wheel-specific guard. Passive preview pixels cannot scroll the page at all.
 
 ## Startup and configuration
 

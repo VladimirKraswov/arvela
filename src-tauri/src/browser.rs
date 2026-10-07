@@ -8,6 +8,7 @@
 //!   and cancellation by an explicit stop or by Desktop exiting.
 mod files;
 mod gateway;
+pub mod monitor;
 mod node;
 mod shared;
 
@@ -557,12 +558,17 @@ pub async fn browser_view(window: tauri::Window) -> Result<Value, String> {
 /// Lightweight presence polling must not spawn Node version probes or capture
 /// page pixels while the panel is hidden.
 #[tauri::command]
-pub async fn browser_presence(window: tauri::Window) -> Result<Value, String> {
+pub async fn browser_presence(
+    window: tauri::Window,
+    app: tauri::AppHandle,
+) -> Result<Value, String> {
     main_window(&window)?;
     blocking(move || {
-        Ok(gateway::health(&root_dir()?)
+        let mut health = gateway::health(&root_dir()?)
             .map(|(_, value)| value)
-            .unwrap_or_else(|_| json!({"browserOpen":false,"running":false})))
+            .unwrap_or_else(|_| json!({"browserOpen":false,"running":false}));
+        health["monitorOpen"] = json!(monitor::visible(&app));
+        Ok(health)
     })
     .await
 }

@@ -405,3 +405,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Windows verifier recognizes current and both legacy product names.
 - [x] Regression/build, verified Mac replacement and publication.
 - [ ] Live Windows/Linux rename upgrade acceptance.
+
+## M34 — Passive browser observation window (0.2.25)
+
+- [x] Fixed separate live preview; no browser input or viewport resize.
+- [x] Dock/restore/hide and lifecycle/scope guards; one browser remains running.
+- [x] Regression/security checks and real Mac window/Chromium acceptance.
+- [ ] Verified Mac replacement and publication; Windows/Linux live acceptance pending.

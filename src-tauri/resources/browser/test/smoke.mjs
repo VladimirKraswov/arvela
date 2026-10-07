@@ -68,7 +68,7 @@ try {
   } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ECONNREFUSED' && error.name === 'AssertionError') throw error; }
   fixture = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`<!doctype html><title>Desktop Browser Acceptance</title><label>Name<input id="name" aria-label="Name"></label><label>Password<input id="password" type="password" aria-label="Password"></label><button onclick="document.querySelector('#result').textContent = document.querySelector('#name').value && document.querySelector('#password').value ? 'FORM_OK' : 'FORM_BAD';localStorage.setItem('fixture-session','PERSIST_OK')">Save fixture login</button><button onclick="document.querySelector('#upload').click()">Upload fixture</button><input id="upload" type="file" hidden onchange="document.querySelector('#result').textContent=this.files.length?'UPLOAD_OK':'UPLOAD_BAD'"><button style="position:fixed;right:16px;top:100px;width:100px;height:40px" aria-label="Responsive target" onclick="document.querySelector('#result').textContent='RESPONSIVE_CLICK_OK'">Responsive target</button><div id="result">WAITING</div><div id="persist"></div><script>document.querySelector('#persist').textContent=localStorage.getItem('fixture-session')||'NO_SESSION'</script>`);
+    res.end(`<!doctype html><title>Desktop Browser Acceptance</title><style>body{height:2000px}</style><label>Name<input id="name" aria-label="Name"></label><label>Password<input id="password" type="password" aria-label="Password"></label><button onclick="document.querySelector('#result').textContent = document.querySelector('#name').value && document.querySelector('#password').value ? 'FORM_OK' : 'FORM_BAD';localStorage.setItem('fixture-session','PERSIST_OK')">Save fixture login</button><button onclick="document.querySelector('#upload').click()">Upload fixture</button><input id="upload" type="file" hidden onchange="document.querySelector('#result').textContent=this.files.length?'UPLOAD_OK':'UPLOAD_BAD'"><button style="position:fixed;right:16px;top:100px;width:100px;height:40px" aria-label="Responsive target" onclick="document.querySelector('#result').textContent='RESPONSIVE_CLICK_OK'">Responsive target</button><div id="result">WAITING</div><div id="persist"></div><script>document.querySelector('#persist').textContent=localStorage.getItem('fixture-session')||'NO_SESSION'</script>`);
   });
   await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
   const fixtureUrl = `http://127.0.0.1:${fixture.address().port}`;
@@ -183,6 +183,16 @@ try {
   await panel('desktop/type', { text: 'shared-input' });
   const staleShared = await client.callTool({ name: 'browser_mouse_click_xy', arguments: { x: 574, y: 120 } });
   assert(staleShared.isError && staleShared.structuredContent?.reason === 'geometry');
+  const beforeScroll = await frame();
+  const expectedScroll = Object.fromEntries(['pageId','revision','url','width','height'].map(k=>[k,beforeScroll[k]]));
+  await panel('tools/call',{owner:'user',workspace,expected:expectedScroll,params:{name:'browser_mouse_wheel',arguments:{deltaY:200,deltaX:0}}});
+  const afterScroll = await frame();assert(afterScroll.revision>beforeScroll.revision);
+  const staleWheelClick = await client.callTool({name:'browser_mouse_click_xy',arguments:{x:574,y:120}});
+  assert(staleWheelClick.isError && staleWheelClick.structuredContent?.reason==='geometry');
+  assert(staleWheelClick.content.some(c=>c.type==='image'), 'Scroll rejection returns fresh pixels');
+  const staleWheelManual = await fetch(`${endpoint}/rpc`,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({method:'tools/call',owner:'user',workspace,expected:expectedScroll,params:{name:'browser_mouse_click_xy',arguments:{x:574,y:120}}})});
+  assert.equal(staleWheelManual.status,400,'Old manual screen coordinates must be refused after wheel');
+  await panel('tools/call',{owner:'user',workspace,params:{name:'browser_mouse_wheel',arguments:{deltaY:-200,deltaX:0}}});
   await call('browser_take_screenshot', {scale:'css',type:'png'});
   const chain = await call('browser_sequence', {steps:[{tool:'browser_mouse_click_xy',arguments:{x:100,y:18}},{tool:'browser_keyboard_type',arguments:{text:'CHAIN_OK'}},{tool:'browser_press_key',arguments:{key:'Tab'}}]});
   assert.equal(chain.structuredContent.completed,3); assert(text(chain).includes('CHAIN_OK'));
@@ -195,6 +205,11 @@ try {
   const resized = panel('desktop/resize',{width:700,height:500});
   const interrupted = await waiting; await resized;
   assert(interrupted.isError); assert.equal(interrupted.structuredContent.completed,1); assert.equal(interrupted.structuredContent.reason,'interrupted');
+  const waitingScroll = client.callTool({name:'browser_action',arguments:{step:{tool:'browser_keyboard_type',arguments:{text:'SCROLL_INTERRUPT_MARKER'}},waitFor:{text:'NEVER_APPEARS'},timeoutMs:30000}});
+  await pause(300);
+  const scrolled=panel('tools/call',{owner:'user',workspace,params:{name:'browser_mouse_wheel',arguments:{deltaY:200,deltaX:0}}});
+  const scrollInterrupted=await waitingScroll;await scrolled;
+  assert(scrollInterrupted.isError);assert.equal(scrollInterrupted.structuredContent.completed,1);assert.equal(scrollInterrupted.structuredContent.reason,'interrupted');
   const telemetry = (await (await fetch(`${endpoint}/health`,{headers})).json()).performance;
   assert(telemetry.calls > 0 && telemetry.completedSteps >= 6 && telemetry.failed > 0);
   assert(!JSON.stringify(telemetry).includes('INTERRUPT_MARKER'));
@@ -221,7 +236,7 @@ try {
   await start();
   await call('browser_navigate', { url: fixtureUrl });
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'));
-  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true, humanMode: true, resizeRecovery: true, keyboardTyping: true, atomicAction: true, prevalidatedSequence: true, sequenceInterruption: true, humanSequence: true, numericTelemetry: true }));
+  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true, humanMode: true, resizeRecovery: true, scrollRecovery: true, scrollSequenceInterruption: true, keyboardTyping: true, atomicAction: true, prevalidatedSequence: true, sequenceInterruption: true, humanSequence: true, numericTelemetry: true }));
 } finally {
   await client?.close().catch(() => {});
   await stop();

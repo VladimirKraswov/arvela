@@ -103,3 +103,17 @@ Remove the temporary frame after visual QA; it must not be committed. Without
 not native input acceptance. Packaged UI acceptance is recorded separately.
 
 0.2.22 smoke additionally exercises compact/atomic actions, full-chain prevalidation, human focus+keyboard sequences, stale second-XY rejection, cancellation of a wait by resize and numeric-only telemetry. Real Pi loader checks the atomic tool as well. No model calls or owner profiles are used.
+
+## Native observation window (0.2.25)
+
+`monitor.mjs <absolute-installed-app-executable> <absolute-current-runtime>` is
+an interactive acceptance runner. It refuses an active/nonempty browser, opens
+only its own local fixture and uses the installed executable's actual MCP proxy.
+Operate the native panel/window with CUA; send `baseline` once the panel has
+settled, then `preserved` after passive clicks/wheel/typing/window moves/hiding,
+`restored` after docking, and `manual` after entering `MONITOR_PANEL_OK` in the
+full panel and clicking its fixture button. `done` closes only the fixture tab
+and removes its own workspace. Native fixed geometry/lifecycle are verified with
+CUA and app exit separately. The headless smoke additionally verifies wheel
+invalidation of agent/manual coordinates and immediate sequence interruption;
+no model calls are made.
