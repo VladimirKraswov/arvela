@@ -347,13 +347,22 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [ ] Installed Windows 0.2.18 normal/MSIX acceptance and real-profile migration. Mac 0.2.18 installation and Linux runtime acceptance are not claimed.
 
 
-## AgentMesh 0.2.19 — in progress
+## AgentMesh 0.2.19 — Mac release verified
 
 - [x] Neutral product name and equal agent overview/badges; stable identity and data paths.
 - [x] Pi native model/effort confirmation, unopened-session compaction, prepared text attachments and durable message branching.
 - [x] Shared workspace terminal/Git for Pi, without inventing Pi PTY/permission-queue capabilities.
 - [x] Generic model-service bindings, catalog agent policy and real switch progress, ordinary/queued/scheduled/compact readiness gates.
-- [ ] Native Mac UI/package acceptance, real V100 model qualification and switch deployment.
-- [ ] Final reviewed source publication and installation.
+- [x] Native Mac UI/package acceptance, real V100 model qualification and switch deployment; final permissions and Pi-only picker checks recorded in docs/VERIFICATION.md.
+- [x] Reviewed runtime source published and installed as Mac 0.2.19; final release archive verified.
 
 See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linux new release acceptance remains pending.
+
+## AgentMesh 0.2.20 — responsive composer
+
+- [x] Short model labels with full-name details; routing unchanged.
+- [x] Container-based wrapping and separate send/voice actions.
+- [x] In-flow dictation row; compact honest model-switch state.
+- [x] 476 frontend tests and eight real browser geometry cases.
+- [x] Signed Mac bundle and installed UI acceptance; source/release publication recorded in verification.
+- [ ] Windows/Linux live acceptance.

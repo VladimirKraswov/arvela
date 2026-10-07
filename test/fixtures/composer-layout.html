@@ -1,0 +1,27 @@
+<!doctype html><html data-theme="dark"><head><meta charset="UTF-8"><title>Disposable composer layout check</title></head><body>
+<div id="tools" style="padding:16px;height:60px">Layout fixture · actual Composer/CSS · no server/model requests</div>
+<div id="fixture" style="width:1000px;max-width:100%;padding:12px"><div id="root"></div></div>
+<script type="module">
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import '/src/styles.css';
+import {Composer} from '/src/components/Composer.tsx';
+import {store} from '/src/state/store.ts';
+const params=new URLSearchParams(location.search); document.getElementById('fixture').style.width=(params.get('width')??'1000')+'px'; document.documentElement.style.fontSize=(params.get('font')??'14')+'px';
+const s=store.state;
+if(params.has('pi')) {store.engineIdFor=()=> 'pi';store.piModelOptions=()=>[{providerID:'local',modelID:'m2',label:'Qwen3.8 27B Pi — mixed groupwise-int (Tesla V100)'}];}
+s.activeSessionId='fixture';s.directory='/tmp/ui-fixture';s.prefs.activeHost='local';
+s.prefs.projectEngine={};s.prefs.sessionEngine={fixture:'opencode'};
+const names=['Qwen3.8 Flash Next NVFP4 (RTX 5090)','Qwen3.8 27B NVFP4 (NInfer · V100)','Qwen3.8 27B Pi — mixed groupwise-int (Tesla V100)'];
+const models=Object.fromEntries(names.map((name,i)=>['m'+i,{id:'m'+i,name,variants:{medium:{},xhigh:{}}}]));
+store.getModelChoice=()=>({providerID:'local',modelID:params.has('pi')?'m2':'m0',variant:'medium'});
+store.connectedProvidersWithModels=()=>[{id:'local',models}];
+store.modelInfo=()=>models.m0;store.engineReady=()=>true;
+store.activeSession=()=>({id:'fixture'});store.getDraft=()=>'';store.getQueue=()=>[];
+store.primaryAgentNames=()=>['qwen-build'];store.getAgentChoice=()=> 'qwen-build';
+store.contextInfo=()=>({used:16000,limit:262144,percent:6,threshold:200000,remaining:184000,auto:true});
+store.hostLabel=()=> 'Этот компьютер';store.currentHost=()=>null;
+createRoot(document.getElementById('root')).render(React.createElement(Composer));
+if(params.has('voice'))setTimeout(()=>{document.querySelector('.composer').classList.add('composer-voice-active');document.querySelector('.voice-control').innerHTML='<div class=voice-recording aria-label=Надиктовка><button class=voice-cancel aria-label=Отменить>×</button><canvas></canvas><span class=voice-timer>0:18</span><button class=voice-finish aria-label=Закончить>■</button></div>';},100);
+if(params.has('files'))setTimeout(()=>{let el=document.createElement('div');el.className='attachment-list';el.innerHTML=Array.from({length:3},()=>'<div class=attachment-chip><span>Снимок экрана длинное название.png</span><small>575 КБ</small><button>×</button></div>').join('');document.querySelector('.composer').prepend(el)},100);
+</script></body></html>

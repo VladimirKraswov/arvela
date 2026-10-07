@@ -1,5 +1,68 @@
 # Verification record
 
+## AgentMesh 0.2.20 composer — 2026-10-07
+
+Presentation-only model labels are compact; provider/model IDs, eligibility, sampling and routing are unchanged. Full names remain searchable in menu details and available as trigger tooltips. Model ready state removes stale elapsed time and completed weight progress; loading/error states retain actual service data.
+
+Composer choices wrap according to the composer container width. Primary actions have their own grid area; recording occupies one full in-flow row. Footer wraps and drops keyboard hints at narrow widths. No new permission or microphone capture behavior.
+
+Frontend suite: **476 passed / 6 opt-in skipped**. Initial concurrent build/test run had one 10-second acceptance setup timeout; isolated acceptance retry passed 9/9, then the complete suite passed without timeout overrides. TypeScript/Vite build passed. Rust runtime source unchanged; previous 0.2.19 native qualification remains applicable.
+
+Actual Composer/CSS rendered in the Mac in-app browser using `test/fixtures/composer-layout.html` (Vite-only fixture, excluded from release assets). Eight cases: host widths 1000/640/480/320px, root fonts 14/22px, OpenCode/Pi, and recording layout with three file chips. Measured composer widths 790/556/396/236px. All visible control buttons were within the composer, no overlapping button rectangles or horizontal overflow, no truncated access/model labels for the tested catalogs. At 236px the recording cancel/finish buttons remained 38px each and visible. Voice state/file chips in this geometry fixture are simulated; actual capture/transcription behavior is covered by existing voice tests, not a new live microphone recording.
+
+macOS native app/DMG build passed. Installed `/Applications/AgentMesh Desktop.app` 0.2.20 has SHA256 `4221bf04db4a00beafd6abea8e12e06eddfbe6f55604e006fd34d18bd3a77e82`, identical to the build executable; strict signature/microphone entitlement/version check passed. DMG SHA256 `0598dce2a928f7083527c0d2a7fde8b5c6d108cc9e8dc52e3f432931a2692a94`; Downloads copy matches, `hdiutil verify` passed. Ad-hoc signed, not notarized.
+
+Installed Mac UI visibly shows short OpenCode/Pi model labels. A real narrow composer with the browser side panel open keeps labels and mic/stop inside the panel. Owner tiny-cad continued its busy task across Desktop restart; external OpenCode remained healthy. A control-MCP attempt to reselect the already-resident Pi model raced another controller restoring the owner OpenCode chat: the Pi-only selection was safely rejected, no prompt sent. The transient selection error was cleared by directory reselection; no inference configuration changed. The side panel was closed after the layout check. Windows/Linux 0.2.20 live acceptance not performed.
+
+
+## AgentMesh 0.2.19 Mac installation and V100 deployment — 2026-10-07
+
+Before the 0.2.20 UI refresh, `/Applications/AgentMesh Desktop.app` was the final 0.2.19 build
+from runtime source `11590a3`; subsequent commits change documentation only.
+Its executable SHA256 is
+`9eaf43dc50367de240c8e2c4e6ef8a93271892ab7980c77890aea5ba4e3f227c`.
+Strict signature, microphone entitlement and bundle version checks pass.
+The verified macOS arm64 DMG SHA256 is
+`5b5053dd108d3e5c31c3b3a5f5df2f63f2c8f2f07206f2b5c80c0f7cdb666105`;
+the Downloads copy matches and `hdiutil verify` passes. This is an ad-hoc signed,
+unnotarized Mac build; it is not a Windows/Linux installation claim.
+
+Applicable frozen-source evidence: 469 frontend tests passed / 6 opt-in skipped,
+79 Rust tests passed plus a separate opt-in real Mac vault roundtrip, production
+frontend/native app+DMG builds, fmt and all-targets checks passed. These checks
+were completed before packaging; no redundant full suite was rerun for the
+subsequent documentation-only commits.
+
+Final installed UI acceptance: both V100 service bindings read the protected
+catalog; Pi 0.85.1 discovery refreshed successfully after a stale timeout. Both
+V100 models are verified in Pi settings, including a new real minimal request to
+the Pi checkpoint. The Pi picker lists both; the OpenCode picker excludes the
+Pi-only model. Actual Pi→ordinary→Pi selection showed weight-loading progress,
+disabled selection during loading and exact-model ready state, approximately
+18 seconds per load. No additional OS confirmation blocked these final checks.
+
+A disposable native Pi chat on the installed package streamed reasoning/text,
+used the exact `local-qwen-v100/qwen-v100-pi` model, displayed two permission
+requests and finished normally after both were rejected. The model attempted
+unrequested write/bash calls despite a text-only prompt. Consequently this is
+transport/rendering/permission-denial acceptance, **not** a successful exact-output
+or instruction-following test. The fixture directory remained unchanged; this
+observation does not establish quantization loss or revise the paired benchmark.
+The owner's TinyCAD chat remained busy on its original external OpenCode server;
+no owner chat was aborted or resumed by this verification.
+
+V100 production is enabled and healthy on VM5100, using published NInfer
+`7e626a68` and immutable binary
+`d1f134d02456cb32f90b22a15c36f9e5d2321c8ee2c23bc0f3845b69c4108b5f`.
+The running binary and gateway hashes match the deployed manifest. The catalog
+advertises 262144-token capacity for both models and the Pi-only policy; the
+resident model is restored to `qwen-v100-pi`. Previous qualification comprises
+9 switching checks and 6 heldout Pi tasks including long-context and vision.
+Weights and production engine settings were not changed in this final audit.
+FreeToken on RTX 5090 is separately healthy/enabled at published main `09cafc9`;
+its active owner workload was not interrupted. Windows/Linux 0.2.19 runtime
+acceptance remains pending.
+
 ## Windows 0.2.18 MCP integration — 2026-10-06
 
 Verified archive/history and imported the shared Windows browser runtime without changing the production code in the supplied installer. Independent Mac checks: 451 frontend / 78 Rust tests, TypeScript/Vite, Cargo fmt/all-targets check, native CLI, real 32-tool headless browser and two proxy regressions passed. Installer provenance, hashes and remaining installed Windows/Mac/Linux checks are detailed in [the integration report](WINDOWS-MCP-INTEGRATION-20261006.md).

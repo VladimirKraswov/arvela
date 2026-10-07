@@ -1,4 +1,6 @@
-import { modelServices, switchPhaseLabels } from "../models/services";
+import { modelServices } from "../models/services";
+import { compactModelName } from "../models/display";
+import { ModelSwitchStatus } from "./ModelSwitchStatus";
 import { HostPicker } from "./WorkspacePicker";
 import { ContextMeter } from "./ContextMeter";
 import { VoiceInput } from "./VoiceInput";
@@ -132,8 +134,8 @@ export function Composer() {
         out.push({
           providerID: m.providerID,
           modelID: m.modelID,
-          label: m.label,
-          detail: "проверена",
+          label: compactModelName(m.label),
+          detail: `${m.label} · ${m.providerID} · проверена`,
         });
       return out;
     }
@@ -143,7 +145,8 @@ export function Composer() {
         out.push({
           providerID: p.id,
           modelID: m.id,
-          label: `${m.name ?? m.id}`,
+          label: compactModelName(m.name ?? m.id),
+          detail: `${m.name ?? m.id} · ${p.id}`,
         });
       }
     }
@@ -206,11 +209,9 @@ export function Composer() {
         </div>
       )}
       {attachmentError && <div className="composer-error" role="alert">{attachmentError}</div>}
-      {(switchState ? [switchState] : []).map(state => <div key={state.operation_id} className="workspace-progress" role="status" aria-live="polite">
-        <span>{switchPhaseLabels[state.phase] ?? "Подготовка модели"} · {state.target_model ?? state.active_model} · {Math.floor(state.elapsed_seconds)} с</span>
-        {state.loader?.unit === "bytes" && state.loader.total > 0 && <progress aria-label="Загрузка весов" value={state.loader.current} max={state.loader.total}/>}
-        {state.error && <span role="alert">{state.error}</span>}
-      </div>)}
+      {switchState && <ModelSwitchStatus state={switchState}
+        modelName={modelList.find(m => m.modelID === (switchState.target_model ?? switchState.active_model))?.label
+          ?? compactModelName(switchState.target_model ?? switchState.active_model ?? "Модель")}/>}
       {switchError && <div className="composer-error" role="alert">{switchError}</div>}
       {attachmentProgress && <div className="workspace-progress" role="status">{attachmentProgress}</div>}
       {store.getQueue().length > 0 && (
@@ -410,6 +411,8 @@ export function Composer() {
               store.setAgentOverride(s.directory ?? "*", name)
             }
           />}
+          </div>
+          <div className="composer-actions">
           <VoiceInput disabled={!connected || s.ui.workspacePreparing} onActiveChange={setVoiceActive} />
           {running && session && (
             <button
@@ -464,7 +467,7 @@ export function Composer() {
         </span>
         <ContextMeter />
         <span className="spacer" />
-        <span>
+        <span className="composer-keyboard-hint">
           Enter ↵{" "}
           <span className="optional-hint">· Shift+Enter новая строка</span>
         </span>

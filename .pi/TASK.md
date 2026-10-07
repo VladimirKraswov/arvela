@@ -1,4 +1,10 @@
-# AgentMesh 0.2.19 / V100 model switching — IN PROGRESS (2026-10-07)
+# Composer 0.2.20 — MAC VERIFIED (2026-10-07)
+
+Short presentation-only model labels with full technical details in tooltips/menu. Responsive container grid; separate persistent send/voice actions; full in-flow recording row; compact ready/loading status. Model IDs, routing, permission rules, sampling and inference engines preserved.
+
+476 frontend pass /6 opt-in skipped; production TypeScript/Vite/native app+DMG builds, strict installed signature/microphone check pass. Initial parallel build/test setup timeout resolved by isolated acceptance9/9 and complete final476 pass (no timeout overrides). Eight real-browser geometry cases at actual composer236..790px /root font14..22; no control overlap/outside/overflow or tested-label clipping. Recording geometry with three chips is simulated, not a live mic test. Installed UI shows both short model labels and responsive narrow layout under the real browser panel. Installed binary4221bf04 matches build, DMG0598dce2 verified and copied to Downloads. Previous0.2.19 app preserved privately. Another controller restored TinyCAD during an own-fixture Pi configure attempt; fail-closed agent policy correctly rejected it without a prompt. Clean up transient error by directory reselection, close test browser panel, preserve external OpenCode/PID3714 and busy owner task. Final source/GitHub release publication next; Windows/Linux live acceptance pending.
+
+# AgentMesh 0.2.19 / V100 model switching — MAC VERIFIED (2026-10-07)
 
 Source frozen: 469 frontend pass /6 opt-in skipped; 79 Rust plus actual disposable Mac vault roundtrip; production TypeScript/Vite/native app+DMG/signature/microphone checks pass. Installed latest binary9eaf43dc, DMG5b5053dd; prior apps retained privately. Owner OpenCode server3714 alive/healthy1.18.18, owner conversations not aborted. Stable app identity/history retained; neutral AgentMesh name, equal OpenCode/Pi settings and separate model choice.
 
@@ -8,7 +14,7 @@ Generic provider bindings/catalog-agent policy, real byte/phase progress, OS-vau
 
 Real installed Pi0.85.1 model/tool/eligible compact acceptance PASS with disposable isolated agent configuration; production compaction settings unchanged. Paired native Pi16runs done: initial12 +4 explicit-return-type confirmations; independent tests pass for all three clarified tasks on both models/efforts. Mediumordinary91.8svsPi224.7s;XHigh185.1svs164.1s. Details/limits/raw numerical phases in docs/PI-MODEL-COMPARISON-20261007.md.
 
-Remaining: final Mac OS-keychain confirmation from user (SecurityAgent is prohibited to automation), Pi settings access checks for both V100 IDs, actual final-package model picker/policy/switch-loader/small test-owned Pi UI turn, restore owner UI selection, reviewed Desktopmain push and Macv0.2.19 release. Both service bindings configured through native UI; previous candidate successfully read OSvault/catalog. Do not claim final managed UI acceptance or DONE before current package checks. Final user question pending; do not bypass OS security.
+Final installed Mac acceptance completed 2026-10-07: protected catalog available without another OS handoff, Pi discovery refreshed after stale timeout, Pi checkpoint access check replied, both V100 models selectable for Pi and Pi-only hidden for OpenCode. Real Pi→ordinary→Pi load progress/selection lock/exact ready visible (~18s each). Disposable packaged Pi chat streamed and finished after two denied unrequested tools; transport/permission checks pass, text-only instruction compliance did not. No test file created. Owner external OpenCode/chat preserved, source already in GitHub main; verified0.2.19DMG superseded by the0.2.20UI release above. Verification/ROADMAP synchronized; Windows/Linux live acceptance remains pending.
 
 # Pi checkpoint/configuration re-audit — DONE (2026-10-07)
 

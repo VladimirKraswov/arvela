@@ -27,6 +27,7 @@ export function SelectMenu({
   const ref = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const selected = options.find((o) => o.value === value);
   const filtered = options.filter((o) =>
     (o.label + " " + (o.detail ?? ""))
       .toLowerCase()
@@ -63,6 +64,7 @@ export function SelectMenu({
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
+        title={selected ? [selected.label, selected.detail].filter(Boolean).join(" · ") : value || label}
         disabled={disabled}
         onClick={() => {
           setOpen(!open);
@@ -70,7 +72,7 @@ export function SelectMenu({
         }}
       >
         <span>
-          {options.find((o) => o.value === value)?.label ?? value ?? label}
+          {selected?.label ?? value ?? label}
         </span>
         <Icon name="down" size={13} />
       </button>
