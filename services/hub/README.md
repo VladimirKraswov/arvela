@@ -48,7 +48,7 @@ Public `GET /health` service/API version only. Bearer device key: `GET /api/me`,
 
 Import reviewed bundle without SSH: `python3 services/hub/admin.py --endpoint URL --certificate PUBLIC_PEM --key-file PRIVATE_JSON --directory TEXT_BUNDLE --id ID --kind skill --title TITLE`. Server validates text/paths/secrets. Tool `tool.json`: kind:http, HTTPS URL, optional name/envKeys/bearer **without values or secrets**.
 
-Dedicated new CT only: copy directory to `/opt/arvela-hub`, `sh deploy/install.sh IP`; never install on Proxmox host/inference VM. Public cert expires after825days; rotation requires new public cert on clients. `python3 -m unittest discover -s services/hub/tests -v`. Mac integration exercised; Windows/Linux live acceptance remains separate.
+Dedicated new CT only: copy directory to `/opt/arvela-hub`, `sh deploy/install.sh IP`; never install on Proxmox host/inference VM. Public cert expires after825days; rotation requires new public cert on clients. `python3 -m unittest discover -s services/hub/tests -v`. Installed Mac HTTPS catalog/history and shared skill installation exercised; Windows/Linux live acceptance remains separate.
 
 Concepts follow [OpenTelemetry GenAI conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md) for opt-in content/reported counts. API is **not OTLP** and claims no full OTel compliance. CT management follows [Proxmox pct docs](https://github.com/proxmox/pve-docs/blob/master/pct.adoc).
 
