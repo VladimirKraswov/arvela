@@ -27,7 +27,8 @@ const frame = async () => {
 const lines = readline.createInterface({ input: process.stdin });
 try {
   await client.connect(new StdioClientTransport({ command, args: ['--browser-mcp'], cwd: workspace, stderr: 'pipe' }));
-  const tools = await client.listTools(); assert.equal(tools.tools.length, 32);
+  const tools = await client.listTools(); assert.equal(tools.tools.length, 33);
+  assert(tools.tools.some(tool => tool.name === 'browser_keyboard_type'));
   const result = await client.callTool({ name: 'browser_navigate', arguments: { url: `http://127.0.0.1:${fixture.address().port}` } });
   assert(!result.isError);
   const projected = await frame(); assert(projected.image.length > 100); assert.equal(projected.title, 'Embedded browser verification');

@@ -57,8 +57,11 @@ Windows 0.2.18 cross-process regression:
 `node windows-shared.mjs <absolute-built-exe> <absolute-test-owned-runtime>`.
 It starts a disposable daemon and invokes the real Desktop MCP CLI twice with
 different LOCALAPPDATA values but the same disposable USERPROFILE. Both must
-discover 32 tools and observe the same browser. It never migrates or opens the
+discover 33 tools and observe the same browser. It never migrates or opens the
 user profile, edits global configuration, or requests inference.
+An optional third argument is the absolute installed Pi 0.85.1 package directory.
+It runs `pi-packaged.mjs` through the compiled CLI with the same disposable home
+and browser, so testing the real Pi loader cannot navigate the owner's tabs.
 
 Wait until the installed Desktop has completed browser setup and its daemon is
 running. This acceptance uses Pi 0.85.1's actual extension loader and the app's
@@ -71,7 +74,7 @@ node src-tauri/resources/browser/test/pi-packaged.mjs \
   "$HOME/.local/share/opencode-desktop/browser-runtime/current"
 ```
 
-The test checks 32 official tools register, a real navigation succeeds and the
+The test checks 32 official tools plus the desktop keyboard tool register, a real navigation succeeds and the
 snapshot observes the fixture. It creates no prompt, model request, Pi session
 history or global configuration. It closes only its SDK proxy and fixture,
 leaving the user's app-owned daemon running. This validates the loader/transport;

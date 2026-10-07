@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'select-windows-install.ps1')
 
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
   throw 'This artifact check must run on Windows.'
@@ -26,21 +27,16 @@ $installer = Get-Item -LiteralPath $InstallerPath
 $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $installer.FullName
 $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
 
-$uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-$installed = Get-ChildItem -LiteralPath $uninstallRoot -ErrorAction SilentlyContinue |
-  ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue } |
-  Where-Object { $_.DisplayName -eq 'OpenCode Desktop' } |
-  Select-Object -First 1
-
+$installed = $null
 $health = $null
 if (-not $ArtifactOnly) {
   $health = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 5
   if ($health.healthy -ne $true) { throw 'OpenCode did not report healthy=true.' }
-  if (-not $installed) { throw 'OpenCode Desktop is not installed for this user.' }
   $package = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\package.json') -Raw | ConvertFrom-Json
-  if ($installed.DisplayVersion -ne $package.version) {
-    throw "Installed version $($installed.DisplayVersion) differs from source $($package.version)."
-  }
+  $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+  $entries = @(Get-ChildItem -LiteralPath $uninstallRoot -ErrorAction SilentlyContinue |
+    ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue })
+  $installed = Select-DesktopInstallation -Entries $entries -ExpectedVersion $package.version
 }
 
 [pscustomobject]@{
@@ -48,9 +44,10 @@ if (-not $ArtifactOnly) {
   InstallerBytes = $installer.Length
   SHA256 = $hash.Hash
   SignatureStatus = [string]$signature.Status
+  InstalledProduct = $installed.DisplayName
   InstalledVersion = $installed.DisplayVersion
   InstallLocation = $installed.InstallLocation
-  OpenCodeHealthy = [bool]$health.healthy
+  OpenCodeHealthy = if ($health) { [bool]$health.healthy } else { $null }
   OpenCodeVersion = $health.version
 } | Format-List
 

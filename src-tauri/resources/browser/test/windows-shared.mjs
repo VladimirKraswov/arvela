@@ -6,7 +6,7 @@ import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-const [command, prepared] = process.argv.slice(2);
+const [command, prepared, piRoot] = process.argv.slice(2);
 assert.equal(process.platform, 'win32');
 assert(path.isAbsolute(command) && path.isAbsolute(prepared));
 const temporary = await fs.realpath(os.tmpdir());
@@ -68,6 +68,29 @@ try {
   assert(!navigation.isError);
   const evaluation = await clients[1].callTool({ name: 'browser_evaluate', arguments: { function: '() => location.href' } });
   assert(!evaluation.isError && evaluation.content.some(c => c.type === 'text' && c.text.includes('about:blank')));
+  if (piRoot) {
+    assert(path.isAbsolute(piRoot), 'Supply an absolute installed Pi package directory');
+    // The actual Pi loader and compiled CLI share this disposable browser,
+    // never the owner's profile/configuration. Inference remains disabled.
+    const acceptance = spawn(process.execPath, [
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'pi-packaged.mjs'),
+      command, current, piRoot, 'test-cli',
+    ], { cwd: home, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, USERPROFILE: home, LOCALAPPDATA: path.join(home, 'pi-appdata') } });
+    let output = '';
+    acceptance.stdout.on('data', chunk => { output = (output + chunk.toString()).slice(-4096); });
+    // Do not include native stderr in public diagnostics: it may contain paths.
+    acceptance.stderr.resume();
+    const timeout = setTimeout(() => acceptance.kill(), 120000);
+    let exitCode;
+    try {
+      exitCode = await new Promise((resolve, reject) => {
+        acceptance.once('error', reject); acceptance.once('exit', resolve);
+      });
+    } finally { clearTimeout(timeout); }
+    assert.equal(exitCode, 0, 'Disposable Pi loader/CLI acceptance failed');
+    console.log(output.trim());
+  }
   console.log(JSON.stringify({ windowsSharedRuntime: true, differentAppDataViews: true,
     realDesktopCli: true, tools: 33, sameBrowser: true, noModelRequests: true }));
 } finally {
