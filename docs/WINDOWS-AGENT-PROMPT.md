@@ -127,11 +127,12 @@ Get-FileHash -Algorithm SHA256 -LiteralPath '<фактический путь у
 ```
 
 `scripts/verify-windows.ps1 -InstallerPath '<путь>' -ArtifactOnly` проверяет
-артефакт. В текущей базе его installed-поиск ещё сравнивает DisplayName только
-с `OpenCode Desktop`, хотя новое имя — AgentMesh Desktop. Это известное
-устаревание помощника проверки: не считай его ошибку доказательством сломанной
-установки. Проверь реестр HKCU и текущий installed binary отдельно; можно
-исправить помощник в этой ветке с проверкой обоих имён и правильной версии.
+артефакт. В main после PR #1 installed-поиск учитывает AgentMesh Desktop и
+OpenCode Desktop, выбирает ожидаемую версию и отвергает неоднозначные записи.
+Запусти `scripts/test-windows-install-selection.ps1` (8 fixture cases без
+записи в реестр). `-ArtifactOnly` не доказывает установку или здоровье сервера.
+Проверь HKCU и фактический running binary отдельно, особенно при запуске из
+MSIX: shadowed uninstall view может отличаться от обычной установки.
 
 ## 4. Обнови установленное приложение, сохрани данные
 
