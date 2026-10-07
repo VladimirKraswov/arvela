@@ -75,7 +75,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ```sh
 npm run check:linux-prereqs        # только сообщает недостающие пакеты
 npm run build:linux
-# src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd64.deb
+# src-tauri/target/release/bundle/deb/Arvela_<version>_amd64.deb
 ```
 
 Требуемые системные пакеты Ubuntu 24.04:
@@ -91,7 +91,7 @@ libsoup-3.0-dev librsvg2-dev libssl-dev
 
 ```sh
 npm run build:macos
-python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode Desktop.app"
+python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/Arvela.app"
 ```
 
 `build:macos` сохраняет прежний способ ad-hoc подписи
@@ -106,7 +106,7 @@ python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/OpenCode 
 npm.cmd ci
 npm.cmd test -- --maxWorkers=2
 npm.cmd run build:windows
-# src-tauri\target\release\bundle\nsis\OpenCode Desktop_<version>_x64-setup.exe
+# src-tauri\target\release\bundle\nsis\Arvela_<version>_x64-setup.exe
 ```
 
 Нужны Rust stable-msvc, Visual Studio Build Tools с Desktop C++ workload,
@@ -130,7 +130,7 @@ Windows-артефакт 0.2.16 построен из main `2def38234eb4e06a6cf1
 ```sh
 Xvfb :77 -screen 0 1360x900x24 &
 DISPLAY=:77 ./src-tauri/target/release/opencode-desktop &
-DISPLAY=:77 xwininfo -root -tree          # ждём окно "OpenCode Desktop" 1360x900
+DISPLAY=:77 xwininfo -root -tree          # ждём окно "Arvela" 1360x900
 DISPLAY=:77 xwd -root -silent -out /tmp/shot.xwd
 ```
 
@@ -141,8 +141,8 @@ DISPLAY=:77 xwd -root -silent -out /tmp/shot.xwd
 Проверить содержимое пакета без установки:
 
 ```sh
-dpkg-deb -I "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd64.deb"
-dpkg-deb -c  "src-tauri/target/release/bundle/deb/OpenCode Desktop_<version>_amd64.deb"
+dpkg-deb -I "src-tauri/target/release/bundle/deb/Arvela_<version>_amd64.deb"
+dpkg-deb -c  "src-tauri/target/release/bundle/deb/Arvela_<version>_amd64.deb"
 ```
 
 В списке файлов не должно быть `Entitlements.plist`, `Info.plist` и `.icns`.

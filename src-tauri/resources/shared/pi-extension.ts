@@ -22,7 +22,7 @@ export async function loadConnection(
     import(transportModule),
   ]);
   const client = new Client(
-    { name: "agentmesh-pi-shared", version: "1.0.0" },
+    { name: "arvela-pi-shared", version: "1.0.0" },
     { capabilities: {} },
   );
   return {

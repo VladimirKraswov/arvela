@@ -1,4 +1,4 @@
-//! Agent-facing control plane for AgentMesh Desktop.
+//! Agent-facing control plane for Arvela.
 //!
 //! The desktop process owns a private Unix socket and forwards bounded commands
 //! to the WebView store.  The same binary can be launched with `--agent-mcp` to
@@ -110,7 +110,7 @@ struct Descriptor {
 impl AgentControl {
     fn dispatch(&self, app: &AppHandle, method: String, params: Value) -> Result<Value, String> {
         if !self.ready.load(Ordering::Acquire) {
-            return Err("AgentMesh Desktop is still starting; retry in a moment".into());
+            return Err("Arvela is still starting; retry in a moment".into());
         }
         // A long wait must not block observation or an emergency stop. Commands
         // that change visible selection/configuration remain strictly ordered.
@@ -135,7 +135,7 @@ impl AgentControl {
             .insert(id.clone(), tx);
         let window = app
             .get_webview_window("main")
-            .ok_or_else(|| "AgentMesh Desktop main window is unavailable".to_string())?;
+            .ok_or_else(|| "Arvela main window is unavailable".to_string())?;
         if let Err(error) = window.emit(
             EVENT,
             ControlCommand {
@@ -149,7 +149,7 @@ impl AgentControl {
         }
         let completion = rx.recv_timeout(COMMAND_TIMEOUT).map_err(|_| {
             let _ = self.pending.lock().map(|mut p| p.remove(&id));
-            "AgentMesh Desktop did not complete the command within 6 minutes".to_string()
+            "Arvela did not complete the command within 6 minutes".to_string()
         })?;
         match completion.error {
             Some(error) => Err(error),
@@ -331,7 +331,7 @@ fn handle_connection(mut stream: UnixStream, app: AppHandle) {
         serde_json::to_vec(&WireResponse {
             ok: false,
             result: None,
-            error: Some("AgentMesh Desktop response is too large".into()),
+            error: Some("Arvela response is too large".into()),
         })
         .unwrap_or_default()
     };
@@ -405,10 +405,9 @@ fn descriptor_path() -> Result<PathBuf, String> {
 fn call_desktop(method: &str, params: Value) -> Result<Value, String> {
     let descriptor: Descriptor =
         serde_json::from_slice(&fs::read(descriptor_path()?).map_err(|_| {
-            "AgentMesh Desktop control endpoint was not found; start the installed app first"
-                .to_string()
+            "Arvela control endpoint was not found; start the installed app first".to_string()
         })?)
-        .map_err(|e| format!("invalid AgentMesh Desktop control descriptor: {e}"))?;
+        .map_err(|e| format!("invalid Arvela control descriptor: {e}"))?;
     if descriptor.protocol != PROTOCOL {
         return Err(format!(
             "unsupported desktop control protocol {}",
@@ -416,7 +415,7 @@ fn call_desktop(method: &str, params: Value) -> Result<Value, String> {
         ));
     }
     let mut stream = UnixStream::connect(&descriptor.socket_path)
-        .map_err(|e| format!("cannot connect to AgentMesh Desktop: {e}"))?;
+        .map_err(|e| format!("cannot connect to Arvela: {e}"))?;
     stream
         .set_read_timeout(Some(COMMAND_TIMEOUT + Duration::from_secs(5)))
         .map_err(|e| e.to_string())?;
@@ -429,10 +428,10 @@ fn call_desktop(method: &str, params: Value) -> Result<Value, String> {
         .read_line(&mut line)
         .map_err(|e| e.to_string())?;
     if line.len() as u64 > MAX_RESPONSE_BYTES {
-        return Err("AgentMesh Desktop response is too large".into());
+        return Err("Arvela response is too large".into());
     }
-    let response: WireResponse = serde_json::from_str(&line)
-        .map_err(|e| format!("invalid AgentMesh Desktop response: {e}"))?;
+    let response: WireResponse =
+        serde_json::from_str(&line).map_err(|e| format!("invalid Arvela response: {e}"))?;
     if response.ok {
         Ok(response.result.unwrap_or(Value::Null))
     } else {
@@ -449,22 +448,22 @@ fn call_desktop(_method: &str, _params: Value) -> Result<Value, String> {
 
 fn tools() -> Value {
     json!([
-      {"name":"desktop_status","description":"Read AgentMesh Desktop connection, visible workspace/chat, engine/model, run state and pending user interactions.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
-      {"name":"desktop_projects","description":"Refresh and list projects known to the connected AgentMesh Desktop instance.","inputSchema":{"type":"object","properties":{"refresh":{"type":"boolean","default":true}},"additionalProperties":false}},
+      {"name":"desktop_status","description":"Read Arvela connection, visible workspace/chat, engine/model, run state and pending user interactions.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
+      {"name":"desktop_projects","description":"Refresh and list projects known to the connected Arvela instance.","inputSchema":{"type":"object","properties":{"refresh":{"type":"boolean","default":true}},"additionalProperties":false}},
       {"name":"desktop_select","description":"Select a project directory and optionally open one of its sessions in the visible desktop UI.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"}},"required":["directory"],"additionalProperties":false}},
       {"name":"desktop_sessions","description":"List sessions for a project directory, including engine and live status.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"refresh":{"type":"boolean","default":true}},"required":["directory"],"additionalProperties":false}},
       {"name":"desktop_new_chat","description":"Open the new-chat composer for a directory and choose OpenCode or Pi for this new chat.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"engine":{"type":"string","enum":["opencode","pi"]}},"required":["directory"],"additionalProperties":false}},
       {"name":"desktop_configure","description":"Choose model, variant and agent for the visible chat. This does not change permissions or auto-approve anything.","inputSchema":{"type":"object","properties":{"provider_id":{"type":"string"},"model_id":{"type":"string"},"variant":{"type":["string","null"]},"agent":{"type":"string"}},"additionalProperties":false}},
-      {"name":"desktop_send","description":"Send one prompt through the visible AgentMesh Desktop chat. Acceptance is not completion; call desktop_wait afterwards. For an explicitly managed long task, supply a literal completion_marker, bounded max_continuations and optional project-relative checkpoint_path. Permission and question requests remain pending for the user.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"text":{"type":"string"},"engine":{"type":"string","enum":["opencode","pi"]},"provider_id":{"type":"string"},"model_id":{"type":"string"},"variant":{"type":["string","null"]},"agent":{"type":"string"},"completion_marker":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},"max_continuations":{"type":"integer","minimum":0,"maximum":20},"checkpoint_path":{"type":"string","minLength":1,"maxLength":240}},"required":["directory","text"],"additionalProperties":false}},
+      {"name":"desktop_send","description":"Send one prompt through the visible Arvela chat. Acceptance is not completion; call desktop_wait afterwards. For an explicitly managed long task, supply a literal completion_marker, bounded max_continuations and optional project-relative checkpoint_path. Permission and question requests remain pending for the user.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"text":{"type":"string"},"engine":{"type":"string","enum":["opencode","pi"]},"provider_id":{"type":"string"},"model_id":{"type":"string"},"variant":{"type":["string","null"]},"agent":{"type":"string"},"completion_marker":{"type":"string","pattern":"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"},"max_continuations":{"type":"integer","minimum":0,"maximum":20},"checkpoint_path":{"type":"string","minLength":1,"maxLength":240}},"required":["directory","text"],"additionalProperties":false}},
       {"name":"desktop_wait","description":"Wait until a session becomes idle, needs user input, fails, or the bounded timeout expires.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"},"timeout_seconds":{"type":"integer","minimum":1,"maximum":300,"default":120}},"required":["session_id"],"additionalProperties":false}},
-      {"name":"desktop_conversation","description":"Read a bounded, normalized transcript from a session in AgentMesh Desktop.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":200,"default":40},"max_chars":{"type":"integer","minimum":1000,"maximum":500000,"default":120000}},"required":["directory","session_id"],"additionalProperties":false}},
-      {"name":"desktop_stop","description":"Stop a running session without closing AgentMesh Desktop.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
+      {"name":"desktop_conversation","description":"Read a bounded, normalized transcript from a session in Arvela.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":200,"default":40},"max_chars":{"type":"integer","minimum":1000,"maximum":500000,"default":120000}},"required":["directory","session_id"],"additionalProperties":false}},
+      {"name":"desktop_stop","description":"Stop a running session without closing Arvela.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
       {"name":"desktop_interactions","description":"List pending permission requests and structured questions. Never infer approval from project scope.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
       {"name":"desktop_managed_runs","description":"List durable managed long-run contracts for the currently connected server without prompts or tool output.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
       {"name":"desktop_forget_managed_run","description":"Remove one managed continuation contract without aborting or deleting its OpenCode session.","inputSchema":{"type":"object","properties":{"session_id":{"type":"string"}},"required":["session_id"],"additionalProperties":false}},
       {"name":"desktop_reply_permission","description":"Reply to a pending permission request. Use once/always only after an explicit user decision; reject is always safe.","inputSchema":{"type":"object","properties":{"request_id":{"type":"string"},"reply":{"type":"string","enum":["once","always","reject"]}},"required":["request_id","reply"],"additionalProperties":false}},
       {"name":"desktop_answer_question","description":"Answer or reject a pending structured question. Answers are arrays because a question may allow multiple selections.","inputSchema":{"type":"object","properties":{"request_id":{"type":"string"},"answers":{"type":"array","items":{"type":"array","items":{"type":"string"}}},"reject":{"type":"boolean","default":false}},"required":["request_id"],"additionalProperties":false}},
-      {"name":"desktop_set_view","description":"Open/close visible AgentMesh Desktop panels without using mouse input.","inputSchema":{"type":"object","properties":{"settings_open":{"type":"boolean"},"sidebar_open":{"type":"boolean"},"review_open":{"type":"boolean"},"terminal_open":{"type":"boolean"}},"additionalProperties":false}},
+      {"name":"desktop_set_view","description":"Open/close visible Arvela panels without using mouse input.","inputSchema":{"type":"object","properties":{"settings_open":{"type":"boolean"},"sidebar_open":{"type":"boolean"},"review_open":{"type":"boolean"},"terminal_open":{"type":"boolean"}},"additionalProperties":false}},
       {"name":"desktop_install_mcp","description":"Safely install or disable this exact control MCP in local OpenCode JSONC, preserving comments/other entries and creating a backup. Refuses while agents run or on a remote host.","inputSchema":{"type":"object","properties":{"enabled":{"type":"boolean","default":true}},"additionalProperties":false}}
     ])
 }
@@ -496,7 +495,7 @@ fn mcp_response(message: Value) -> Option<Value> {
     let id = message.get("id").cloned();
     let method = message.get("method").and_then(Value::as_str)?;
     match method {
-        "initialize" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"opencode-desktop-control","version":env!("CARGO_PKG_VERSION")},"instructions":"Control the running AgentMesh Desktop through its visible state. Send once, then wait/read. Never auto-approve permissions or invent answers to user questions."}})),
+        "initialize" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"arvela-control","version":env!("CARGO_PKG_VERSION")},"instructions":"Control the running Arvela through its visible state. Send once, then wait/read. Never auto-approve permissions or invent answers to user questions."}})),
         "ping" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{}})),
         "tools/list" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"tools":tools()}})),
         "tools/call" => id.map(|id| {

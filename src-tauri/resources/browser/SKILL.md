@@ -1,6 +1,6 @@
 ---
 name: desktop-browser
-description: Work in the visible, persistent OpenCode Desktop browser using official Playwright MCP tools.
+description: Work in the visible, persistent Arvela browser using official Playwright MCP tools.
 ---
 Use the desktop_browser MCP tools to navigate, inspect accessibility snapshots,
 fill forms (including password fields), click, upload approved workspace files,

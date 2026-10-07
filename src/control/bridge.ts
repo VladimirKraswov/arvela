@@ -145,7 +145,7 @@ async function selectDirectory(directory: string): Promise<void> {
   if (known) await store.setDirectory(directory);
   else await store.addProjectDirectory(directory);
   if (store.state.directory !== directory)
-    throw new Error(`AgentMesh Desktop did not select ${directory}`);
+    throw new Error(`Arvela did not select ${directory}`);
 }
 
 async function selectSession(directory: string, sessionId?: string): Promise<void> {

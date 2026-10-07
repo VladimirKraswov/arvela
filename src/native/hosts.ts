@@ -34,7 +34,7 @@ export async function connectSsh(host: RemoteHost): Promise<string> {
     );
   if (!("__TAURI_INTERNALS__" in window))
     throw new Error(
-      "SSH-подключения доступны в установленном AgentMesh Desktop.",
+      "SSH-подключения доступны в установленном Arvela.",
     );
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke("connect_ssh", { target: host.target, port: host.port });
@@ -45,7 +45,7 @@ export async function prepareChat(
 ): Promise<ChatWorkspace> {
   if (!("__TAURI_INTERNALS__" in window))
     throw new Error(
-      "Для создания отдельной рабочей папки чата откройте установленный AgentMesh Desktop.",
+      "Для создания отдельной рабочей папки чата откройте установленный Arvela.",
     );
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke("prepare_chat_workspace", {

@@ -1,6 +1,6 @@
 # Managed model services
 
-AgentMesh Desktop separates an **agent** (OpenCode or Pi), its provider/model
+Arvela separates an **agent** (OpenCode or Pi), its provider/model
 selection, and the **inference service** holding weights in VRAM. OpenCode remains
 the default for new projects. Pi settings, histories, credentials and extensions
 remain independent. Selecting an agent does not rename or reinterpret a transcript;
@@ -78,19 +78,16 @@ selection or a busy model change cannot silently send to the wrong model.
 
 ## Product rename
 
-Version 0.2.19 uses **AgentMesh Desktop** in the window, bundle and UI. The native
-identifier `dev.local.opencodedesktop`, executable `opencode-desktop`, data paths,
-MCP command names and preference keys remain stable. GitHub repository and existing
-integration configuration retain their original names. Install the new Mac bundle
-as a replacement for the old app, with the prior bundle backed up; do not run two
-copies against the same profile. Windows/Linux install migration still requires
-platform acceptance before claiming it verified.
-
-On Mac installation, update existing managed MCP executable paths to the new
-bundle (`cua_desktop` / `--computer-mcp`, `opencode_desktop` / `--agent-mcp`).
-Preserve their enabled state, credentials and unrelated configuration. Browser
-auto-configuration already resolves the current executable. The installed Mac
-acceptance confirmed tool lists from all three interfaces (17 / 22 / 32 tools).
+Version 0.2.24 uses **Arvela** in the window, bundle, installers and UI;
+the public repository is `VladimirKraswov/arvela`. The native identifier
+`dev.local.opencodedesktop`, compatibility executable `opencode-desktop`, data
+paths, MCP command names and preference keys remain stable. No separate history
+or credential store is created. Existing integrations keep their reserved IDs.
+On Mac install the new bundle in `/Applications/Arvela.app`, back up the prior
+bundle and retain the prior application path as a compatibility symlink so loaded
+MCP clients still resolve it. Never run both bundles against the same profile.
+Windows/Linux installation migration still requires platform acceptance before
+claiming it verified. Historical test reports/releases keep their original names.
 
 Control keys use the OS credential store (macOS Keychain, Windows Credential
 Manager, Linux Secret Service), separate from preferences and provider API keys.

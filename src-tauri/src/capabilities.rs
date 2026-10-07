@@ -751,7 +751,7 @@ pub fn pi_support(directory: &Path) -> Result<(String, Vec<String>, Option<PathB
         .collect();
     let extension = if registry.servers.iter().any(|s| s.enabled) {
         if !runtime_ready() {
-            return Err("Установите общие MCP-инструменты в настройках AgentMesh".into());
+            return Err("Установите общие MCP-инструменты в настройках Arvela".into());
         }
         Some(root.join("runtime/pi-extension.ts"))
     } else {

@@ -8,7 +8,7 @@ import { remoteUrl, toolName } from "./registry.mjs";
 export async function connectServer(spec, cwd, token, signal) {
   if (!path.isAbsolute(cwd)) throw new Error("Absolute workspace required");
   const client = new Client(
-    { name: "agentmesh-shared-tools", version: "1.0.0" },
+    { name: "arvela-shared-tools", version: "1.0.0" },
     { capabilities: { roots: { listChanged: true } } },
   );
   client.setRequestHandler(ListRootsRequestSchema, async () => ({

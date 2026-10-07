@@ -2,7 +2,7 @@
 
 ## Bootstrap
 
-Official `create-tauri-app` 4.7.4, `react-ts`, npm, Tauri 2. Product name is OpenCode Desktop. Dependencies are tracked by npm and Cargo lockfiles. The initial worker implementation was independently reviewed and corrected; the current shell includes native chat/PTY acceptance evidence.
+Official `create-tauri-app` 4.7.4, `react-ts`, npm, Tauri 2. Product name is Arvela. Dependencies are tracked by npm and Cargo lockfiles. The initial worker implementation was independently reviewed and corrected; the current shell includes native chat/PTY acceptance evidence.
 
 Run from this project directory. On the current Mac, `NODE_PATH` can point into an unrelated project: use `env -u NODE_PATH npm …` when necessary. The app connects to an already running OpenCode server and does not discover or launch an executable from PATH.
 
@@ -47,4 +47,4 @@ Check dark and light modes, empty app, long message/code, expanded tool error, p
 
 ## Deliverable
 
-A locally built `OpenCode Desktop.app`, source, tested instructions, compatibility notes and honest feature checklist. Install under the user's Applications only after verification; create a Desktop shortcut without overwriting the existing Qwen OpenCode launcher. The user explicitly authorized GitHub publication on 2026-09-22. Publish source/docs/tests to the private repository and attach the built DMG to its release; exclude local receipts, chat histories, credentials and app backups.
+A locally built `Arvela.app`, source, tested instructions, compatibility notes and honest feature checklist. Install under the user's Applications only after verification; create a Desktop shortcut without overwriting the existing Qwen OpenCode launcher. The user explicitly authorized GitHub publication on 2026-09-22. Publish source/docs/tests to the private repository and attach the built DMG to its release; exclude local receipts, chat histories, credentials and app backups.

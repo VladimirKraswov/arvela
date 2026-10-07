@@ -306,7 +306,7 @@ export function CapabilitiesSettings({
         </p>
       )}
       {!isNative() && (
-        <p>Управление доступно в установленном AgentMesh Desktop.</p>
+        <p>Управление доступно в установленном Arvela.</p>
       )}
       <div className="settings-actions">
         <label>

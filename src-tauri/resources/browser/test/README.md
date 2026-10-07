@@ -70,7 +70,7 @@ coordinate this with the user rather than replacing an unrelated active form.
 
 ```sh
 node src-tauri/resources/browser/test/pi-packaged.mjs \
-  '/Applications/OpenCode Desktop.app/Contents/MacOS/opencode-desktop' \
+  '/Applications/Arvela.app/Contents/MacOS/opencode-desktop' \
   "$HOME/.local/share/opencode-desktop/browser-runtime/current"
 ```
 

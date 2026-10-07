@@ -3,7 +3,7 @@
 ## Separation
 
 ```text
-OpenCode Desktop (Tauri app; independent version)
+Arvela (Tauri app; independent version)
   React UI → typed application adapter → WebView HTTP/SSE/WebSocket transport
                                             ↓ loopback API
 Separately installed OpenCode server (independent version)

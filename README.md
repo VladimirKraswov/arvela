@@ -1,4 +1,6 @@
-# AgentMesh Desktop
+# Arvela
+
+Рабочее пространство для ваших AI-агентов. Ранее — AgentMesh Desktop / OpenCode Desktop. [Переименование и совместимость](docs/BRANDING.md).
 
 
 Общий интерфейс для OpenCode и Pi с отдельным выбором агента и модели в каждом чате. OpenCode остаётся агентом по умолчанию; история и настройки каждого движка сохраняются отдельно. [Возможности агентов и переключение моделей](docs/MODEL-SERVICES.md).
@@ -23,7 +25,7 @@
 
 Нативная оболочка на **Tauri 2 + React + TypeScript** с двумя отдельно установленными движками: OpenCode и Pi. Каждый движок хранит собственную историю, инструменты, модели и разрешения и обновляется независимо от приложения.
 
-На macOS приложение устанавливается в `/Applications/AgentMesh Desktop.app` (плюс ярлыки в `~/Applications` и на рабочем столе); на Linux `.deb` ставит `/usr/bin/opencode-desktop` и пункт меню «AgentMesh Desktop»; на Windows NSIS устанавливает приложение для текущего пользователя в `%LOCALAPPDATA%\AgentMesh Desktop`. Для чатов OpenCode нужен его сервер (по умолчанию `http://127.0.0.1:4096`). Если установленный отдельно OpenCode ещё не запущен, Desktop запускает локальный `opencode serve` и подключается после проверки `/global/health`. Уже работающий сервер не перезапускается; при закрытии приложения он продолжает работать. Удалённые SSH-серверы Desktop не запускает. Локальные чаты Pi работают без OpenCode. Переименование сохраняет идентификатор и хранилище; обновление установленной версии на Windows/Linux требует отдельной проверки.
+На macOS приложение устанавливается в `/Applications/Arvela.app` (плюс ярлыки в `~/Applications` и на рабочем столе); на Linux `.deb` ставит `/usr/bin/opencode-desktop` и пункт меню «Arvela»; на Windows NSIS устанавливает приложение для текущего пользователя в `%LOCALAPPDATA%\Arvela`. Идентификатор приложения, пути данных и совместимое имя исполняемого файла `opencode-desktop` сохраняются при обновлении. Для чатов OpenCode нужен его сервер (по умолчанию `http://127.0.0.1:4096`). Если установленный отдельно OpenCode ещё не запущен, Desktop запускает локальный `opencode serve` и подключается после проверки `/global/health`. Уже работающий сервер не перезапускается; при закрытии приложения он продолжает работать. Удалённые SSH-серверы Desktop не запускает. Локальные чаты Pi работают без OpenCode. Переименование сохраняет идентификатор и хранилище; обновление установленной версии на Windows/Linux требует отдельной проверки.
 
 ## Работа
 
@@ -73,14 +75,14 @@ macOS — `.app` + `.dmg` (Apple Silicon), ad-hoc подпись и Hardened Run
 
 ```sh
 npm run build:macos
-python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/AgentMesh Desktop.app"
+python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/Arvela.app"
 ```
 
 Windows — NSIS `.exe` для текущего пользователя (0.2.16 собран и установлен на Windows 11 x64 по переданным отчёту и логам):
 
 ```powershell
 npm run build:windows
-# src-tauri\target\release\bundle\nsis\AgentMesh Desktop_<version>_x64-setup.exe
+# src-tauri\target\release\bundle\nsis\Arvela_<version>_x64-setup.exe
 ```
 
 Локальный Windows-установщик не подписан сертификатом издателя. Agent Control
@@ -100,7 +102,7 @@ npm run build:windows
 
 ## Репозиторий и установщик
 
-[Исходники](https://github.com/VladimirKraswov/opencode-desktop) · [релиз 0.2.23](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.23) содержит проверенный macOS Apple Silicon `.dmg`: агенты OpenCode/Pi, переключение моделей с прогрессом, короткие названия и адаптивный блок ввода с отдельной строкой диктовки, компактный браузер с быстрым режимом и эмуляцией, защиту от устаревших координат после изменения размера. Windows x64 0.2.18 с исправлением MCP доступна в [релизе 0.2.18](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.18); Linux x86_64 `.deb` — в [релизе 0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10). Сборки Windows/Linux 0.2.23 пока не проверены. [Проверки и ограничения](docs/VERIFICATION.md). Репозиторий публичный: clone/pull по HTTPS не требуют авторизации или SSH. Для push и pull request нужен вход в GitHub; исправления Windows направляются отдельными PR в main. [Промпт для Windows-агента](docs/WINDOWS-AGENT-PROMPT.md). Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
+[Исходники](https://github.com/VladimirKraswov/arvela) · [релиз 0.2.24](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.24) содержит проверенный macOS Apple Silicon `.dmg`: агенты OpenCode/Pi, переключение моделей с прогрессом, короткие названия и адаптивный блок ввода с отдельной строкой диктовки, компактный браузер с быстрым режимом и эмуляцией, защиту от устаревших координат после изменения размера. Windows x64 0.2.18 с исправлением MCP доступна в [релизе 0.2.18](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.18); Linux x86_64 `.deb` — в [релизе 0.2.10](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.10). Сборки Windows/Linux 0.2.24 пока не проверены. [Проверки и ограничения](docs/VERIFICATION.md). Репозиторий публичный: clone/pull по HTTPS не требуют авторизации или SSH. Для push и pull request нужен вход в GitHub; исправления Windows направляются отдельными PR в main. [Промпт для Windows-агента](docs/WINDOWS-AGENT-PROMPT.md). Истории чатов, локальные диагностические записи, ключи и резервные копии приложений в репозиторий не включены.
 
 Параметры двух локальных моделей и решение по V100/NInfer описаны в [docs/LOCAL-MODELS.md](docs/LOCAL-MODELS.md).
 Полная схема пути от приложения через OpenCode к обеим VM, настройки, расширения и сохранённые измерения — в [карте AI-среды](docs/AI-ENVIRONMENT.md).

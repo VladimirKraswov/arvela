@@ -74,7 +74,7 @@ async function connection(candidate = workspace) {
   const outputDir = path.join(workspace, crypto.createHash('sha256').update(candidate).digest('hex').slice(0, 24));
   await fs.mkdir(outputDir, { recursive: true, mode: 0o700 });
   const official = await createConnection({ ...config, outputDir }, getContext);
-  const client = new Client({ name: 'opencode-desktop-browser-owner', version: '1.0.0' }, { capabilities: { roots: {} } });
+  const client = new Client({ name: 'arvela-browser-owner', version: '1.0.0' }, { capabilities: { roots: {} } });
   client.setRequestHandler(ListRootsRequestSchema, async () => ({ roots: [{ uri: pathToFileURL(candidate).href, name: 'Approved current workspace' }] }));
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   await official.connect(serverTransport);

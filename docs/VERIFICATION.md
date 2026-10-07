@@ -1,3 +1,37 @@
+# Arvela 0.2.24 — product rename, Mac installed (2026-10-07)
+
+Public product name is **Arvela**: window/menu/settings/messages, bundle/installer
+names, README/current documentation, npm/Rust package and GitHub repository
+`VladimirKraswov/arvela`. New SVG mark produces Mac/Windows/Linux icons; old
+default icon is replaced. Existing application ID, executable `opencode-desktop`,
+preference/data/vault/skill/tool identities stay compatible. Dated reports and
+published historical files below keep their actual names. See [branding](BRANDING.md).
+
+533 frontend tests passed /6 opt-in skipped;85 Rust passed /1 unchanged vault
+opt-in ignored. After the logo import,37 focused UI checks passed. Rust
+fmt/all-targets, TypeScript/Vite and macOS app/DMG builds pass. Windows
+installation selector includes all three names and retains ambiguous-version
+rejection; its expanded10-case PowerShell fixture was not run on Mac (pwsh absent).
+Live Windows/Linux rename upgrades are pending.
+
+Installed `/Applications/Arvela.app` 0.2.24 executable matches the build:
+`56247a585b50bff78a2d7985468a4f6369abbfae0c1cac57bd1689ebb620b3b6`.
+DMG `2f49a0ede8d9819f62ceb96414c25407f64ba49507e9cb6bba247095e481a283`
+matches the Downloads copy; strict/deep signature, microphone entitlement,
+application ID/version/name and `hdiutil verify` pass. Ad-hoc signed, not notarized.
+Private0.2.23 backup retained; prior app moved across volumes, legacy application
+path resolves to Arvela through a hidden symlink. User Applications/Desktop
+launchers use the new name. No second data store or concurrent legacy app.
+
+Native window/menu/About visibly show Arvela0.2.24 and healthy OpenCode1.18.18.
+Existing browser remains ready; renamed shared SDK refreshed through its official
+locked installer. Browser/shared scripts match source. Installed CLI and real
+Pi0.85.1 loader/validator acceptance pass: discovery, aliases, scoped cwd,
+upstream errors without replay, disabled service rejection and disposable
+OpenCode MCP attachment/disconnect. No model calls; test-owned registries removed.
+Original external OpenCode PID3714, conversations, global providers, permissions
+and inference services preserved. Publication verification follows after source push.
+
 # AgentMesh 0.2.23 — shared capabilities, Mac verified (2026-10-07)
 
 One global/project registry for portable SKILL.md sources and MCP tools. OpenCode

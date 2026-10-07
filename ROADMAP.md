@@ -1,4 +1,4 @@
-# AgentMesh Desktop roadmap
+# Arvela roadmap
 
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 
@@ -96,7 +96,7 @@ The goal is a full daily-use desktop coding client with the familiar workspace s
 ## M0 — Bootstrap (provided)
 
 - [x] Official Tauri 2 + React + TypeScript starter.
-- [x] Product name OpenCode Desktop; independent engine boundary documented.
+- [x] Product name Arvela; independent engine boundary documented.
 - [x] Product specification, architecture, agent instructions and API snapshot.
 - [x] Dependency installation, starter frontend build and Rust check verified; see docs/VERIFICATION.md.
 - [x] Initial Git checkpoint prepared and committed before worker dispatch.
@@ -347,7 +347,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [ ] Installed Windows 0.2.18 normal/MSIX acceptance and real-profile migration. Mac 0.2.18 installation and Linux runtime acceptance are not claimed.
 
 
-## AgentMesh 0.2.19 — Mac release verified
+## Arvela 0.2.19 — Mac release verified
 
 - [x] Neutral product name and equal agent overview/badges; stable identity and data paths.
 - [x] Pi native model/effort confirmation, unopened-session compaction, prepared text attachments and durable message branching.
@@ -358,7 +358,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 
 See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linux new release acceptance remains pending.
 
-## AgentMesh 0.2.20 — responsive composer
+## Arvela 0.2.20 — responsive composer
 
 - [x] Short model labels with full-name details; routing unchanged.
 - [x] Container-based wrapping and separate send/voice actions.
@@ -398,3 +398,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Actual connection/session availability, dependencies and reload states.
 - [x] Regression/real isolated MCP/Pi acceptance; Mac build/install and publication.
 - [ ] Live Windows/Linux acceptance.
+
+## M33 — Arvela identity (0.2.24)
+
+- [x] Public product/repository/UI/docs use Arvela; stable data, vault and MCP identities preserved.
+- [x] Windows verifier recognizes current and both legacy product names.
+- [ ] Regression/build, verified Mac replacement and publication.
+- [ ] Live Windows/Linux rename upgrade acceptance.

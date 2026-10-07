@@ -1,12 +1,12 @@
-# Управление OpenCode Desktop через MCP
+# Управление Arvela через MCP
 
-OpenCode Desktop предоставляет локальный control plane для Codex, OpenCode и
+Arvela предоставляет локальный control plane для Codex, OpenCode и
 других MCP-клиентов. Агенту не требуется двигать физическую мышь, распознавать
 интерфейс по снимку или редактировать `localStorage` приложения.
 
 ## Подключение
 
-1. Запустите установленный OpenCode Desktop. При старте он создаёт Unix-сокет и
+1. Запустите установленный Arvela. При старте он создаёт Unix-сокет и
    descriptor `~/.local/share/opencode-desktop/agent-control/control.json` (на
    Linux учитывается `XDG_DATA_HOME`). Каталог имеет режим `0700`, сокет и файл —
    `0600`; descriptor содержит случайный токен текущего процесса.
@@ -22,7 +22,7 @@ OpenCode Desktop предоставляет локальный control plane д�
    {
      "mcpServers": {
        "opencode_desktop": {
-         "command": "/Applications/OpenCode Desktop.app/Contents/MacOS/opencode-desktop",
+         "command": "/Applications/Arvela.app/Contents/MacOS/opencode-desktop",
          "args": ["--agent-mcp"]
        }
      }
@@ -90,7 +90,7 @@ OpenCode Desktop предоставляет локальный control plane д�
 
 ## Диагностика
 
-- `OpenCode Desktop control endpoint was not found` — приложение не запущено.
+- `Arvela control endpoint was not found` — приложение не запущено.
 - `still starting` — WebView ещё не установил обработчик; повторите через секунду.
 - `cannot connect` — descriptor остался от аварийно завершённого процесса;
   перезапустите Desktop.

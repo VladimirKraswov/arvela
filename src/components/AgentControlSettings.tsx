@@ -63,14 +63,14 @@ export function AgentControlSettings() {
 
   return (
     <section className="computer-settings" aria-label="API управления агентами">
-      <h4>AgentMesh Desktop Control MCP</h4>
+      <h4>Arvela Control MCP</h4>
       <p>
         Агенты выбирают проект, чат, модель и движок, отправляют задачу, ждут
         завершения и читают результат через API. Физическая мышь и распознавание
         экрана не используются.
       </p>
       {!native ? (
-        <p role="status">Откройте установленное приложение AgentMesh Desktop.</p>
+        <p role="status">Откройте установленное приложение Arvela.</p>
       ) : (
         <>
           <div className="kv"><span>Локальный шлюз</span><b>{status?.supported === false ? "Недоступен на этой платформе" : status?.ready ? "Готов" : "Запускается"}</b></div>

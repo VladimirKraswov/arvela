@@ -2,11 +2,11 @@
 
 ## User intent
 
-The user wants **OpenCode Desktop**, installed over OpenCode and updated independently. They prefer the workspace and capabilities of the Codex desktop app, but want their local Qwen3.8 Flash Next to power the coding agent. They specifically asked OpenCode/Qwen to implement the shell; this repository contains a starter and specifications for that work.
+The user wants **Arvela**, installed over OpenCode and updated independently. They prefer the workspace and capabilities of the Codex desktop app, but want their local Qwen3.8 Flash Next to power the coding agent. They specifically asked OpenCode/Qwen to implement the shell; this repository contains a starter and specifications for that work.
 
 ## Workspace layout
 
-Use a restrained desktop design: thin native title area; roughly 240px left sidebar; readable center conversation; optional resizable right review/files panel and bottom terminal. Warm/neutral dark surfaces, subtle separators, compact readable typography, quiet status colors. Match the workflow and density of a serious coding tool, not a generic dashboard. Use original assets and the OpenCode Desktop identity.
+Use a restrained desktop design: thin native title area; roughly 240px left sidebar; readable center conversation; optional resizable right review/files panel and bottom terminal. Warm/neutral dark surfaces, subtle separators, compact readable typography, quiet status colors. Match the workflow and density of a serious coding tool, not a generic dashboard. Use original assets and the Arvela identity.
 
 The sidebar contains New conversation, project selector/add folder, search, grouped recent sessions, and settings/connection status. The center header shows session title, directory, branch/status and panel toggles. Message history has a comfortable reading width; tool and thinking entries collapse without hiding errors or requests needing action. Composer stays near the bottom and includes model, agent, supported reasoning effort, attachments, send and stop.
 

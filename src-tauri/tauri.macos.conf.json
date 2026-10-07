@@ -3,7 +3,7 @@
   "app": {
     "windows": [
       {
-        "title": "AgentMesh Desktop",
+        "title": "Arvela",
         "width": 1360,
         "height": 900,
         "minWidth": 900,

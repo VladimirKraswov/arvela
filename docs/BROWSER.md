@@ -1,4 +1,4 @@
-# In-app browser in AgentMesh Desktop 0.2.22
+# In-app browser in Arvela 0.2.24
 
 Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus four bounded Desktop adapters (keyboard input, observe, action and sequence); there is no second agent loop or copied browser implementation.
 

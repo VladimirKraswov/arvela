@@ -222,7 +222,7 @@ export function TerminalPanel() {
       }
       if (!pty) {
         pty = await client.ptyCreate(
-          { cwd: dir, title: "AgentMesh Desktop" },
+          { cwd: dir, title: "Arvela" },
           dir,
         );
         if (gen !== genRef.current) {

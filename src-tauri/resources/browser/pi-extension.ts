@@ -26,7 +26,7 @@ async function loadBrowser(command: string, cwd: string): Promise<BrowserConnect
   const [{ Client }, { StdioClientTransport }] = await Promise.all([
     import(clientModule), import(transportModule),
   ]);
-  const client = new Client({ name: "opencode-desktop-pi-browser", version: "1.0.0" }, { capabilities: {} });
+  const client = new Client({ name: "arvela-pi-browser", version: "1.0.0" }, { capabilities: {} });
   const transport = new StdioClientTransport({
     command, args: ["--browser-mcp"], cwd, stderr: "ignore", maxBufferSize: 8 * 1024 * 1024,
   });

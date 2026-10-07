@@ -1,3 +1,4 @@
+import arvelaMark from "../assets/arvela.svg";
 import { modKeyLabel } from "../native/platform";
 import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
@@ -140,8 +141,8 @@ export function Sidebar() {
       aria-label="Проекты и задачи"
     >
       <div className="sidebar-brand" data-tauri-drag-region="deep">
-        <Icon name="code" size={21} />
-        <strong>AgentMesh</strong>
+        <img src={arvelaMark} width={24} height={24} alt="" />
+        <strong>Arvela</strong>
         <span className="spacer" />
         <button
           className="icon-btn"
@@ -236,7 +237,7 @@ export function Sidebar() {
             <Icon name="code" size={17} />
           </span>
           <span>
-            <b>AgentMesh Desktop</b>
+            <b>Arvela</b>
             <small>
               <i
                 className={`conn-dot ${s.connection.phase === "connected" ? "ok" : "bad"}`}

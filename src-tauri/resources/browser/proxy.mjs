@@ -5,7 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 const root = process.argv[2];
 if (!root || !path.isAbsolute(root)) throw new Error('Invalid managed runtime directory');
-const STOPPED = 'OpenCode Desktop browser is stopped. Open Desktop → Settings → Browser and start it.';
+const STOPPED = 'Arvela browser is stopped. Open Desktop → Settings → Browser and start it.';
 const RESTARTED = 'Desktop browser has restarted. Reconnect its MCP integration.';
 const TOOL_TIMEOUT_MS = 90000;
 const RECONNECT_WAIT_MS = 5000;
@@ -75,7 +75,7 @@ async function rpc(method, params, signal) {
     catch (retry) { throw new Error(retry.message); }
   }
 }
-const server = new Server({ name: 'opencode-desktop-browser', version: '1.0.0' }, { capabilities: { tools: {} } });
+const server = new Server({ name: 'arvela-browser', version: '1.0.0' }, { capabilities: { tools: {} } });
 server.setRequestHandler(ListToolsRequestSchema, () => rpc('tools/list'));
 server.setRequestHandler(CallToolRequestSchema, (request, extra) => rpc('tools/call', request.params, extra.signal));
 const transport = new StdioServerTransport();

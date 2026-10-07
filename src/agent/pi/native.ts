@@ -81,7 +81,7 @@ export function isNativeHost(): boolean {
 }
 
 const UNAVAILABLE =
-  "Pi доступен только в установленном приложении AgentMesh Desktop.";
+  "Pi доступен только в установленном приложении Arvela.";
 
 /** Used in the browser preview, where no native host exists. */
 const unavailableBridge: PiBridge = {

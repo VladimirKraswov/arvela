@@ -1,9 +1,9 @@
 ---
 name: opencode-desktop-computer
-description: Work with native applications on this computer (macOS or Windows) using OpenCode Desktop's background computer-control tools. Use when the user asks to see or operate an app, click controls, type into a window, or verify a GUI task.
+description: Work with native applications on this computer (macOS or Windows) using Arvela's background computer-control tools. Use when the user asks to see or operate an app, click controls, type into a window, or verify a GUI task.
 ---
 
-# Управление компьютером через OpenCode Desktop
+# Управление компьютером через Arvela
 
 Используй инструменты `cua_desktop_*` для задач в реальном интерфейсе macOS или Windows. Они подключены к отдельно установленному Cua Driver; другой агент, облачный сервис или API-ключ не требуется. Скриншоты обрабатывает текущая модель.
 
@@ -17,6 +17,6 @@ description: Work with native applications on this computer (macOS or Windows) u
 8. Соблюдай одну последовательность управления, не запускай параллельных GUI-контроллеров. Используй текущую MCP-сессию; при явном start_session передавай возвращённое имя последующим действиям и заверши только свою end_session. Не останавливай общий сервис.
 9. Не записывай экран или текст окон в файлы без необходимости задачи. При остановке/отказе доступа не повторяй действие автоматически. Отчёт должен говорить, что действительно проверено, и какой шаг остался заблокирован.
 
-Если инструментов нет или они выключены: Настройки OpenCode Desktop → Управление компьютером → Подключить. На macOS при отсутствии разрешений открой помощник Cua Driver для Accessibility/Screen Recording, затем Проверить. На Windows запусти диагностику UI Automation и проверь интерактивный сеанс. Не пытайся сам нажимать системные переключатели.
+Если инструментов нет или они выключены: Настройки Arvela → Управление компьютером → Подключить. На macOS при отсутствии разрешений открой помощник Cua Driver для Accessibility/Screen Recording, затем Проверить. На Windows запусти диагностику UI Automation и проверь интерактивный сеанс. Не пытайся сам нажимать системные переключатели.
 
 Основа: Cua Driver 0.28.2, https://github.com/trycua/cua (MIT). Схемы инструментов берутся из установленного драйвера; не придумывай параметры по памяти.

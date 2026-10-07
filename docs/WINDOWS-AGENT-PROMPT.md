@@ -1,32 +1,35 @@
-# Промпт для Windows-агента: AgentMesh Desktop
+# Промпт для Windows-агента: Arvela
 
 Скопируйте текст ниже в новую сессию агента на Windows. Репозиторий публичный:
-https://github.com/VladimirKraswov/opencode-desktop . SSH не требуется.
+https://github.com/VladimirKraswov/arvela . SSH не требуется.
 
 ---
 
-Ты работаешь на моём Windows-ноутбуке. Получи свежий `main` AgentMesh Desktop,
+Ты работаешь на моём Windows-ноутбуке. Получи свежий `main` Arvela,
 собери Windows x64 NSIS-установщик, обнови приложение и проверь его реальную
 работу. Если обнаружишь дефекты Windows, исправь их в отдельной ветке и открой
-pull request в `VladimirKraswov/opencode-desktop`, base `main`. Создание ветки,
+pull request в `VladimirKraswov/arvela`, base `main`. Создание ветки,
 push исправлений и PR разрешены. Координатор на Mac затем проверит изменения
 и решит вопрос слияния. Сам не вливай PR и не пушь непосредственно в `main`.
 
-Название продукта — **AgentMesh Desktop**, прежнее — OpenCode Desktop.
-Репозиторий, npm package, executable `opencode-desktop.exe`, application ID
-`dev.local.opencodedesktop` и исторические data paths намеренно сохраняют старые
-имена. Не переименовывай их и не создавай второе хранилище чатов.
+Название продукта — **Arvela** (с 0.2.24), прежние — AgentMesh Desktop и OpenCode Desktop.
+Репозиторий — `VladimirKraswov/arvela`, npm/Rust package — `arvela`.
+Совместимый executable `opencode-desktop.exe`, application ID
+`dev.local.opencodedesktop`, MCP IDs, preference keys и data paths сохраняются:
+существующие подключения и история не должны получить новое хранилище.
+Не запускай старую и новую копии одновременно. Проверяй обновление NSIS и
+наличие прежних ярлыков/записей uninstall; не удаляй данные пользователей.
 
 ## 1. Получи исходники по HTTPS
 
 В PowerShell сначала проверь инструменты и существующие рабочие копии.
-Предпочтительный каталог — `C:\Dev\opencode-desktop`; не предполагай имя
+Предпочтительный каталог — `C:\Dev\arvela`; не предполагай имя
 пользователя или путь старой ZIP-копии. Если каталога нет:
 
 ```powershell
 New-Item -ItemType Directory -Force C:\Dev | Out-Null
-git clone https://github.com/VladimirKraswov/opencode-desktop.git C:\Dev\opencode-desktop
-Set-Location C:\Dev\opencode-desktop
+git clone https://github.com/VladimirKraswov/arvela.git C:\Dev\arvela
+Set-Location C:\Dev\arvela
 ```
 
 Если Git-копия уже есть, сначала `git status --short --branch`, `git remote -v`
@@ -36,7 +39,7 @@ Set-Location C:\Dev\opencode-desktop
 Для чистой копии с правильным origin:
 
 ```powershell
-git remote set-url origin https://github.com/VladimirKraswov/opencode-desktop.git
+git remote set-url origin https://github.com/VladimirKraswov/arvela.git
 git fetch origin --prune
 git switch main
 git pull --ff-only origin main
@@ -90,7 +93,7 @@ OpenCode и Pi — отдельные движки, они не входят в 
 ## 3. Проверки и сборка
 
 Перед правками создай рабочую ветку от свежего main, например
-`windows/agentmesh-0.2.22-validation`; для следующих задач используй уникальное
+`windows/arvela-0.2.24-validation`; для следующих задач используй уникальное
 понятное имя. Все команды выполняй из корня репозитория, последовательно,
 проверяя код завершения каждой команды (`$LASTEXITCODE` у native-команд).
 PowerShell `$ErrorActionPreference='Stop'` сам по себе не гарантирует остановку
@@ -110,7 +113,7 @@ npm.cmd run build:windows
 NSIS настраивается общим `tauri.conf.json` и автоматически применяемым
 `src-tauri/tauri.windows.conf.json`. macOS signing config сюда не передавай.
 Путь результата:
-`src-tauri\target\release\bundle\nsis\AgentMesh Desktop_<version>_x64-setup.exe`.
+`src-tauri\target\release\bundle\nsis\Arvela_<version>_x64-setup.exe`.
 Версию читай из исходников, не повышай её только ради пересборки той же базы.
 Важные исправления/новую версию согласуй через PR; версия должна совпадать во
 всех четырёх source manifests и записи собственного пакета Cargo.lock.
@@ -127,8 +130,8 @@ Get-FileHash -Algorithm SHA256 -LiteralPath '<фактический путь у
 ```
 
 `scripts/verify-windows.ps1 -InstallerPath '<путь>' -ArtifactOnly` проверяет
-артефакт. В main после PR #1 installed-поиск учитывает AgentMesh Desktop и
-OpenCode Desktop, выбирает ожидаемую версию и отвергает неоднозначные записи.
+артефакт. В main после PR #1 installed-поиск учитывает Arvela и
+Arvela, выбирает ожидаемую версию и отвергает неоднозначные записи.
 Запусти `scripts/test-windows-install-selection.ps1` (8 fixture cases без
 записи в реестр). `-ArtifactOnly` не доказывает установку или здоровье сервера.
 Проверь HKCU и фактический running binary отдельно, особенно при запуске из
@@ -140,13 +143,13 @@ MSIX: shadowed uninstall view может отличаться от обычно�
 app/config/profile данных и прежнего установщика вне Git. Не публикуй её.
 Закрой Desktop обычным способом, убедись, что процесс приложения завершился;
 не убивай отдельно управляемый OpenCode server или его чаты. Установи новый
-NSIS для текущего пользователя и открой AgentMesh Desktop. Если система
+NSIS для текущего пользователя и открой Arvela. Если система
 блокирует неподписанный установщик, сообщи точный блок и дай пользователю
 подтвердить его самостоятельно; не обходи защиту.
 
 Проверь фактический путь запуска, installed version и binary, отсутствие
 дубликата старого приложения/shortcut. Основное ожидаемое место —
-`%LOCALAPPDATA%\AgentMesh Desktop`, но реальный путь бери из установки/реестра.
+`%LOCALAPPDATA%\Arvela`, но реальный путь бери из установки/реестра.
 Данные и application ID должны сохраняться при переименовании.
 Проверь здоровье уже работающего OpenCode через `/global/health`, а если он
 не работал — штатный автозапуск Desktop. Не запускай второй сервер на том же
@@ -220,18 +223,18 @@ gh auth setup-git
 
 ```powershell
 git push -u origin '<имя своей ветки>'
-gh pr create --repo VladimirKraswov/opencode-desktop --base main --head '<имя своей ветки>' --title '<конкретное исправление>' --body-file '<путь к UTF-8 описанию PR>'
+gh pr create --repo VladimirKraswov/arvela --base main --head '<имя своей ветки>' --title '<конкретное исправление>' --body-file '<путь к UTF-8 описанию PR>'
 ```
 
 Если write access нет, используй fork той же публичной базы, оставив основной
 репозиторий отдельным upstream; не заменяй source на сторонний проект:
 
 ```powershell
-gh repo fork VladimirKraswov/opencode-desktop --remote --remote-name windows-fork
+gh repo fork VladimirKraswov/arvela --remote --remote-name windows-fork
 ```
 
 Проверь URL созданного remote; push свою ветку в `windows-fork`, затем создай
-PR с `--repo VladimirKraswov/opencode-desktop --base main --head '<GitHub-login>:<ветка>'`.
+PR с `--repo VladimirKraswov/arvela --base main --head '<GitHub-login>:<ветка>'`.
 Не force-push, не merge и не публикуй GitHub release самостоятельно.
 Для следующих обновлений fetch upstream/main, pull --ff-only чистого local main
 и новая ветка. Исправления остаются в PR до принятия координатором на Mac.

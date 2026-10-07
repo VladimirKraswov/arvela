@@ -1,5 +1,5 @@
 /**
- * OpenCode Desktop — approval gate for Pi's built-in tools.
+ * Arvela — approval gate for Pi's built-in tools.
  *
  * Why this exists: Pi's own `write`, `edit`, `bash` and friends run without
  * asking anyone. OpenCode chats are governed by the server's permission queue;
@@ -112,7 +112,7 @@ export default function (pi: ExtensionAPI) {
       return {
         block: true,
         reason:
-          "Пользователь не разрешил это действие в OpenCode Desktop. Предложи более безопасный шаг или спроси, что делать.",
+          "Пользователь не разрешил это действие в Arvela. Предложи более безопасный шаг или спроси, что делать.",
       };
   });
 }
