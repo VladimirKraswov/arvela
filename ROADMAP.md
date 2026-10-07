@@ -438,4 +438,4 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Frontend/service/native regression checks, isolated Web interaction and real TLS API pagination.
 - [x] Mac0.2.28 build/signature/install and NAS full archive; isolated restore checked.
 - [ ] Updated Mac vault access and idle application of skill revisions; requires owner OS confirmation.
-- [ ] Main/release publication; live Windows/Linux acceptance remains separate.
+- [x] Main/release publication and downloaded Mac asset verification; live Windows/Linux acceptance remains separate.
