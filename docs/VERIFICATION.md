@@ -1325,3 +1325,13 @@ Two test-owned empty browser chats were created, with no prompt or attachment.
 Initial package candidate missed Chromium startup in this path; it was corrected
 and regression checked before this final package, with no publication of the candidate.
 No percentage speedup or quality comparison is claimed without task-based A/B.
+
+
+### Publication
+
+Reviewed source `47bd91a8fe5582afa001cd1cbe26c2c4a9024fb3` pushed to main;
+[v0.2.22](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.22)
+targets that exact commit. Published DMG was downloaded back: SHA256 equals the
+qualified local DMG above and GitHub's asset digest; `hdiutil verify` passed.
+Final installed app remains0.2.22 and external OpenCode remains healthy1.18.18.
+Subsequent publication checkpoint changes are documentation only.

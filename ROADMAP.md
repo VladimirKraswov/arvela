@@ -388,5 +388,5 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Explicit per-chat supported effort / separate browser chat; Pi effort selector.
 - [x] Idle capture throttling; no skills, owner-session search or model changes.
 - [x] Final Mac package/install acceptance; native Low/new task/browser/diagnostics and installed CLI verified.
-- [ ] Publish reviewed main and matched Mac DMG.
+- [x] Reviewed main pushed; v0.2.22 matched Mac DMG published and downloaded SHA256/GitHub digest/integrity verified.
 - [ ] Live Windows/Linux acceptance and task-based speed/quality A/B.
