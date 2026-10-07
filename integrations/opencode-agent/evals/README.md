@@ -1,6 +1,6 @@
 # Real-incident coding evals
 
-These cases come from accepted fixes in OpenCode Desktop and TinyCAD, not
+These cases come from accepted fixes in Arvela and TinyCAD, not
 synthetic tasks. Each case pins a pre-fix Git revision, an accepted revision,
 the incident description and an accepted test file. The replay script exports
 both revisions to disposable directories, overlays the same accepted test and
