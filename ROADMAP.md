@@ -418,4 +418,4 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Common settings separated; equal OpenCode/Pi entries with owned navigation.
 - [x] Pi drafts retained and covered by the settings exit guard.
 - [x] Original generated icon with matching UI/macOS/Windows/Linux resources.
-- [ ] Tests, real Mac settings acceptance, installed build and main publication.
+- [x] Tests, real Mac settings acceptance, installed build and main publication; Windows/Linux live acceptance pending.

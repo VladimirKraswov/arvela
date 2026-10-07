@@ -33,7 +33,10 @@ Built/Downloads DMG SHA256:
 `134c7c7ce4fb87ea4685ae4e202a67762975ccbf9e2f8011fe9eed27cdee4e62`.
 Strict/deep signature, microphone entitlement, installed ICNS/source equality
 and hdiutil verification pass. Ad-hoc signed, not notarized. Windows/Linux live
-UI/install checks for this version were not run. Publication verification pending.
+UI/install checks for this version were not run. Source7f6b136264cbc2afce748e9a6e394f5355ee8ee5
+is pushed to main; public v0.2.26 targets that exact source. Published DMG
+downloaded back, matches built/Downloads SHA256 and passes hdiutil verification.
+Final checkpoint changes documentation only.
 
 # Arvela 0.2.25 — passive browser monitor and scroll recovery (2026-10-07)
 
