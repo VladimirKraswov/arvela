@@ -403,5 +403,5 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 
 - [x] Public product/repository/UI/docs use Arvela; stable data, vault and MCP identities preserved.
 - [x] Windows verifier recognizes current and both legacy product names.
-- [ ] Regression/build, verified Mac replacement and publication.
+- [x] Regression/build, verified Mac replacement and publication.
 - [ ] Live Windows/Linux rename upgrade acceptance.

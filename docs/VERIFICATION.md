@@ -30,7 +30,11 @@ Pi0.85.1 loader/validator acceptance pass: discovery, aliases, scoped cwd,
 upstream errors without replay, disabled service rejection and disposable
 OpenCode MCP attachment/disconnect. No model calls; test-owned registries removed.
 Original external OpenCode PID3714, conversations, global providers, permissions
-and inference services preserved. Publication verification follows after source push.
+and inference services preserved. Public [v0.2.24](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.24)
+targets pushed runtime source `c072a82b5a72d01e830fdb7a1bafcb35cead86ff`.
+Published DMG downloaded back: SHA256 matches the built/Downloads image and
+GitHub asset digest; `hdiutil verify` passes on the downloaded artifact. Final
+checkpoint changes documentation only. Arvela remains open on About.
 
 # AgentMesh 0.2.23 — shared capabilities, Mac verified (2026-10-07)
 
