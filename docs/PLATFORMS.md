@@ -1,10 +1,16 @@
 # Варианты сборки и поддержка платформ
 
-Версия продукта — **0.2.17**, одинаково в `package.json`, `package-lock.json`,
+Версия продукта — **0.2.21**, одинаково в `package.json`, `package-lock.json`,
 `src-tauri/Cargo.toml` и `src-tauri/tauri.conf.json` (проверяется тестом
 `test/bundle-config.test.ts`).
 
 ## Матрица поддержки
+
+Windows 0.2.21: свежий main собран, 488 frontend / 63 Rust и изолированные
+33-tool browser/final CLI/Pi проверки пройдены; живая установка ещё ожидает
+подтверждения. Фактический установленный UI остаётся 0.2.18. Ниже сохранена
+историческая матрица; актуальные границы проверки — в
+[отчёте 0.2.21](WINDOWS-RESULT-0.2.21-20261007.md).
 
 | | Linux (Ubuntu 24.04, x86_64) | macOS (Apple Silicon) | Windows |
 |---|---|---|---|
