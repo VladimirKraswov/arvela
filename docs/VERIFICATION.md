@@ -34,9 +34,14 @@ Final installed `/Applications/AgentMesh Desktop.app` executable matches the bui
 Strict/deep signature, bundle version and microphone entitlement pass. Mac DMG:
 `804084d1817735732aa328da482448c4bd492f9309de65226d14c7f6fea0e35e`;
 `hdiutil verify` passes. Ad-hoc signed, not notarized. Old0.2.22 bundle retained
-privately. Publication/download verification pending below; live Windows/Linux
-acceptance and real third-party OAuth/SSE/resource/audio compatibility are not
-claimed. Shared bridge supports tools over stdio and Streamable HTTP; see
+privately. Public release [v0.2.23](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.23)
+targets pushed source `8082ec6df4e0b8571eff5b8dfd8ae960370bab55`. Its DMG was
+downloaded back: SHA256 equals the built/Downloads image and GitHub asset digest;
+`hdiutil verify` also passes on the downloaded image. A final Windows-only main
+followup aligns shared capabilities with the existing browser profile root outside
+MSIX AppData redirection; Mac/Linux behavior is unchanged and all-targets check
+passes. Live Windows/Linux acceptance and real third-party
+OAuth/SSE/resource/audio compatibility are not claimed. Shared bridge supports tools over stdio and Streamable HTTP; see
 [configuration and boundaries](CAPABILITIES.md).
 
 # Verification record

@@ -140,6 +140,15 @@ fn valid_key(value: &str) -> bool {
                 .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()))
 }
 pub fn root() -> Result<PathBuf, String> {
+    // Match the browser's existing Windows profile-root policy: MSIX OpenCode
+    // and the normal Desktop must see the same registry/runtime, outside
+    // LOCALAPPDATA virtualization. The Mac/Linux data path is unchanged.
+    #[cfg(windows)]
+    return Ok(crate::browser::root_dir()?
+        .parent()
+        .ok_or("Общая папка инструментов недоступна")?
+        .join("capabilities"));
+    #[cfg(not(windows))]
     Ok(crate::paths::app_data_dir()?.join("capabilities"))
 }
 fn private(path: &Path) -> Result<(), String> {

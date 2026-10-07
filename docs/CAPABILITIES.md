@@ -102,7 +102,7 @@ OpenCode подтверждается его API; Pi — отчётом адап
 Нативный каталог: `capabilities/global.json`, `capabilities/project-<hash>.json`
 и `capabilities/runtime` внутри app data. Stable identity не меняется:
 macOS `~/.local/share/opencode-desktop`, Linux — разрешённый XDG data root,
-Windows `%LOCALAPPDATA%/opencode-desktop`. Реестры/секреты в Git не попадают.
+Windows `%USERPROFILE%/.opencode-desktop` (общий с браузером профильный корень, вне перенаправления AppData в MSIX). Остальные данные Desktop сохраняют прежний `%LOCALAPPDATA%/opencode-desktop`. Реестры/секреты в Git не попадают.
 
 Автоматические тесты проверяют сохранение чужой конфигурации, конфликты,
 неподтверждённые статусы, ожидание/ошибки и отказ устаревшим инструментам.

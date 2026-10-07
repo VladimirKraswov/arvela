@@ -396,5 +396,5 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Versioned global/project registry, portable skill sources and unified catalog.
 - [x] Shared MCP tools with official SDK, Pi adapter and scoped OpenCode attachment.
 - [x] Actual connection/session availability, dependencies and reload states.
-- [ ] Regression/real isolated MCP/Pi acceptance; Mac build/install and publication.
+- [x] Regression/real isolated MCP/Pi acceptance; Mac build/install and publication.
 - [ ] Live Windows/Linux acceptance.
