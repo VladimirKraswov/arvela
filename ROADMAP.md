@@ -379,3 +379,9 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Isolated real Mac Chromium responsive-target, modes, password/upload/profile/transport acceptance.
 - [x] Final Mac package/signature/microphone/DMG checks; installed mode/viewport/panel and actual MCP CLI acceptance. Publication recorded in VERIFICATION.
 - [ ] Live Windows/Linux acceptance; shared source only.
+
+Windows 2026-10-07: normal 0.2.21 installation and preserved history confirmed;
+installed CLI 33 tools and panel manual input/button/real DOM passed. Remaining
+native modes/resize/attachments/dictation/Pi UI/tree cleanup and legacy duplicate
+cleanup are not complete; see docs/WINDOWS-RESULT-0.2.21-20261007.md. Checkbox
+above remains open; this partial acceptance is not a Windows release approval.

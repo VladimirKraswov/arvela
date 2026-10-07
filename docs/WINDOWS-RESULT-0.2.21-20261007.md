@@ -1,4 +1,62 @@
-# AgentMesh Desktop 0.2.21 — Windows build verified, installation pending
+# AgentMesh Desktop 0.2.21 — Windows installed, browser panel verified
+
+## Installation addendum — 2026-10-07
+
+Coordinator independently merged PR1 while installation was running. Integrated
+updated main `2d6c864ed9c513bbec461789c413d84800f22dc3` (documentation and the
+already tested helpers only), preserving both checkpoints. Follow-up branch:
+`windows/agentmesh-0.2.21-installed-20261007`. Final frontend rerun: 488/6;
+Node parser regression: 2/2. Build checkpoint below records the original base.
+
+User confirmed native installation at action time. Normal Windows launch now
+runs `C:\Users\sprot\AppData\Local\AgentMesh Desktop\opencode-desktop.exe`;
+native Settings confirms 0.2.21. Existing chat/history and its Qwen Flash Next /
+Low / qwen-build selection remain visible; no draft/model request was sent.
+External OpenCode remains healthy, version 1.18.33, and was not terminated.
+
+Private backup completed outside Git: configuration, previous installer/binary,
+common browser profile, actual normal Windows WebView `EBWebView` and `chats`,
+plus separately labelled Codex/MSIX-visible copies. Ordinary Explorer was used
+for the normal profile copies because Codex's nominal AppData view is redirected.
+These private files are excluded from all handoff artifacts.
+
+The first native launcher inherited Codex/MSIX redirection and installed a shadow
+copy. It was closed normally. Launching the same installer from ordinary Explorer
+installed and opened the normal Windows copy above. The installer stopped the
+old Desktop MCP bridge only; the separately managed engine was preserved.
+Old OpenCode Desktop 0.2.18 and its shortcut remain alongside AgentMesh: the
+PRODUCTNAME rename did not detect the legacy installation. No uninstallation,
+shortcut deletion, registry migration or security bypass was performed. The
+closed MSIX shadow copy also remains; cleanup requires separately scoped consent.
+
+Installed NSIS payload SHA256 (and published common bridge 0.2.21):
+`78019A6B28EF54FDCA6A1D5F6D67C5C492FAF4AB22B0472E8073415195B5C99F`.
+It differs from the standalone build hash below only at three bytes, offsets
+7316511..7316513: Tauri's `__TAURI_BUNDLE_TYPE_VAR_UNK` marker becomes
+`__TAURI_BUNDLE_TYPE_VAR_NSS` for NSIS. Exact binary comparison confirmed this;
+do not mistake the standalone/payload hash distinction for corruption.
+
+Installed `windows-shared.mjs` run passed against a disposable home, including
+the real Pi 0.85.1 loader/navigation/snapshot (no inference). Its optional Pi
+label still reports `installedAppCli:false`; this label does not imply owner
+Desktop/Pi UI acceptance. Normal Desktop Settings instead shows Pi unavailable;
+Codex-visible Pi module load success is not proof of normal Windows discovery.
+
+Installed-panel acceptance PASSED using the installed executable and shared
+runtime: 33 tools, `browser_keyboard_type`, live projection, real manual input
+`PANEL_UI_OK`, button result exactly matching it, and DOM evaluation. The test
+used only an idle browser's local HTTP fixture, not an owner website. The first
+runner failed parsing the appended `Desktop browser state:` diagnostic, not
+performing the input. A minimal test-only parser repair plus two Node regression
+tests passed; the complete live panel rerun then exited 0. No browser production
+code or permissions changed. Application stays open; test page is cleared.
+
+Remaining NOT TESTED: normal Pi UI/inference and Job Object tree cleanup,
+native modes/resize/scale/theme/reconnect/off-on, attachment picker/clipboard/drop,
+mic/dictation, stop with images, paused schedules, SSH, Agent Control/Factory.
+Legacy duplicate cleanup is pending. The historical pre-install results below
+are retained as a dated build checkpoint, superseded by this addendum only where
+explicitly stated. This is partial Windows acceptance, not a release approval.
 
 Date: 2026-10-07 (Europe/Moscow). Windows 11 Home Single Language,
 10.0.26200 x64. Public HTTPS main base:

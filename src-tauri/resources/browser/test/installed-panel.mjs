@@ -6,6 +6,7 @@ import os from 'node:os';
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import readline from 'node:readline';
+import { parseEvaluateResult } from './evaluate-result.mjs';
 import { pathToFileURL } from 'node:url';
 const [command, runtime] = process.argv.slice(2);
 assert(command && runtime && path.isAbsolute(command) && path.isAbsolute(runtime));
@@ -39,7 +40,7 @@ try {
     assert(!snapshot.isError && text(snapshot).includes('PANEL_UI_OK'));
     const dom = await client.callTool({ name: 'browser_evaluate', arguments: { function: "() => ({ input: document.querySelector('#input').value, result: document.querySelector('#result').textContent, scrollY: window.scrollY })" } });
     assert(!dom.isError);
-    const evaluated = JSON.parse(text(dom).split('### Result\n')[1].split('\n###')[0]);
+    const evaluated = parseEvaluateResult(text(dom));
     assert.equal(evaluated.input, 'PANEL_UI_OK', 'Real input must match exactly');
     assert.equal(evaluated.result, 'PANEL_UI_OK', 'Button must submit the exact real input');
     console.log(JSON.stringify({ installedAppCli: true, tools: tools.tools.length, liveProjection: true, panelManualInputAndClick: true, realDomEvaluation: true }));
