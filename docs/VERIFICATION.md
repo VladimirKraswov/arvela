@@ -1,3 +1,40 @@
+# Arvela 0.2.26 — balanced settings and new icon (2026-10-08)
+
+Common app/capability settings are separate from equal OpenCode/Pi sidebar
+entries. Agent-owned settings have their own wrapping navigation. OpenCode
+connection/path/diagnostics belong to OpenCode; Pi tabs cover connection,
+models, extensions/LSP and capabilities. Pi drafts remain mounted across
+navigation/search and participate in the settings exit confirmation. Common
+skills/MCP remain in the shared catalog; native agent features remain separate.
+
+554 frontend pass/6 opt-in skipped;87 Rust pass/1 unchanged vault ignored.
+New navigation regressions failed on the preceding implementation (4 failures,
+5 passed) and pass after the change; two real Pi settings component tests verify
+draft reporting/tab retention without model probes. fmt, TypeScript/Vite and
+final Mac app/DMG build pass. Existing Vite chunk warnings remain.
+
+New icon generated using built-in imagegen, copied to repository and converted
+with the official Tauri icon CLI. Full source/alpha and native32px preview
+visually inspected, PNG/ICO/ICNS formats verified. Installed native About shows
+the new mark and0.2.26. Same image source is used for sidebar/favicon/resources.
+See [icon source and prompt](ARVELA-ICON.md).
+
+Actual installed Mac: equal sidebar entries and common-only General page,
+OpenCode connection/tabs/diagnostics, Pi tabs/0.85.1 discovery, draft retained
+when visiting OpenCode then returning, exit confirmation, test draft cleared
+without saving. App left on About showing OpenCode1.18.18 and Pi0.85.1.
+No inference requests or global configuration/history changes. Original external
+OpenCode PID3714 healthy; its CLI bridge children preserved. Previous signed
+bundle privately backed up; compatibility paths/data identities preserved.
+
+Installed executable equals built SHA256:
+`86b03a122450171607dd2623701711ba98af6253d5804052c1dad2852bd4ae17`.
+Built/Downloads DMG SHA256:
+`134c7c7ce4fb87ea4685ae4e202a67762975ccbf9e2f8011fe9eed27cdee4e62`.
+Strict/deep signature, microphone entitlement, installed ICNS/source equality
+and hdiutil verification pass. Ad-hoc signed, not notarized. Windows/Linux live
+UI/install checks for this version were not run. Publication verification pending.
+
 # Arvela 0.2.25 — passive browser monitor and scroll recovery (2026-10-07)
 
 Separate fixed420×308 native JPEG viewer, restore/hide controls and native close
@@ -37,8 +74,8 @@ Installed browser scripts match source; actual installedCLI+Pi0.85.1 loader/
 validator/scoped OpenCode attachment and no-replay/disable acceptance pass.
 Own fixtures removed, sidebar restored, app left open on About. Original
 external OpenCode PID3714 remains healthy1.18.18; models, GPU services, owner
-history/providers/permissions preserved. Publication verification follows after
-pushing the reviewed source.
+history/providers/permissions preserved. Source e6c5bb4 is pushed to main; public v0.2.25 targets that exact source.
+Downloaded release DMG matches local SHA256 and passes hdiutil verification.
 
 # Arvela 0.2.24 — product rename, Mac installed (2026-10-07)
 

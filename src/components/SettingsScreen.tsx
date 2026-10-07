@@ -19,28 +19,29 @@ import { detectLocalOpenCode } from "../native/localServer";
 
 export const SETTINGS_SECTIONS = [
   { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Рабочее пространство и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
-  { id: "engines", title: "Агенты", group: "Приложение", icon: "chat", description: "OpenCode и Pi: возможности и отдельные настройки", keywords: "engine движок агент Pi OpenCode модель" },
+  { id: "engines", title: "Обзор агентов", group: "Агенты", icon: "chat", description: "OpenCode и Pi: возможности и отдельные настройки", keywords: "engine движок агент Pi OpenCode модель" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
-  { id: "capabilities", title: "Навыки и инструменты", group: "Интеграции", icon: "file", description: "Общий каталог навыков и MCP для OpenCode и Pi", keywords: "skills tools MCP источники инструменты общие Pi" },
-  { id: "browser", title: "Браузер", group: "Интеграции", icon: "browser", description: "Управляемый Chromium и автонастройка OpenCode / Pi", keywords: "browser playwright chromium MCP окна вкладки формы пароли" },
-  { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
-  { id: "agentControl", title: "API для агентов", group: "Интеграции", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
-  { id: "modelServices", title: "Сервисы моделей", group: "Интеграции", icon: "server", description: "Переключение моделей, загрузка и доступные агенты", keywords: "inference api модели loader прогресс Pi OpenCode" },
-  { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
+  { id: "capabilities", title: "Навыки и инструменты", group: "Общие возможности", icon: "file", description: "Общий каталог навыков и MCP для OpenCode и Pi", keywords: "skills tools MCP источники инструменты общие Pi" },
+  { id: "browser", title: "Браузер", group: "Общие возможности", icon: "browser", description: "Управляемый Chromium и автонастройка OpenCode / Pi", keywords: "browser playwright chromium MCP окна вкладки формы пароли" },
+  { id: "computer", title: "Управление компьютером", group: "Общие возможности", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
+  { id: "agentControl", title: "API для агентов", group: "Общие возможности", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
+  { id: "modelServices", title: "Сервисы моделей", group: "Общие возможности", icon: "server", description: "Переключение моделей, загрузка и доступные агенты", keywords: "inference api модели loader прогресс Pi OpenCode" },
+  { id: "helper", title: "Сервисы помощника", group: "Общие возможности", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
   { id: "tools", title: "Разрешения OpenCode", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
   { id: "skills", title: "Навыки OpenCode", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
-  { id: "plugins", title: "Плагины", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
+  { id: "plugins", title: "Плагины OpenCode", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
   { id: "mcp", title: "MCP OpenCode", group: "OpenCode", icon: "server", description: "Подключения инструментов и их статус", keywords: "mcp интеграции серверы" },
   { id: "agents", title: "Профили OpenCode", group: "OpenCode", icon: "chat", description: "Профили инструкций и инструментов OpenCode", keywords: "agents build plan" },
-  { id: "pi", title: "Агент Pi", group: "Pi", icon: "chat", description: "Установка, модели, расширения и LSP локального агента Pi", keywords: "pi rpc движок engine модель расширение lsp язык сервер" },
+  { id: "opencode", title: "OpenCode", group: "Агенты", icon: "chat", description: "Подключение, разрешения, профили и дополнения OpenCode", keywords: "CLI путь сервер endpoint установка" },
+  { id: "pi", title: "Pi", group: "Агенты", icon: "chat", description: "Установка, модели, расширения и LSP локального агента Pi", keywords: "pi rpc движок engine модель расширение lsp язык сервер" },
   { id: "about", title: "О приложении", group: "Приложение", icon: "code", description: "Версия приложения и состояние сервера", keywords: "диагностика поток событий SSE провайдеры" },
 ] as const;
 type Section = typeof SETTINGS_SECTIONS[number]["id"];
 export function searchSettings(query: string) {
   const words = query.trim().toLocaleLowerCase().split(/\s+/);
-  return SETTINGS_SECTIONS.filter(s => words.every(word => `${s.title} ${s.description} ${s.keywords}`.toLocaleLowerCase().includes(word)));
+  return SETTINGS_SECTIONS.filter(s => words.every(word => `${s.group} ${s.title} ${s.description} ${s.keywords}`.toLocaleLowerCase().includes(word)));
 }
 const isEngine = (id: Section): id is EngineSection => ["tools", "skills", "plugins", "mcp", "agents"].includes(id);
 function Row({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
@@ -87,6 +88,7 @@ export function SettingsScreen() {
   const [section, setSection] = useState<Section>("general"), [query, setQuery] = useState("");
   const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
   const [capabilitiesDirty,setCapabilitiesDirty] = useState(false), [capabilitiesVisited,setCapabilitiesVisited] = useState(false);
+  const [piVisited, setPiVisited] = useState(false), [piDirty, setPiDirty] = useState(false);
   const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
   const [endpoint, setEndpoint] = useState(s.prefs.localEndpoint ?? s.prefs.endpoint);
   const [openCodeProgram, setOpenCodeProgram] = useState(s.prefs.localOpenCodeProgram ?? "");
@@ -103,10 +105,10 @@ export function SettingsScreen() {
   const localDirty = endpointDirty || programDirty;
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
   const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
-  const dirty = capabilitiesDirty || engineDirty || localDirty || voiceDirty || helperDirty;
+  const dirty = capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
   const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
   const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
-  const navigate = (id: Section) => { if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
+  const navigate = (id: Section) => { if (id === "pi") setPiVisited(true); if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
   useEffect(() => { if (leave) { content.current?.scrollTo(0, 0); stay.current?.focus(); } }, [leave]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -129,15 +131,20 @@ export function SettingsScreen() {
       <div className="settings-window-drag" data-tauri-drag-region />
       <button ref={back} className="settings-back" onClick={() => requestExit("close")} disabled={connecting}><Icon name="arrowDown" size={17} style={{ transform: "rotate(90deg)" }}/>Вернуться в приложение</button>
       <div className="settings-search"><Icon name="search" size={16}/><input type="search" aria-label="Поиск настроек" placeholder="Поиск настроек…" value={query} onChange={e => setQuery(e.target.value)}/></div>
-      <nav aria-label="Разделы настроек">{["Приложение", "Интеграции", "OpenCode", "Pi"].map(group => <div className="settings-nav-group" key={group}><div className="settings-nav-label">{group}</div>{SETTINGS_SECTIONS.filter(x => x.group === group).map(item => <button key={item.id} aria-current={!query && section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={17}/>{item.title}</button>)}</div>)}</nav>
+      <nav aria-label="Разделы настроек">{["Приложение", "Общие возможности", "Агенты"].map(group => <div className="settings-nav-group" key={group}><div className="settings-nav-label">{group}</div>{SETTINGS_SECTIONS.filter(x => x.group === group).map(item => <button key={item.id} aria-current={!query && (section === item.id || item.id === "opencode" && isEngine(section)) ? "page" : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={17}/>{item.title}</button>)}</div>)}</nav>
       <span className="settings-sidebar-version">Arvela {appVersion}</span>
     </aside>
     <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
       <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1><p>{query.trim() ? `Результаты для «${query.trim()}»` : selected.description}</p></header>
       {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения настроек. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
-        {section === "general" && <>
+        {section === "general" && <Group title="Рабочее пространство"><Row title="Текущий компьютер"><span>{store.hostLabel()}</span></Row><Row title="Удалённые компьютеры" description="Подключения к серверам рабочих пространств."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>}
+        {(section === "opencode" || isEngine(section)) && <nav className="settings-agent-tabs" aria-label="Настройки OpenCode">{([
+          ["opencode", "Подключение"], ["tools", "Разрешения"], ["agents", "Профили"], ["plugins", "Плагины"], ["skills", "Навыки"], ["mcp", "MCP"],
+        ] as const).map(([id,title]) => <button key={id} aria-current={section === id ? "page" : undefined} onClick={() => navigate(id)}>{title}</button>)}</nav>}
+        {section === "opencode" && <>
           <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Если сервер не запущен, приложение запустит установленный OpenCode на этом адресе."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="OpenCode CLI" description="Движок устанавливается отдельно от приложения."><span>{cliInstalled === null ? "Не проверено" : cliInstalled ? "Установлен" : "Не найден"}</span>{cliInstalled === false && <button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl("https://opencode.ai/docs/"))}>Установить OpenCode…</button>}<button className="btn" onClick={checkCli}>Проверить снова</button></Row><Row title="Путь к OpenCode CLI" description="Абсолютный путь к локальному CLI. Пусто — искать автоматически. Работающий сервер не перезапускается."><input aria-label="Путь к OpenCode CLI" spellCheck={false} placeholder="/opt/homebrew/bin/opencode" value={openCodeProgram} onChange={e => { setOpenCodeProgram(e.target.value); setCliInstalled(null); }}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
+          <Group title="Диагностика OpenCode"><Row title="Версия"><span>{s.connection.version ?? "—"}</span></Row><Row title="Поток событий"><span>{s.connection.streamState}</span></Row><Row title="Подключённые провайдеры"><span>{s.connectedProviderIds.length}</span></Row><Row title="Профили агента"><span>{s.agents.map(a => a.name).join(", ") || "—"}</span></Row></Group>
           <div className="settings-actions"><span className="settings-muted">Перезапуск сервера не требуется.</span><button className="btn primary" disabled={connecting || !localDirty} onClick={async () => {
             setError(""); setNotice("");
             if (!isAllowedBaseUrl(endpoint.trim())) { setError("Укажите HTTP-адрес loopback сервера. Для удалённого компьютера используйте SSH-подключение."); return; }
@@ -170,11 +177,11 @@ export function SettingsScreen() {
         {section === "browser" && <BrowserSettings/>}
         {section === "computer" && <ComputerSettings/>}
         {section === "agentControl" && <AgentControlSettings/>}
-        {section === "pi" && <PiSettings/>}
+
         {section === "engines" && <>
         <p className="settings-intro">У каждого чата свой агент и модель. Для новых проектов по умолчанию выбран OpenCode; Pi можно выбрать при создании проекта или чата. Существующий диалог переносится через «Продолжить в…», сохраняя исходную историю.</p>
         <Group title="Агенты">
-          <Row title="OpenCode" description="Сессии и исполнение на подключённом локальном или удалённом сервере. Свои модели, профили, плагины и разрешения."><span>{s.connection.phase === "connected" ? `Подключён · ${s.connection.version ?? ""}` : "Не подключён"}</span><button className="btn" onClick={() => navigate("agents")}>Настроить OpenCode</button></Row>
+          <Row title="OpenCode" description="Сессии и исполнение на подключённом локальном или удалённом сервере. Свои модели, профили, плагины и разрешения."><span>{s.connection.phase === "connected" ? `Подключён · ${s.connection.version ?? ""}` : "Не подключён"}</span><button className="btn" onClick={() => navigate("opencode")}>Настроить OpenCode</button></Row>
           <Row title="Pi" description="Локальный агент с отдельными моделями, расширениями, LSP и подтверждениями инструментов."><span>{store.piInstalled ? "Установлен" : "Не найден"}</span><button className="btn" onClick={() => navigate("pi")}>Настроить Pi</button></Row>
         </Group>
         <Group title="Общие функции">
@@ -185,11 +192,12 @@ export function SettingsScreen() {
         {section === "helper" && <>
           <p className="settings-intro">CPU-помощник в контейнере Proxmox подготавливает вложения для выбранной модели. Если модель поддерживает формат, файл идёт напрямую. Иначе помощник извлекает текст, кадры и звук. Аудио распознаёт отдельный GigaAM ASR из раздела «Диктовка».</p>
           <Group title="Подключение"><Row title="Локальный адрес помощника" description="SSH-туннель на этом компьютере; удалённый адрес контейнера сюда не вводится."><input aria-label="Адрес помощника" spellCheck={false} value={helper} onChange={event => { setHelper(event.target.value); setHelperStatus(null); }}/></Row><Row title="Состояние"><span>{helperStatus?.ok ? `Работает · версия ${helperStatus.version}` : "Проверка не выполнялась"}</span></Row><Row title="Доступные сервисы"><span>{helperStatus?.services.join(", ") || "—"}</span></Row></Group>
-          <p className="settings-muted">MCP-подключения OpenCode настраиваются отдельно в разделе «MCP-серверы». Файлы не хранятся в контейнере после обработки.</p>
+          <p className="settings-muted">Общие MCP-подключения находятся в разделе «Навыки и инструменты»; настройки конкретного агента — в его разделе. Файлы не хранятся в контейнере после обработки.</p>
           <div className="settings-actions"><button className="btn" disabled={testingHelper} onClick={async () => { setError(""); setNotice(""); setTestingHelper(true); try { setHelperStatus(await helperHealth(helper.trim())); setNotice("Помощник доступен."); } catch (problem) { setHelperStatus(null); setError(problem instanceof Error ? problem.message : String(problem)); } finally { setTestingHelper(false); } }}>{testingHelper ? "Проверка…" : "Проверить подключение"}</button><button className="btn primary" disabled={!helperDirty} onClick={() => { const next = helper.trim().replace(/\/$/, ""); if (!validHelperEndpoint(next)) { setError("Укажите локальный HTTP-адрес без пути и учётных данных."); return; } store.setHelperEndpoint(next); setHelper(next); setError(""); setNotice("Адрес помощника сохранён."); }}>Сохранить</button></div>
         </>}
-        {section === "about" && <Group title="Состояние приложения"><Row title="Arvela"><span>{appVersion}</span></Row><Row title="Версия OpenCode"><span>{s.connection.version ?? "—"}</span></Row><Row title="Подключение"><span>{s.connection.phase === "connected" ? "Подключено" : s.connection.phase}</span></Row><Row title="Поток событий"><span>{s.connection.streamState}</span></Row><Row title="Подключённые провайдеры"><span>{s.connectedProviderIds.length}</span></Row><Row title="Агенты"><span>{s.agents.map(a => a.name).join(", ") || "—"}</span></Row></Group>}
+        {section === "about" && <Group title="Состояние приложения"><Row title="Arvela"><span>{appVersion}</span></Row><Row title="OpenCode"><span>{s.connection.phase === "connected" ? `Подключён · ${s.connection.version ?? ""}` : "Не подключён"}</span></Row><Row title="Pi"><span>{s.piHealth?.install?.installed ? `Установлен · ${s.piHealth.install.version ?? ""}` : "Не проверен"}</span></Row></Group>}
       </>}
+      <div hidden={!!query.trim() || section !== "pi"}>{piVisited && <PiSettings onDirtyChange={setPiDirty}/>}</div>
       <div hidden={!!query.trim() || !isEngine(section)}>{engineVisited && <OpenCodeSettings section={engineSection} onDirtyChange={setEngineDirty}/>}</div>
       {error && <p role="alert" className="composer-error">{error}</p>}{notice && <p role="status" className="settings-notice">{notice}</p>}
     </div></div>

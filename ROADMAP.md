@@ -411,4 +411,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Fixed separate live preview; no browser input or viewport resize.
 - [x] Dock/restore/hide and lifecycle/scope guards; one browser remains running.
 - [x] Regression/security checks and real Mac window/Chromium acceptance.
-- [ ] Verified Mac replacement and publication; Windows/Linux live acceptance pending.
+- [x] Verified Mac replacement and publication; Windows/Linux live acceptance pending.
+
+## M35 — Balanced agent settings and Arvela icon (0.2.26)
+
+- [x] Common settings separated; equal OpenCode/Pi entries with owned navigation.
+- [x] Pi drafts retained and covered by the settings exit guard.
+- [x] Original generated icon with matching UI/macOS/Windows/Linux resources.
+- [ ] Tests, real Mac settings acceptance, installed build and main publication.

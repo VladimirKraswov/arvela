@@ -11,6 +11,7 @@ vi.mock('../src/native/localServer', () => ({ detectLocalOpenCode: cli.detect })
 vi.mock('../src/components/OpenCodeSettings', () => ({ OpenCodeSettings: ({ section, onDirtyChange }: any) => createElement('button', { onClick: () => onDirtyChange(true) }, `Изменить ${section}`) }));
 vi.mock('../src/components/CapabilitiesSettings', () => ({ CapabilitiesSettings: ({onDirtyChange}:any) => {const [value,setValue]=requireReact.useState('');return createElement('input',{ 'aria-label':'Общий черновик',value,onChange:(e:any)=>{setValue(e.target.value);onDirtyChange(true);}});}}));
 vi.mock('../src/components/ComputerSettings', () => ({ ComputerSettings: () => createElement('p', {}, 'Cua Driver') }));
+vi.mock('../src/components/PiSettings', () => ({ PiSettings: ({onDirtyChange}:any) => {const [value,setValue]=requireReact.useState('');return createElement('input',{ 'aria-label':'Черновик Pi',value,onChange:(e:any)=>{setValue(e.target.value);onDirtyChange(true);}});}}));
 import { SettingsScreen, searchSettings } from '../src/components/SettingsScreen';
 let root: Root;
 beforeEach(() => {
@@ -45,7 +46,7 @@ it("keeps edited ASR fields across navigation and prevents accidental exit on Es
   click('Остаться'); click('Отменить изменения'); click('Вернуться в приложение'); expect(fake.setUi).toHaveBeenCalledWith({ settingsOpen: false }); expect(fake.setAsr).not.toHaveBeenCalled();
 });
 it("retains staged engine changes across settings sections and guards host navigation", () => {
-  click('Разрешения OpenCode'); click('Изменить tools'); click('Общее'); click('Управлять…'); expect(fake.setUi).not.toHaveBeenCalled();
+  click('OpenCode'); click('Разрешения'); click('Изменить tools'); click('Общее'); click('Управлять…'); expect(fake.setUi).not.toHaveBeenCalled();
   expect(document.querySelector('[role="alert"]')).not.toBeNull(); click('Не сохранять и выйти'); expect(fake.setUi).toHaveBeenCalledWith({ settingsOpen: false, hostDialogOpen: true });
 });
 it("offers the private helper separately from ASR and MCP and validates its loopback address", () => {
@@ -61,6 +62,7 @@ it("offers the private helper separately from ASR and MCP and validates its loop
   expect(fake.setAsr).not.toHaveBeenCalled();
 });
 it("offers OpenCode installation only when its local CLI is missing", async () => {
+  click('OpenCode');
   cli.detect.mockResolvedValue(false);
   await act(async () => { button('Проверить снова').click(); });
   expect(button('Установить OpenCode…')).toBeTruthy();
@@ -72,5 +74,23 @@ it("offers OpenCode installation only when its local CLI is missing", async () =
 it("keeps shared capability drafts when navigating and warns on exit",()=>{
  click('Навыки и инструменты');input('Общий черновик','unfinished');click('Общее');click('Навыки и инструменты');
  expect(document.querySelector<HTMLInputElement>('[aria-label="Общий черновик"]')!.value).toBe('unfinished');
+ click('Вернуться в приложение');expect(fake.setUi).not.toHaveBeenCalled();expect(document.querySelector('[role="alert"]')?.textContent).toContain('несохранённые');
+});
+
+it("gives agents equal sidebar entries and keeps engine controls out of common settings",()=>{
+ const nav=document.querySelector('nav[aria-label="Разделы настроек"]')!;
+ expect([...nav.querySelectorAll('.settings-nav-label')].map(x=>x.textContent)).toEqual(['Приложение','Общие возможности','Агенты']);
+ expect([...nav.querySelectorAll('button')].filter(x=>x.textContent==='OpenCode')).toHaveLength(1);
+ expect([...nav.querySelectorAll('button')].filter(x=>x.textContent==='Pi')).toHaveLength(1);
+ expect(nav.textContent).not.toContain('Разрешения OpenCode');
+ expect(document.querySelector('[aria-label="Путь к OpenCode CLI"]')).toBeNull();
+ click('OpenCode');expect(document.querySelector('[aria-label="Путь к OpenCode CLI"]')).not.toBeNull();
+ click('MCP');expect(document.querySelector('nav[aria-label="Разделы настроек"] [aria-current="page"]')?.textContent).toBe('OpenCode');
+ expect(button('Изменить mcp')).toBeTruthy();
+ expect(searchSettings('OpenCode плагины').map(x=>x.id)).toContain('plugins');
+});
+it("preserves Pi drafts across navigation and guards leaving settings",()=>{
+ click('Pi');input('Черновик Pi','unfinished pi');click('OpenCode');click('Pi');
+ expect(document.querySelector<HTMLInputElement>('[aria-label="Черновик Pi"]')!.value).toBe('unfinished pi');
  click('Вернуться в приложение');expect(fake.setUi).not.toHaveBeenCalled();expect(document.querySelector('[role="alert"]')?.textContent).toContain('несохранённые');
 });

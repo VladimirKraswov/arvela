@@ -31,17 +31,18 @@ function Row({
     </div>
   );
 }
-function Group({ title, children }: { title: string; children: ReactNode }) {
+function Group({ title, children, hidden }: { title: string; children: ReactNode; hidden?: boolean }) {
   return (
-    <section className="setting-group" aria-label={title}>
+    <section className="setting-group" aria-label={title} hidden={hidden}>
       <h2>{title}</h2>
       <div className="setting-card">{children}</div>
     </section>
   );
 }
 
-export function PiSettings() {
+export function PiSettings({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const s = useAppState();
+  const [tab, setTab] = useState("connection");
   const settings = s.prefs.pi ?? {};
   const [program, setProgram] = useState(settings.program ?? "");
   const [nodeProgram, setNodeProgram] = useState(settings.nodeProgram ?? "");
@@ -53,6 +54,8 @@ export function PiSettings() {
   const [custom, setCustom] = useState(settings.customModel ?? "");
   const [extension, setExtension] = useState("");
   const [serverPath, setServerPath] = useState("");
+  const dirty = program !== (settings.program ?? "") || nodeProgram !== (settings.nodeProgram ?? "") || custom !== (settings.customModel ?? "") || !!extension || !!serverPath;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   const health = s.piHealth;
   const local = piAvailability(s.prefs);
 
@@ -107,7 +110,10 @@ export function PiSettings() {
         распространяются.
       </p>
 
-      <Group title="Установка">
+      <nav className="settings-agent-tabs" aria-label="Настройки Pi">{[
+        ["connection","Подключение"],["models","Модели"],["extensions","Расширения и LSP"],["capabilities","Возможности"],
+      ].map(([id,title]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}>{title}</button>)}</nav>
+      <Group title="Установка" hidden={tab !== "connection"}>
         <Row title="Состояние">
           <span>
             {busy
@@ -150,7 +156,7 @@ export function PiSettings() {
         </div>
       </Group>
 
-      <Group title="Подключение">
+      <Group title="Подключение" hidden={tab !== "connection"}>
         <Row
           title="Где выполняется"
           description="Pi работает только на этом компьютере: у режима RPC нет сетевого транспорта."
@@ -200,7 +206,7 @@ export function PiSettings() {
         </div>
       </Group>
 
-      <Group title="Модели">
+      <Group title="Модели" hidden={tab !== "models"}>
         <Row
           title="Свой идентификатор модели"
           description="provider/model. Используется, даже если модели нет во встроенном каталоге Pi — Pi принимает такие идентификаторы как пользовательские."
@@ -258,7 +264,7 @@ export function PiSettings() {
         )}
       </Group>
 
-      <Group title="Расширения, навыки и LSP">
+      <Group title="Расширения, навыки и LSP" hidden={tab !== "extensions"}>
         <Row
           title="Языковые серверы (LSP)"
           description={
@@ -444,7 +450,7 @@ export function PiSettings() {
         ) : null}
       </Group>
 
-      <Group title="Возможности">
+      <Group title="Возможности" hidden={tab !== "capabilities"}>
         <p className="handoff-note">
           Pi предоставляет потоковый текст и рассуждения, инструменты, остановку,
           сжатие контекста и ветвление сообщений. Изображения передаются напрямую;

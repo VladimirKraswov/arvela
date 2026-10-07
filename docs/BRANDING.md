@@ -10,8 +10,8 @@ https://github.com/VladimirKraswov/arvela . Старый URL репозитор�
 на новый; существующие Git-копии можно переключить командой
 `git remote set-url origin https://github.com/VladimirKraswov/arvela.git`.
 
-Исходник иконки — `src/assets/arvela.svg`. Пересоздание нативных иконок:
-`npm run tauri -- icon src/assets/arvela.svg --output src-tauri/icons`.
+С версии 0.2.26 исходник иконки — `src/assets/arvela-icon.png`: объёмная переплетённая A на тёмно-синем фоне, бирюзовый/фиолетовый градиент. Создан встроенным imagegen; прозрачные внешние углы. Промпт: «Arvela desktop icon, bold interwoven satin ribbon A, turquoise to violet, navy squircle, clear at 32px, no text or small details». Прежний векторный знак сохранён в `src/assets/arvela.svg`. Пересоздание нативных иконок:
+`npm run tauri -- icon src/assets/arvela-icon.png --output src-tauri/icons`.
 Мобильные иконки, которые дополнительно создаёт CLI, в этот desktop-проект
 не включаются.
 
@@ -32,3 +32,5 @@ Arvela, AgentMesh Desktop и OpenCode Desktop и отказывает при н�
 Датированные отчёты, контрольные суммы и ранее опубликованные артефакты
 сохраняют реальные исторические названия. Текущие инструкции и интерфейс
 используют Arvela.
+
+Полный промпт и процесс подготовки ресурсов: [ARVELA-ICON.md](ARVELA-ICON.md).

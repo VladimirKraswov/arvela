@@ -1,4 +1,4 @@
-import arvelaMark from "../assets/arvela.svg";
+import arvelaMark from "../assets/arvela-icon.png";
 import { modKeyLabel } from "../native/platform";
 import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
