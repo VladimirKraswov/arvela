@@ -1251,4 +1251,12 @@ No further keychain handoff was required. Windows/Linux live0.2.21 remains pendi
 
 Binary SHA256:47f1b3eb61f97574a3e2605881a94a5e0b56eba4973460913b511c70d076935e.
 DMG SHA256:fcd34d9a9dec84b114044198fdd876bd0ea53ba180c7013fa43101a19adcdc0f.
-Source Git/release publication verification follows below.
+Publication receipt: runtime source `7485a140950109474f489dff4e23c95137b1e6a0`
+was pushed to GitHub main. Release
+[v0.2.21](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.21)
+targets that source. Published `AgentMesh.Desktop_0.2.21_aarch64.dmg`
+was downloaded into a fresh private directory; its SHA256 equals the local DMG,
+the uploaded checksum manifest and GitHub asset digest above. The downloaded
+image passed `hdiutil verify`. Installed app still reports0.2.21 and its binary
+SHA256 equals the qualified build above. Final publication checkpoint changes
+are documentation only.
