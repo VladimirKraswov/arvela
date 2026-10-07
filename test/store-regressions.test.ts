@@ -40,6 +40,7 @@ beforeEach(async () => {
   vi.spyOn(store.client, "providers").mockResolvedValue({ all: [], connected: [], default: {} });
   vi.spyOn(store.client, "agents").mockResolvedValue([]);
   vi.spyOn(store.client, "config").mockResolvedValue({});
+  vi.spyOn(store, "configureSharedTools").mockResolvedValue(undefined);
   await store.setDirectory("/test/A");
 });
 it("R1: session.created must not invalidate the current project SSE stream", async () => {
@@ -122,6 +123,7 @@ it("R5: accepting a prompt must preserve a new draft typed while awaiting acknow
   );
   const pending = store.sendPrompt("first task");
   store.setDraft("next task typed during request");
+  await flush();
   resolve();
   await pending;
   expect(store.getDraft()).toBe("next task typed during request");
@@ -160,6 +162,7 @@ it("aborts a session with its own project directory, not whichever project is op
     dir === "/test/B" ? [session("ses_other", "/test/B")] : [],
   );
   await store.setDirectory("/test/B");
+  vi.spyOn(store, "configureSharedTools").mockResolvedValue(undefined);
   await store.setDirectory("/test/A");
   await store.stopSession("ses_other");
   expect(abort).toHaveBeenCalledWith("ses_other", "/test/B");
@@ -288,4 +291,14 @@ it("starts the browser before exposing a newly created browser task panel", asyn
   expect(started).toHaveBeenCalledWith("browser_open", {url:null,nodeProgram:null});
   expect(store.state.ui.browserOpen).toBe(false); resolve({browserOpen:true}); await pending;
   expect(store.state.ui.browserOpen).toBe(true);
+});
+
+it("waits for common tool preparation and preserves draft if preparation fails",async()=>{
+ store.state={...store.state,activeSessionId:"ses_a",sessions:[session("ses_a")],connectedProviderIds:["local-qwen-next"]};
+ store.setModelChoice("local-qwen-next","qwen38-flash-next","medium");
+ store.setDraft("own draft");
+ vi.spyOn(store,"configureSharedTools").mockRejectedValue(new Error("Shared MCP missing dependency"));
+ const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+ expect(await store.sendPrompt("own draft")).toBe(false);
+ expect(prompt).not.toHaveBeenCalled();expect(store.getDraft()).toBe("own draft");
 });

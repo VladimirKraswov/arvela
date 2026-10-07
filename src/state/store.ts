@@ -1,3 +1,4 @@
+import {configureShared} from "../capabilities/integration";
 import { modelServices, type ModelService } from "../models/services";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
 import { chatBlocker, liveModelProblem, modelProblem } from "../schedules/preflight";
@@ -618,6 +619,11 @@ class Store {
     });
   }
 
+  async configureSharedTools(directory = this.state.directory): Promise<void> {
+    if (!directory || !isNative() || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
+    const endpoint=this.state.prefs.endpoint, client=this.client, generation=this.connectionGeneration;
+    await configureShared({endpoint,directory,current:()=>generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && !this.currentHost(),request:(method,path,options)=>client.request(method,path,options)});
+  }
   browserTaskActive(): boolean {
     const id = this.state.activeSessionId;
     return !!id && !!this.state.prefs.browserTasks?.[browserTaskKey(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.engineIdFor(), id)];
@@ -1357,6 +1363,7 @@ class Store {
       // keep "new conversation" state by default; do not auto-open old sessions
     }
     void this.configureBrowser();
+    void this.configureSharedTools().catch(error=>{if(gen===this.directoryGeneration)this.patchUi({toast:errText(error)});});
     this.startEventStream(directory, gen);
     this.startPiStream(directory, gen);
     if (opts.restoreSession && this.state.activeSessionId) {
@@ -2297,10 +2304,12 @@ class Store {
       if (isNative() && isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && browserEnabled(this.state.prefs)) {
         // OpenCode needs this directory's MCP attachment; Pi only the installed runtime it loads itself.
         const status = await untilAborted(this.configureBrowser(false, false, pi ? null : task.directory), signal);
+
         if (pi ? !status : browserSetupSnapshot().phase === "error")
           throw new ScheduleBlocked("Браузерные инструменты не подключились; запрос не отправлен. Проверьте «Настройки → Браузер» и возобновите задание.");
       }
       // Browser setup can take time. Re-check authoritative interaction state before dispatch.
+      if (!pi) await untilAborted(this.configureSharedTools(task.directory), signal);
       const [freshStatus, freshPermissions, freshQuestions] = await untilAborted(Promise.all([
         backend.sessionStatuses(task.directory, signal), backend.pendingPermissions(task.directory, signal), backend.pendingQuestions(task.directory, signal),
       ]), signal);
@@ -2413,9 +2422,12 @@ class Store {
       if (isNative() && isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && browserEnabled(this.state.prefs)) {
         onProgress("Подключение браузерных инструментов…");
         await this.configureBrowser(browserSetupSnapshot().phase === "error");
+
         if (browserSetupSnapshot().phase === "error") throw new Error(browserSetupSnapshot().error || "Браузер не подключён.");
         if (!sameContext() || this.state.activeSessionId !== selected) return false;
       }
+      if (engineId !== PI_BACKEND_ID) await this.configureSharedTools(directory);
+      if (!sameContext() || this.state.activeSessionId !== selected) return false;
       const parts = attachments.length && modelInfo
         ? await prepareAttachments(attachments, engineId === PI_BACKEND_ID ? { ...modelInfo, capabilities: { ...modelInfo.capabilities, input: { ...modelInfo.capabilities?.input, pdf: false, audio: false, video: false } } } : modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress)
         : [];

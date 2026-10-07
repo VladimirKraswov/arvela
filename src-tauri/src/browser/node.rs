@@ -197,7 +197,7 @@ fn real_executable(node: &Path) -> Option<PathBuf> {
     (output.status.success() && path.is_absolute()).then_some(path)
 }
 
-pub(super) fn npm_cli(node: &Path) -> Result<PathBuf, String> {
+pub(crate) fn npm_cli(node: &Path) -> Result<PathBuf, String> {
     npm_beside(node)
         .or_else(|| real_executable(node).as_deref().and_then(npm_beside))
         .or_else(|| {

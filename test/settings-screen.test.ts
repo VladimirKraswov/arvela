@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
+import * as requireReact from "react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DEFAULT_PREFS } from "../src/state/prefs";
@@ -8,6 +9,7 @@ const cli = vi.hoisted(() => ({ detect: vi.fn<() => Promise<boolean | null>>() }
 vi.mock('../src/state/store', () => ({ useAppState: () => fake.state, store: { ...fake, hostLabel: () => "Этот компьютер" } }));
 vi.mock('../src/native/localServer', () => ({ detectLocalOpenCode: cli.detect }));
 vi.mock('../src/components/OpenCodeSettings', () => ({ OpenCodeSettings: ({ section, onDirtyChange }: any) => createElement('button', { onClick: () => onDirtyChange(true) }, `Изменить ${section}`) }));
+vi.mock('../src/components/CapabilitiesSettings', () => ({ CapabilitiesSettings: ({onDirtyChange}:any) => {const [value,setValue]=requireReact.useState('');return createElement('input',{ 'aria-label':'Общий черновик',value,onChange:(e:any)=>{setValue(e.target.value);onDirtyChange(true);}});}}));
 vi.mock('../src/components/ComputerSettings', () => ({ ComputerSettings: () => createElement('p', {}, 'Cua Driver') }));
 import { SettingsScreen, searchSettings } from '../src/components/SettingsScreen';
 let root: Root;
@@ -43,7 +45,7 @@ it("keeps edited ASR fields across navigation and prevents accidental exit on Es
   click('Остаться'); click('Отменить изменения'); click('Вернуться в приложение'); expect(fake.setUi).toHaveBeenCalledWith({ settingsOpen: false }); expect(fake.setAsr).not.toHaveBeenCalled();
 });
 it("retains staged engine changes across settings sections and guards host navigation", () => {
-  click('Инструменты'); click('Изменить tools'); click('Общее'); click('Управлять…'); expect(fake.setUi).not.toHaveBeenCalled();
+  click('Разрешения OpenCode'); click('Изменить tools'); click('Общее'); click('Управлять…'); expect(fake.setUi).not.toHaveBeenCalled();
   expect(document.querySelector('[role="alert"]')).not.toBeNull(); click('Не сохранять и выйти'); expect(fake.setUi).toHaveBeenCalledWith({ settingsOpen: false, hostDialogOpen: true });
 });
 it("offers the private helper separately from ASR and MCP and validates its loopback address", () => {
@@ -65,4 +67,10 @@ it("offers OpenCode installation only when its local CLI is missing", async () =
   cli.detect.mockResolvedValue(true);
   await act(async () => { button('Проверить снова').click(); });
   expect([...document.querySelectorAll('button')].some(e => e.textContent === 'Установить OpenCode…')).toBe(false);
+});
+
+it("keeps shared capability drafts when navigating and warns on exit",()=>{
+ click('Навыки и инструменты');input('Общий черновик','unfinished');click('Общее');click('Навыки и инструменты');
+ expect(document.querySelector<HTMLInputElement>('[aria-label="Общий черновик"]')!.value).toBe('unfinished');
+ click('Вернуться в приложение');expect(fake.setUi).not.toHaveBeenCalled();expect(document.querySelector('[role="alert"]')?.textContent).toContain('несохранённые');
 });

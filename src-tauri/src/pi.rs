@@ -604,6 +604,7 @@ pub struct PiProcess {
     pub directory: String,
     pub session_id: String,
     counter: u64,
+    shared_report: Value,
     stopping: Arc<AtomicBool>,
     /// Dropped after `Drop::drop` has run the graceful shutdown, so anything
     /// still alive in Pi's tree is terminated last.
@@ -817,6 +818,21 @@ pub async fn pi_open(
             args.push("--extension".into());
             args.push(gate.display().to_string());
         }
+        let shared = if !request.ephemeral {
+            Some(crate::capabilities::pi_support(&directory)?)
+        } else {
+            None
+        };
+        if let Some((_, sources, extension)) = &shared {
+            for source in sources {
+                args.push("--skill".into());
+                args.push(source.clone());
+            }
+            if let Some(extension) = extension {
+                args.push("--extension".into());
+                args.push(extension.display().to_string());
+            }
+        }
         let browser_extension = if request.browser_enabled && !request.ephemeral {
             crate::browser::installed_pi_extension()
         } else {
@@ -835,6 +851,14 @@ pub async fn pi_open(
         let mut command =
             command_for_program(&program, request.node_program.as_deref().map(Path::new))?;
         command.args(&args).current_dir(&directory);
+        if let Some((key, _, Some(_))) = &shared {
+            command.env("MESH_CAPABILITIES_ROOT", crate::capabilities::root()?);
+            command.env("MESH_CAPABILITIES_KEY", key);
+            command.env(
+                "MESH_CAPABILITIES_COMMAND",
+                std::env::current_exe().map_err(|_| "Путь Desktop недоступен")?,
+            );
+        }
         if browser_extension.is_some() {
             command.env(
                 "OCDESKTOP_BROWSER_COMMAND",
@@ -908,6 +932,7 @@ pub async fn pi_open(
                 directory: request.directory.clone(),
                 session_id: request.session_id.clone(),
                 counter: 0,
+                shared_report: serde_json::json!({"servers": []}),
                 stopping,
                 #[cfg(target_os = "windows")]
                 _job: job,
@@ -967,6 +992,18 @@ fn spawn_reader(
             let Ok(value) = serde_json::from_str::<Value>(line) else {
                 return;
             };
+            if value["type"] == "mesh_capability_status" {
+                if let Some(servers) = value["servers"].as_array().filter(|s| s.len() <= 16) {
+                    let safe:Vec<Value>=servers.iter().filter(|s|s["id"].as_str().is_some_and(|s|s.len()<=32)
+                        && s["signature"].as_str().is_some_and(|s|s.len()==16)).map(|s|json!({"id":s["id"],"signature":s["signature"],"state":s["state"],"tools":s["tools"].as_array().map(|a|a.iter().take(128).filter_map(|t|t.as_str().filter(|s|s.len()<=140)).collect::<Vec<_>>()).unwrap_or_default()})).collect();
+                    if let Ok(mut map) = handles.lock() {
+                        if let Some(process) = map.get_mut(&key) {
+                            process.shared_report = json!({"servers":safe});
+                        }
+                    }
+                }
+                return;
+            }
             // Correlated command responses go to their waiting caller only.
             if value["type"] == "response" {
                 if let Some(id) = value["id"].as_str() {
@@ -1359,4 +1396,29 @@ mod tests {
             assert!(!DIALOG_METHODS.contains(&passive));
         }
     }
+}
+
+#[tauri::command]
+pub fn pi_shared_inventory(
+    window: tauri::WebviewWindow,
+    state: State<'_, PiSessions>,
+    directory: String,
+    session_id: String,
+) -> Result<Value, String> {
+    if window.label() != "main" {
+        return Err("Недоступно в этом окне".into());
+    }
+    let key = session_key(&directory, &session_id);
+    let mut map = state.0.lock().map_err(|_| "Pi недоступен")?;
+    if let Some(process) = map.get_mut(&key) {
+        if process
+            .child
+            .try_wait()
+            .map_err(|_| "Pi недоступен")?
+            .is_none()
+        {
+            return Ok(process.shared_report.clone());
+        }
+    }
+    Ok(json!({"servers": [],"notRunning":true}))
 }

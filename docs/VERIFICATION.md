@@ -1,3 +1,44 @@
+# AgentMesh 0.2.23 — shared capabilities, Mac verified (2026-10-07)
+
+One global/project registry for portable SKILL.md sources and MCP tools. OpenCode
+uses its native MCP/config APIs, Pi a thin extension through its real loader;
+shared names are normalized once by the proxy. No additional agent loop or
+permission auto-approval. Existing user paths, foreign MCPs, JSONC comments,
+plugins, providers, sessions and inference services are preserved.
+
+Final frontend: **533 passed / 6 opt-in skipped**. Rust: **85 passed / 1 unchanged
+vault opt-in ignored**. TypeScript/Vite, Rust fmt/all-targets check and Mac
+app/DMG build pass. Initial store regressions needed an explicit mock for the new
+preparation dependency and acknowledgement wait; assertions were retained and a
+preparation-failure draft regression added. Registry collision, ownership,
+revision/credential rotation, bounds, symlink discovery, actual engine discovery,
+stale/disabled calls, form navigation and busy-state tests pass.
+
+Real isolated SDK/Pi 0.85.1 loader and Pi argument validator pass. Actual installed
+Desktop CLI: real stdio tools, normalized alias, own workspace cwd, discovery
+without calls, upstream error without replay and disabled-service rejection pass.
+OpenCode 1.18.18 confirms the own fixture MCP attached to its disposable directory
+and disconnected afterwards. Streamable HTTP with an own loopback Bearer fixture
+passes discovery and call. No model requests, GPU work, personal session analysis,
+owner model/permission/configuration rewrites or persistent fixture registrations.
+
+Actual native UI 0.2.23 shows the unified catalog and SDK readiness. Verified
+source form survives navigation, exit guard keeps edits and explicit form clear
+removes the fixture without saving. Final scripts in installed shared runtime
+match the source byte-for-byte; validated absolute Node path is recorded for
+launcher/CLI use. Original sidebar layout restored, shared catalog left open.
+External OpenCode PID3714 remains healthy 1.18.18.
+
+Final installed `/Applications/AgentMesh Desktop.app` executable matches the build:
+`0a7bf37d7d978f51aa8e320cc7b64e6729bad1a9652321ecd49f3cbf3b8c14ed`.
+Strict/deep signature, bundle version and microphone entitlement pass. Mac DMG:
+`804084d1817735732aa328da482448c4bd492f9309de65226d14c7f6fea0e35e`;
+`hdiutil verify` passes. Ad-hoc signed, not notarized. Old0.2.22 bundle retained
+privately. Publication/download verification pending below; live Windows/Linux
+acceptance and real third-party OAuth/SSE/resource/audio compatibility are not
+claimed. Shared bridge supports tools over stdio and Streamable HTTP; see
+[configuration and boundaries](CAPABILITIES.md).
+
 # Verification record
 
 ## AgentMesh 0.2.20 composer — 2026-10-07

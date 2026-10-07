@@ -91,7 +91,7 @@ pub fn write_opencode_config(
     })
 }
 
-fn write_at(path: &Path, expected: &str, content: &str) -> Result<(), String> {
+pub(crate) fn write_at(path: &Path, expected: &str, content: &str) -> Result<(), String> {
     let current = read_at(path)?;
     if current != expected {
         return Err(

@@ -13,11 +13,11 @@ mod shared;
 
 pub use files::{root_dir, support_dir};
 pub use node::node_program;
+pub(crate) use node::npm_cli;
 
 use crate::process::{own_process_group, terminate_group};
 use files::{installed_at, private_dir, VERSION};
 use gateway::Endpoint;
-use node::npm_cli;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{

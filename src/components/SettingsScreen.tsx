@@ -1,3 +1,4 @@
+import { CapabilitiesSettings } from "./CapabilitiesSettings";
 import { ModelServicesSettings } from "./ModelServicesSettings";
 import { BrowserSettings } from "./BrowserSettings";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -22,15 +23,16 @@ export const SETTINGS_SECTIONS = [
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
+  { id: "capabilities", title: "Навыки и инструменты", group: "Интеграции", icon: "file", description: "Общий каталог навыков и MCP для OpenCode и Pi", keywords: "skills tools MCP источники инструменты общие Pi" },
   { id: "browser", title: "Браузер", group: "Интеграции", icon: "browser", description: "Управляемый Chromium и автонастройка OpenCode / Pi", keywords: "browser playwright chromium MCP окна вкладки формы пароли" },
   { id: "computer", title: "Управление компьютером", group: "Интеграции", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
   { id: "agentControl", title: "API для агентов", group: "Интеграции", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
   { id: "modelServices", title: "Сервисы моделей", group: "Интеграции", icon: "server", description: "Переключение моделей, загрузка и доступные агенты", keywords: "inference api модели loader прогресс Pi OpenCode" },
   { id: "helper", title: "Сервисы помощника", group: "Интеграции", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
-  { id: "tools", title: "Инструменты", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
-  { id: "skills", title: "Навыки", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
+  { id: "tools", title: "Разрешения OpenCode", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
+  { id: "skills", title: "Навыки OpenCode", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
   { id: "plugins", title: "Плагины", group: "OpenCode", icon: "plus", description: "Расширения OpenCode из npm", keywords: "plugins пакеты" },
-  { id: "mcp", title: "MCP-серверы", group: "OpenCode", icon: "server", description: "Подключения инструментов и их статус", keywords: "mcp интеграции серверы" },
+  { id: "mcp", title: "MCP OpenCode", group: "OpenCode", icon: "server", description: "Подключения инструментов и их статус", keywords: "mcp интеграции серверы" },
   { id: "agents", title: "Профили OpenCode", group: "OpenCode", icon: "chat", description: "Профили инструкций и инструментов OpenCode", keywords: "agents build plan" },
   { id: "pi", title: "Агент Pi", group: "Pi", icon: "chat", description: "Установка, модели, расширения и LSP локального агента Pi", keywords: "pi rpc движок engine модель расширение lsp язык сервер" },
   { id: "about", title: "О приложении", group: "Приложение", icon: "code", description: "Версия приложения и состояние сервера", keywords: "диагностика поток событий SSE провайдеры" },
@@ -84,6 +86,7 @@ export function SettingsScreen() {
   const s = useAppState();
   const [section, setSection] = useState<Section>("general"), [query, setQuery] = useState("");
   const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
+  const [capabilitiesDirty,setCapabilitiesDirty] = useState(false), [capabilitiesVisited,setCapabilitiesVisited] = useState(false);
   const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
   const [endpoint, setEndpoint] = useState(s.prefs.localEndpoint ?? s.prefs.endpoint);
   const [openCodeProgram, setOpenCodeProgram] = useState(s.prefs.localOpenCodeProgram ?? "");
@@ -100,10 +103,10 @@ export function SettingsScreen() {
   const localDirty = endpointDirty || programDirty;
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
   const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
-  const dirty = engineDirty || localDirty || voiceDirty || helperDirty;
+  const dirty = capabilitiesDirty || engineDirty || localDirty || voiceDirty || helperDirty;
   const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
   const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
-  const navigate = (id: Section) => { setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
+  const navigate = (id: Section) => { if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
   useEffect(() => { if (leave) { content.current?.scrollTo(0, 0); stay.current?.focus(); } }, [leave]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -131,7 +134,7 @@ export function SettingsScreen() {
     </aside>
     <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
       <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1><p>{query.trim() ? `Результаты для «${query.trim()}»` : selected.description}</p></header>
-      {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения подключения, диктовки, помощника или OpenCode. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
+      {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения настроек. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
         {section === "general" && <>
           <Group title="Подключение"><Row title="Текущий компьютер" description={s.prefs.endpoint}><span>{store.hostLabel()}</span></Row><Row title="Локальный сервер OpenCode" description="Если сервер не запущен, приложение запустит установленный OpenCode на этом адресе."><input aria-label="Адрес локального сервера OpenCode" spellCheck={false} value={endpoint} onChange={e => setEndpoint(e.target.value)} placeholder={DEFAULT_BASE_URL}/></Row><Row title="OpenCode CLI" description="Движок устанавливается отдельно от приложения."><span>{cliInstalled === null ? "Не проверено" : cliInstalled ? "Установлен" : "Не найден"}</span>{cliInstalled === false && <button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl("https://opencode.ai/docs/"))}>Установить OpenCode…</button>}<button className="btn" onClick={checkCli}>Проверить снова</button></Row><Row title="Путь к OpenCode CLI" description="Абсолютный путь к локальному CLI. Пусто — искать автоматически. Работающий сервер не перезапускается."><input aria-label="Путь к OpenCode CLI" spellCheck={false} placeholder="/opt/homebrew/bin/opencode" value={openCodeProgram} onChange={e => { setOpenCodeProgram(e.target.value); setCliInstalled(null); }}/></Row><Row title="Удалённые компьютеры" description="Подключения к OpenCode через SSH."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>
@@ -163,6 +166,7 @@ export function SettingsScreen() {
           <p className="settings-muted">Запись — до 2 минут. Аудио не сохраняется на диск. Для удалённого сервиса используйте HTTPS.</p>
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
+        {capabilitiesVisited && <div hidden={section !== "capabilities"}><CapabilitiesSettings onDirtyChange={setCapabilitiesDirty} onNavigate={navigate}/></div>}
         {section === "browser" && <BrowserSettings/>}
         {section === "computer" && <ComputerSettings/>}
         {section === "agentControl" && <AgentControlSettings/>}

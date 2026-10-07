@@ -1,5 +1,6 @@
 mod asr;
 pub mod browser;
+pub mod capabilities;
 pub mod computer;
 mod config;
 pub mod control;
@@ -15,6 +16,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(hosts::Hosts::default())
         .manage(pi::PiSessions::default())
+        .manage(capabilities::SharedRuntime::default())
         .manage(browser::BrowserRuntime::default())
         .manage(control::AgentControl::default())
         .setup(|app| {
@@ -45,6 +47,11 @@ pub fn run() {
             local_server::detect_local_opencode,
             config::read_opencode_config,
             config::write_opencode_config,
+            capabilities::shared_catalog,
+            capabilities::shared_save,
+            capabilities::shared_install,
+            capabilities::shared_probe,
+            capabilities::shared_mcp_key,
             sound::completion_chime,
             computer::computer_status,
             computer::computer_set_enabled,
@@ -59,6 +66,7 @@ pub fn run() {
             pi::pi_close,
             pi::pi_sessions,
             pi::pi_live_sessions,
+            pi::pi_shared_inventory,
             pi::pi_setup_lsp,
             pi::pi_probe_directory,
             pi::pi_prepare_chat_workspace
@@ -75,6 +83,7 @@ pub fn run() {
                     tunnels.clear();
                 }
                 // No Pi agent may outlive the window that started it.
+                capabilities::shutdown(app.state::<capabilities::SharedRuntime>().inner());
                 pi::shutdown(app);
                 browser::shutdown(app);
                 control::shutdown(app);

@@ -390,3 +390,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Final Mac package/install acceptance; native Low/new task/browser/diagnostics and installed CLI verified.
 - [x] Reviewed main pushed; v0.2.22 matched Mac DMG published and downloaded SHA256/GitHub digest/integrity verified.
 - [ ] Live Windows/Linux acceptance and task-based speed/quality A/B.
+
+## M32 — Shared skills and tools (0.2.23)
+
+- [x] Versioned global/project registry, portable skill sources and unified catalog.
+- [x] Shared MCP tools with official SDK, Pi adapter and scoped OpenCode attachment.
+- [x] Actual connection/session availability, dependencies and reload states.
+- [ ] Regression/real isolated MCP/Pi acceptance; Mac build/install and publication.
+- [ ] Live Windows/Linux acceptance.

@@ -643,6 +643,11 @@ export class PiBackend implements AgentBackend {
     this.unsubscribe ??= this.bridge.subscribe((envelope) => this.onEnvelope(envelope));
   }
 
+  async loadedSkillCommands(sessionId: string) {
+    if (!this.keys.has(sessionId)) return [];
+    const value=await this.command<{commands:{name:string;path?:string;source:string}[]}>(this.keys.get(sessionId)!, {type:"get_commands"});
+    return value?.commands.filter(c=>c.source==="skill") ?? [];
+  }
   private onEnvelope(envelope: PiEnvelope): void {
     if (this.closedKeys.has(envelope.key)) return;
     const payload = envelope.payload;
