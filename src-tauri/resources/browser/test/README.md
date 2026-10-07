@@ -80,3 +80,21 @@ Pi tool approval and agent-loop behavior are covered by their separate tests.
 Windows and Linux paths/process handling are implemented, including a Windows
 kill-on-close Job Object. The headed smoke has also passed on Windows (see
 `docs/WINDOWS-BROWSER-FIX-20261005.md`). Linux remains unverified.
+
+
+## Modes and resize recovery (0.2.21)
+
+The shared bridge exposes the 32 pinned official tools plus
+`browser_keyboard_type`, a bounded keyboard paste into the focused field.
+The same smoke now covers enforced human mode (DOM click/code rejected),
+actual viewport resize, stale agent/manual rejection, a fresh recovery image,
+a responsive target clicked at its new CSS position, keyboard input and shared
+manual intervention. No consequential click is replayed automatically.
+Use `BROWSER_SAVE_UI_FRAME=1` to save an inert test JPEG/frame to the temporary
+runtime's `ui-frame.json`. Optionally copy it to
+`test/fixtures/.browser-frame.json` and open the Vite-only
+`test/fixtures/browser-layout.html?pixels&width=320` rendering fixture. The
+fixture uses the real BrowserPanel/CSS with stubbed IPC, never user services.
+Remove the temporary frame after visual QA; it must not be committed. Without
+`pixels` the fixture shows the actual empty panel. This is rendering evidence,
+not native input acceptance. Packaged UI acceptance is recorded separately.

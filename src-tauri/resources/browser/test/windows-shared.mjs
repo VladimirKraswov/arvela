@@ -62,14 +62,14 @@ try {
     transport.stderr?.on('data', chunk => { diagnostic = (diagnostic + chunk.toString()).slice(-1024); });
     try { await client.connect(transport); }
     catch (error) { throw new Error(`CLI ${label}: ${error.message}; ${diagnostic.trim()}`); }
-    assert.equal((await client.listTools()).tools.length, 32);
+    assert.equal((await client.listTools()).tools.length, 33);
   }
   const navigation = await clients[0].callTool({ name: 'browser_navigate', arguments: { url: 'about:blank' } });
   assert(!navigation.isError);
   const evaluation = await clients[1].callTool({ name: 'browser_evaluate', arguments: { function: '() => location.href' } });
   assert(!evaluation.isError && evaluation.content.some(c => c.type === 'text' && c.text.includes('about:blank')));
   console.log(JSON.stringify({ windowsSharedRuntime: true, differentAppDataViews: true,
-    realDesktopCli: true, tools: 32, sameBrowser: true, noModelRequests: true }));
+    realDesktopCli: true, tools: 33, sameBrowser: true, noModelRequests: true }));
 } finally {
   for (const client of clients) await client.close().catch(() => {});
   daemon?.stdin.end();

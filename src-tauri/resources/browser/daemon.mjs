@@ -25,6 +25,7 @@ await fs.mkdir(path.join(root, 'profile'), { recursive: true, mode: 0o700 });
 const connections = new Map();
 let context;
 const view = createView(getContext);
+try { view.setMode(JSON.parse(await fs.readFile(path.join(root, 'interaction.json'), 'utf8')).mode); } catch { /* default fast */ }
 let closing = false;
 let queue = Promise.resolve();
 const serial = action => {
@@ -117,29 +118,63 @@ const server = http.createServer(async (req, res) => {
     const result = await serial(async () => {
       if (cancellation.signal.aborted) throw new Error('Cancelled');
       if (request.expected) view.assertCurrent(request.expected);
+      if (request.method === 'desktop/mode') {
+        view.setMode(request.mode);
+        await fs.writeFile(path.join(root, 'interaction.json'), JSON.stringify({ mode: request.mode }), { mode: 0o600 });
+        return view.state();
+      }
+      if (request.method === 'desktop/resize') {
+        await view.resize(request.width, request.height);
+        return view.state();
+      }
       if (request.method === 'desktop/reveal') {
         await view.page();
         return { revealed: true };
       }
       if (request.method === 'desktop/type') {
         if (typeof request.text !== 'string' || Buffer.byteLength(request.text) > 16384) throw new Error('Invalid text');
+        view.changed();
         await (await view.page()).keyboard.insertText(request.text);
         return { typed: true };
       }
       if (request.method === 'desktop/reload' || request.method === 'desktop/forward') {
         const page = await view.page();
+        view.changed();
         if (request.method === 'desktop/reload') await page.reload({ timeout: 60000 });
         else await page.goForward({ timeout: 60000 });
         return { navigated: true };
       }
       const client = await connection(request.workspace);
-      if (request.method === 'tools/list') return client.listTools();
+      if (request.method === 'tools/list') {
+        const inventory = await client.listTools();
+        return { ...inventory, tools: [...inventory.tools, { name: 'browser_keyboard_type', description: 'Type or paste text with the keyboard into the currently focused field. Click the field with the mouse first. No DOM selectors or implicit focus changes.',
+          inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 16384 }, submit: { type: 'boolean' } }, required: ['text'], additionalProperties: false } }].map(tool => ({ ...tool,
+          description: `${tool.description || ''}${/^browser_mouse_/.test(tool.name) ? ' XY input requires a fresh CSS viewport screenshot; resize/scroll/shared input invalidates old coordinates. A rejected action returns a fresh image and never replays.' : ['browser_click', 'browser_fill_form', 'browser_type', 'browser_select_option', 'browser_evaluate', 'browser_run_code'].includes(tool.name) ? ' Fast mode only; human mode requires mouse XY and browser_keyboard_type.' : tool.name === 'browser_take_screenshot' ? ' For XY input use scale=css, fullPage=false and no element target. Desktop mode and viewport are reported with results.' : ''}` })) };
+      }
       if (request.method === 'tools/call') {
         // Listing tools stays lazy; only actual actions create the browser.
-        await view.before(client, request.params, request.owner === 'user' ? 'user' : 'agent');
+        try { await view.before(client, request.params, request.owner === 'user' ? 'user' : 'agent'); }
+        catch (error) {
+          if (!['mode', 'geometry'].includes(error.recovery)) throw error;
+          // This action did not execute. Refresh observation, never replay the click.
+          const fresh = { name: 'browser_take_screenshot', arguments: { scale: 'css', type: 'png' } };
+          await view.before(client, fresh);
+          let result;
+          try { result = await client.callTool(fresh, undefined, { signal: cancellation.signal }); await view.after(client, fresh, result); }
+          finally { view.failed(); }
+          return { isError: true, content: [{ type: 'text', text: `${error.message}\nDesktop browser state: ${JSON.stringify(view.state())}` }, ...(result?.content || [])],
+            structuredContent: { desktopBrowserRecovery: true, reason: error.recovery, ...view.state() } };
+        }
         let result;
         try {
-          result = await client.callTool(request.params, undefined, { signal: cancellation.signal });
+          if (request.params.name === 'browser_keyboard_type') {
+            const args = request.params.arguments || {};
+            if (typeof args.text !== 'string' || Buffer.byteLength(args.text) > 16384 || (args.submit !== undefined && typeof args.submit !== 'boolean')) throw new Error('Invalid keyboard input');
+            const page = await view.page();
+            await page.keyboard.insertText(args.text);
+            if (args.submit) await page.keyboard.press('Enter');
+            result = { content: [{ type: 'text', text: 'Keyboard input sent to the focused field. Inspect the result before another action.' }] };
+          } else result = await client.callTool(request.params, undefined, { signal: cancellation.signal });
           if (request.params.name !== 'browser_close') await view.after(client, request.params, result);
         } finally { view.failed(); }
         if (request.reveal && !result.isError && context) {
@@ -147,7 +182,7 @@ const server = http.createServer(async (req, res) => {
           const page = pages.find(page => page.url() === request.params?.arguments?.url) || pages.at(-1);
           await page?.bringToFront();
         }
-        return result;
+        return { ...result, content: [...(result.content || []), { type: 'text', text: `Desktop browser state: ${JSON.stringify(view.state())}` }] };
       }
       throw new Error('Only official browser tool methods are supported');
     });
@@ -160,7 +195,15 @@ const server = http.createServer(async (req, res) => {
 });
 let frameFlight;
 function captureFrame() {
-  if (!frameFlight) frameFlight = view.frame(context).finally(() => { frameFlight = undefined; });
+  if (!frameFlight) frameFlight = (async () => {
+    try { return await view.frame(context); }
+    catch (error) {
+      // A resize/navigation raced a read-only capture. Refresh once, never retry
+      // input and never turn routine reflow into a misleading connection error.
+      if (!error.frameChanged) throw error;
+      return view.frame(context);
+    }
+  })().finally(() => { frameFlight = undefined; });
   return frameFlight;
 }
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

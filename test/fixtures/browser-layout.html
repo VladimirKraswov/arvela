@@ -1,0 +1,13 @@
+<!doctype html><html data-theme="dark"><head><meta charset="UTF-8"><title>Disposable browser panel check</title><style>
+#fixture { position:relative;margin:24px;width:760px;height:680px;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px); }
+#fixture .browser-panel:not(.expanded) { position:relative!important;width:100%;height:100%;min-width:0;top:auto;right:auto;border:1px solid var(--border);border-radius:12px;overflow:hidden; }
+</style></head><body><div id="fixture"><div id="root" style="height:100%"></div></div><script type="module">
+import React from 'react'; import {createRoot} from 'react-dom/client'; import '/src/styles.css';
+// Isolated rendering seam only. No engine, profile or model requests.
+const params=new URLSearchParams(location.search); document.getElementById('fixture').style.width=(params.get('width')??'760')+'px';document.documentElement.style.fontSize=(params.get('font')??'14')+'px';document.documentElement.dataset.theme=params.get('theme')??'dark';
+let frame={browserOpen:true,busy:false,mode:'fast',tabs:[],width:640,height:480,pageId:'fixture',revision:0};
+if(params.has('pixels'))frame=await fetch('/test/fixtures/.browser-frame.json').then(r=>r.json());frame.tabs=[{index:0,title:'Проверка браузера',url:'http://localhost:fixture',active:true},{index:1,title:'Документация проекта и инструменты',url:'https://example.com',active:false}];frame.url=frame.tabs[0].url;frame.title=frame.tabs[0].title;
+window.__TAURI_INTERNALS__={invoke:async(command,payload)=>{if(command==='browser_view')return {...frame};if(command==='browser_input'){if(payload.action==='mode')frame.mode=payload.args.mode;if(payload.action==='resize'){frame.width=payload.args.width;frame.height=payload.args.height;frame.revision++;}return;}throw new Error('Unexpected fixture invocation');}};
+const {store}=await import('/src/state/store.ts');store.state.prefs.browser={enabled:true};store.state.prefs.endpoint='http://127.0.0.1:4096';store.currentHost=()=>null;store.setBrowserSettings=patch=>Object.assign(store.state.prefs.browser,patch);store.setUi=()=>{};
+const {BrowserPanel}=await import('/src/components/BrowserPanel.tsx');createRoot(document.getElementById('root')).render(React.createElement(BrowserPanel));
+</script></body></html>

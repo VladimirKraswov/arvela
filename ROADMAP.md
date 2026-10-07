@@ -366,3 +366,16 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] 476 frontend tests and eight real browser geometry cases.
 - [x] Signed Mac bundle and installed UI acceptance; source/release publication recorded in verification.
 - [ ] Windows/Linux live acceptance.
+
+
+## M30 — Browser modes and responsive projection (0.2.21)
+
+- [x] Compact tabs, centered address pill, mode selector and expand/collapse; narrow container layout.
+- [x] Fast semantic-first and enforced human mouse/keyboard mode, shared by OpenCode/Pi.
+- [x] Bounded keyboard input tool, normal agent permissions and workspace upload policy preserved.
+- [x] Debounced actual Chromium reflow; pending old panel input discarded and disabled until matching frame.
+- [x] Per-client screenshot/page/viewport observation guard; stale XY input rejected before action with fresh image/dimensions, no click replay.
+- [x] Decoded-image manual coordinates, shared-user input invalidation, bounded read-only frame refresh after capture races.
+- [x] Isolated real Mac Chromium responsive-target, modes, password/upload/profile/transport acceptance.
+- [x] Final Mac package/signature/microphone/DMG checks; installed mode/viewport/panel and actual MCP CLI acceptance. Publication recorded in VERIFICATION.
+- [ ] Live Windows/Linux acceptance; shared source only.

@@ -68,7 +68,7 @@ try {
   } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ECONNREFUSED' && error.name === 'AssertionError') throw error; }
   fixture = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`<!doctype html><title>Desktop Browser Acceptance</title><label>Name<input id="name" aria-label="Name"></label><label>Password<input id="password" type="password" aria-label="Password"></label><button onclick="document.querySelector('#result').textContent = document.querySelector('#name').value && document.querySelector('#password').value ? 'FORM_OK' : 'FORM_BAD';localStorage.setItem('fixture-session','PERSIST_OK')">Save fixture login</button><button onclick="document.querySelector('#upload').click()">Upload fixture</button><input id="upload" type="file" hidden onchange="document.querySelector('#result').textContent=this.files.length?'UPLOAD_OK':'UPLOAD_BAD'"><div id="result">WAITING</div><div id="persist"></div><script>document.querySelector('#persist').textContent=localStorage.getItem('fixture-session')||'NO_SESSION'</script>`);
+    res.end(`<!doctype html><title>Desktop Browser Acceptance</title><label>Name<input id="name" aria-label="Name"></label><label>Password<input id="password" type="password" aria-label="Password"></label><button onclick="document.querySelector('#result').textContent = document.querySelector('#name').value && document.querySelector('#password').value ? 'FORM_OK' : 'FORM_BAD';localStorage.setItem('fixture-session','PERSIST_OK')">Save fixture login</button><button onclick="document.querySelector('#upload').click()">Upload fixture</button><input id="upload" type="file" hidden onchange="document.querySelector('#result').textContent=this.files.length?'UPLOAD_OK':'UPLOAD_BAD'"><button style="position:fixed;right:16px;top:100px;width:100px;height:40px" aria-label="Responsive target" onclick="document.querySelector('#result').textContent='RESPONSIVE_CLICK_OK'">Responsive target</button><div id="result">WAITING</div><div id="persist"></div><script>document.querySelector('#persist').textContent=localStorage.getItem('fixture-session')||'NO_SESSION'</script>`);
   });
   await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
   const fixtureUrl = `http://127.0.0.1:${fixture.address().port}`;
@@ -96,7 +96,7 @@ try {
   assert.equal(Buffer.from(projected.image, 'base64').subarray(0, 2).toString('hex'), 'ffd8');
   assert(projected.tabs.some(tab => tab.active && tab.url === projected.url));
   const staleFrame = { pageId: projected.pageId, revision: projected.revision, url: projected.url };
-  await call('browser_snapshot');
+  await call('browser_press_key', { key: 'Escape' });
   const staleInput = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({ method: 'desktop/type', text: 'MUST_NOT_APPEAR', expected: staleFrame }) });
   assert.equal(staleInput.status, 400, 'Old frame input must fail closed after an agent action');
@@ -144,6 +144,39 @@ try {
   await panel('desktop/forward'); assert.equal((await frame()).url, fixtureUrl + '/history');
   await panel('tools/call', { params: { name: 'browser_tabs', arguments: { action: 'close', index: 1 } } });
   assert.equal((await frame()).tabs.length, 1);
+  // Real responsive fixture: stale agent coordinates must never click; bridge
+  // returns the resized screenshot, and the next explicit click can use it.
+  await panel('desktop/mode', { mode: 'human' });
+  const semantic = await client.callTool({ name: 'browser_click', arguments: { target: 'e1' } });
+  assert(semantic.isError && semantic.structuredContent?.reason === 'mode');
+  assert(semantic.content.some(c => c.type === 'image'));
+  const code = await client.callTool({ name: 'browser_evaluate', arguments: { function: '() => 1' } });
+  assert(code.isError && code.structuredContent?.reason === 'mode');
+  await call('browser_take_screenshot', { scale: 'css', type: 'png' });
+  const beforeResize = await frame();
+  await panel('desktop/resize', { width: 640, height: 480 });
+  const staleClick = await client.callTool({ name: 'browser_mouse_click_xy', arguments: { x: 100, y: 18 } });
+  assert(staleClick.isError && staleClick.structuredContent?.reason === 'geometry');
+  assert.deepEqual(staleClick.structuredContent.viewport, { width: 640, height: 480 });
+  assert(staleClick.content.some(c => c.type === 'image'));
+  projected = await frame(); assert.equal(projected.width, 640); assert.equal(projected.height, 480);
+  if (process.env.BROWSER_SAVE_UI_FRAME === '1') await fs.writeFile(path.join(root, 'ui-frame.json'), JSON.stringify(projected));
+  const oldManual = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ method: 'desktop/type', text: 'MUST_NOT_APPEAR', expected: { pageId: beforeResize.pageId, revision: beforeResize.revision, url: beforeResize.url, width: beforeResize.width, height: beforeResize.height } }) });
+  assert.equal(oldManual.status, 400);
+  await call('browser_mouse_click_xy', { x: 100, y: 18 });
+  await call('browser_keyboard_type', { text: 'HUMAN_INPUT_OK' });
+  assert(text(await call('browser_snapshot')).includes('HUMAN_INPUT_OK'));
+  await call('browser_take_screenshot', { scale: 'css', type: 'png' });
+  const outsideClick = await client.callTool({ name: 'browser_mouse_click_xy', arguments: { x: 1200, y: 120 } });
+  assert(outsideClick.isError && outsideClick.structuredContent?.reason === 'geometry');
+  await call('browser_mouse_click_xy', { x: 640 - 66, y: 120 });
+  assert(text(await call('browser_snapshot')).includes('RESPONSIVE_CLICK_OK'), 'Mouse must click the responsive target at its new position');
+  // A shared manual interaction invalidates the agent's previous observation.
+  await call('browser_take_screenshot', { scale: 'css', type: 'png' });
+  await panel('desktop/type', { text: 'shared-input' });
+  const staleShared = await client.callTool({ name: 'browser_mouse_click_xy', arguments: { x: 574, y: 120 } });
+  assert(staleShared.isError && staleShared.structuredContent?.reason === 'geometry');
+  await panel('desktop/mode', { mode: 'fast' });
   const otherWorkspace = path.join(root, 'other-workspace'); await fs.mkdir(otherWorkspace, { recursive: true });
   const other = await connect(otherWorkspace);
   try {
@@ -166,7 +199,7 @@ try {
   await start();
   await call('browser_navigate', { url: fixtureUrl });
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'));
-  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true }));
+  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true, humanMode: true, resizeRecovery: true, keyboardTyping: true }));
 } finally {
   await client?.close().catch(() => {});
   await stop();

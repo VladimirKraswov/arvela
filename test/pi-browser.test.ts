@@ -173,3 +173,10 @@ it("MCP errors are Pi tool failures and do not expose private SDK diagnostics", 
   await expect(tool.execute("sdk-error", {})).rejects.toThrow("не подключён");
   await fixture.events.session_shutdown();
 });
+
+it("passes trusted recovery screenshot and mode guidance to Pi without replaying the action", async () => {
+  const fixture = setup({ callTool: vi.fn(async () => ({ isError: true, structuredContent: { desktopBrowserRecovery: true, reason: "geometry", mode: "human" }, content: [{ type: "text", text: "No input was sent. Fresh screenshot." }, { type: "image", data: "test-pixels", mimeType: "image/png" }] })) });
+  const tool = await fixture.ready(); const result = await tool.execute("recovery", {});
+  expect(result.content).toContainEqual({ type: "image", data: "test-pixels", mimeType: "image/png" });
+  expect(fixture.connection.callTool).toHaveBeenCalledOnce();
+});

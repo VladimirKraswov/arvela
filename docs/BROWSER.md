@@ -1,6 +1,6 @@
-# In-app browser in OpenCode Desktop 0.2.18
+# In-app browser in AgentMesh Desktop 0.2.21
 
-Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same official MCP tools; there is no second agent loop or copied browser implementation.
+Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus the bounded Desktop keyboard-input adapter; there is no second agent loop or copied browser implementation.
 
 ## Startup and configuration
 
@@ -16,7 +16,7 @@ Pi receives `--extension` only for real, enabled Desktop sessions, and only afte
 
 ## Panel and profile
 
-The top bar's Browser button and Settings → Browser open a live Browser panel inside Desktop. Agent navigation also reveals it once; hiding the panel does not stop a task. Chromium runs headless in its own app-owned process: no external Chrome window or extension is opened. The panel projects actual JPEG viewport frames (up to 1920×1200, roughly 3 frames/second), with tabs, address, back/forward/reload, clicking, plain text/paste, scrolling and basic navigation keys. This is a pixel projection, not a remote-HTML webview or video stream. Agent tools retain the actual DOM/accessibility tree, evaluation and screenshots through official Playwright MCP. A cursor indicates the true element bounding-box center or supplied coordinates for pointer actions, not an invented animation for DOM-only operations. Dragging, native Chromium menus, clipboard copy from a page and full IME composition in the projection are not implemented. Use agent DOM tools for richer interaction.
+The top bar's Browser button and Settings → Browser open a live Browser panel inside Desktop. Agent navigation also reveals it once; hiding the panel does not stop a task. Chromium runs headless in its own app-owned process: no external Chrome window or extension is opened. The panel projects actual JPEG viewport frames (up to 1920×1200, up to 4 frames/second), with tabs, address, back/forward/reload, clicking, plain text/paste, scrolling and basic navigation keys. This is a pixel projection, not a remote-HTML webview or video stream. In fast mode agent tools retain the actual DOM/accessibility tree, evaluation and screenshots through official Playwright MCP. Human mode enforces mouse and keyboard actions as described below. A cursor indicates the true element bounding-box center or supplied coordinates for pointer actions, not an invented animation for DOM-only operations. Dragging, native Chromium menus, clipboard copy from a page and full IME composition in the projection are not implemented. Use the corresponding agent tools for richer interaction in the selected mode.
 
 One persistent app-owned profile is shared by Desktop, OpenCode and Pi. Ordinary browsers are unaffected; cookies/logins in this profile survive Desktop restarts. No special password-field restriction is imposed: official browser tools can fill fields under the agent's normal permissions and the user's task authorization. This is not an OS credential vault or a new password manager.
 
@@ -46,6 +46,60 @@ fresh package installation on retry. No existing chat directories are moved.
 `current` holds pinned tooling, `skills/desktop-browser/SKILL.md`, and the Pi extension; `browsers` holds Chromium; `profile` holds browser state; `workspace` holds outputs. The ready record is private and short-lived. Do not copy live authentication records into reports or Git.
 
 Settings shows the actual installation, service, OpenCode and Pi state. The proxy reads and verifies the private readiness record before each request, so an existing MCP connection can follow a browser-service restart. A request is retried once, after waiting up to five seconds for a fresh record, only when it provably never reached the daemon (connection refused, or 403 because the token had rotated); a sent tool call is never repeated. Timeouts and interrupted connections are reported as such and ask the agent to inspect the page before retrying. The `--browser-mcp` shim waits up to ten seconds for a daemon that is still starting. While Desktop/browser is stopped, calls fail closed. A background setup that is superseded without a successor (for example by switching to an SSH host) settles back to idle instead of showing a permanent "installing"; the toolbar button retries a failed setup from scratch and explains why it is disabled. Changing engine paths or rechecking Pi reruns setup without re-adding an already confirmed OpenCode MCP attachment, so another session's in-flight browser call is not interrupted; reconnecting and "Configure and check" still re-verify it. Use Configure and check after an engine-side MCP disconnection. A failed setup is not labelled ready. Browser startup/install are bounded and idempotent; closing Desktop cancels its active installer/startup and terminates only owned child processes; configuration changes don't silently enable global permissions. Windows 0.2.16 compiled unchanged and passed the real headed test-owned browser smoke and packaged settings checks according to the supplied report/logs. Packaged toolbar opening, stop/re-enable and Pi chat remain unverified there; Linux acceptance is pending. See `WINDOWS-RESULT-0.2.16-20261005.md`.
+
+## Interaction modes and responsive coordinates
+
+Select **Быстрый / Эмуляция** in the compact browser toolbar, or **Режим работы**
+in Settings → Browser. One browser and one mode are shared by OpenCode and Pi.
+The mode is persisted and applied before startup tool attachment. A live mode
+change is serialized with other actions and does not restart a healthy MCP.
+
+- **Fast**: semantic snapshot references, direct navigation and form tools are
+  preferred. Evaluation remains available under the agent's normal permissions.
+- **Human**: page clicks and dragging use real Playwright mouse input in CSS
+  viewport coordinates, scrolling uses the wheel, and typing uses the keyboard.
+  DOM click/fill/select/hover/drag, target-based typing and evaluation/run-code
+  tools are refused by a runtime allowlist, rather than merely discouraged in a
+  prompt. Navigation/tab controls, observations, dialogs and authorized uploads
+  remain available. `browser_keyboard_type` pastes up to 16 KiB into the field
+  already focused by a mouse click; it never finds/focuses an element by selector.
+
+Both modes retain existing agent approvals and file-root restrictions. Human
+mode controls these browser tools, not unrelated terminal tools or the host OS.
+Passwords can be entered within the user's task authorization in either mode;
+there is no new credential vault or automatic grant of permissions.
+
+The toolbar has compact scrollable tabs, navigation, a centered address field,
+mode selection and expand/collapse. At narrow widths controls wrap without
+hiding mode or navigation. The footer shows real operation status and viewport
+size. Closing the panel preserves the browser/task.
+
+`ResizeObserver` measures the available panel surface and debounces window,
+panel and zoom changes for 200 ms. Chromium's **actual viewport** is reflowed,
+with bounded dimensions (320..1920 × 240..1200). Waiting old panel input is
+cleared and manual actions stay disabled until a frame matching the requested
+size arrives. Pixel clicks use the dimensions/revision of the image that has
+actually decoded, not a newer image still loading.
+
+Before agent XY actions, take `browser_take_screenshot` with `scale="css"`,
+`fullPage=false` and no element target. The bridge records that observation per
+client and associates it with page identity, URL, viewport and action revision.
+Resize, navigation, scroll, changed tab and shared manual input invalidate it.
+Full-page/device-scale/element images cannot authorize viewport-coordinate
+input. Points outside the current viewport are rejected as well.
+
+A stale or disallowed action is refused **before mouse input**. Its MCP result
+contains a fresh CSS screenshot, current dimensions/mode and an explicit
+recovery reason. Pi preserves that recovery image/guidance in the tool result.
+The agent can choose a new target immediately; the bridge never replays a click.
+It cannot infer the user's intent or guarantee targets on a spontaneously
+animating page: inspect/verify important results. Ordinary interrupted tools
+may have partially executed and are never treated as safe to replay.
+
+Frame captures raced by navigation/resize are discarded and refreshed once
+(read-only). Frames never combine old pixels with a newer page revision. Tool
+results contain only small mode/viewport metadata in addition to normal MCP
+content; no secrets are added to runtime logs or React state.
 
 ## Reproducible smoke
 

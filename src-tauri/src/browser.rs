@@ -575,6 +575,24 @@ fn panel_tool(action: &str, args: &Value) -> Result<Value, String> {
             .ok_or_else(|| "Некорректные координаты браузера.".into())
     };
     let (name, arguments) = match action {
+        "mode" => {
+            let mode = args["mode"]
+                .as_str()
+                .filter(|v| matches!(*v, "fast" | "human"))
+                .ok_or("Некорректный режим браузера.")?;
+            ("desktop/mode", json!({"mode":mode}))
+        }
+        "resize" => {
+            let width = args["width"]
+                .as_u64()
+                .filter(|v| (320..=1920).contains(v))
+                .ok_or("Некорректная ширина браузера.")?;
+            let height = args["height"]
+                .as_u64()
+                .filter(|v| (240..=1200).contains(v))
+                .ok_or("Некорректная высота браузера.")?;
+            ("desktop/resize", json!({"width":width,"height":height}))
+        }
         "navigate" => (
             "browser_navigate",
             json!({"url": validated_url(Some(args["url"].as_str().ok_or("Нужен адрес страницы.")?))?}),
@@ -648,7 +666,7 @@ pub async fn browser_input(
     blocking(move || {
         let root = root_dir()?;
         let mut payload = if params["name"].as_str().is_some_and(|name| name.starts_with("desktop/")) {
-            json!({"method":params["name"], "text":params["arguments"]["text"]})
+            json!({"method":params["name"], "text":params["arguments"]["text"], "mode":params["arguments"]["mode"], "width":params["arguments"]["width"], "height":params["arguments"]["height"]})
         } else { json!({
             "method":"tools/call", "workspace":root.join("workspace"), "owner":"user", "params":params
         }) };
@@ -927,6 +945,26 @@ mod tests {
         assert!(!installed_at(&temp));
         fs::remove_dir_all(temp).unwrap();
     }
+    #[test]
+    fn panel_mode_and_resize_are_narrow_and_bounded() {
+        assert_eq!(
+            panel_tool("mode", &json!({"mode":"human"})).unwrap()["name"],
+            "desktop/mode"
+        );
+        for mode in ["unsafe", "", "Human"] {
+            assert!(panel_tool("mode", &json!({"mode":mode})).is_err());
+        }
+        assert!(panel_tool("resize", &json!({"width":640,"height":480})).is_ok());
+        for args in [
+            json!({"width":319,"height":480}),
+            json!({"width":640,"height":1201}),
+            json!({"width":640.5,"height":480}),
+            json!({"width":640}),
+        ] {
+            assert!(panel_tool("resize", &args).is_err());
+        }
+    }
+
     #[test]
     fn resources_pin_official_dependencies_and_no_unsafe_flags() {
         let manifest: Value = serde_json::from_str(files::DEPENDENCIES[0].1).unwrap();

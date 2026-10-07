@@ -620,7 +620,10 @@ class Store {
   setBrowserSettings(patch: Partial<NonNullable<Prefs["browser"]>>): void {
     this.mutate(x => ({ prefs: { ...x.prefs, browser: { ...x.prefs.browser, ...patch } } }));
     this.persistPrefs();
-    void this.configureBrowser(true);
+    // Mode is applied by the browser UI to the live daemon. Never restart a
+    // connected MCP during an agent task just to persist this preference.
+    if (patch.enabled !== undefined || Object.prototype.hasOwnProperty.call(patch, "nodeProgram")) void this.configureBrowser(true);
+    else if (patch.mode !== undefined) invalidateBrowserSetup({ keepAttachments: true });
   }
 
   setPiSettings(patch: Partial<NonNullable<Prefs["pi"]>>): void {

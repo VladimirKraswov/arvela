@@ -51,7 +51,7 @@ function fixture(options: { openCode?: boolean; pi?: boolean; source?: string; s
       case "browser_status": return options.status ?? installed;
       case "browser_install": case "browser_start": return installed;
       case "read_opencode_config": return { path: "/tmp/opencode-fixture.jsonc", content: source };
-      case "write_opencode_config": case "browser_pi_support": case "browser_stop": return undefined;
+      case "browser_input": case "write_opencode_config": case "browser_pi_support": case "browser_stop": return undefined;
       default: throw new Error(`Unexpected native command: ${command}`);
     }
   });
@@ -287,4 +287,10 @@ it("never sends stale Pi readiness into a newer setup after native support retur
   expect(expected).toContain("пропущен");
   support.resolve(); await pending;
   expect(integration.browserSetupSnapshot().pi).toBe(expected);
+});
+
+it("applies the persisted interaction mode before attaching agent tools", async () => {
+  const f = fixture(); await f.run({ preferences: { enabled: true, mode: "human" } });
+  expect(f.invoke).toHaveBeenCalledWith("browser_input", { action: "mode", args: { mode: "human" } });
+  expect(f.invoke.mock.invocationCallOrder[f.invoke.mock.calls.findIndex(([name]) => name === "browser_input")]).toBeLessThan(f.request.mock.invocationCallOrder[0]);
 });

@@ -1201,3 +1201,54 @@ Release [v0.2.17](https://github.com/VladimirKraswov/opencode-desktop/releases/t
 targets that source and contains the final Mac DMG. GitHub asset digest and a fresh
 authenticated download both match the DMG SHA256 above; downloaded image passed
 `hdiutil verify`. Subsequent publication checkpoint changes are documentation only.
+
+
+## 2026-10-07 — Browser modes and responsive panel 0.2.21
+
+Shared implementation adds compact tabs/navigation/address/mode/expand UI;
+fast semantic-first and enforced mouse/keyboard mode; one bounded focused-field
+keyboard tool in addition to the 32 pinned official tools. No dependency,
+Chromium sandbox, filesystem-root or permission expansion. Live mode changes
+retain healthy MCP connections and are persisted before the next startup.
+
+Real disposable Mac Chromium smoke passed: auth/Origin/lazy startup, forms with
+fixture password, approved/rejected uploads and workspace isolation, profile
+persistence, native-style pixel/manual input, shared tabs/history, owner-pipe
+cleanup. Human mode rejected semantic click and evaluation, stale XY after
+1280×800→640×480 returned a fresh image without execution, old manual frame was
+refused, keyboard text reached the focused field, responsive target at its new
+position was clicked successfully, outside-viewport/shared-input stale actions
+were rejected. Official32 plus Desktop1 =33 tools. No model requests/user profile.
+
+Actual Pi0.85.1 extension loader/argument validator passed via the disposable
+proxy:33 tools registered, navigation and snapshot reached the real fixture.
+This is isolated Pi loader evidence, not an installed app/model-loop test.
+Five render-only browser geometry cases at320/440/640/760px, root font14/22,
+light/dark: no control overlap/outer horizontal overflow/outside controls;
+expand and mode selection responded. Uses actual BrowserPanel/CSS and isolated
+stub IPC with inert pixels from the smoke; no production session/config calls.
+
+80 native Rust passed,1 real vault opt-in ignored (unchanged vault already
+qualified0.2.19); fmt/check-all-targets and TypeScript/Vite passed. Initial full
+frontend481pass/6skip; a later concurrent native-build run encountered the
+acceptance beforeEach10s timeout. A one-worker retry reproduced it. Inspection
+identified three unmocked runtime-metadata API calls in the old acceptance
+harness (providers/agents/config), allowing real server requests during tests.
+Mocked these unrelated setup responses; behavioral assertions and timeouts
+are unchanged. Final full suite:487passed/6opt-in skipped (65files passed,2skipped); no timeout overrides. New capture-race/client-ownership/mode/bounds tests5/5pass; panel16/16pass.
+Mac production app/DMG built successfully. Strict signature and microphone
+entitlement check passed, hdiutil verified DMG integrity. Installed binary and
+Downloads DMG equal their build artifacts; prior0.2.20app preserved privately.
+Installed AX/UI: compact panel, actual human↔fast mode selection, expand/collapse,
+real Chromium706×698→1333×694 and panel close passed. Actual installed MCP CLI
+lists33tools, observes about:blank, rejects human-mode evaluation with the fresh
+recovery image/current dimensions; managed runtime scripts equal source bytes.
+No browser navigation, model prompt or owner abort was sent in native acceptance.
+External OpenCode3714 remains alive/healthy1.18.18. The prior TinyCAD conversation
+still shows its earlier aborted-turn record; no continuation was sent as part
+of this browser task. Browser restored to fast/blank and panel hidden; app open.
+No further keychain handoff was required. Windows/Linux live0.2.21 remains pending.
+
+Binary SHA256:47f1b3eb61f97574a3e2605881a94a5e0b56eba4973460913b511c70d076935e.
+DMG SHA256:fcd34d9a9dec84b114044198fdd876bd0ea53ba180c7013fa43101a19adcdc0f.
+Source Git/release publication verification follows below.

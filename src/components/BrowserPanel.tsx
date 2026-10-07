@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon";
 import { browserNative } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
 import { browserPoint, parseFrame, type BrowserFrame } from "../browser/view";
@@ -45,7 +46,13 @@ export function BrowserPanel() {
   const [error, setError] = useState("");
   const [frameError, setFrameError] = useState("");
   const [working, setWorking] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const [changingMode, setChangingMode] = useState(false);
+  const viewport = useRef<{ width: number; height: number } | undefined>(undefined);
+  const surface = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
+  const displayed = useRef<BrowserFrame | undefined>(undefined);
   const screen = useRef<HTMLDivElement>(null);
   const editingAddress = useRef(false);
   const alive = useRef(true);
@@ -65,7 +72,7 @@ export function BrowserPanel() {
   useEffect(() => {
     generation.current++;
     alive.current = local;
-    setFrame(undefined); setWorking(false); setError(""); setFrameError("");
+    displayed.current = undefined; setFrame(undefined); setWorking(false); setError(""); setFrameError("");
     editingAddress.current = false;
     if (!local) return;
     let cancelled = false, failures = 0, first = true;
@@ -77,7 +84,8 @@ export function BrowserPanel() {
       first = false;
       try {
         const next = parseFrame(await browserNative<unknown>("browser_view"));
-        if (!cancelled) { setFrame(next); setFrameError(""); failures = 0; }
+        if (!cancelled) { setFrame(next); setFrameError(""); failures = 0;
+          if (viewport.current?.width === next.width && viewport.current?.height === next.height) setResizing(false); }
       } catch {
         failures++;
         if (!cancelled) setFrameError("Нет свежего кадра. Проверьте подключение браузера.");
@@ -90,15 +98,15 @@ export function BrowserPanel() {
   }, [local, app.prefs.endpoint, app.prefs.workspaceKey, app.directory, app.prefs.browser?.nodeProgram]);
   // Never overwrite an address the user is typing; show the real URL otherwise.
   useEffect(() => { if (!editingAddress.current) setAddress(frame?.url || ""); }, [frame?.url]);
-  function input(action: string, args: Record<string, unknown> = {}) {
-    if (!local || frame?.busy) return;
+  function input(action: string, args: Record<string, unknown> = {}, seen = frame) {
+    if (!local || frame?.busy || resizing || changingMode) return;
     if (["click", "wheel", "text", "key"].includes(action) && (!frame?.image || frameError)) return;
     if (action === "text" && textBytes(String(args.text ?? "")) > TEXT_LIMIT_BYTES) {
       setError("Текст больше 16 КБ панель не вставляет. Поручите ввод агенту через инструменты браузера.");
       return;
     }
     // Bound to the page the user saw: a changed page/revision rejects it instead of acting elsewhere.
-    const expected = frame?.pageId ? { pageId: frame.pageId, revision: frame.revision, url: frame.url } : undefined;
+    const expected = seen?.pageId ? { pageId: seen.pageId, revision: seen.revision, url: seen.url, width: seen.width, height: seen.height } : undefined;
     if (!queue.current?.push({ action, args: { ...args, ...(expected ? { expected } : {}) } }))
       setError("Слишком много действий ждут выполнения. Дождитесь обновления страницы.");
   }
@@ -114,28 +122,63 @@ export function BrowserPanel() {
     node.addEventListener("wheel", wheel, { passive: false });
     return () => node.removeEventListener("wheel", wheel);
   }, [local]);
+  // Reflow the actual page, not just its picture. Debounce drag/zoom bursts;
+  // discard pending old input and unlock only when the matching frame arrives.
+  useEffect(() => {
+    if (!local || !surface.current || typeof ResizeObserver === "undefined") return;
+    const epoch = generation.current;
+    let timer: ReturnType<typeof setTimeout>, cancelled = false;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width < 1 || entry.contentRect.height < 1) return;
+      const next = { width: Math.max(320, Math.min(1920, Math.round(entry.contentRect.width))), height: Math.max(240, Math.min(1200, Math.round(entry.contentRect.height))) };
+      if (viewport.current?.width === next.width && viewport.current?.height === next.height) return;
+      viewport.current = next; queue.current?.clear(); setResizing(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        void browserNative("browser_input", { action: "resize", args: next }).catch(e => {
+          if (!cancelled && epoch === generation.current) { setFrameError("Не удалось изменить размер страницы. Повторите подключение браузера."); setError(String(e)); }
+        });
+      }, 200);
+    });
+    observer.observe(surface.current);
+    return () => { cancelled = true; clearTimeout(timer); observer.disconnect(); viewport.current = undefined; };
+  }, [local, app.prefs.endpoint]);
+  async function changeMode(mode: "fast" | "human") {
+    setChangingMode(true); queue.current?.clear();
+    const epoch = generation.current;
+    try {
+      await browserNative("browser_input", { action: "mode", args: { mode } });
+      if (alive.current && epoch === generation.current) { store.setBrowserSettings({ mode }); setError(""); }
+    } catch (e) { if (epoch === generation.current) setError(e instanceof Error ? e.message : String(e)); }
+    finally { if (epoch === generation.current) setChangingMode(false); }
+  }
+  const locked = !!frame?.busy || resizing || changingMode;
+  const mode = frame?.mode ?? app.prefs.browser?.mode ?? "fast";
   const cursor = frame?.cursor;
-  return <section className="browser-panel" aria-label="Встроенный браузер">
-    <header className="browser-panel-heading"><strong>Браузер</strong><span role="status">{frame?.busy ? "Агент действует…" : working ? "Выполняю…" : "Живая страница · Chromium"}</span><button className="icon-btn" aria-label="Закрыть панель браузера" onClick={() => store.setUi({ browserOpen: false })}>×</button></header>
+  return <section className={`browser-panel${expanded ? " expanded" : ""}`} aria-label="Встроенный браузер">
+    <header className="browser-chrome">
+      <div className="browser-tabs" role="tablist" aria-label="Вкладки браузера">{frame?.tabs.map(tab => <div className={`browser-tab${tab.active ? " active" : ""}`} key={tab.index}>
+        <button role="tab" aria-selected={tab.active} disabled={locked} title={tab.title || "Новая вкладка"} onClick={() => input("select", { index: tab.index })}><Icon name="browser" size={14}/><span>{tab.title || "Новая вкладка"}</span></button>
+        <button aria-label={`Закрыть вкладку ${tab.title || tab.index + 1}`} disabled={locked} onClick={() => input("close", { index: tab.index })}><Icon name="close" size={12}/></button>
+      </div>)}{!frame?.tabs.length && <span className="browser-empty-tab">Браузер</span>}<button className="icon-btn" aria-label="Новая вкладка браузера" disabled={!local || locked} onClick={() => input("new")}><Icon name="plus" size={16}/></button></div>
+      <div className="browser-window-actions"><button className="icon-btn" aria-label={expanded ? "Свернуть браузер" : "Развернуть браузер"} aria-pressed={expanded} onClick={() => setExpanded(!expanded)}><Icon name="expand" size={15}/></button><button className="icon-btn" aria-label="Закрыть панель браузера" onClick={() => store.setUi({ browserOpen: false })}><Icon name="panel" size={16}/></button></div>
+    </header>
     {!local ? <p role="status">Браузер доступен только на этом компьютере, когда управление включено.</p> : <>
-      <div className="browser-tabs" role="tablist" aria-label="Вкладки браузера">{frame?.tabs.map(tab => <div className="browser-tab" key={tab.index}>
-        <button role="tab" aria-selected={tab.active} disabled={frame.busy} onClick={() => input("select", { index: tab.index })}>{tab.title || "Новая вкладка"}</button>
-        <button aria-label={`Закрыть вкладку ${tab.title || tab.index + 1}`} disabled={frame.busy} onClick={() => input("close", { index: tab.index })}>×</button>
-      </div>)}<button className="icon-btn" aria-label="Новая вкладка браузера" disabled={frame?.busy} onClick={() => input("new")}>+</button></div>
       <form className="browser-address" onSubmit={e => { e.preventDefault(); editingAddress.current = false; input("navigate", { url: address }); }}>
-        <button type="button" aria-label="Назад в браузере" disabled={frame?.busy} onClick={() => input("back")}>←</button>
-        <button type="button" aria-label="Вперёд в браузере" disabled={frame?.busy} onClick={() => input("forward")}>→</button>
-        <button type="button" aria-label="Обновить страницу" disabled={frame?.busy} onClick={() => input("reload")}>↻</button>
+        <button type="button" aria-label="Назад в браузере" disabled={locked} onClick={() => input("back")}><Icon name="back" size={16}/></button>
+        <button type="button" aria-label="Вперёд в браузере" disabled={locked} onClick={() => input("forward")}><Icon name="forward" size={16}/></button>
+        <button type="button" aria-label="Обновить страницу" disabled={locked} onClick={() => input("reload")}><Icon name="refresh" size={16}/></button>
         <input aria-label="Адрес браузера" value={address} placeholder="https://…" spellCheck={false}
           onChange={e => { editingAddress.current = true; setAddress(e.target.value); }}
           onBlur={() => { editingAddress.current = false; }}
           onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editingAddress.current = false; setAddress(frame?.url || ""); } }}/>
-        <button disabled={frame?.busy}>Перейти</button>
+        <button className="browser-go" aria-label="Перейти по адресу" disabled={locked}><Icon name="forward" size={15}/></button>
+        <select className="browser-mode" aria-label="Режим работы браузера" title={mode === "human" ? "Полная эмуляция: клики мышью, ввод клавиатурой" : "Быстрый: структура страницы и точные действия"} value={mode} disabled={changingMode || frame?.busy} onChange={e => void changeMode(e.target.value as "fast" | "human")}><option value="fast">Быстрый</option><option value="human">Эмуляция</option></select>
       </form>
       {(error || frameError) && <p className="browser-error" role="alert">{error || frameError}</p>}
-      <div className="browser-scroll"><div ref={screen} className={`browser-screen${frameError ? " stale" : ""}`} tabIndex={0} role="application"
+      <div ref={surface} className="browser-scroll"><div ref={screen} className={`browser-screen${(frameError || resizing) ? " stale" : ""}`} tabIndex={0} role="application"
         aria-label="Страница браузера: клик, ввод и прокрутка. Shift+Tab — выйти из страницы." style={{ aspectRatio: `${frame?.width || 1280}/${frame?.height || 800}` }}
-        onClick={e => { e.currentTarget.focus(); if (image.current && frame) { const p = browserPoint(e.clientX, e.clientY, image.current.getBoundingClientRect(), frame); if (p) input("click", p); } }}
+        onClick={e => { e.currentTarget.focus(); const seen = displayed.current; if (image.current && seen) { const p = browserPoint(e.clientX, e.clientY, image.current.getBoundingClientRect(), seen); if (p) input("click", p, seen); } }}
         onPaste={e => { e.preventDefault(); input("text", { text: e.clipboardData.getData("text/plain") }); }}
         onKeyDown={e => {
           // IME composition is not projected; half-composed keys must not reach the page.
@@ -146,10 +189,10 @@ export function BrowserPanel() {
           if (e.key.length === 1 && !e.altKey) { e.preventDefault(); input("text", { text: e.key }); }
           else if (NAV_KEYS.includes(e.key)) { e.preventDefault(); input("key", { key: e.key }); }
         }}>
-        {frame?.image ? <img ref={image} src={`data:image/jpeg;base64,${frame.image}`} alt={frame.title || "Страница Chromium"} draggable={false}/> : <p>Откройте браузер кнопкой в верхней панели или задайте адрес страницы.</p>}
+        {frame?.image ? <img ref={image} src={`data:image/jpeg;base64,${frame.image}`} alt={frame.title || "Страница Chromium"} draggable={false} onLoad={() => { displayed.current = frame; }}/> : <p>Откройте браузер кнопкой в верхней панели или задайте адрес страницы.</p>}
         {cursor && frame?.width && frame?.height && <div className={`browser-agent-cursor ${cursor.owner}`} style={{ left: `${cursor.x / frame.width * 100}%`, top: `${cursor.y / frame.height * 100}%` }} aria-label={cursor.owner === "agent" ? "Курсор агента" : "Курсор пользователя"}><span>➤</span><small>{cursor.owner === "agent" ? "Агент" : "Вы"}</small></div>}
       </div></div>
-      <footer>Это тот же Chromium, которым управляет агент. Закрытие панели не останавливает задачу.</footer>
+      <footer><span className={`browser-status-dot${locked ? " busy" : ""}`}/><span role="status">{resizing ? "Подстраиваю страницу…" : changingMode ? "Меняю режим…" : frame?.busy ? "Агент действует…" : working ? "Выполняю…" : mode === "human" ? "Эмуляция · мышь и клавиатура" : "Быстрый · точные действия"}</span><span className="browser-viewport">{frame?.width && `${frame.width} × ${frame.height}`}</span></footer>
     </>}
   </section>;
 }

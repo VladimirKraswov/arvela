@@ -3,11 +3,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 const fake = vi.hoisted(() => ({ invoke: vi.fn(), native: true, host: null as object | null,
-  state: {} as any, setUi: vi.fn() }));
+  state: {} as any, setUi: vi.fn(), setBrowserSettings: vi.fn() }));
 vi.mock("../src/browser/integration", () => ({ browserNative: fake.invoke }));
 vi.mock("../src/native/platform", () => ({ isNative: () => fake.native }));
 vi.mock("../src/state/store", () => ({ useAppState: () => fake.state, store: {
-  get state() { return fake.state; }, currentHost: () => fake.host, setUi: fake.setUi,
+  get state() { return fake.state; }, currentHost: () => fake.host, setUi: fake.setUi, setBrowserSettings: fake.setBrowserSettings,
 } }));
 import { BrowserPanel, BrowserPresence } from "../src/components/BrowserPanel";
 import { openFileInput } from "../src/attachments/composerBridge";
@@ -105,4 +105,56 @@ it("drops queued old inputs and ignores their late error after a connection chan
  await act(async()=>reject(new Error("OLD_CONNECTION_ERROR")));
  expect(document.body.textContent).not.toContain("OLD_CONNECTION_ERROR");
  expect(fake.invoke.mock.calls.filter(([name])=>name==="browser_input")).toHaveLength(1);
+});
+
+it("changes mode through the live gateway before persisting it", async () => {
+  await mount();
+  const field = document.querySelector<HTMLSelectElement>('[aria-label="Режим работы браузера"]')!;
+  await act(async () => { field.value = "human"; field.dispatchEvent(new Event("change", { bubbles: true })); });
+  expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "mode", args: { mode: "human" } });
+  expect(fake.setBrowserSettings).toHaveBeenCalledWith({ mode: "human" });
+});
+it("keeps the old preference when mode change fails", async () => {
+  fake.invoke.mockImplementation(async command => { if (command === "browser_input") throw new Error("Mode unavailable"); return frame; });
+  await mount();
+  await act(async () => { const field = document.querySelector<HTMLSelectElement>('[aria-label="Режим работы браузера"]')!; field.value = "human"; field.dispatchEvent(new Event("change", { bubbles: true })); });
+  expect(fake.setBrowserSettings).not.toHaveBeenCalled(); expect(document.body.textContent).toContain("Mode unavailable");
+});
+it("debounces resize bursts, blocks stale input and waits for the matching viewport", async () => {
+  let resize!: ResizeObserverCallback;
+  vi.stubGlobal("ResizeObserver", class { constructor(fn: ResizeObserverCallback) { resize = fn; } observe() {} disconnect() {} });
+  visible();
+  try {
+    await mount();
+    await act(async () => { resize([{ contentRect: { width: 720, height: 500 } } as ResizeObserverEntry], {} as ResizeObserver); resize([{ contentRect: { width: 640, height: 480 } } as ResizeObserverEntry], {} as ResizeObserver); });
+    expect(document.body.textContent).toContain("Подстраиваю");
+    await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Новая вкладка браузера"]')!.click());
+    expect(fake.invoke.mock.calls.some(([name]) => name === "browser_input")).toBe(false);
+    await act(async () => vi.advanceTimersByTimeAsync(210));
+    expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "resize", args: { width: 640, height: 480 } });
+    expect(document.body.textContent).toContain("Подстраиваю");
+    fake.invoke.mockImplementation(async command => command === "browser_view" ? { ...frame, width: 640, height: 480 } : undefined);
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(document.body.textContent).not.toContain("Подстраиваю");
+    expect(document.querySelector<HTMLButtonElement>('[aria-label="Новая вкладка браузера"]')!.disabled).toBe(false);
+  } finally { delete (document as { hidden?: boolean }).hidden; }
+});
+
+it("binds a click to decoded pixels rather than a newer frame still loading", async () => {
+  const original = { ...frame, pageId: "page", revision: 1 };
+  fake.invoke.mockImplementation(async command => command === "browser_view" ? original : undefined);
+  visible();
+  try {
+    await mount();
+    const img = document.querySelector<HTMLImageElement>("img")!;
+    vi.spyOn(img, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 640, height: 400 } as DOMRect);
+    const screen = document.querySelector<HTMLElement>('[role="application"]')!;
+    await act(async () => screen.dispatchEvent(new MouseEvent("click", { clientX: 100, clientY: 50, bubbles: true })));
+    expect(fake.invoke.mock.calls.some(([name]) => name === "browser_input")).toBe(false);
+    await act(async () => img.dispatchEvent(new Event("load")));
+    fake.invoke.mockImplementation(async command => command === "browser_view" ? { ...original, revision: 2, width: 640, height: 480, image: "/9k/" } : undefined);
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    await act(async () => screen.dispatchEvent(new MouseEvent("click", { clientX: 100, clientY: 50, bubbles: true })));
+    expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "click", args: { x: 200, y: 100, expected: { pageId: "page", revision: 1, url: original.url, width: 1280, height: 800 } } });
+  } finally { delete (document as { hidden?: boolean }).hidden; }
 });

@@ -1,5 +1,5 @@
 export interface BrowserFrame {
-  browserOpen: boolean; busy: boolean;
+  browserOpen: boolean; busy: boolean; mode?: "fast" | "human";
   tabs: { index: number; url: string; title: string; active: boolean }[];
   url?: string; title?: string; image?: string; width?: number; height?: number;
   pageId?: string; revision?: number;
@@ -15,6 +15,7 @@ export function parseFrame(value: unknown): BrowserFrame {
   if (f.image !== undefined && (typeof f.image !== "string" || f.image.length > 8_000_000 || !/^[A-Za-z0-9+/=]+$/.test(f.image)
       || !Number.isFinite(f.width) || !Number.isFinite(f.height) || f.width! < 1 || f.width! > 1920 || f.height! < 1 || f.height! > 1200))
     throw new Error("Некорректное изображение браузера.");
+  if (f.mode !== undefined && !["fast", "human"].includes(f.mode)) throw new Error("Некорректный режим браузера.");
   if (f.url !== undefined && typeof f.url !== "string") throw new Error("Некорректный адрес.");
   if (f.title !== undefined && typeof f.title !== "string") throw new Error("Некорректный заголовок.");
   if (f.pageId !== undefined && (typeof f.pageId !== "string" || !Number.isSafeInteger(f.revision) || f.revision! < 0)) throw new Error("Некорректное состояние страницы.");

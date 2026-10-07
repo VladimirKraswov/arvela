@@ -6,7 +6,7 @@ import { isLocalComputer } from "../state/computer";
 import { browserEnabled, browserNodeProgram } from "./preferences";
 
 export const BROWSER_MCP = "desktop_browser";
-export interface BrowserPreferences { enabled?: boolean; nodeProgram?: string }
+export interface BrowserPreferences { enabled?: boolean; nodeProgram?: string; mode?: "fast" | "human" }
 export interface BrowserStatus {
   supported: boolean; installed: boolean; running: boolean; browserOpen?: boolean;
   command: string; nodeProgram: string | null; skillPath: string; runtimePath: string;
@@ -183,6 +183,8 @@ export async function configureLocalBrowser(o: SetupOptions, invoke: Invoke = br
       status = await invoke<BrowserStatus>("browser_start", { nodeProgram });
       if (superseded()) return;
       if (!status.running) throw new Error(status.error || "Сервис браузера не запущен.");
+      await invoke("browser_input", { action: "mode", args: { mode: o.preferences?.mode === "human" ? "human" : "fast" } });
+      if (superseded()) return;
       publish({ phase: "configuring", status });
       if (openCode) {
         const document = await invoke<Document>("read_opencode_config", { scope: "global", directory: null });

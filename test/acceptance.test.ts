@@ -23,6 +23,11 @@ beforeEach(async () => {
     connection: { ...store.state.connection, phase: "connected" },
   };
   for (const [name, value] of Object.entries({
+    // Directory selection refreshes runtime metadata too. Keep acceptance
+    // tests hermetic: never reach the user's real local OpenCode server.
+    providers: { all: [], connected: [], default: {} },
+    agents: [],
+    config: {},
     vcs: null,
     listSessions: [],
     sessionStatuses: {},

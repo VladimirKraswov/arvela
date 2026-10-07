@@ -6,7 +6,7 @@ import os from 'node:os';
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-const [command, runtime, piRoot = '/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent'] = process.argv.slice(2);
+const [command, runtime, piRoot = '/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent', transportLabel = 'installed'] = process.argv.slice(2);
 assert(command && runtime && path.isAbsolute(command) && path.isAbsolute(runtime), 'Supply absolute installed app binary and managed current runtime paths');
 const packageInfo = JSON.parse(await fs.readFile(path.join(piRoot, 'package.json')));
 assert.equal(packageInfo.version, '0.85.1', 'This acceptance targets the installed Pi 0.85.1');
@@ -31,9 +31,9 @@ try {
   assert.equal(extension.tools.size, 0, 'Metadata loading must not start/register browser tools');
   for (const handler of extension.handlers.get('session_start') || []) await handler({ type: 'session_start' }, context);
   const deadline = Date.now() + 30000;
-  while (extension.tools.size !== 32 && !warnings.length && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
+  while (extension.tools.size !== 33 && !warnings.length && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
   assert.equal(warnings.length, 0, 'Pi browser startup reported unavailable');
-  assert.equal(extension.tools.size, 32, 'Real official browser tools were not registered');
+  assert.equal(extension.tools.size, 33, 'Real official browser tools were not registered');
   const navigate = extension.tools.get('desktop_browser_browser_navigate');
   const snapshot = extension.tools.get('desktop_browser_browser_snapshot');
   assert(navigate && snapshot);
@@ -43,7 +43,7 @@ try {
   const snapshotArgs = validateToolArguments(snapshot.definition, { name: snapshot.definition.name, arguments: {} });
   const result = await snapshot.definition.execute('packaged-pi-snapshot', snapshotArgs, undefined, undefined, context);
   assert(result.content.some(block => block.type === 'text' && block.text.includes('PI_DESKTOP_BROWSER_FIXTURE')), 'Actual app MCP snapshot did not observe the fixture');
-  console.log(JSON.stringify({ platform: process.platform, installedAppCli: true, piVersion: packageInfo.version, realPiLoader: true, realPiArgumentValidation: true, officialBrowserTools: extension.tools.size, navigate: true, snapshot: true, noModelRequests: true }));
+  console.log(JSON.stringify({ platform: process.platform, installedAppCli: transportLabel === 'installed', testOwnedProxy: transportLabel === 'test-proxy', piVersion: packageInfo.version, realPiLoader: true, realPiArgumentValidation: true, officialBrowserTools: 32, desktopTools: extension.tools.size, navigate: true, snapshot: true, noModelRequests: true }));
 } finally {
   for (const handler of extension?.handlers.get('session_shutdown') || []) await handler({ type: 'session_shutdown' }, context);
   if (previous === undefined) delete process.env.OCDESKTOP_BROWSER_COMMAND; else process.env.OCDESKTOP_BROWSER_COMMAND = previous;
