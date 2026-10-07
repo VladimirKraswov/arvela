@@ -1298,3 +1298,30 @@ DMG container bytes differ after repackaging; the existing public0.2.21 release
 was not overwritten. Product version remains0.2.21. Windows installed upgrade
 and microphone/Pi native UI remain pending as the imported report records.
 Subsequent handoff/checkpoint edits are documentation only.
+
+## Browser system performance 0.2.22 — source acceptance (2026-10-07)
+
+509 frontend checks passed /6 opt-in skipped;80 Rust passed /1 unchanged vault opt-in ignored. Production TypeScript/Vite passed. Real isolated Chromium36tools acceptance passes: atomic action, all-step validation before input, compact snapshots, human keyboard chains, second-stale-XY rejection with fresh screenshot, resize interruption of text wait, numeric telemetry, existing auth/origin/workspace/upload/profile/restart guards. Real installed Pi0.85.1 loader and argument validator register36tools and execute the atomic adapter through an isolated proxy (no inference). Per-chat Low request payload/manual override tests pass; this is not a live model speed/quality comparison. Owner sessions/providers/GPU engines/skills and externally managed OpenCode preserved. Final package/install qualification is recorded below. Windows/Linux live tests remain pending.
+
+
+### Mac package and installed acceptance
+
+Final Tauri app and Apple Silicon DMG built successfully. Strict ad-hoc signature,
+microphone entitlement and `hdiutil verify` passed. Installed
+`/Applications/AgentMesh Desktop.app` reports0.2.22; binary SHA256:
+`345d2c49386193be91c7382599dc1960415ff09d6d28fb0468973ad3e9afbd99`.
+DMG SHA256:
+`08ce27fae4e1eeba6bba361f8166aa010569b8511788feedc37563078027a3b2`.
+The previous signed bundle is privately retained; Downloads contains the verified DMG.
+
+Actual installed CLI registers36tools; managed scripts match reviewed source and
+numeric performance health is available. Native settings show tool readiness,
+refresh numeric counters, and create an empty browser chat with advertised Low.
+Chromium starts before the panel opens; actual ready viewport706×698 and effort
+menu (Low selected) verified. Sidebar restored and panel hidden afterwards.
+No model request or owner-history research was sent. External OpenCode PID3714
+stayed healthy1.18.18; user drafts, sessions, skills and inference services preserved.
+Two test-owned empty browser chats were created, with no prompt or attachment.
+Initial package candidate missed Chromium startup in this path; it was corrected
+and regression checked before this final package, with no publication of the candidate.
+No percentage speedup or quality comparison is claimed without task-based A/B.

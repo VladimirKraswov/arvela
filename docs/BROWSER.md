@@ -1,6 +1,6 @@
-# In-app browser in AgentMesh Desktop 0.2.21
+# In-app browser in AgentMesh Desktop 0.2.22
 
-Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus the bounded Desktop keyboard-input adapter; there is no second agent loop or copied browser implementation.
+Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus four bounded Desktop adapters (keyboard input, observe, action and sequence); there is no second agent loop or copied browser implementation.
 
 ## Startup and configuration
 
@@ -119,3 +119,51 @@ Use the script's actual invocation/arguments documented in its header. It owns a
 
 Primary implementation: https://github.com/microsoft/playwright-mcp
 OpenCode MCP configuration: https://opencode.ai/docs/mcp-servers/
+
+## System performance profiles (0.2.22)
+
+Settings → Browser → Speed and diagnostics creates a separate projectless
+browser chat, with a new working directory and no imported transcript. Its initial
+Low (or chosen Medium) effort is a real per-chat model variant, applied only when
+advertised by OpenCode or supported by Pi. Existing coding chats, global provider
+options, permissions, inference runtimes and skills are unchanged. The composer
+can explicitly enable the profile on an idle chat. Manual effort selection wins;
+no silent adaptive escalation or "hidden thinking" is used. Pi levels follow its
+reasoning flag and explicit thinkingLevelMap for xhigh/max; native Pi confirms the
+selected level before a prompt. For complex navigation or recovery select Medium.
+Turning a profile off restores its former effort only if model and auto-applied
+effort still match, preserving a later manual choice.
+
+All 32 official tools remain available. Prefer `browser_observe` for a compact
+6000-character snapshot; truncated output is marked, and maxChars can be raised
+to 20000. CSS viewport screenshots remain required for coordinate input.
+`browser_action` joins an approved action, optional text/textGone wait and a fresh
+observation into one agent tool call. `browser_sequence` joins at most six known
+steps. Arguments for every step are validated against the official schemas before
+the first input; schemas are not duplicated in the model's tool inventory. Allowed
+steps are semantic click/type/fill/select in fast mode, or mouse/keyboard/wheel
+input. Arbitrary code, navigation, uploads and dialog approval are excluded from
+compositions and retain their ordinary tools and approvals. Human mode still
+blocks semantic/code actions. Between XY clicks a fresh screenshot is necessary;
+a sequence cannot grant itself permission to use stale coordinates.
+
+A sequence stops before further input on tab/navigation (including same-URL
+reload), viewport/mode change, another queued caller or manual intervention. The
+shared queue serializes browser writes. A 1–30 second deadline and caller abort
+bound compositions; waits are cancelled on intervention. Partial results include
+completed/total steps, stop reason and uncertainty for the last action. A failed
+or cancelled mutation is never automatically replayed. Guard rejection returns a
+fresh CSS screenshot; after a deadline/interruption explicitly observe again.
+Action success alone is not proof that the user's full task succeeded.
+
+Diagnostics show numeric queue/action+wait/observation totals for the current
+shared-service lifetime, plus available timings/tokens from the already loaded
+current chat turn. Tool/think intervals are unioned, not double counted. No session
+history searches, URL/argument/password telemetry or persistent trace files.
+Unknown/completing measurements display a dash. Model queue/prefill are not
+separately measurable through the present engine API. Idle visible-panel captures
+are limited to 2/s; active agent work remains 4/s and hidden panels stop captures.
+
+These mechanisms reduce required model round trips; they do not establish an
+end-to-end speedup or unchanged reasoning quality. Those need a later paired
+user-task evaluation, which was deliberately not run against external sessions.

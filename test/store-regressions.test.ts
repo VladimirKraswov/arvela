@@ -245,3 +245,47 @@ it("a manual send blocked by a scheduled check explains itself and keeps the dra
  expect(await store.sendPrompt("mine")).toBe(false);expect(store.state.ui.sendError).toMatch(/запланированное/);expect(store.getDraft()).toBe("mine");
  resolve(session("ses_a"));await pending;
 });
+
+it("browser profile selects real Low only in the explicit chat and preserves manual Medium", async () => {
+  store.state = { ...store.state, activeSessionId: "ses_a", sessions: [session("ses_a")], connectedProviderIds:["local-qwen-next"],
+    providers:[{id:"local-qwen-next",models:{"qwen38-flash-next":{id:"qwen38-flash-next",providerID:"local-qwen-next",capabilities:{reasoning:true},variants:{low:{},medium:{}}}}}] };
+  store.setModelChoice("local-qwen-next","qwen38-flash-next","medium");
+  const beforeGlobal = store.state.prefs.modelChoice["*"];
+  store.setBrowserTask(true); expect(store.getModelChoice().variant).toBe("low");
+  const prompt = vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
+  await store.sendPrompt("Navigate the fixture");
+  expect(prompt.mock.calls[0][2].variant).toBe("low");
+  expect(store.state.prefs.modelChoice["*"]).toEqual(beforeGlobal);
+  store.state.chat.sessions.ses_a.status={type:"idle"};
+  store.setModelChoice("local-qwen-next","qwen38-flash-next","medium");
+  store.setBrowserTask(false); expect(store.getModelChoice().variant).toBe("medium");
+  store.state.activeSessionId="ses_b"; expect(store.browserTaskActive()).toBe(false);
+});
+it("does not silently substitute unsupported Low or change a running browser chat", () => {
+  store.state = { ...store.state, activeSessionId:"ses_a", sessions:[session("ses_a")], connectedProviderIds:["local-qwen-next"],
+    providers:[{id:"local-qwen-next",models:{"qwen38-flash-next":{id:"qwen38-flash-next",providerID:"local-qwen-next",variants:{medium:{}}}}}] };
+  store.setModelChoice("local-qwen-next","qwen38-flash-next","medium"); store.setBrowserTask(true);
+  expect(store.getModelChoice().variant).toBe("medium");
+  store.state.chat.sessions.ses_a={...store.state.chat.sessions.ses_a,status:{type:"busy"}};
+  store.setBrowserTask(false); expect(store.browserTaskActive()).toBe(true);
+});
+
+it("retains an explicit manual Low when the browser profile is disabled", () => {
+  store.state={...store.state,activeSessionId:"ses_a",sessions:[session("ses_a")],connectedProviderIds:["local-qwen-next"],providers:[{id:"local-qwen-next",models:{"qwen38-flash-next":{id:"qwen38-flash-next",providerID:"local-qwen-next",variants:{low:{},medium:{}}}}}]};
+  store.setModelChoice("local-qwen-next","qwen38-flash-next","medium"); store.setBrowserTask(true);
+  store.setModelChoice("local-qwen-next","qwen38-flash-next","low"); store.setBrowserTask(false);
+  expect(store.getModelChoice().variant).toBe("low");
+});
+
+it("starts the browser before exposing a newly created browser task panel", async () => {
+  const integration=await import("../src/browser/integration");
+  vi.spyOn(store,"ensureChatWorkspace").mockImplementation(async () => { await store.setDirectory("/test/browser-owned"); return true; });
+  vi.spyOn(store,"createSessionNow").mockImplementation(async () => {store.state.activeSessionId="browser-test"; return session("browser-test","/test/browser-owned");});
+  vi.spyOn(store,"configureBrowser").mockResolvedValue(undefined);
+  let resolve!: (value: unknown) => void;
+  const started=vi.spyOn(integration,"browserNative").mockReturnValue(new Promise(r => {resolve=r;}));
+  const pending=store.newBrowserTask(); await flush();
+  expect(started).toHaveBeenCalledWith("browser_open", {url:null,nodeProgram:null});
+  expect(store.state.ui.browserOpen).toBe(false); resolve({browserOpen:true}); await pending;
+  expect(store.state.ui.browserOpen).toBe(true);
+});

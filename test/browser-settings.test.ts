@@ -24,7 +24,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fake.native = true; fake.host = null;
-  fake.state = { prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true }, pi: { nodeProgram: "/opt/homebrew/bin/node" } } };
+  fake.state = { chat: { sessions: {} }, ui: { sending: false, workspacePreparing: false }, prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true }, pi: { nodeProgram: "/opt/homebrew/bin/node" } } };
   status = { supported: true, installed: true, running: true, browserOpen: false,
     command: "/Applications/OpenCode Desktop.app/Contents/MacOS/app", nodeProgram: "/opt/homebrew/bin/node",
     skillPath: "/tmp/browser/skill", runtimePath: "/tmp/browser/current", profilePath: "/tmp/browser/profile", version: "0.0.83" };
@@ -142,4 +142,12 @@ it("waits for toolbar configuration, prevents duplicate clicks, and opens a blan
   await act(async () => pending.resolve());
   expect(opens()).toEqual([["browser_open", { url: null, nodeProgram: "/opt/homebrew/bin/node" }]]);
   expect(control.disabled).toBe(false); expect(fake.setUi).toHaveBeenCalledWith({ browserOpen: true });
+});
+
+it("reads numeric diagnostics on demand without navigating or fetching session history", async () => {
+  fake.invoke.mockImplementation(async command => command === "browser_presence" ? {performance:{calls:3,failed:1,queueMs:1000,actionMs:2000,observeMs:500,completedSteps:2}} : status);
+  await mount(); expect(fake.invoke.mock.calls.filter(([c]) => c === "browser_presence")).toHaveLength(0);
+  await act(async () => button("Обновить метрики").click());
+  expect(document.body.textContent).toContain("1.0 с / 2.0 с / 0.5 с");
+  expect(document.body.textContent).toContain("3 / 1 / 2"); expect(opens()).toHaveLength(0);
 });

@@ -2820,3 +2820,8 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .context-task-form label { display:flex; flex-direction:column; gap:6px; font-size:12px; }
 .context-task-form input,.context-task-form textarea { width:100%; min-width:0; box-sizing:border-box; font:inherit; padding:9px; }
 .context-error { color:var(--err); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+
+.browser-task-toggle { display:inline-flex; align-items:center; gap:5px; min-width:0; max-width:160px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:3px 6px; border:0; background:transparent; color:var(--muted); font:inherit; }
+.browser-task-toggle[aria-pressed="true"] { color:var(--accent); }
+
+@container prompt (max-width: 28rem) { .browser-task-toggle { font-size:0; width:24px; max-width:24px; flex:none; } }

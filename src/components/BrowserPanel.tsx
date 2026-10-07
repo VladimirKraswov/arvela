@@ -34,7 +34,7 @@ export function BrowserPresence() {
   return null;
 }
 
-const FRAME_MS = 250, MAX_BACKOFF_MS = 2000, SUSPENDED_MS = 400;
+const FRAME_MS = 250, IDLE_FRAME_MS = 500, MAX_BACKOFF_MS = 2000, SUSPENDED_MS = 400;
 const NAV_KEYS = ["Enter", "Tab", "Backspace", "Delete", "Escape", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
 /** Frames nobody can see are not fetched: hidden window or a native file chooser in front. */
 const suspended = () => document.hidden || fileChooserOpen();
@@ -75,7 +75,8 @@ export function BrowserPanel() {
     displayed.current = undefined; setFrame(undefined); setWorking(false); setError(""); setFrameError("");
     editingAddress.current = false;
     if (!local) return;
-    let cancelled = false, failures = 0, first = true;
+    let cancelled = false, failures = 0, first = true, active = true;
+    const nextFrameDelay = () => active ? FRAME_MS : IDLE_FRAME_MS;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       if (cancelled) return;
@@ -84,6 +85,7 @@ export function BrowserPanel() {
       first = false;
       try {
         const next = parseFrame(await browserNative<unknown>("browser_view"));
+        active = !!next.busy;
         if (!cancelled) { setFrame(next); setFrameError(""); failures = 0;
           if (viewport.current?.width === next.width && viewport.current?.height === next.height) setResizing(false); }
       } catch {
@@ -91,7 +93,7 @@ export function BrowserPanel() {
         if (!cancelled) setFrameError("Нет свежего кадра. Проверьте подключение браузера.");
       }
       // A failing service is not hammered four times a second.
-      if (!cancelled) timer = setTimeout(() => void poll(), failures ? Math.min(MAX_BACKOFF_MS, FRAME_MS * 2 ** failures) : FRAME_MS);
+      if (!cancelled) timer = setTimeout(() => void poll(), failures ? Math.min(MAX_BACKOFF_MS, FRAME_MS * 2 ** failures) : nextFrameDelay());
     };
     void poll();
     return () => { cancelled = true; alive.current = false; generation.current++; queue.current?.clear(); clearTimeout(timer); };

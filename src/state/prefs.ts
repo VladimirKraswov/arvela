@@ -61,6 +61,8 @@ export interface Prefs {
   appearance: Appearance;
   /** Local browser lifecycle and executable choice; engines retain their own permissions. */
   browser?: BrowserPreferences;
+  /** Explicit browser-task profiles; selected engine/model/permissions remain independent. */
+  browserTasks?: Record<string, { previousVariant?: string | null; appliedVariant?: string | null; providerID: string; modelID: string }>;
   /** Preferred engine per project folder. Absent means OpenCode. */
   projectEngine?: Record<string, string>;
   /** Per-chat engine override. Absent means the folder preference. */
@@ -243,6 +245,7 @@ export function switchEndpointPrefs(
     modelServices: prefs.modelServices,
     pi: prefs.pi,
     browser: prefs.browser,
+    browserTasks: prefs.browserTasks,
     piSessions: prefs.piSessions,
     sessionEngine: prefs.sessionEngine,
     handoffOrigins: prefs.handoffOrigins,

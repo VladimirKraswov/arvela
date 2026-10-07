@@ -7,6 +7,8 @@ export function createView(getContext) {
   let attached;
   let revision = 0;
   let observationEpoch = 0;
+  let interruptionEpoch = 0;
+  let navigationEpoch = 0;
   const screenshotStarts = new WeakMap();
   const watched = new WeakSet();
   let mode = 'fast';
@@ -60,7 +62,7 @@ export function createView(getContext) {
     if (!watched.has(active)) {
       watched.add(active);
       pageId(active);
-      active.on('framenavigated', frame => { if (frame === active?.mainFrame()) revision++; });
+      active.on('framenavigated', frame => { if (frame === active?.mainFrame()) { revision++; navigationEpoch++; } });
     }
     if (JSON.stringify(active.viewportSize()) !== JSON.stringify(size)) { revision++; cursor = undefined; await active.setViewportSize(size); }
     return active;
@@ -133,5 +135,6 @@ export function createView(getContext) {
         || (expected.width !== undefined && (expected.width !== active.viewportSize()?.width || expected.height !== active.viewportSize()?.height)))
       throw new Error('Page changed; inspect a fresh frame before manual input');
   }
-  return { page, before, after, frame, assertCurrent, resize, setMode, state, policy, changed: () => { observationEpoch++; }, failed: () => { busy = false; } };
+  async function identity() { const current = await page(); return JSON.stringify([pageId(current), current.url(), current.viewportSize(), mode, interruptionEpoch, observationEpoch, navigationEpoch]); }
+  return { identity, interrupt: (invalidate = true) => { interruptionEpoch++; if (invalidate) observationEpoch++; }, page, before, after, frame, assertCurrent, resize, setMode, state, policy, changed: () => { observationEpoch++; }, failed: () => { busy = false; } };
 }

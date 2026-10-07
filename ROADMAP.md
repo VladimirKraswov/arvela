@@ -379,3 +379,14 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Isolated real Mac Chromium responsive-target, modes, password/upload/profile/transport acceptance.
 - [x] Final Mac package/signature/microphone/DMG checks; installed mode/viewport/panel and actual MCP CLI acceptance. Publication recorded in VERIFICATION.
 - [ ] Live Windows/Linux acceptance; shared source only.
+
+## M31 — General browser performance (0.2.22)
+
+- [x] Compact observations and atomic action/wait/observe over official MCP.
+- [x] Six-step prevalidated sequences, interruption, partial results and no replay.
+- [x] Shared queue and coordinate policy retained; numeric-only diagnostics.
+- [x] Explicit per-chat supported effort / separate browser chat; Pi effort selector.
+- [x] Idle capture throttling; no skills, owner-session search or model changes.
+- [x] Final Mac package/install acceptance; native Low/new task/browser/diagnostics and installed CLI verified.
+- [ ] Publish reviewed main and matched Mac DMG.
+- [ ] Live Windows/Linux acceptance and task-based speed/quality A/B.

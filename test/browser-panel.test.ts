@@ -158,3 +158,9 @@ it("binds a click to decoded pixels rather than a newer frame still loading", as
     expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "click", args: { x: 200, y: 100, expected: { pageId: "page", revision: 1, url: original.url, width: 1280, height: 800 } } });
   } finally { delete (document as { hidden?: boolean }).hidden; }
 });
+
+it.each([false,true])("uses two idle or four active visible captures per second (busy=%s)", async busy => {
+  visible(); fake.invoke.mockImplementation(async command => command === "browser_view" ? {...frame,busy} : undefined);
+  try { await mount(); await act(async () => vi.advanceTimersByTimeAsync(1000)); expect(views()).toBe(busy ? 5 : 3); }
+  finally { delete (document as {hidden?:boolean}).hidden; }
+});

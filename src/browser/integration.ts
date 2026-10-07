@@ -6,7 +6,7 @@ import { isLocalComputer } from "../state/computer";
 import { browserEnabled, browserNodeProgram } from "./preferences";
 
 export const BROWSER_MCP = "desktop_browser";
-export interface BrowserPreferences { enabled?: boolean; nodeProgram?: string; mode?: "fast" | "human" }
+export interface BrowserPreferences { enabled?: boolean; nodeProgram?: string; mode?: "fast" | "human"; taskEffort?: "low" | "medium" }
 export interface BrowserStatus {
   supported: boolean; installed: boolean; running: boolean; browserOpen?: boolean;
   command: string; nodeProgram: string | null; skillPath: string; runtimePath: string;

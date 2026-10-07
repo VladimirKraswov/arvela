@@ -1,3 +1,4 @@
+import { BrowserPerformance } from "./BrowserPerformance";
 import { useEffect, useState } from "react";
 import { browserNative, browserSetupSnapshot, useBrowserSetup, type BrowserSetup, type BrowserStatus } from "../browser/integration";
 import { browserEnabled, browserNodeProgram } from "../browser/preferences";
@@ -81,6 +82,7 @@ export function BrowserSettings() {
       <div className="setting-row engine-field-row"><div className="setting-label"><label htmlFor="browser-node">Путь к Node.js</label><small>Необязательно. Пусто — использовать настройку Pi или найти Node.js 20+ в стандартных местах и менеджерах версий.</small></div><div className="setting-control"><input id="browser-node" value={node} placeholder={status?.nodeProgram ?? "Автоматически"} spellCheck={false} onChange={event => setNode(event.target.value)}/></div></div>
       <div className="settings-actions"><button className="btn" disabled={!native || !local || configuring} onClick={() => store.setBrowserSettings({ nodeProgram: node.trim() || undefined })}>Сохранить и проверить путь</button><button className="btn" onClick={() => void import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl("https://nodejs.org/en/download"))}>Установить Node.js…</button></div>
     </div></section>
+    <BrowserPerformance />
     {(error || setup.error || status?.error) && <p className="settings-inline-error" role="alert">{error || setup.error || status?.error}</p>}
   </>;
 }

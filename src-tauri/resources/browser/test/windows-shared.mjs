@@ -21,7 +21,7 @@ try {
   await fs.mkdir(root, { recursive: true });
   await fs.cp(path.join(source, 'current'), current, { recursive: true });
   const resources = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  for (const name of ['daemon.mjs', 'view.mjs', 'proxy.mjs', 'setup.mjs', 'pi-extension.ts', 'package.json', 'package-lock.json']) {
+  for (const name of ['daemon.mjs', 'view.mjs', 'actions.mjs', 'proxy.mjs', 'setup.mjs', 'pi-extension.ts', 'package.json', 'package-lock.json']) {
     await fs.copyFile(path.join(resources, name), path.join(current, name));
   }
   await fs.mkdir(path.join(current, 'skills/desktop-browser'), { recursive: true });
@@ -62,7 +62,7 @@ try {
     transport.stderr?.on('data', chunk => { diagnostic = (diagnostic + chunk.toString()).slice(-1024); });
     try { await client.connect(transport); }
     catch (error) { throw new Error(`CLI ${label}: ${error.message}; ${diagnostic.trim()}`); }
-    assert.equal((await client.listTools()).tools.length, 33);
+    assert.equal((await client.listTools()).tools.length, 36);
   }
   const navigation = await clients[0].callTool({ name: 'browser_navigate', arguments: { url: 'about:blank' } });
   assert(!navigation.isError);
@@ -92,7 +92,7 @@ try {
     console.log(output.trim());
   }
   console.log(JSON.stringify({ windowsSharedRuntime: true, differentAppDataViews: true,
-    realDesktopCli: true, tools: 33, sameBrowser: true, noModelRequests: true }));
+    realDesktopCli: true, tools: 36, sameBrowser: true, noModelRequests: true }));
 } finally {
   for (const client of clients) await client.close().catch(() => {});
   daemon?.stdin.end();

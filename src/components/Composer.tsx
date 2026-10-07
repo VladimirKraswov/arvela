@@ -153,12 +153,7 @@ export function Composer() {
     return out;
   }, [providers, isPi, s.piHealth, s.prefs.pi?.verifiedModels, s.prefs.pi?.verifiedModel, switches.revision]);
 
-  const variantOptions = useMemo(() => {
-    if (!choice || isPi) return [];
-    const model = store.modelInfo(choice.providerID, choice.modelID);
-    const variants = model?.variants ? Object.keys(model.variants) : [];
-    return variants;
-  }, [choice, s.rev]);
+  const variantOptions = store.effortOptions();
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -466,6 +461,10 @@ export function Composer() {
             : s.directory ? pathBasename(s.directory) : undefined}
         </span>
         <ContextMeter />
+        {s.activeSessionId && <button className="browser-task-toggle" aria-label="Браузерная задача" aria-pressed={store.browserTaskActive()} disabled={running || s.ui.sending}
+          title="Отдельный профиль: меньше рассуждений для обычных действий; усилие можно изменить вручную. Разрешения агента сохраняются."
+          onClick={() => store.setBrowserTask(!store.browserTaskActive())}><Icon name="browser" size={13}/>{store.browserTaskActive() ? "Браузер · профиль" : "Браузерная задача"}</button>}
+
         <span className="spacer" />
         <span className="composer-keyboard-hint">
           Enter ↵{" "}

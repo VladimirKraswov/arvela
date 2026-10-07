@@ -13,6 +13,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createView } from './view.mjs';
+import { actionTools, createActions, createMetrics } from './actions.mjs';
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 
 const root = process.argv[2];
 if (!root || !path.isAbsolute(root)) throw new Error('An absolute managed runtime directory is required');
@@ -23,11 +25,15 @@ const workspace = path.join(root, 'workspace');
 await fs.mkdir(workspace, { recursive: true, mode: 0o700 });
 await fs.mkdir(path.join(root, 'profile'), { recursive: true, mode: 0o700 });
 const connections = new Map();
+const metrics = createMetrics();
+const validator = new AjvJsonSchemaValidator();
+const validators = new WeakMap();
 let context;
 const view = createView(getContext);
 try { view.setMode(JSON.parse(await fs.readFile(path.join(root, 'interaction.json'), 'utf8')).mode); } catch { /* default fast */ }
 let closing = false;
 let queue = Promise.resolve();
+let composition;
 const serial = action => {
   const result = queue.then(action);
   queue = result.catch(() => {});
@@ -77,6 +83,28 @@ async function connection(candidate = workspace) {
   return client;
 }
 
+// One execution boundary for ordinary and composed tools: identical geometry,
+// mode, cancellation, tab ownership and keyboard limits on every path.
+async function invokeTool(client, params, signal, owner = 'agent') {
+  try {
+    if (signal?.aborted) throw new Error('Cancelled before browser input');
+    await view.before(client, params, owner);
+    if (signal?.aborted) throw new Error('Cancelled before browser input');
+    let result;
+    if (params.name === 'browser_keyboard_type') {
+      const args = params.arguments || {};
+      if (typeof args.text !== 'string' || Buffer.byteLength(args.text) > 16384 || (args.submit !== undefined && typeof args.submit !== 'boolean')) throw new Error('Invalid keyboard input');
+      const page = await view.page();
+      if (signal?.aborted) throw new Error('Cancelled before browser input');
+      await page.keyboard.insertText(args.text);
+      if (args.submit) { if (signal?.aborted) throw new Error('Cancelled before submit'); await page.keyboard.press('Enter'); }
+      result = { content: [{ type: 'text', text: 'Keyboard input sent to the focused field. Inspect the result before another action.' }] };
+    } else result = await client.callTool(params, undefined, { signal });
+    if (params.name !== 'browser_close') await view.after(client, params, result);
+    return result;
+  } finally { view.failed(); }
+}
+
 function authorized(req) {
   const expected = Buffer.from(`Bearer ${token}`);
   const actual = Buffer.from(String(req.headers.authorization || ''));
@@ -98,7 +126,7 @@ async function body(req) {
 }
 const server = http.createServer(async (req, res) => {
   if (!authorized(req)) return reply(res, 403, { error: 'Unauthorized browser connection' });
-  if (req.method === 'GET' && req.url === '/health') return reply(res, 200, { instanceId, version: '0.0.83', running: !closing, browserOpen: !!context });
+  if (req.method === 'GET' && req.url === '/health') return reply(res, 200, { instanceId, version: '0.0.83', running: !closing, browserOpen: !!context, performance: metrics.snapshot() });
   // Frames do not wait behind a long navigation/tool call, so the panel stays
   // live while the agent acts. Bound to one capture at a time below.
   if (req.method === 'GET' && req.url === '/view') {
@@ -115,7 +143,13 @@ const server = http.createServer(async (req, res) => {
       void close(); return;
     }
     if (req.url !== '/rpc') return reply(res, 404, { error: 'Unknown endpoint' });
+    // Signal interruption immediately, even if the manual request waits in the queue.
+    if (request.owner === 'user' || ['desktop/mode', 'desktop/resize', 'desktop/type', 'desktop/reload', 'desktop/forward'].includes(request.method)) view.interrupt(false);
+    else if (request.method === 'tools/call') view.interrupt(false);
+    if (request.method === 'tools/call' || request.owner === 'user' || request.method.startsWith('desktop/') && request.method !== 'desktop/reveal') composition?.abort('interrupted');
+    const queuedAt = performance.now();
     const result = await serial(async () => {
+      const queueMs = performance.now() - queuedAt;
       if (cancellation.signal.aborted) throw new Error('Cancelled');
       if (request.expected) view.assertCurrent(request.expected);
       if (request.method === 'desktop/mode') {
@@ -147,42 +181,63 @@ const server = http.createServer(async (req, res) => {
       const client = await connection(request.workspace);
       if (request.method === 'tools/list') {
         const inventory = await client.listTools();
-        return { ...inventory, tools: [...inventory.tools, { name: 'browser_keyboard_type', description: 'Type or paste text with the keyboard into the currently focused field. Click the field with the mouse first. No DOM selectors or implicit focus changes.',
-          inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 16384 }, submit: { type: 'boolean' } }, required: ['text'], additionalProperties: false } }].map(tool => ({ ...tool,
+        const base = [...inventory.tools, { name: 'browser_keyboard_type', description: 'Type or paste text with the keyboard into the currently focused field. Click the field with the mouse first. No DOM selectors or implicit focus changes.',
+          inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 16384 }, submit: { type: 'boolean' } }, required: ['text'], additionalProperties: false } }];
+        const custom = actionTools(base);
+        validators.set(client, new Map([...base, ...custom].map(tool => [tool.name, validator.getValidator(tool.inputSchema)])));
+        return { ...inventory, tools: [...base, ...custom].map(tool => ({ ...tool,
           description: `${tool.description || ''}${/^browser_mouse_/.test(tool.name) ? ' XY input requires a fresh CSS viewport screenshot; resize/scroll/shared input invalidates old coordinates. A rejected action returns a fresh image and never replays.' : ['browser_click', 'browser_fill_form', 'browser_type', 'browser_select_option', 'browser_evaluate', 'browser_run_code'].includes(tool.name) ? ' Fast mode only; human mode requires mouse XY and browser_keyboard_type.' : tool.name === 'browser_take_screenshot' ? ' For XY input use scale=css, fullPage=false and no element target. Desktop mode and viewport are reported with results.' : ''}` })) };
       }
-      if (request.method === 'tools/call') {
-        // Listing tools stays lazy; only actual actions create the browser.
-        try { await view.before(client, request.params, request.owner === 'user' ? 'user' : 'agent'); }
-        catch (error) {
-          if (!['mode', 'geometry'].includes(error.recovery)) throw error;
-          // This action did not execute. Refresh observation, never replay the click.
-          const fresh = { name: 'browser_take_screenshot', arguments: { scale: 'css', type: 'png' } };
-          await view.before(client, fresh);
-          let result;
-          try { result = await client.callTool(fresh, undefined, { signal: cancellation.signal }); await view.after(client, fresh, result); }
-          finally { view.failed(); }
-          return { isError: true, content: [{ type: 'text', text: `${error.message}\nDesktop browser state: ${JSON.stringify(view.state())}` }, ...(result?.content || [])],
-            structuredContent: { desktopBrowserRecovery: true, reason: error.recovery, ...view.state() } };
+      if (request.method === 'tools/call' && ['browser_observe', 'browser_action', 'browser_sequence'].includes(request.params?.name)) {
+        if (!validators.has(client)) {
+          const inventory = await client.listTools();
+          const keyboard = { name: 'browser_keyboard_type', inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 16384 }, submit: { type: 'boolean' } }, required: ['text'], additionalProperties: false } };
+          const base = [...inventory.tools, keyboard];
+          validators.set(client, new Map([...base, ...actionTools(base)].map(tool => [tool.name, validator.getValidator(tool.inputSchema)])));
         }
-        let result;
+        let actionMs = 0, observeMs = 0;
+        const actions = createActions({ identity: view.identity, validate: (name, args) => {
+          if (!validators.get(client).get(name)?.(args).valid) throw new Error('Invalid browser composition');
+          if (Buffer.byteLength(JSON.stringify(args)) > 32768) throw new Error('Composition too large');
+          // Keyboard limits are bytes, not just the schema's character count.
+          for (const step of args.steps || (args.step ? [args.step] : [])) {
+            if (!validators.get(client).get(step.tool)?.(step.arguments).valid) throw new Error('Invalid nested browser arguments');
+            if (step.tool === 'browser_keyboard_type' && Buffer.byteLength(step.arguments.text) > 16384) throw new Error('Keyboard input too large');
+          }
+        }, call: async (params, signal) => {
+          const began = performance.now();
+          try { return await invokeTool(client, params, signal);
+          } finally {
+            if (['browser_snapshot', 'browser_take_screenshot'].includes(params.name)) observeMs += performance.now() - began;
+            else actionMs += performance.now() - began;
+          }
+        } });
+        let value;
+        const owned = new AbortController(); composition = owned;
+        try { value = await actions.run(request.params.name, request.params.arguments || {}, AbortSignal.any([cancellation.signal, owned.signal])); return { ...value, content: [...value.content, { type: 'text', text: `Desktop browser state: ${JSON.stringify(view.state())}` }] }; }
+        finally { if (composition === owned) composition = undefined; metrics.record({ failed: !value || value.isError, queueMs, actionMs, observeMs, completedSteps: value?.structuredContent?.completed }); }
+      }
+      if (request.method === 'tools/call') {
+        const began = performance.now();
+        let failed = true;
         try {
-          if (request.params.name === 'browser_keyboard_type') {
-            const args = request.params.arguments || {};
-            if (typeof args.text !== 'string' || Buffer.byteLength(args.text) > 16384 || (args.submit !== undefined && typeof args.submit !== 'boolean')) throw new Error('Invalid keyboard input');
-            const page = await view.page();
-            await page.keyboard.insertText(args.text);
-            if (args.submit) await page.keyboard.press('Enter');
-            result = { content: [{ type: 'text', text: 'Keyboard input sent to the focused field. Inspect the result before another action.' }] };
-          } else result = await client.callTool(request.params, undefined, { signal: cancellation.signal });
-          if (request.params.name !== 'browser_close') await view.after(client, request.params, result);
-        } finally { view.failed(); }
+          // Listing stays lazy; only actual actions create the browser.
+          let result;
+          try { result = await invokeTool(client, request.params, cancellation.signal, request.owner === 'user' ? 'user' : 'agent'); }
+          catch (error) {
+            if (!['mode', 'geometry'].includes(error.recovery)) throw error;
+            const fresh = await invokeTool(client, { name: 'browser_take_screenshot', arguments: { scale: 'css', type: 'png' } }, cancellation.signal);
+            return { isError: true, content: [{ type: 'text', text: `${error.message}\nDesktop browser state: ${JSON.stringify(view.state())}` }, ...(fresh?.content || [])],
+              structuredContent: { desktopBrowserRecovery: true, reason: error.recovery, ...view.state() } };
+          }
         if (request.reveal && !result.isError && context) {
           const pages = context.pages();
           const page = pages.find(page => page.url() === request.params?.arguments?.url) || pages.at(-1);
           await page?.bringToFront();
         }
+        failed = !!result.isError;
         return { ...result, content: [...(result.content || []), { type: 'text', text: `Desktop browser state: ${JSON.stringify(view.state())}` }] };
+        } finally { const elapsed = performance.now() - began; const read = ['browser_snapshot', 'browser_take_screenshot', 'browser_console_messages', 'browser_network_requests'].includes(request.params?.name); metrics.record({ failed, queueMs, actionMs: read ? 0 : elapsed, observeMs: read ? elapsed : 0 }); }
       }
       throw new Error('Only official browser tool methods are supported');
     });

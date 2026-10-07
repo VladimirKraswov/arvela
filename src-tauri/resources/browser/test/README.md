@@ -57,7 +57,7 @@ Windows 0.2.18 cross-process regression:
 `node windows-shared.mjs <absolute-built-exe> <absolute-test-owned-runtime>`.
 It starts a disposable daemon and invokes the real Desktop MCP CLI twice with
 different LOCALAPPDATA values but the same disposable USERPROFILE. Both must
-discover 33 tools and observe the same browser. It never migrates or opens the
+discover 36 tools and observe the same browser. It never migrates or opens the
 user profile, edits global configuration, or requests inference.
 An optional third argument is the absolute installed Pi 0.85.1 package directory.
 It runs `pi-packaged.mjs` through the compiled CLI with the same disposable home
@@ -101,3 +101,5 @@ fixture uses the real BrowserPanel/CSS with stubbed IPC, never user services.
 Remove the temporary frame after visual QA; it must not be committed. Without
 `pixels` the fixture shows the actual empty panel. This is rendering evidence,
 not native input acceptance. Packaged UI acceptance is recorded separately.
+
+0.2.22 smoke additionally exercises compact/atomic actions, full-chain prevalidation, human focus+keyboard sequences, stale second-XY rejection, cancellation of a wait by resize and numeric-only telemetry. Real Pi loader checks the atomic tool as well. No model calls or owner profiles are used.

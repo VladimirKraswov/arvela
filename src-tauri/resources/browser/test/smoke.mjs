@@ -52,7 +52,7 @@ async function connect(cwd = workspace) {
 }
 async function call(name, args = {}, active = client) {
   const result = await active.callTool({ name, arguments: args });
-  assert(!result.isError, `Official tool failed: ${name}`);
+  assert(!result.isError, `Official tool failed: ${name}, reason=${result.structuredContent?.reason || "tool"}, completed=${result.structuredContent?.completed ?? "unknown"}`);
   return result;
 }
 function text(result) { return result.content.filter(c => c.type === 'text').map(c => c.text).join('\n'); }
@@ -89,7 +89,14 @@ try {
   client = await connect();
   const tools = await client.listTools(); assert(tools.tools.some(t => t.name === 'browser_snapshot'));
   assert.equal((await (await fetch(`${endpoint}/health`, { headers })).json()).browserOpen, false);
+  await fetch(`${endpoint}/rpc`, {method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({method:'desktop/mode',mode:'fast'})});
   await call('browser_navigate', { url: fixtureUrl });
+  let compact = await call('browser_observe', { maxChars: 1000 });
+  assert(text(compact).includes('Name'));
+  const nameRef = target(text(await call('browser_snapshot')), 'Name');
+  const combined = await call('browser_action', {step: {tool: 'browser_type', arguments: {target: nameRef, text: 'COMBINED_OK'}}, observation:{maxChars:1000}});
+  assert.equal(combined.structuredContent.completed, 1); assert(text(combined).includes('COMBINED_OK'));
+  await assert.rejects(client.callTool({name:'browser_sequence', arguments:{steps:[{tool:'browser_keyboard_type',arguments:{text:'MUST_NOT_APPEAR'}},{tool:'browser_mouse_click_xy',arguments:{x:'invalid',y:18}}]}}), /Browser request failed/); assert(!text(await call('browser_snapshot')).includes('MUST_NOT_APPEAR'), 'Every step must validate before input');
   let projected = await frame();
   assert.equal(projected.url, fixtureUrl + '/');
   assert.equal(projected.width, 1280); assert.equal(projected.height, 800);
@@ -176,6 +183,21 @@ try {
   await panel('desktop/type', { text: 'shared-input' });
   const staleShared = await client.callTool({ name: 'browser_mouse_click_xy', arguments: { x: 574, y: 120 } });
   assert(staleShared.isError && staleShared.structuredContent?.reason === 'geometry');
+  await call('browser_take_screenshot', {scale:'css',type:'png'});
+  const chain = await call('browser_sequence', {steps:[{tool:'browser_mouse_click_xy',arguments:{x:100,y:18}},{tool:'browser_keyboard_type',arguments:{text:'CHAIN_OK'}},{tool:'browser_press_key',arguments:{key:'Tab'}}]});
+  assert.equal(chain.structuredContent.completed,3); assert(text(chain).includes('CHAIN_OK'));
+  await call('browser_take_screenshot', {scale:'css',type:'png'});
+  const guarded = await client.callTool({name:'browser_sequence',arguments:{steps:[{tool:'browser_mouse_click_xy',arguments:{x:100,y:18}},{tool:'browser_mouse_click_xy',arguments:{x:574,y:120}}]}});
+  assert(guarded.isError); assert.equal(guarded.structuredContent.completed,1); assert.equal(guarded.structuredContent.reason,'geometry');
+  assert(guarded.content.some(c => c.type === 'image'), 'Recovery observes new geometry instead of replaying');
+  const waiting = client.callTool({name:'browser_action',arguments:{step:{tool:'browser_keyboard_type',arguments:{text:'INTERRUPT_MARKER'}},waitFor:{text:'NEVER_APPEARS'},timeoutMs:30000}});
+  await pause(300);
+  const resized = panel('desktop/resize',{width:700,height:500});
+  const interrupted = await waiting; await resized;
+  assert(interrupted.isError); assert.equal(interrupted.structuredContent.completed,1); assert.equal(interrupted.structuredContent.reason,'interrupted');
+  const telemetry = (await (await fetch(`${endpoint}/health`,{headers})).json()).performance;
+  assert(telemetry.calls > 0 && telemetry.completedSteps >= 6 && telemetry.failed > 0);
+  assert(!JSON.stringify(telemetry).includes('INTERRUPT_MARKER'));
   await panel('desktop/mode', { mode: 'fast' });
   const otherWorkspace = path.join(root, 'other-workspace'); await fs.mkdir(otherWorkspace, { recursive: true });
   const other = await connect(otherWorkspace);
@@ -199,7 +221,7 @@ try {
   await start();
   await call('browser_navigate', { url: fixtureUrl });
   snapshot = text(await call('browser_snapshot')); assert(snapshot.includes('PERSIST_OK'));
-  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true, humanMode: true, resizeRecovery: true, keyboardTyping: true }));
+  console.log(JSON.stringify({ platform: process.platform, officialMcp: '0.0.83', tools: tools.tools.length, lazyStartup: true, revealPreservesPage: true, authentication: true, originRejected: true, dom: true, passwordForm: true, upload: true, workspaceIsolation: true, screenshot: true, liveProjection: true, agentCursor: true, manualInput: true, sharedTabs: true, history: true, persistentProfileAfterRestart: true, sameClientAfterRestart: true, ownerPipeCleanup: true, humanMode: true, resizeRecovery: true, keyboardTyping: true, atomicAction: true, prevalidatedSequence: true, sequenceInterruption: true, humanSequence: true, numericTelemetry: true }));
 } finally {
   await client?.close().catch(() => {});
   await stop();

@@ -31,9 +31,9 @@ try {
   assert.equal(extension.tools.size, 0, 'Metadata loading must not start/register browser tools');
   for (const handler of extension.handlers.get('session_start') || []) await handler({ type: 'session_start' }, context);
   const deadline = Date.now() + 30000;
-  while (extension.tools.size !== 33 && !warnings.length && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
+  while (extension.tools.size !== 36 && !warnings.length && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
   assert.equal(warnings.length, 0, 'Pi browser startup reported unavailable');
-  assert.equal(extension.tools.size, 33, 'Real official browser tools were not registered');
+  assert.equal(extension.tools.size, 36, 'Real official browser tools were not registered');
   const navigate = extension.tools.get('desktop_browser_browser_navigate');
   const snapshot = extension.tools.get('desktop_browser_browser_snapshot');
   assert(navigate && snapshot);
@@ -43,6 +43,13 @@ try {
   const snapshotArgs = validateToolArguments(snapshot.definition, { name: snapshot.definition.name, arguments: {} });
   const result = await snapshot.definition.execute('packaged-pi-snapshot', snapshotArgs, undefined, undefined, context);
   assert(result.content.some(block => block.type === 'text' && block.text.includes('PI_DESKTOP_BROWSER_FIXTURE')), 'Actual app MCP snapshot did not observe the fixture');
+  const observe = extension.tools.get('desktop_browser_browser_observe');
+  const action = extension.tools.get('desktop_browser_browser_action');
+  const sequence = extension.tools.get('desktop_browser_browser_sequence'); assert(observe && action && sequence);
+  const atomic = validateToolArguments(action.definition, {name:action.definition.name,arguments:{step:{tool:'browser_press_key',arguments:{key:'Escape'}}}});
+  const atomicResult = await action.definition.execute('pi-browser-atomic',atomic,undefined,undefined,context);
+  assert.equal(atomicResult.details.mcp.structuredContent.completed,1);
+  assert(atomicResult.content.some(block => block.type === 'text' && block.text.includes('PI_DESKTOP_BROWSER_FIXTURE')));
   console.log(JSON.stringify({ platform: process.platform, installedAppCli: transportLabel === 'installed', testOwnedProxy: transportLabel === 'test-proxy', piVersion: packageInfo.version, realPiLoader: true, realPiArgumentValidation: true, officialBrowserTools: 32, desktopTools: extension.tools.size, navigate: true, snapshot: true, noModelRequests: true }));
 } finally {
   for (const handler of extension?.handlers.get('session_shutdown') || []) await handler({ type: 'session_shutdown' }, context);

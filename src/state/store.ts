@@ -2,8 +2,9 @@ import { modelServices, type ModelService } from "../models/services";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
 import { chatBlocker, liveModelProblem, modelProblem } from "../schedules/preflight";
 import { untilAborted } from "../util/abort";
-import { configureLocalBrowser, invalidateBrowserSetup, browserSetupSnapshot } from "../browser/integration";
-import { browserEnabled } from "../browser/preferences";
+import { configureLocalBrowser, invalidateBrowserSetup, browserSetupSnapshot, browserNative } from "../browser/integration";
+import { browserTaskKey, browserEfforts, browserDefaultEffort } from "../browser/task";
+import { browserEnabled, browserNodeProgram } from "../browser/preferences";
 import { isLocalComputer } from "./computer";
 import { isNative } from "../native/platform";
 import { applyAppearance, normalizeAppearance, type Appearance } from "./appearance";
@@ -617,6 +618,52 @@ class Store {
     });
   }
 
+  browserTaskActive(): boolean {
+    const id = this.state.activeSessionId;
+    return !!id && !!this.state.prefs.browserTasks?.[browserTaskKey(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.engineIdFor(), id)];
+  }
+  effortOptions(): string[] {
+    const choice = this.getModelChoice(); if (!choice) return [];
+    const engine = this.engineIdFor();
+    const info = engine === PI_BACKEND_ID ? piModelInfo(this.state.piHealth, choice) : this.modelInfo(choice.providerID, choice.modelID);
+    const reasoning = engine === PI_BACKEND_ID
+      ? !!this.state.piHealth?.models.find(m => m.provider === choice.providerID && m.id === choice.modelID)?.reasoning
+      : !!info?.capabilities?.reasoning;
+    return browserEfforts(engine, info?.variants ?? undefined, reasoning, engine === PI_BACKEND_ID
+      ? this.state.piHealth?.models.find(m => m.provider === choice.providerID && m.id === choice.modelID)?.thinkingLevelMap : undefined);
+  }
+  setBrowserTask(enabled: boolean): void {
+    const id = this.state.activeSessionId, choice = this.getModelChoice();
+    if (!id || !choice || this.state.ui.sending || ['busy', 'retry'].includes(this.activityStatus(id)?.type ?? '')) return;
+    const key = browserTaskKey(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.engineIdFor(), id);
+    const previous = this.state.prefs.browserTasks?.[key];
+    if (!!previous === enabled) return;
+    const effort = browserDefaultEffort(this.effortOptions(), this.state.prefs.browser?.taskEffort ?? 'low');
+    this.mutate(s => { const profiles = { ...s.prefs.browserTasks };
+      if (enabled) profiles[key] = { providerID: choice.providerID, modelID: choice.modelID, previousVariant: choice.variant, appliedVariant: effort };
+      else delete profiles[key]; return { prefs: { ...s.prefs, browserTasks: profiles } }; });
+    if (enabled && effort) this.setModelChoice(choice.providerID, choice.modelID, effort, true);
+    else if (!enabled && previous && previous.providerID === choice.providerID && previous.modelID === choice.modelID
+      && previous.appliedVariant && choice.variant === previous.appliedVariant) this.setModelChoice(choice.providerID, choice.modelID, previous.previousVariant, true);
+    this.persistPrefs();
+  }
+  async newBrowserTask(): Promise<void> {
+    if (this.state.ui.sending || this.state.ui.workspacePreparing || !browserEnabled(this.state.prefs) || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
+    const expected = this.directoryGeneration + 1;
+    await this.newSession();
+    if (this.directoryGeneration !== expected || this.state.directory !== null) return;
+    if (!await this.ensureChatWorkspace()) return;
+    const created = await this.createSessionNow('Браузерная задача');
+    if (created && this.state.activeSessionId === created.id) {
+      this.setBrowserTask(true); this.setUi({ settingsOpen: false });
+      await this.configureBrowser(browserSetupSnapshot().phase === 'error');
+      if (this.state.activeSessionId !== created.id || browserSetupSnapshot().phase === 'error' || !browserEnabled(this.state.prefs)) return;
+      try {
+        await browserNative('browser_open', { url: null, nodeProgram: browserNodeProgram(this.state.prefs) });
+        if (this.state.activeSessionId === created.id) this.setUi({ browserOpen: true });
+      } catch (error) { this.patchUi({ toast: `Браузер: ${errText(error)}` }); }
+    }
+  }
   setBrowserSettings(patch: Partial<NonNullable<Prefs["browser"]>>): void {
     this.mutate(x => ({ prefs: { ...x.prefs, browser: { ...x.prefs.browser, ...patch } } }));
     this.persistPrefs();
@@ -2038,6 +2085,7 @@ class Store {
     providerID: string,
     modelID: string,
     variant?: string | null,
+    automaticBrowser = false,
   ): void {
     const engine = this.engineIdFor();
     if (!modelServices.allowed(providerID, modelID, engine)) {
@@ -2057,9 +2105,13 @@ class Store {
         ? `session:${this.state.activeSessionId}`
         : dir || "*",
     );
+    const profileKey = this.state.activeSessionId ? browserTaskKey(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, engine, this.state.activeSessionId) : null;
     this.mutate((s) => ({
       prefs: {
         ...s.prefs,
+        browserTasks: !automaticBrowser && profileKey && s.prefs.browserTasks?.[profileKey]
+          ? { ...s.prefs.browserTasks, [profileKey]: { ...s.prefs.browserTasks[profileKey], appliedVariant: null } }
+          : s.prefs.browserTasks,
         modelChoice: {
           ...s.prefs.modelChoice,
           [key]: { providerID, modelID, variant: variant ?? null },
