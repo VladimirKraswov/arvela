@@ -3,7 +3,7 @@
 No agent loop, inference, execution of uploaded files, or external reporting.
 """
 from __future__ import annotations
-import contextlib, math, argparse, hashlib, http.cookies, ipaddress, json, os, re, secrets, sqlite3, ssl, threading, time, uuid
+import base64, contextlib, math, argparse, hashlib, http.cookies, ipaddress, json, os, re, secrets, sqlite3, ssl, threading, time, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 from urllib.parse import parse_qs, urlsplit
@@ -12,17 +12,17 @@ MAX_BODY = 2 * 1024 * 1024
 KINDS = {'skill', 'prompt', 'tool', 'template', 'runbook'}
 KEY = re.compile(r'^[a-z][a-z0-9-]{0,63}$')
 SECRET = re.compile(r'\b(?:sk-|gh[pousr]_|github_pat_|hf_|xox[baprs]-)[A-Za-z0-9_-]{8,}')
-ASSIGN = re.compile(r'''(?i)((?:api[_-]?key|password|passwd|pass|pas|pwd|пароль|API-ключ|access[_-]?token|refresh[_-]?token|secret|authorization|token)\s*["']?\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,;<>]+)''')
+ASSIGN = re.compile(r'''(?i)((?:api[_-]?key|password|passwd|pass|pas|pwd|пароль|API-ключ|access[_-]?token|refresh[_-]?token|secret|authorization|token)\s*["']?\s*[:=]\s*)(?:\[(?:KEY|VALUE|AUTH|PRIVATE KEY) REMOVED\]|Bearer\s+(?:\[(?:KEY|VALUE) REMOVED\]|[^\s"']+)|"[^"\n]*"|'[^'\n]*'|[^\s,;<>]+)''')
 
 def scrub(value: object, limit: int = 16000) -> str:
     s = str(value or '')[:262144]
     s = re.sub(r'-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)', '[PRIVATE KEY REMOVED]', s)
     s = SECRET.sub('[KEY REMOVED]', s)
-    s = re.sub(r'(?i)\bBearer\s+[^\s"\']+', 'Bearer [KEY REMOVED]', s)
+    s = re.sub(r'(?i)\bBearer\s+(?:\[(?:KEY|VALUE) REMOVED\]|[^\s"\']+)', 'Bearer [KEY REMOVED]', s)
+    s = re.sub(r'([?&](?:key|token|api_key|password|secret|auth|signature)=)(?:\[(?:KEY|VALUE) REMOVED\]|[^&#\s]+)', r'\1[VALUE REMOVED]', s, flags=re.I)
     s = ASSIGN.sub(r'\1[VALUE REMOVED]', s)
     s = re.sub(r'(https?://)[^/\s:@]+:[^/\s@]+@', r'\1[AUTH REMOVED]@', s)
-    s = re.sub(r'([?&](?:key|token|api_key|password|secret|auth|signature)=)[^&#\s]+', r'\1[VALUE REMOVED]', s, flags=re.I)
-    s = re.sub(r'(?i)(?:/Users/|/home/)[^/\s]+', '/home/[user]', s)
+    s = re.sub(r'(?i)(?<![a-z]:)(?:/Users/|/home/)[^/\\\s]+', '/home/[user]', s)
     s = re.sub(r'(?i)C:[\\/]Users[\\/][^\\/\s]+', r'C:/Users/[user]', s)
     return s[:limit]
 
@@ -38,6 +38,58 @@ def number(value):
 class Fault(Exception):
     def __init__(self, status, message):
         self.status, self.message = status, message
+
+ERROR_CATEGORIES = {
+    'permission': {'label':'Отказ доступа', 'review':False, 'advice':'Сохраните ограничение. Предложите допустимый шаг; не повторяйте запрещённый вызов и не ослабляйте разрешения.'},
+    'cancelled': {'label':'Отмена', 'review':False, 'advice':'Учитывайте отмену отдельно. Возобновляйте работу только по поручению пользователя.'},
+    'edit_conflict': {'label':'Устаревший фрагмент файла', 'review':True, 'advice':'Заново прочитайте нужный участок файла. Постройте уникальную замену по актуальному содержимому и проверьте diff.'},
+    'missing_resource': {'label':'Путь или диапазон не найден', 'review':True, 'advice':'Проверьте рабочую папку и фактический путь через доступный поиск; не угадывайте следующий путь или номер строки.'},
+    'invalid_arguments': {'label':'Аргументы инструмента', 'review':True, 'advice':'Прочитайте текущую схему инструмента. Исправьте имена, типы и обязательные поля до повторного вызова.'},
+    'stale_target': {'label':'Устаревшая цель действия', 'review':True, 'advice':'Получите новое наблюдение и точную цель окна/страницы. После resize, scroll или навигации старые координаты не используйте.'},
+    'ambiguous_result': {'label':'Неизвестный результат действия', 'review':True, 'advice':'Сначала наблюдением проверьте результат. Не повторяйте действие, которое могло уже выполниться.'},
+    'unavailable_tool': {'label':'Инструмент или навык недоступен', 'review':True, 'advice':'Обновите список инструментов текущего агента. Используйте доступный эквивалент или настройте нужный адаптер.'},
+    'provider_restriction': {'label':'Ограничение провайдера', 'review':True, 'advice':'Проверьте доступность выбранной модели и требования провайдера. Не переключайте модель молча и не повторяйте заведомо недоступный запрос.'},
+    'service': {'label':'Сервис или соединение', 'review':True, 'advice':'Проверьте адрес, состояние сервиса и загрузку модели. Используйте ограниченное ожидание готовности; не перезапускайте чужие службы.'},
+    'other': {'label':'Требуется разбор', 'review':True, 'advice':'Воспроизведите сбой с минимальным примером. Запись об ошибке сама по себе не доказывает дефект продукта.'},
+}
+
+def classify_error(error):
+    text = str(error).lower()
+    rules = [
+        ('ambiguous_result', r'may have executed|output mismatch|неизвестн.*результат'),
+        ('stale_target', r'укажите точное окно|fresh observation|stale[_ -]|revision.changed|off_space|current axwindows'),
+        ('permission', r'user has specified a rule|permission denied|access denied|не разрешил|prevents you from using|background input refused'),
+        ('cancelled', r'cancelled|canceled|aborted|dismissed|отмен[её]|прерван'),
+        ('edit_conflict', r'oldstring|must match exactly|line endings'),
+        ('missing_resource', r'file.*not found|notfound.*filesystem|offset.*out of range|path is not a'),
+        ('unavailable_tool', r'skill.*not found|unavailable tool|available tools|навык.*не найден'),
+        ('invalid_arguments', r'invalid arguments|schemaerror|missing required|invalid_action_target|target cannot be combined|invalid type'),
+        ('provider_restriction', r'free tier can only|not available in your country|model.*not available|encode request.*system message'),
+        ('service', r'cannot connect|service unavailable|still loading|non 2xx|connection closed|timed? ?out|econn|http.*[45]\d\d'),
+    ]
+    return next((category for category, pattern in rules if re.search(pattern,text)), 'other')
+
+def query_number(query, key, default, maximum):
+    try:
+        return min(maximum, max(1, int(query.get(key,[str(default)])[0])))
+    except (ValueError, TypeError, IndexError):
+        raise Fault(400, 'Некорректный числовой параметр.')
+
+def cursor_encode(scope, timestamp, id_):
+    return base64.urlsafe_b64encode(encode([scope,timestamp,id_]).encode()).decode().rstrip('=')
+
+def cursor_decode(query, scope):
+    raw = query.get('cursor',[None])[0]
+    if not raw: return None
+    try:
+        if not isinstance(raw,str) or len(raw)>256: raise ValueError()
+        value=json.loads(base64.b64decode(raw+'='*(-len(raw)%4),altchars=b'-_',validate=True))
+        if (not isinstance(value,list) or len(value)!=3 or value[0]!=scope
+            or type(value[1]) is not int or value[1]<0
+            or not isinstance(value[2],str) or not re.fullmatch(r'[0-9a-f]{64}',value[2])): raise ValueError()
+        return value[1:]
+    except (ValueError, TypeError, json.JSONDecodeError):
+        raise Fault(400, 'Некорректный курсор страницы.')
 
 class Hub:
     def __init__(self, root: Path):
@@ -252,6 +304,44 @@ class Hub:
             'attribution':'Первое устройство, загрузившее сообщение; повторные просмотры не прибавляют токены.',
             'reasoning':'Рассуждения входят в выходные токены и не прибавляются к итогу повторно.'}
 
+    def diagnostics(self, device=None, days=730):
+        """Bounded metadata-only analysis. Categories are hints, never permission decisions."""
+        where, args = 'r.created>=?', [int((time.time()-days*86400)*1000)]
+        if device: where += ' AND r.device_id=?'; args.append(device)
+        with self.connection() as c:
+            available = c.execute('SELECT COUNT(*) FROM records r WHERE '+where,args).fetchone()[0]
+            rows = c.execute('''SELECT r.id,r.session_id,r.created,r.role,r.error,r.tools,r.total,
+                s.engine,s.project,s.title FROM records r JOIN sessions s ON s.id=r.session_id
+                WHERE '''+where+' ORDER BY r.created DESC,r.id DESC LIMIT 25000',args).fetchall()
+        groups, tools, tool_errors, agent_errors = {}, 0, 0, 0
+        def add(error, tool, row):
+            category = classify_error(error)
+            group = groups.setdefault(category, {'category':category, **ERROR_CATEGORIES[category],
+                'count':0, 'tools':{}, 'engines':{}, 'sessions':{}})
+            group['count'] += 1
+            group['tools'][tool] = group['tools'].get(tool,0)+1
+            group['engines'][row['engine']] = group['engines'].get(row['engine'],0)+1
+            group['sessions'].setdefault(row['session_id'], {'id':row['session_id'],
+                'title':scrub(row['title'],180), 'project':scrub(row['project'],100), 'engine':row['engine']})
+        for row in rows:
+            steps=json.loads(row['tools'])
+            tools += len(steps)
+            for step in steps:
+                if step.get('status')=='error': tool_errors += 1; add(step.get('error',''),step.get('name','tool'),row)
+            if row['error']: agent_errors += 1; add(row['error'],'agent',row)
+        result=[]
+        for group in groups.values():
+            group['sessionCount']=len(group['sessions'])
+            group['sessions']=list(group['sessions'].values())[:10]
+            result.append(group)
+        return {'records':len(rows),'recordsAvailable':available,'truncated':available>len(rows), 'limit':25000,
+            'sessions':len({r['session_id'] for r in rows}), 'requests':sum(r['role']=='user' for r in rows),
+            'tools':tools,'toolErrors':tool_errors,'agentErrors':agent_errors,
+            'repliesWithNonzeroUsage':sum(r['role']=='assistant' and r['total']>0 for r in rows),
+            'days':days,'from':min((r['created'] for r in rows),default=0),'to':max((r['created'] for r in rows),default=0),
+            'groups':sorted(result,key=lambda g:g['count'],reverse=True),
+            'note':'Категории эвристические. Отказы и отмены не означают поломку. Статус completed не гарантирует успешный exit code; сырые выводы не собираются. Скорость и качество моделей по этим данным не оцениваются.'}
+
     def api(self, method, path, query, actor, data):
         with self.connection() as c:
             if method=='GET' and path=='/api/me':
@@ -270,7 +360,9 @@ class Hub:
             if method=='POST' and path=='/api/catalog': self.admin(actor);return self.item(data)
             if method=='POST' and path=='/api/ingest': return self.ingest(actor,data)
             if method=='GET' and path=='/api/metrics':
-                return self.metrics(query.get('device',[None])[0],min(730,max(1,int(query.get('days',['30'])[0]))))
+                return self.metrics(query.get('device',[None])[0],query_number(query,'days',30,730))
+            if method=='GET' and path=='/api/diagnostics':
+                return self.diagnostics(query.get('device',[None])[0],query_number(query,'days',730,730))
             if method=='GET' and path=='/api/devices':
                 return {'devices':[dict(x) for x in c.execute('SELECT id,name,platform,app_version,admin,revoked,created,seen FROM devices ORDER BY seen DESC')]}
             if method=='POST' and path=='/api/devices':
@@ -280,15 +372,32 @@ class Hub:
                 if data.get('id')==actor['id']:raise Fault(400,'Нельзя отозвать ключ, которым вы вошли.')
                 c.execute('UPDATE devices SET revoked=1 WHERE id=?',(data.get('id'),));return {'ok':True}
             if method=='GET' and path=='/api/sessions':
-                rows=c.execute('SELECT * FROM sessions ORDER BY updated DESC LIMIT 100').fetchall()
-                return {'sessions':[dict(x) for x in rows]}
+                limit=query_number(query,'limit',50,100)
+                cursor=cursor_decode(query,'sessions')
+                where='WHERE updated<? OR (updated=? AND id<?)' if cursor else ''
+                args=[cursor[0],cursor[0],cursor[1]] if cursor else []
+                rows=c.execute('SELECT * FROM sessions '+where+' ORDER BY updated DESC,id DESC LIMIT ?',[*args,limit+1]).fetchall()
+                page=rows[:limit]
+                next_=cursor_encode('sessions',page[-1]['updated'],page[-1]['id']) if len(rows)>limit else None
+                return {'sessions':[dict(x) for x in page], 'nextCursor':next_, 'limit':limit}
             if method=='GET' and path.startswith('/api/sessions/'):
                 sid=path.split('/')[-1]
                 row=c.execute('SELECT * FROM sessions WHERE id=?',(sid,)).fetchone()
                 if not row:raise Fault(404,'Сессия не найдена.')
-                records=[dict(x) for x in c.execute('SELECT * FROM records WHERE session_id=? ORDER BY created,id LIMIT 1000',(sid,))]
-                for record in records:record['tools']=json.loads(record['tools'])
-                return {'session':dict(row),'records':records,'limit':1000}
+                limit=query_number(query,'limit',50,200)
+                direction=query.get('direction',['newer'])[0]
+                if direction not in ('newer','older'): raise Fault(400,'Неизвестное направление страницы.')
+                cursor=cursor_decode(query,sid+':'+direction)
+                op,order=('<','DESC') if direction=='older' else ('>','ASC')
+                where=f' AND (created{op}? OR (created=? AND id{op}?))' if cursor else ''
+                args=[sid,*([cursor[0],cursor[0],cursor[1]] if cursor else [])]
+                records=[dict(x) for x in c.execute('SELECT * FROM records WHERE session_id=?'+where+f' ORDER BY created {order},id {order} LIMIT ?',[*args,limit+1])]
+                page=records[:limit]
+                next_=cursor_encode(sid+':'+direction,page[-1]['created'],page[-1]['id']) if len(records)>limit else None
+                if direction=='older': page.reverse()
+                total=c.execute('SELECT COUNT(*) FROM records WHERE session_id=?',(sid,)).fetchone()[0]
+                for record in page:record['tools']=json.loads(record['tools'])
+                return {'session':dict(row),'records':page,'limit':limit,'nextCursor':next_,'total':total}
             if method=='POST' and path=='/api/sessions/review':
                 self.admin(actor)
                 if data.get('verdict') not in {'approved','rejected','unreviewed'}:raise Fault(400,'Неизвестная оценка.')

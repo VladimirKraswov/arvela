@@ -10,11 +10,11 @@ export function redact(value:unknown, limit=16000):string {
  return String(value??"").slice(0,262144)
  .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g,"[PRIVATE KEY REMOVED]")
  .replace(/\b(?:sk-|gh[pousr]_|github_pat_|hf_|xox[baprs]-)[A-Za-z0-9_-]{8,}/g,"[KEY REMOVED]")
- .replace(/\bBearer\s+[^\s"']+/gi,"Bearer [KEY REMOVED]")
- .replace(/((?:api[_-]?key|password|passwd|pass|pas|pwd|пароль|API-ключ|access[_-]?token|refresh[_-]?token|secret|authorization|token)\s*["']?\s*[:=]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s,;<>]+)/gi,"$1[VALUE REMOVED]")
+ .replace(/\bBearer\s+(?:\[(?:KEY|VALUE) REMOVED\]|[^\s"']+)/gi,"Bearer [KEY REMOVED]")
+ .replace(/([?&](?:key|token|api_key|password|secret|auth|signature)=)(?:\[(?:KEY|VALUE) REMOVED\]|[^&#\s]+)/gi,"$1[VALUE REMOVED]")
+ .replace(/((?:api[_-]?key|password|passwd|pass|pas|pwd|пароль|API-ключ|access[_-]?token|refresh[_-]?token|secret|authorization|token)\s*["']?\s*[:=]\s*)(?:\[(?:KEY|VALUE|AUTH|PRIVATE KEY) REMOVED\]|Bearer\s+(?:\[(?:KEY|VALUE) REMOVED\]|[^\s"']+)|"[^"\n]*"|'[^'\n]*'|[^\s,;<>]+)/gi,"$1[VALUE REMOVED]")
  .replace(/(https?:\/\/)[^/\s:@]+:[^/\s@]+@/g,"$1[AUTH REMOVED]@")
- .replace(/([?&](?:key|token|api_key|password|secret|auth|signature)=)[^&#\s]+/gi,"$1[VALUE REMOVED]")
- .replace(/(?:\/Users\/|\/home\/)[^/\s]+/g,"/home/[user]")
+ .replace(/(?<![A-Za-z]:)(?:\/Users\/|\/home\/)[^/\\\s]+/g,"/home/[user]")
  .replace(/C:[\\/]Users[\\/][^\\/\s]+/gi,"C:/Users/[user]").slice(0,limit);
 }
 const positive=(n:unknown)=>typeof n==="number"&&Number.isFinite(n)?Math.max(0,Math.floor(n)):0;

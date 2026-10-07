@@ -11,6 +11,11 @@ describe('private session records',()=>{
  it('can send metrics without visible text',()=>{expect(record('pi',session,msg,[part('text','visible')],false)?.text).toBe('');});
  it('strips known credential formats before durable storage',()=>{const x=redact('apiKey: sk-abcdefghijk password="hidden" https://u:p@host/?token=secret C:\\Users\\private\\file');expect(x).not.toMatch(/abcdefgh|hidden|secret|private|u:p/);});
  it('redacts shorthand and Russian passwords',()=>{expect(redact('pas=private-value пароль: another-value')).not.toMatch(/private-value|another-value/);});
+ it('preserves filtered text across queue, server and replay redaction',()=>{
+  for(const raw of ['apiKey: sk-abcdefghijk','password=hidden','Bearer secret-token','https://host/?token=hidden&x=1','authorization: Bearer hidden','C:\\Users\\owner\\file']){
+   const once=redact(raw);expect(redact(once)).toBe(once);expect(redact(redact(once))).toBe(once);expect(once).not.toContain('hidden');
+  }
+ });
  it('bounds final answers and marks truncation',()=>{const r=record('pi',session,msg,[part('text','z'.repeat(18000))],true)!;expect(r.text.length).toBe(16000);expect(r.truncated).toBe(true);});
  it('never serializes an error object including private request headers',()=>{const r=record('pi',session,{...msg,error:{name:'Failure',data:{message:'apiKey=hidden',headers:{Authorization:'UNSAFE'}}}},[],true)!;expect(JSON.stringify(r)).not.toContain('UNSAFE');expect(r.error).not.toContain('hidden');});
  it('does not invent token usage when provider has none',()=>{const r=record('pi',session,{...msg,tokens:undefined},[],true)!;expect(r.tokens.total).toBe(0);});

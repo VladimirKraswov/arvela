@@ -427,3 +427,15 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Redacted texts/steps/errors/usage, durable retry/dedup and per-device/global metrics.
 - [x] Private issue candidates, reviewed dataset export and bounded NAS backups.
 - [x] Regression/security/real API/UI checks, Mac package/install and publication.
+
+## M37 — History-guided reliability (0.2.28)
+
+- [x] Analyze all available Hub records privately; distinguish controlled refusals/cancellation from defect candidates and missing usage from measured tokens.
+- [x] Complete keyset pagination, latest-first message view and preserved review drafts.
+- [x] Read-only error diagnostics, scoped session links and explicit coverage limits.
+- [x] Stable repeated secret redaction and stale private-dialog/logout guards.
+- [x] Revise three existing portable skills from observed edit/target/verification failures; publish catalog revisions without bypassing busy guards.
+- [x] Frontend/service/native regression checks, isolated Web interaction and real TLS API pagination.
+- [x] Mac0.2.28 build/signature/install and NAS full archive; isolated restore checked.
+- [ ] Updated Mac vault access and idle application of skill revisions; requires owner OS confirmation.
+- [ ] Main/release publication; live Windows/Linux acceptance remains separate.
