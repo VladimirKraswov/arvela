@@ -1260,3 +1260,41 @@ the uploaded checksum manifest and GitHub asset digest above. The downloaded
 image passed `hdiutil verify`. Installed app still reports0.2.21 and its binary
 SHA256 equals the qualified build above. Final publication checkpoint changes
 are documentation only.
+
+
+## 2026-10-07 — Windows PR #1 reviewed and integrated on Mac
+
+Reviewed all ten files of PR head `e0e877e6c0fb329a6c945368abad8bbbe613420d`.
+Changes are Windows installation selection/verification helpers, acceptance
+runners and documentation; shipped runtime/manifests/locks are unchanged.
+The optional Pi acceptance uses the disposable home/AppData and bounded child.
+Windows report explicitly separates compiled CLI from installed UI and retains
+pending real upgrade/legacy NSIS-key inspection. No speculative uninstall or
+registry migration was accepted.
+
+[PR #1](https://github.com/VladimirKraswov/opencode-desktop/pull/1) was merged
+with matched reviewed head. Merge source:
+`212c2f451b9241e6407a18d43d7a0feb1213c835`, fetched into local main.
+Mac checks: 488 frontend passed /6 opt-in skipped; 80 Rust passed /1 unchanged
+OS-vault opt-in ignored; TypeScript/Vite, modified JS syntax and diff checks
+passed. PowerShell fixtures were not run on Mac (pwsh absent); eight successful
+cases are transferred Windows-agent evidence, not an independent Mac run.
+
+Fresh `npm run build:macos` app/DMG passed strict signing/microphone checks and
+`hdiutil verify`. Prior installed signed bundle was backed up privately. Desktop
+was closed normally; after confirming the main process exited, the fresh bundle
+was copied into Applications and reopened. Native UI loads history, composer,
+browser control and local connection. Actual installed MCP CLI lists33 tools
+including keyboard input; managed scripts match main. No page actions, model
+requests, owner aborts or global provider writes were sent during acceptance.
+External OpenCode remains the original PID3714, healthy1.18.18.
+
+Installed binary SHA256 remains
+`47f1b3eb61f97574a3e2605881a94a5e0b56eba4973460913b511c70d076935e`:
+byte-identical to the earlier qualified0.2.21 binary, consistent with helper-only
+changes. Fresh local DMG SHA256:
+`e90a5e6cd794d7a3764ac5bcdd35832ecaef79012bf7f262aec9492f88d440c7`.
+DMG container bytes differ after repackaging; the existing public0.2.21 release
+was not overwritten. Product version remains0.2.21. Windows installed upgrade
+and microphone/Pi native UI remain pending as the imported report records.
+Subsequent handoff/checkpoint edits are documentation only.
