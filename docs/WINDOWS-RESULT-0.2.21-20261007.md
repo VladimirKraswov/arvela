@@ -2,6 +2,12 @@
 
 ## Installation addendum — 2026-10-07
 
+Coordinator independently merged PR1 while installation was running. Integrated
+updated main `2d6c864ed9c513bbec461789c413d84800f22dc3` (documentation and the
+already tested helpers only), preserving both checkpoints. Follow-up branch:
+`windows/agentmesh-0.2.21-installed-20261007`. Final frontend rerun: 488/6;
+Node parser regression: 2/2. Build checkpoint below records the original base.
+
 User confirmed native installation at action time. Normal Windows launch now
 runs `C:\Users\sprot\AppData\Local\AgentMesh Desktop\opencode-desktop.exe`;
 native Settings confirms 0.2.21. Existing chat/history and its Qwen Flash Next /
