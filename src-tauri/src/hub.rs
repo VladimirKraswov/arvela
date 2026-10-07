@@ -1,0 +1,548 @@
+//! Scoped HTTPS client; device secrets never cross the WebView boundary on read.
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::BTreeMap,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::Mutex,
+    time::Duration,
+};
+static IO: Mutex<()> = Mutex::new(());
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Config {
+    pub endpoint: String,
+    pub certificate: String,
+    pub enabled: bool,
+    pub share_text: bool,
+    pub label: String,
+    #[serde(default)]
+    pub installed: BTreeMap<String, String>,
+}
+fn root() -> Result<PathBuf, String> {
+    Ok(crate::capabilities::root()?.join("hub"))
+}
+fn safe_dir(p: &Path) -> Result<(), String> {
+    if fs::symlink_metadata(p).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err("Hub path is a symlink".into());
+    }
+    fs::create_dir_all(p).map_err(|_| "Cannot create Hub directory")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(p, fs::Permissions::from_mode(0o700))
+            .map_err(|_| "Cannot protect Hub directory")?;
+    }
+    Ok(())
+}
+fn read(p: &Path) -> Result<String, String> {
+    if fs::symlink_metadata(p).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err("Hub file is a symlink".into());
+    }
+    if !p.exists() {
+        return Ok(String::new());
+    }
+    if fs::metadata(p)
+        .map_err(|_| "Cannot inspect Hub file")?
+        .len()
+        > 24 * 1024 * 1024
+    {
+        return Err("Hub file is too large".into());
+    }
+    fs::read_to_string(p).map_err(|_| "Cannot read Hub file".into())
+}
+fn write(p: &Path, value: &str) -> Result<(), String> {
+    safe_dir(p.parent().ok_or("Missing Hub parent")?)?;
+    if fs::symlink_metadata(p).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err("Hub file is a symlink".into());
+    }
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| "Invalid clock")?
+        .as_nanos();
+    let tmp = p.with_file_name(format!(".hub-{}-{stamp}.tmp", std::process::id()));
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options
+        .open(&tmp)
+        .map_err(|_| "Cannot create Hub temporary file")?;
+    use std::io::Write;
+    if file
+        .write_all(value.as_bytes())
+        .and_then(|_| file.sync_all())
+        .is_err()
+    {
+        let _ = fs::remove_file(&tmp);
+        return Err("Cannot write Hub file".into());
+    }
+    drop(file);
+    fs::rename(tmp, p).map_err(|_| "Cannot replace Hub file".into())
+}
+fn load() -> Result<Config, String> {
+    let s = read(&root()?.join("connection.json"))?;
+    if s.is_empty() {
+        Ok(Config::default())
+    } else {
+        serde_json::from_str(&s).map_err(|_| "Invalid Hub configuration".into())
+    }
+}
+fn origin(value: &str) -> Result<String, String> {
+    let u = url::Url::parse(value.trim()).map_err(|_| "Нужен HTTPS-адрес библиотеки")?;
+    if u.scheme() != "https"
+        || u.host_str().is_none()
+        || !u.username().is_empty()
+        || u.password().is_some()
+        || u.path() != "/"
+        || u.query().is_some()
+        || u.fragment().is_some()
+    {
+        return Err("Нужен HTTPS origin без пути, ключа или пароля".into());
+    }
+    Ok(u.origin().ascii_serialization())
+}
+fn vault(endpoint: &str) -> Result<keyring::Entry, String> {
+    keyring::Entry::new("dev.local.opencodedesktop.hub", endpoint)
+        .map_err(|_| "System credential store unavailable".into())
+}
+fn validate(c: &Config) -> Result<(), String> {
+    if c.endpoint.is_empty() && !c.enabled {
+        return Ok(());
+    }
+    origin(&c.endpoint)?;
+    if c.certificate.len() > 16384 || c.label.len() > 80 || c.installed.len() > 32 {
+        return Err("Hub configuration is too large".into());
+    }
+    if !c.certificate.is_empty() {
+        reqwest::Certificate::from_pem(c.certificate.as_bytes())
+            .map_err(|_| "Invalid Hub public certificate")?;
+    }
+    for (id, rev) in &c.installed {
+        if !id_ok(id) || !hash_ok(rev) {
+            return Err("Invalid package identity".into());
+        }
+    }
+    Ok(())
+}
+fn client(c: &Config) -> Result<reqwest::blocking::Client, String> {
+    let mut b = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .connect_timeout(Duration::from_secs(5))
+        .redirect(reqwest::redirect::Policy::none());
+    if !c.certificate.is_empty() {
+        b = b.add_root_certificate(
+            reqwest::Certificate::from_pem(c.certificate.as_bytes())
+                .map_err(|_| "Invalid public certificate")?,
+        );
+    }
+    b.build()
+        .map_err(|_| "Cannot create Hub HTTPS client".into())
+}
+fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String> {
+    origin(&c.endpoint)?;
+    let allowed = path == "me"
+        || path == "catalog"
+        || path == "devices"
+        || path.starts_with("catalog/")
+        || path.starts_with("metrics?")
+        || path == "ingest";
+    if !allowed || path.contains(['#', '\\', '\r', '\n']) || path.contains("..") || path.len() > 512
+    {
+        return Err("Unsupported Hub API path".into());
+    }
+    if body.is_some() && path != "ingest" {
+        return Err("Unsupported Hub write operation".into());
+    }
+    let key = vault(&c.endpoint)?
+        .get_password()
+        .map_err(|_| "Нет ключа библиотеки в системном хранилище")?;
+    let url = format!("{}/api/{}", c.endpoint.trim_end_matches('/'), path);
+    let mut q = client(c)?
+        .request(
+            if body.is_some() {
+                reqwest::Method::POST
+            } else {
+                reqwest::Method::GET
+            },
+            url,
+        )
+        .bearer_auth(key);
+    if let Some(mut b) = body {
+        if !c.share_text {
+            if let Some(records) = b["records"].as_array_mut() {
+                for r in records {
+                    r["text"] = json!("");
+                    r["title"] = json!("");
+                }
+            }
+        }
+        if b.to_string().len() > 2 * 1024 * 1024 {
+            return Err("Hub upload exceeds 2MiB".into());
+        }
+        q = q.json(&b);
+    }
+    let response = q
+        .send()
+        .map_err(|_| "Библиотека недоступна или сертификат не совпадает")?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!(
+            "Hub HTTP {} — проверьте доступ и ключ устройства",
+            status.as_u16()
+        ));
+    }
+    let mut raw = String::new();
+    response
+        .take(8 * 1024 * 1024 + 1)
+        .read_to_string(&mut raw)
+        .map_err(|_| "Cannot read Hub response")?;
+    if raw.len() > 8 * 1024 * 1024 {
+        return Err("Hub response exceeds 8MiB".into());
+    }
+    serde_json::from_str(&raw).map_err(|_| "Invalid Hub JSON".into())
+}
+fn main_window(w: &tauri::WebviewWindow) -> Result<(), String> {
+    if w.label() != "main" {
+        Err("Only the main window can access Hub".into())
+    } else {
+        Ok(())
+    }
+}
+#[tauri::command]
+pub async fn hub_config(
+    window: tauri::WebviewWindow,
+    config: Option<Config>,
+    key: Option<String>,
+    expected: Option<Config>,
+) -> Result<Config, String> {
+    main_window(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = IO.lock().map_err(|_| "Hub lock failed")?;
+        if let Some(mut c) = config {
+            let old = load()?;
+            if expected.as_ref() != Some(&old) {
+                return Err(
+                    "Подключение изменено. Обновите настройки; чужие изменения сохранены".into(),
+                );
+            }
+            validate(&c)?;
+            if !c.endpoint.is_empty() {
+                c.endpoint = origin(&c.endpoint)?;
+            }
+            if let Some(k) = key {
+                if !k.is_empty() {
+                    if !(20..=256).contains(&k.trim().len()) || k.contains(['\r', '\n']) {
+                        return Err("Invalid device key".into());
+                    }
+                    vault(&c.endpoint)?
+                        .set_password(k.trim())
+                        .map_err(|_| "Cannot save Hub key to system vault")?;
+                }
+            }
+            if scope(&old) != scope(&c) {
+                c.installed.clear();
+            }
+            if scope(&old) != scope(&c) || (old.share_text && !c.share_text) {
+                write(
+                    &root()?.join("outbox.json"),
+                    &serde_json::to_string(&Spool::default()).map_err(|_| "Cannot reset outbox")?,
+                )?;
+            }
+            write(
+                &root()?.join("connection.json"),
+                &serde_json::to_string_pretty(&c).map_err(|_| "Cannot encode Hub configuration")?,
+            )?;
+            Ok(c)
+        } else {
+            load()
+        }
+    })
+    .await
+    .map_err(|_| "Hub configuration task failed")?
+}
+#[tauri::command]
+pub async fn hub_request(
+    window: tauri::WebviewWindow,
+    path: String,
+    body: Option<Value>,
+    expected: Option<String>,
+) -> Result<Value, String> {
+    main_window(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let c = load()?;
+        if !c.enabled {
+            return Err("Hub disabled".into());
+        }
+        if expected.is_some_and(|e| e != scope(&c)) {
+            return Err("Hub connection changed; upload cancelled".into());
+        }
+        request(&c, &path, body)
+    })
+    .await
+    .map_err(|_| "Hub request task failed")?
+}
+fn id_ok(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id.bytes().next().is_some_and(|b| b.is_ascii_lowercase())
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+fn hash_ok(h: &str) -> bool {
+    h.len() == 64
+        && h.bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+fn valid_files(v: &Value) -> Result<BTreeMap<String, String>, String> {
+    let files = v["files"].as_object().ok_or("Missing package files")?;
+    if files.is_empty() || files.len() > 128 {
+        return Err("Invalid file count".into());
+    }
+    let mut out = BTreeMap::new();
+    let mut total = 0;
+    for (name, raw) in files {
+        let text = raw.as_str().ok_or("Only UTF-8 files are supported")?;
+        total += text.len();
+        if name.is_empty()
+            || name.len() > 240
+            || name.contains(['\\', ':', '\0'])
+            || name.split('/').count() > 8
+            || name
+                .split('/')
+                .any(|s| s.is_empty() || s == ".." || s == ".")
+            || text.len() > 262144
+            || total > 1024 * 1024
+        {
+            return Err("Unsafe package path or size".into());
+        }
+        let hash = format!("{:x}", Sha256::digest(text.as_bytes()));
+        if v["hashes"][name].as_str() != Some(&hash) {
+            return Err("Package SHA256 mismatch".into());
+        }
+        out.insert(name.clone(), text.into());
+    }
+    Ok(out)
+}
+#[tauri::command]
+pub async fn hub_package(
+    window: tauri::WebviewWindow,
+    id: String,
+    revision: String,
+) -> Result<Value, String> {
+    main_window(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        if !id_ok(&id)||!hash_ok(&revision){return Err("Invalid package identity".into());}
+        let c=load()?;if !c.enabled{return Err("Hub disabled".into());}let v=request(&c,&format!("catalog/{id}?revision={revision}"),None)?;
+        if v["id"].as_str()!=Some(&id)||v["revision"].as_str()!=Some(&revision){return Err("Package identity mismatch".into());}
+        let files=valid_files(&v)?;let _guard=IO.lock().map_err(|_|"Hub lock failed")?;
+        let base=root()?.join("packages");safe_dir(&base)?;let parent=base.join(&id);safe_dir(&parent)?;
+        let folder=parent.join(&revision);safe_dir(&folder)?;
+        for (name,text) in files{let p=folder.join(&name);let mut ancestor=folder.clone();for part in Path::new(&name).parent().into_iter().flat_map(|p|p.components()){ancestor.push(part);safe_dir(&ancestor)?;}
+            if p.exists() && read(&p)?!=text{return Err("Local package revision was modified; original preserved".into());}if !p.exists(){write(&p,&text)?;}}
+        Ok(json!({"path":folder.to_string_lossy(),"sourcePath":folder.to_string_lossy(),"manifest":v}))
+    }).await.map_err(|_|"Hub package task failed")?
+}
+#[derive(Default, Serialize, Deserialize)]
+struct Spool {
+    #[serde(default)]
+    origin: String,
+    pending: Vec<Value>,
+    seen: Vec<String>,
+    dropped: u64,
+}
+fn scope(c: &Config) -> String {
+    fingerprint(&json!([c.endpoint, c.certificate]))
+}
+fn fingerprint(v: &Value) -> String {
+    format!("{:x}", Sha256::digest(v.to_string().as_bytes()))
+}
+#[tauri::command]
+pub async fn hub_spool(
+    window: tauri::WebviewWindow,
+    action: String,
+    records: Option<Vec<Value>>,
+    hashes: Option<Vec<String>>,
+    expected: Option<String>,
+) -> Result<Value, String> {
+    main_window(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = IO.lock().map_err(|_| "Hub lock failed")?;
+        let c = load()?;
+        if action=="ack" && expected.as_deref()!=Some(&scope(&c)) { return Err("Hub changed; stale acknowledgement ignored".into()); }
+        let p = root()?.join("outbox.json");
+        let raw = read(&p)?;
+        let mut s: Spool = if raw.is_empty() {
+            Spool::default()
+        } else {
+            serde_json::from_str(&raw).map_err(|_| "Invalid Hub outbox")?
+        };
+        if s.origin != scope(&c) { s=Spool { origin:scope(&c), ..Spool::default() }; }
+        match action.as_str() {
+            "enqueue" => {
+                if !c.enabled {
+                    return Ok(json!({"pending":s.pending.len(),"dropped":s.dropped}));
+                }
+                let records = records.unwrap_or_default();
+                if records.len() > 50 {
+                    return Err("Batch too large".into());
+                }
+                for mut r in records {
+                    if r.to_string().len() > 64000 {
+                        return Err("Record too large".into());
+                    }
+                    let o = r.as_object_mut().ok_or("Invalid record")?;
+                    o.retain(|k, _| {
+                        [
+                            "engine",
+                            "sessionId",
+                            "id",
+                            "role",
+                            "created",
+                            "completed",
+                            "title",
+                            "project",
+                            "provider",
+                            "model",
+                            "variant",
+                            "tokens",
+                            "text",
+                            "error",
+                            "tools",
+                            "finish",
+                            "truncated",
+                        ]
+                        .contains(&k.as_str())
+                    });
+                    if !c.share_text {
+                        o.insert("text".into(), json!(""));
+                    o.insert("title".into(), json!(""));
+                    }
+                    let h = fingerprint(&r);
+                    if !s.seen.contains(&h) && !s.pending.iter().any(|v| fingerprint(v) == h) {
+                        s.pending.push(r);
+                    }
+                }
+                while s.pending.len() > 1200
+                    || serde_json::to_vec(&s)
+                        .map_err(|_| "Cannot encode outbox")?
+                        .len()
+                        > 12 * 1024 * 1024
+                {
+                    s.pending.remove(0);
+                    s.dropped += 1;
+                }
+            }
+            "ack" => {
+                let done = hashes.unwrap_or_default();
+                if done.len() > 50 {
+                    return Err("Ack batch too large".into());
+                }
+                s.pending.retain(|r| {
+                    let h = fingerprint(r);
+                    if done.contains(&h) {
+                        s.seen.push(h);
+                        false
+                    } else {
+                        true
+                    }
+                });
+                if s.seen.len() > 5000 {
+                    s.seen.drain(..s.seen.len() - 5000);
+                }
+            }
+            "clear" => s = Spool { origin:scope(&c), ..Spool::default() },
+            "read" => {}
+            _ => return Err("Unknown outbox operation".into()),
+        }
+        if !c.share_text {
+            for r in &mut s.pending {
+                r["text"] = json!("");
+                r["title"] = json!("");
+            }
+        }
+        if action != "read" {
+            write(
+                &p,
+                &serde_json::to_string(&s).map_err(|_| "Cannot encode outbox")?,
+            )?;
+        }
+        let batch: Vec<_> = s.pending.iter().take(20).cloned().collect();
+        let hash: Vec<_> = batch.iter().map(fingerprint).collect();
+        Ok(json!({"pending":s.pending.len(),"dropped":s.dropped,"records":batch,"hashes":hash,"origin":s.origin}))
+    })
+    .await
+    .map_err(|_| "Hub outbox task failed")?
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn endpoints() {
+        assert!(origin("https://192.168.31.223:8443").is_ok());
+        for u in [
+            "http://192.168.31.223",
+            "https://u:p@host",
+            "https://host/path",
+            "https://host?key=x",
+        ] {
+            assert!(origin(u).is_err());
+        }
+    }
+    #[test]
+    fn package_validation() {
+        let mut v = json!({"files":{"SKILL.md":"hello"},"hashes":{"SKILL.md":format!("{:x}",Sha256::digest(b"hello"))}});
+        assert!(valid_files(&v).is_ok());
+        v["hashes"]["SKILL.md"] = json!("bad");
+        assert!(valid_files(&v).is_err());
+        for path in ["../a", "/abs", "a//b", "C:x", "a\\b"] {
+            assert!(valid_files(&json!({"files":{path:"hello"},"hashes":{path:format!("{:x}",Sha256::digest(b"hello"))}})).is_err());
+        }
+    }
+}
+
+/// Administrator bootstrap: a PRIVATE local JSON file, never command-line secrets.
+/// Does not start an agent, browser, inference service, or change provider settings.
+pub fn cli() -> Result<(), String> {
+    let mode = std::env::args().nth(1).unwrap_or_default();
+    if mode == "--hub-setup" {
+        let path = std::env::args()
+            .nth(2)
+            .ok_or("Private setup file required")?;
+        let input: Value =
+            serde_json::from_str(&read(Path::new(&path))?).map_err(|_| "Invalid setup file")?;
+        let mut c: Config = serde_json::from_value(input["config"].clone())
+            .map_err(|_| "Invalid setup configuration")?;
+        validate(&c)?;
+        c.endpoint = origin(&c.endpoint)?;
+        let key = input["key"].as_str().ok_or("Missing device key")?;
+        if !(20..=256).contains(&key.len()) || key.contains(['\r', '\n']) {
+            return Err("Invalid device key".into());
+        }
+        let _guard = IO.lock().map_err(|_| "Hub lock failed")?;
+        vault(&c.endpoint)?
+            .set_password(key)
+            .map_err(|_| "Cannot save Hub credential")?;
+        write(
+            &root()?.join("connection.json"),
+            &serde_json::to_string_pretty(&c).map_err(|_| "Cannot encode connection")?,
+        )?;
+        println!("{{\"configured\":true}}");
+    } else {
+        let c = load()?;
+        let me = request(&c, "me", None)?;
+        let metrics = request(&c, "metrics?days=30", None)?;
+        println!(
+            "{}",
+            json!({"connected":true,"device":me["name"],"counts":metrics["counts"],"totals":metrics["totals"]})
+        );
+    }
+    Ok(())
+}

@@ -419,3 +419,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Pi drafts retained and covered by the settings exit guard.
 - [x] Original generated icon with matching UI/macOS/Windows/Linux resources.
 - [x] Tests, real Mac settings acceptance, installed build and main publication; Windows/Linux live acceptance pending.
+
+## M36 — Private LAN knowledge and telemetry hub (0.2.27)
+
+- [x] Small isolated Proxmox LXC, authenticated HTTPS API, catalog/versioning and Web UI.
+- [ ] Cross-device Arvela pull through existing shared skills/tools adapters.
+- [ ] Redacted texts/steps/errors/usage, durable retry/dedup and per-device/global metrics.
+- [x] Private issue candidates, reviewed dataset export and bounded NAS backups.
+- [ ] Regression/security/real API/UI checks, Mac package/install and publication.

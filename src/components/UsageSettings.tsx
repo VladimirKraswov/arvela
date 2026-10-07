@@ -1,52 +1,10 @@
+import { usageSources } from "../usage/sources";
 import { useEffect, useRef, useState } from "react";
-import type { Session } from "../api/types";
-import type { OpenCodeClient } from "../api/client";
 import { store, useAppState } from "../state/store";
-import { scanUsage, type UsagePeriod, type UsageReport, type UsageSource } from "../usage/metrics";
+import { scanUsage, type UsagePeriod, type UsageReport } from "../usage/metrics";
 import { Icon } from "./Icon";
 
 const fmt = (value: number) => new Intl.NumberFormat("ru-RU").format(Math.round(value));
-
-async function openCodeSessions(client: OpenCodeClient, signal: AbortSignal): Promise<Session[]> {
-  const sessions = new Map<string, Session>();
-  for (const archived of [false, true]) {
-    let cursor: number | undefined;
-    const cursors = new Set<number>();
-    do {
-      signal.throwIfAborted();
-      const page = await client.usageSessionsPage(archived, cursor, signal);
-      for (const session of page.sessions) sessions.set(session.id, session);
-      if (page.cursor === null || cursors.has(page.cursor)) break;
-      cursor = page.cursor;
-      cursors.add(cursor);
-    } while (true);
-  }
-  return [...sessions.values()];
-}
-
-function sources(): UsageSource[] {
-  const result: UsageSource[] = [];
-  if (store.state.connection.phase === "connected") {
-    const client = store.client;
-    result.push({
-      engine: "OpenCode",
-      sessions: signal => openCodeSessions(client, signal),
-      messages: (session, before, signal) => client.messages(session.id, { directory: session.directory, before, limit: 200, signal }),
-    });
-  }
-  if (store.piInstalled) {
-    const pi = store.pi();
-    result.push({
-      engine: "Pi",
-      sessions: async () => {
-        const [active, archived] = await Promise.all([pi.recentSessions(false), pi.recentSessions(true)]);
-        return [...active.sessions, ...archived.sessions];
-      },
-      messages: (session, before) => pi.messages(session.id, { directory: session.directory, before, limit: 200 }),
-    });
-  }
-  return result;
-}
 
 export function UsageSettings() {
   const state = useAppState();
@@ -63,7 +21,7 @@ export function UsageSettings() {
   useEffect(() => {
     const controller = new AbortController();
     currentScan.current = controller;
-    const current = sources();
+    const current = usageSources();
     setReport(null);
     setError("");
     setProgress({ done: 0, found: 0 });

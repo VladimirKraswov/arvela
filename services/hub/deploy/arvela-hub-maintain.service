@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply Arvela history retention
+[Service]
+Type=oneshot
+User=arvela-hub
+Group=arvela-hub
+ExecStart=/usr/bin/python3 /opt/arvela-hub/server.py --data /var/lib/arvela-hub --maintain
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/arvela-hub

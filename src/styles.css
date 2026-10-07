@@ -2860,3 +2860,13 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .settings-agent-tabs button:hover { background: var(--bg-input); }
 .settings-agent-tabs button[aria-current="page"] { background: var(--accent-soft); color: var(--text); }
 .settings-page [hidden] { display: none !important; }
+
+/* Private Hub uses the common settings rhythm; long endpoints/certificates wrap. */
+.hub-card { display: grid; gap: 16px; padding: 20px; }
+.hub-card > label { display: grid; gap: 8px; min-width: 0; }
+.hub-card input:not([type="checkbox"]), .hub-card textarea { width: 100%; min-width: 0; }
+.hub-card textarea { min-height: 100px; max-height: 240px; resize: vertical; font: 12px/1.5 var(--font-mono, monospace); }
+.hub-card .hub-toggle { display: flex; align-items: center; gap: 10px; }
+.hub-toggle input { flex: 0 0 auto; }
+.hub-settings .capability-item > div { min-width: 0; overflow-wrap: anywhere; }
+.hub-settings .capability-item small { color: var(--text-muted); }

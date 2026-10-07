@@ -1,0 +1,7 @@
+[Unit]
+Description=Daily Arvela NAS snapshot
+[Timer]
+OnCalendar=*-*-* 05:00:00 UTC
+Persistent=true
+[Install]
+WantedBy=timers.target

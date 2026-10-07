@@ -1,3 +1,4 @@
+import { HubSettings } from "./HubSettings";
 import { CapabilitiesSettings } from "./CapabilitiesSettings";
 import { ModelServicesSettings } from "./ModelServicesSettings";
 import { BrowserSettings } from "./BrowserSettings";
@@ -23,6 +24,7 @@ export const SETTINGS_SECTIONS = [
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
+  { id: "hub", title: "Облачная библиотека", group: "Общие возможности", icon: "file", description: "Общие пакеты, история и метрики устройств", keywords: "облако hub синхронизация история устройства" },
   { id: "capabilities", title: "Навыки и инструменты", group: "Общие возможности", icon: "file", description: "Общий каталог навыков и MCP для OpenCode и Pi", keywords: "skills tools MCP источники инструменты общие Pi" },
   { id: "browser", title: "Браузер", group: "Общие возможности", icon: "browser", description: "Управляемый Chromium и автонастройка OpenCode / Pi", keywords: "browser playwright chromium MCP окна вкладки формы пароли" },
   { id: "computer", title: "Управление компьютером", group: "Общие возможности", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
@@ -88,6 +90,7 @@ export function SettingsScreen() {
   const [section, setSection] = useState<Section>("general"), [query, setQuery] = useState("");
   const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
   const [capabilitiesDirty,setCapabilitiesDirty] = useState(false), [capabilitiesVisited,setCapabilitiesVisited] = useState(false);
+  const [hubVisited, setHubVisited] = useState(false), [hubDirty, setHubDirty] = useState(false);
   const [piVisited, setPiVisited] = useState(false), [piDirty, setPiDirty] = useState(false);
   const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
   const [endpoint, setEndpoint] = useState(s.prefs.localEndpoint ?? s.prefs.endpoint);
@@ -105,10 +108,10 @@ export function SettingsScreen() {
   const localDirty = endpointDirty || programDirty;
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
   const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
-  const dirty = capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
+  const dirty = hubDirty || capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
   const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
   const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
-  const navigate = (id: Section) => { if (id === "pi") setPiVisited(true); if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
+  const navigate = (id: Section) => { if (id === "hub") setHubVisited(true); if (id === "pi") setPiVisited(true); if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
   useEffect(() => { if (leave) { content.current?.scrollTo(0, 0); stay.current?.focus(); } }, [leave]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -174,6 +177,7 @@ export function SettingsScreen() {
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
         {capabilitiesVisited && <div hidden={section !== "capabilities"}><CapabilitiesSettings onDirtyChange={setCapabilitiesDirty} onNavigate={navigate}/></div>}
+        {hubVisited && <div hidden={section !== "hub"}><HubSettings onDirtyChange={setHubDirty}/></div>}
         {section === "browser" && <BrowserSettings/>}
         {section === "computer" && <ComputerSettings/>}
         {section === "agentControl" && <AgentControlSettings/>}

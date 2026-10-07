@@ -1,0 +1,7 @@
+[Unit]
+Description=Arvela SQLite snapshot to NAS
+RequiresMountsFor=/mnt/nas-storage
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/arvela-hub-backup 206 /mnt/nas-storage/arvela-hub
+UMask=0077

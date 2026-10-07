@@ -1,0 +1,24 @@
+[Unit]
+Description=Arvela private catalog and session observability
+After=network-online.target
+Wants=network-online.target
+[Service]
+User=arvela-hub
+Group=arvela-hub
+ExecStart=/usr/bin/python3 /opt/arvela-hub/server.py --data /var/lib/arvela-hub --cert /etc/arvela-hub/server.crt --key /etc/arvela-hub/server.key
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/arvela-hub
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=yes
+MemoryMax=512M
+TasksMax=40
+[Install]
+WantedBy=multi-user.target

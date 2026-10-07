@@ -1,3 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>NSMicrophoneUsageDescription</key><string>Диктовка текста для задачи. Запись начинается только по нажатию микрофона и отправляется в настроенный вами ASR API.</string></dict></plist>
+<plist version="1.0"><dict><key>NSMicrophoneUsageDescription</key><string>Диктовка текста для задачи. Запись начинается только по нажатию микрофона и отправляется в настроенный вами ASR API.</string><key>NSLocalNetworkUsageDescription</key><string>Подключение к вашей библиотеке Arvela и выбранным локальным сервисам в домашней сети. Данные отправляются только в настроенный вами сервис.</string></dict></plist>

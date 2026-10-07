@@ -1,3 +1,4 @@
+import { HubRuntime } from "./hub/Runtime";
 import { ContextPanel } from "./components/ContextPanel";
 import { ScheduleRuntime } from "./schedules/Runtime";
 import { HandoffDialog } from "./components/HandoffDialog";
@@ -112,6 +113,7 @@ export default function App() {
         {layout.sidebarOpen && <Sidebar />}
         <BrowserPresence />
         <ScheduleRuntime />
+        <HubRuntime />
         <div
           className="resizer-v"
           style={{ display: layout.sidebarOpen ? undefined : "none" }}
