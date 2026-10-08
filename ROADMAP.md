@@ -14,11 +14,13 @@ Develop in small verified releases. Reuse OpenCode/Pi and common adapters; no se
 
 Evidence: 587frontend/21Hub/91Rust tests pass; isolated UI/storage/API, installed Mac0.2.30/Hub connection, main/release round-trip and NAS restore verified. No live model quality claim. See [task result documentation](docs/TASK-RESULTS.md).
 
-### M39 — Reproducible evaluation tasks (next step)
+### M39 — Reproducible evaluation tasks (done, 2026-10-08)
 
-- [ ] Start with 10–15 versioned code/browser/recovery fixtures in isolated environments, each with independent outcome assertions.
-- [ ] Record agent/model/effort, skill/tool revisions, time to verified result, reported tokens and owner interventions; repeat paired trials.
-- [ ] Run lightweight engine-independent checks in CI; live model trials opt-in with explicit resource limits. Keep cloud fixture content synthetic.
+- [x] 12 versioned code/browser/recovery fixtures in isolated environments, each with independent outcome assertions.
+- [x] Record agent/model/requested/effective effort, skill/tool revisions, elapsed/verified time, reported tokens and owner interventions; two paired repeats (AB/BA).
+- [x] Lightweight engine-independent contract workflow in CI; live model trials explicitly opt-in with request/token/time/output limits and synthetic content only.
+
+Evidence: all 48 trials completed on DeepSeek Flash; OpenCode 23/24 and Pi 24/24 independent successes, median elapsed 7.69/7.58s. Browser 12/12, including stale-state recovery. A failed code outcome remains in the report; this is a baseline, not a claim of general quality improvement. Final runner smoke/candidate provenance and exhausted-budget stop checked separately. [Report](docs/evaluations/2026-10-08/REPORT.md) · [Run/limits](docs/EVALUATIONS.md). Local GPUs, owner history/settings and app runtime unchanged; Windows/Linux live trials remain unrun.
 
 ### M40 — Curated project memory
 

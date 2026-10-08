@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 2,
+  "suiteVersion": "1.0.0",
+  "startedAt": "2026-10-08T09:28:21.315Z",
+  "model": "deepseek-flash",
+  "effort": "medium",
+  "effectiveEffort": "high",
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "revisions": {
+    "fixtures.mjs": "be6bd5d9610c39ff46b635da6d888cf102b05bde6c86277419c4576392cbddb9",
+    "backend.mjs": "46c25ff79e89ee649114bb8f47b56db2c5ab7f2ad004ce94d54107e8e4b8367a",
+    "proxy.mjs": "95485c293e8686a2df57eb830f6eead71726d69c50c668060f095f6127afec71",
+    "runner.mjs": "561627d113399e2ef88302fbd8309e1eb6de8399f32a1db94f69d8afda888a07",
+    "mcp.mjs": "03a72f705845ed591edd9f9aee9c62fd5725d52652dab15103c2577fd386eecf",
+    "pi-extension.ts": "a7d012aaa1b56d4fd0131eb2deea3b49cacc7abac5d208ff204e61e55a4034c9"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 1000000,
+    "totalRequests": 1,
+    "perTrialSeconds": 30,
+    "totalSeconds": 60
+  },
+  "trials": [
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 1.5998755,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 1,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 1,
+        "input": 491,
+        "output": 30,
+        "cachedInput": 256,
+        "responsesWithUsage": 1,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 2,
+        "errors": 1,
+        "tokens": {
+          "input": 235,
+          "output": 30,
+          "cacheRead": 256,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/zero-value-pi-1.cjs",
+        "sha256": "27c413ad50fcbd4a3959b3f849695cbd9629d0902c7e30a342068ad67c80ed1a"
+      }
+    }
+  ],
+  "budget": {
+    "requests": 1,
+    "input": 491,
+    "output": 30
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T09:28:22.918Z",
+  "totalSeconds": 1.602621042
+}

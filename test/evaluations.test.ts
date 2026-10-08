@@ -82,6 +82,11 @@ describe('reproducible evaluation fixtures', () => {
     const text = renderReport({ model: 'synthetic', effort: 'medium', effectiveEffort: 'high', limits: {}, trials: [{ fixture: 'a', engine: 'pi', repeat: 1, passed: false, status: 'timeout', verifiedSeconds: 2, tools: { staleRefusals: 0 }, providerUsage: { responsesWithUsage: 0 } }] });
     expect(text).toContain('0/1'); expect(text).toContain('unknown'); expect(text).toContain('timeout');
   });
+  it('partial usage cannot look complete and failed elapsed time is not time to a verified outcome', () => {
+    const text = renderReport({ model: 'synthetic', effort: 'off', effectiveEffort: 'off', limits: {}, trials: [{ fixture: 'a', engine: 'pi', repeat: 1, passed: false, status: 'budget-exhausted', elapsedSeconds: 3, verifiedSeconds: null, tools: { staleRefusals: 0 }, providerUsage: { requests: 2, responsesWithUsage: 1, input: 10, output: 2 } }] });
+    expect(text).toContain('partial 12'); expect(text).toContain('3.0'); expect(text).toContain('0/1');
+    expect(text).toContain('Elapsed seconds through grading');
+  });
 });
 
 describe('cloud admission limits and paired request policy', () => {
@@ -102,7 +107,7 @@ describe('cloud admission limits and paired request policy', () => {
       const response = await fetch(`${proxy.url}/chat/completions`, options); await response.text();
       expect(sent.model).toBe('deepseek-flash'); expect(sent.max_tokens).toBe(64); expect(sent.reasoning_effort).toBe('high'); expect(sent.thinking.type).toBe('enabled');
       expect(proxy.usage.input).toBe(30); expect(proxy.usage.output).toBe(4); expect(proxy.usage.responsesWithUsage).toBe(1);
-      const refused = await fetch(`${proxy.url}/chat/completions`, options); expect(refused.status).toBe(429); expect(budget.requests).toBe(1);
+      const refused = await fetch(`${proxy.url}/chat/completions`, options); expect(refused.status).toBe(403); expect(budget.requests).toBe(1);
     } finally { await proxy.close(); }
   });
   it('provider rejection remains an error without manufactured token counts or credential echoes', async () => {
@@ -113,5 +118,26 @@ describe('cloud admission limits and paired request policy', () => {
       const response = await fetch(`${proxy.url}/chat/completions`, { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ messages: [] }) });
       expect(response.status).toBe(401); expect(await response.text()).not.toContain('secret'); expect(proxy.usage.responsesWithUsage).toBe(0); expect(proxy.usage.errors).toBe(1);
     } finally { await proxy.close(); }
+  });
+  it('concurrent title/answer requests are admitted sequentially against completed token usage', async () => {
+    const realFetch = globalThis.fetch;
+    let unblock!: () => void, upstreamCalls = 0;
+    const blocked = new Promise<void>(resolve => { unblock = resolve; });
+    vi.stubGlobal('fetch', async (url: string, options: any) => {
+      if (!String(url).startsWith('https://api.deepseek.com/')) return realFetch(url, options);
+      upstreamCalls++; await blocked;
+      return new Response(JSON.stringify({ model: 'served-revision', usage: { prompt_tokens: 30, completion_tokens: 4 } }));
+    });
+    const proxy = await startProxy({ key: 'fixture-only', model: 'deepseek-flash', effort: 'off', budget: { requests: 0, input: 0, output: 0 }, limits: { ...limits, requests: 3, tokens: 20 } });
+    try {
+      const options = { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ messages: [] }) };
+      const first = fetch(`${proxy.url}/chat/completions`, options);
+      const second = fetch(`${proxy.url}/chat/completions`, options);
+      await vi.waitFor(() => expect(upstreamCalls).toBe(1));
+      unblock();
+      const responses = await Promise.all([first, second]);
+      expect(responses.map(r => r.status).sort()).toEqual([200, 403]);
+      expect(upstreamCalls).toBe(1); expect(proxy.usage.servedModels).toEqual(['served-revision']);
+    } finally { unblock(); await proxy.close(); }
   });
 });

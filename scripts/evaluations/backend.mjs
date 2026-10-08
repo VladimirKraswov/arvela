@@ -85,7 +85,7 @@ export async function startBackend({ fixture, work, playwrightModule, browserExe
     }
   } catch (e) { server.close(); if (browser) await browser.close(); throw e; }
   return {
-    url: `http://127.0.0.1:${server.address().port}`, token, execute, metrics,
+    url: `http://127.0.0.1:${server.address().port}`, token, execute, metrics, browserVersion: browser?.version() ?? null,
     async gradeBrowser() {
       if (!page) return false;
       const state = await page.evaluate(() => ({ oak: Number(document.querySelector('#oak').textContent), pine: Number(document.querySelector('#pine').textContent), saved: window.saved || 0, invalid: window.invalid || 0 }));

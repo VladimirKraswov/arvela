@@ -5,16 +5,26 @@ import { randomUUID } from 'node:crypto';
 // Paired agents pass through the same model/effort/output/budget policy.
 export async function startProxy({ key, model, effort, budget, limits }) {
   const token = randomUUID();
-  const usage = { requests: 0, input: 0, output: 0, cachedInput: 0, responsesWithUsage: 0, rejected: 0, errors: 0, effectiveEffort: effort === 'off' ? 'off' : 'high' };
+  const usage = { requests: 0, input: 0, output: 0, cachedInput: 0, responsesWithUsage: 0, rejected: 0, errors: 0, servedModels: [], effectiveEffort: effort === 'off' ? 'off' : 'high' };
   const controllers = new Set();
+  let tail = Promise.resolve();
   const server = createServer(async (req, res) => {
     if (req.headers.authorization !== `Bearer ${token}`) { res.writeHead(401).end(); return; }
     if (req.method === 'GET' && req.url === '/models') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ object: 'list', data: [{ id: model, object: 'model' }] })); return; }
     if (req.method !== 'POST' || req.url !== '/chat/completions') { res.writeHead(404).end(); return; }
     const controller = new AbortController(); controllers.add(controller);
+    // Serialize internal title/answer requests too: admission sees completed
+    // usage, so only one provider response can cross a token ceiling.
+    const previous = tail; let release;
+    tail = new Promise(resolve => { release = resolve; });
+    res.on('close', () => controller.abort());
+    await previous;
     let charged = false;
-    const reject = message => { usage.rejected++; res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message, type: 'eval_budget' } })); };
+    // A local exhausted budget is permanent. 429 would make some engines back off
+    // and retry until the trial deadline, even though no further request is admissible.
+    const reject = message => { usage.rejected++; res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message, type: 'eval_budget' } })); };
     try {
+      if (controller.signal.aborted || req.aborted || res.destroyed) return;
       let raw = '';
       for await (const chunk of req) { raw += chunk; if (Buffer.byteLength(raw) > 512 * 1024) throw Error('REQUEST_TOO_LARGE'); }
       const body = JSON.parse(raw);
@@ -36,6 +46,7 @@ export async function startProxy({ key, model, effort, budget, limits }) {
       if (!upstream.ok) { usage.errors++; res.writeHead(upstream.status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: `DeepSeek HTTP ${upstream.status}`, type: 'provider_error' } })); return; }
       res.writeHead(200, { 'Content-Type': body.stream ? 'text/event-stream' : 'application/json' });
       const charge = data => {
+        if (typeof data?.model === 'string' && !usage.servedModels.includes(data.model)) usage.servedModels.push(data.model);
         if (!data?.usage || charged) return;
         const u = data.usage;
         if (![u.prompt_tokens, u.completion_tokens].every(x => Number.isFinite(x) && x >= 0)) return;
@@ -60,7 +71,7 @@ export async function startProxy({ key, model, effort, budget, limits }) {
       if (!body.stream) { try { charge(JSON.parse(buffer)); } catch { /* unavailable usage remains explicit */ } }
       res.end();
     } catch { usage.errors++; if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { message: 'Evaluation upstream interrupted', type: 'eval_transport' } })); }
-    finally { controllers.delete(controller); }
+    finally { controllers.delete(controller); release(); }
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return { url: `http://127.0.0.1:${server.address().port}`, token, usage,

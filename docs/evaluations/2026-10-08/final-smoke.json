@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 2,
+  "suiteVersion": "1.0.0",
+  "startedAt": "2026-10-08T09:26:31.353Z",
+  "model": "deepseek-flash",
+  "effort": "medium",
+  "effectiveEffort": "high",
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "revisions": {
+    "fixtures.mjs": "be6bd5d9610c39ff46b635da6d888cf102b05bde6c86277419c4576392cbddb9",
+    "backend.mjs": "46c25ff79e89ee649114bb8f47b56db2c5ab7f2ad004ce94d54107e8e4b8367a",
+    "proxy.mjs": "95485c293e8686a2df57eb830f6eead71726d69c50c668060f095f6127afec71",
+    "runner.mjs": "561627d113399e2ef88302fbd8309e1eb6de8399f32a1db94f69d8afda888a07",
+    "mcp.mjs": "03a72f705845ed591edd9f9aee9c62fd5725d52652dab15103c2577fd386eecf",
+    "pi-extension.ts": "a7d012aaa1b56d4fd0131eb2deea3b49cacc7abac5d208ff204e61e55a4034c9"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "opencode": "1.18.18",
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 1000000,
+    "totalRequests": 400,
+    "perTrialSeconds": 90,
+    "totalSeconds": 300
+  },
+  "trials": [
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.287225541,
+      "verifiedSeconds": 6.287225541,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10627,
+        "output": 370,
+        "cachedInput": 9088,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1307,
+          "output": 170,
+          "cacheRead": 8704,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-1.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 5.8276013330000005,
+      "verifiedSeconds": 5.8276013330000005,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3289,
+        "output": 387,
+        "cachedInput": 2304,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 985,
+          "output": 387,
+          "cacheRead": 2304,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-1.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "browser-stale-view",
+      "fixtureRevision": "04e499a273a08221dcee1ee9b54c4af31fe1a6170e3984bc7bf4c199a126198f",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 14.537872875000001,
+      "verifiedSeconds": 14.537872875000001,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 9,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 11,
+        "input": 29848,
+        "output": 1187,
+        "cachedInput": 27136,
+        "responsesWithUsage": 11,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 10,
+        "errors": 0,
+        "tokens": {
+          "input": 2468,
+          "output": 459,
+          "cacheRead": 26752,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "browserVersion": "155.0.8059.12"
+    },
+    {
+      "fixture": "browser-stale-view",
+      "fixtureRevision": "04e499a273a08221dcee1ee9b54c4af31fe1a6170e3984bc7bf4c199a126198f",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 10.5059605,
+      "verifiedSeconds": 10.5059605,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 9,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 10,
+        "input": 10474,
+        "output": 613,
+        "cachedInput": 8576,
+        "responsesWithUsage": 10,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 10,
+        "errors": 0,
+        "tokens": {
+          "input": 1898,
+          "output": 613,
+          "cacheRead": 8576,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "browserVersion": "155.0.8059.12"
+    }
+  ],
+  "budget": {
+    "requests": 31,
+    "input": 54238,
+    "output": 2557
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T09:27:09.222Z",
+  "totalSeconds": 37.869775541
+}

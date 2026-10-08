@@ -1,0 +1,1913 @@
+{
+  "schemaVersion": 1,
+  "suiteVersion": "1.0.0",
+  "startedAt": "2026-10-08T09:12:58.313Z",
+  "model": "deepseek-flash",
+  "effort": "medium",
+  "effectiveEffort": "high",
+  "revisions": {
+    "fixtures.mjs": "be6bd5d9610c39ff46b635da6d888cf102b05bde6c86277419c4576392cbddb9",
+    "backend.mjs": "76ca8358c4a2e4cf03bc831d0b002d2b80e1bbc9d18fd8c43946ba398e31846f",
+    "proxy.mjs": "59f3bf64b36872b0f2df43304bd98e23d40c43e3971be504011503c30bacfa18",
+    "runner.mjs": "bf7f9e074a19d6ce3fb054e6d4c9ed11a53d53562fb5d0f1fd3fee5abe31b26d",
+    "mcp.mjs": "03a72f705845ed591edd9f9aee9c62fd5725d52652dab15103c2577fd386eecf",
+    "pi-extension.ts": "a7d012aaa1b56d4fd0131eb2deea3b49cacc7abac5d208ff204e61e55a4034c9"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "opencode": "1.18.18",
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 1000000,
+    "totalRequests": 400,
+    "perTrialSeconds": 120,
+    "totalSeconds": 1200
+  },
+  "trials": [
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.6178863340000005,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10709,
+        "output": 555,
+        "cachedInput": 9216,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1261,
+          "output": 218,
+          "cacheRead": 8832,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.459943750000002,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3299,
+        "output": 482,
+        "cachedInput": 2304,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 995,
+          "output": 482,
+          "cacheRead": 2304,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stable-order",
+      "fixtureRevision": "87c8cef6f7607a8e926b43cdb47f93404c451c094afaabebe770ceb528f61869",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.840913541999998,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10773,
+        "output": 579,
+        "cachedInput": 9216,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1326,
+          "output": 236,
+          "cacheRead": 8832,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stable-order",
+      "fixtureRevision": "87c8cef6f7607a8e926b43cdb47f93404c451c094afaabebe770ceb528f61869",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.749059791,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3721,
+        "output": 649,
+        "cachedInput": 2688,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1033,
+          "output": 649,
+          "cacheRead": 2688,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "scope-events",
+      "fixtureRevision": "4ca06ccd35c120c3c27464c31011a82ba4ba5f7441bd6057ca6728e546d9c9aa",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.259341165999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10730,
+        "output": 538,
+        "cachedInput": 9216,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1283,
+          "output": 161,
+          "cacheRead": 8832,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "scope-events",
+      "fixtureRevision": "4ca06ccd35c120c3c27464c31011a82ba4ba5f7441bd6057ca6728e546d9c9aa",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.054386041999998,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3201,
+        "output": 285,
+        "cachedInput": 2176,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1025,
+          "output": 285,
+          "cacheRead": 2176,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 10.923376750000003,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11535,
+        "output": 1303,
+        "cachedInput": 9984,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1312,
+          "output": 329,
+          "cacheRead": 9600,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 10.391433124999995,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 5413,
+        "output": 1399,
+        "cachedInput": 4352,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1061,
+          "output": 1399,
+          "cacheRead": 4352,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "unicode-budget",
+      "fixtureRevision": "9445d2d37fda9c447268263f1802eaa3bae461676400c3ddb12b24c5f0ecb835",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.223333916999996,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10659,
+        "output": 291,
+        "cachedInput": 9088,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1343,
+          "output": 165,
+          "cacheRead": 8704,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "unicode-budget",
+      "fixtureRevision": "9445d2d37fda9c447268263f1802eaa3bae461676400c3ddb12b24c5f0ecb835",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.147531333999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3202,
+        "output": 300,
+        "cachedInput": 2176,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1026,
+          "output": 300,
+          "cacheRead": 2176,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "verdict-invalidates",
+      "fixtureRevision": "001c404d5e63d8864723c160eaddfc6026ca0bb6d8a1f60f4d02501c2b866106",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 21.860932749999993,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 5,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 7,
+        "input": 25814,
+        "output": 3790,
+        "cachedInput": 23552,
+        "responsesWithUsage": 7,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 2017,
+          "output": 939,
+          "cacheRead": 23168,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "verdict-invalidates",
+      "fixtureRevision": "001c404d5e63d8864723c160eaddfc6026ca0bb6d8a1f60f4d02501c2b866106",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 17.758736207999988,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 9604,
+        "output": 3432,
+        "cachedInput": 8320,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1284,
+          "output": 3432,
+          "cacheRead": 8320,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "failed-write",
+      "fixtureRevision": "b4538bd40e4adcc8821ef55e67a656d22e49960fd1981d875525497bb74e4a4e",
+      "category": "recovery",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 7.8336922500000075,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 13885,
+        "output": 665,
+        "cachedInput": 12160,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1486,
+          "output": 274,
+          "cacheRead": 11776,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "failed-write",
+      "fixtureRevision": "b4538bd40e4adcc8821ef55e67a656d22e49960fd1981d875525497bb74e4a4e",
+      "category": "recovery",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.804429250000001,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3833,
+        "output": 640,
+        "cachedInput": 2816,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1017,
+          "output": 640,
+          "cacheRead": 2816,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "bounded-retry",
+      "fixtureRevision": "d62bddf43b0c6b045283aac5771ad8614588a932ea8b0445323434adcf612dad",
+      "category": "recovery",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.993760957999984,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11244,
+        "output": 731,
+        "cachedInput": 9728,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1260,
+          "output": 265,
+          "cacheRead": 9344,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "bounded-retry",
+      "fixtureRevision": "d62bddf43b0c6b045283aac5771ad8614588a932ea8b0445323434adcf612dad",
+      "category": "recovery",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 12.331212082999992,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 7087,
+        "output": 2192,
+        "cachedInput": 6144,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 943,
+          "output": 2192,
+          "cacheRead": 6144,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": false,
+      "status": "outcome-failed",
+      "verifiedSeconds": 10.035478999999992,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 15278,
+        "output": 1309,
+        "cachedInput": 13440,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1589,
+          "output": 360,
+          "cacheRead": 13056,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 7.413408082999988,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 4488,
+        "output": 900,
+        "cachedInput": 3456,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1032,
+          "output": 900,
+          "cacheRead": 3456,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-discount",
+      "fixtureRevision": "5cb9e5d55cb37a7c0669d371adbb8445c5b160869e0d043d5e66e95883c6cd5b",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 10.770772291999979,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 9,
+        "input": 22968,
+        "output": 653,
+        "cachedInput": 20736,
+        "responsesWithUsage": 9,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 8,
+        "errors": 0,
+        "tokens": {
+          "input": 2005,
+          "output": 363,
+          "cacheRead": 20352,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-discount",
+      "fixtureRevision": "5cb9e5d55cb37a7c0669d371adbb8445c5b160869e0d043d5e66e95883c6cd5b",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 8.547813875000022,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 8,
+        "input": 8045,
+        "output": 568,
+        "cachedInput": 6400,
+        "responsesWithUsage": 8,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 8,
+        "errors": 0,
+        "tokens": {
+          "input": 1645,
+          "output": 568,
+          "cacheRead": 6400,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-validation",
+      "fixtureRevision": "dac08d460f30049c07993e0b46e71109ffd4105ffa05dcfd0da7bf015ba9e8e9",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 14.971956082999997,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 11,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 1
+      },
+      "providerUsage": {
+        "requests": 13,
+        "input": 37311,
+        "output": 860,
+        "cachedInput": 34304,
+        "responsesWithUsage": 13,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 12,
+        "errors": 0,
+        "tokens": {
+          "input": 2772,
+          "output": 609,
+          "cacheRead": 33920,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-validation",
+      "fixtureRevision": "dac08d460f30049c07993e0b46e71109ffd4105ffa05dcfd0da7bf015ba9e8e9",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 11.648883291999985,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 11,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 1
+      },
+      "providerUsage": {
+        "requests": 12,
+        "input": 14291,
+        "output": 718,
+        "cachedInput": 11648,
+        "responsesWithUsage": 12,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 12,
+        "errors": 0,
+        "tokens": {
+          "input": 2643,
+          "output": 718,
+          "cacheRead": 11648,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-stale-view",
+      "fixtureRevision": "04e499a273a08221dcee1ee9b54c4af31fe1a6170e3984bc7bf4c199a126198f",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 12.239626584000012,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 9,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 11,
+        "input": 29870,
+        "output": 536,
+        "cachedInput": 27264,
+        "responsesWithUsage": 11,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 10,
+        "errors": 0,
+        "tokens": {
+          "input": 2362,
+          "output": 464,
+          "cacheRead": 26880,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-stale-view",
+      "fixtureRevision": "04e499a273a08221dcee1ee9b54c4af31fe1a6170e3984bc7bf4c199a126198f",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 10.500297250000003,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 9,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 10,
+        "input": 11180,
+        "output": 779,
+        "cachedInput": 9344,
+        "responsesWithUsage": 10,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 10,
+        "errors": 0,
+        "tokens": {
+          "input": 1836,
+          "output": 779,
+          "cacheRead": 9344,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.742964082999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3252,
+        "output": 480,
+        "cachedInput": 2176,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1076,
+          "output": 480,
+          "cacheRead": 2176,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.705859875000024,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10637,
+        "output": 436,
+        "cachedInput": 9088,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1317,
+          "output": 189,
+          "cacheRead": 8704,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stable-order",
+      "fixtureRevision": "87c8cef6f7607a8e926b43cdb47f93404c451c094afaabebe770ceb528f61869",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.3358969999999974,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3531,
+        "output": 561,
+        "cachedInput": 2432,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1099,
+          "output": 561,
+          "cacheRead": 2432,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stable-order",
+      "fixtureRevision": "87c8cef6f7607a8e926b43cdb47f93404c451c094afaabebe770ceb528f61869",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.68675437499999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10834,
+        "output": 1221,
+        "cachedInput": 9344,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1259,
+          "output": 225,
+          "cacheRead": 8960,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "scope-events",
+      "fixtureRevision": "4ca06ccd35c120c3c27464c31011a82ba4ba5f7441bd6057ca6728e546d9c9aa",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.9136770410000175,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3375,
+        "output": 398,
+        "cachedInput": 2432,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 943,
+          "output": 398,
+          "cacheRead": 2432,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "scope-events",
+      "fixtureRevision": "4ca06ccd35c120c3c27464c31011a82ba4ba5f7441bd6057ca6728e546d9c9aa",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.893571249999979,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10658,
+        "output": 279,
+        "cachedInput": 9088,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1339,
+          "output": 162,
+          "cacheRead": 8704,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 18.513293999999995,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 9374,
+        "output": 3501,
+        "cachedInput": 8192,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1182,
+          "output": 3501,
+          "cacheRead": 8192,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 7.203627124999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11041,
+        "output": 742,
+        "cachedInput": 9472,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1330,
+          "output": 264,
+          "cacheRead": 9088,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "unicode-budget",
+      "fixtureRevision": "9445d2d37fda9c447268263f1802eaa3bae461676400c3ddb12b24c5f0ecb835",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.385965333,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3546,
+        "output": 599,
+        "cachedInput": 2432,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1114,
+          "output": 599,
+          "cacheRead": 2432,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "unicode-budget",
+      "fixtureRevision": "9445d2d37fda9c447268263f1802eaa3bae461676400c3ddb12b24c5f0ecb835",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.640851292000035,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10602,
+        "output": 231,
+        "cachedInput": 9088,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1286,
+          "output": 161,
+          "cacheRead": 8704,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "verdict-invalidates",
+      "fixtureRevision": "001c404d5e63d8864723c160eaddfc6026ca0bb6d8a1f60f4d02501c2b866106",
+      "category": "code",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 14.704118625000003,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 7611,
+        "output": 2493,
+        "cachedInput": 6528,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1083,
+          "output": 2493,
+          "cacheRead": 6528,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "verdict-invalidates",
+      "fixtureRevision": "001c404d5e63d8864723c160eaddfc6026ca0bb6d8a1f60f4d02501c2b866106",
+      "category": "code",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 8.493588457999984,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11164,
+        "output": 1231,
+        "cachedInput": 9600,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1319,
+          "output": 388,
+          "cacheRead": 9216,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "failed-write",
+      "fixtureRevision": "b4538bd40e4adcc8821ef55e67a656d22e49960fd1981d875525497bb74e4a4e",
+      "category": "recovery",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 5.385251167000039,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3429,
+        "output": 435,
+        "cachedInput": 2432,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 997,
+          "output": 435,
+          "cacheRead": 2432,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "failed-write",
+      "fixtureRevision": "b4538bd40e4adcc8821ef55e67a656d22e49960fd1981d875525497bb74e4a4e",
+      "category": "recovery",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 8.304616875000008,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 13836,
+        "output": 581,
+        "cachedInput": 12032,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1565,
+          "output": 294,
+          "cacheRead": 11648,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "bounded-retry",
+      "fixtureRevision": "d62bddf43b0c6b045283aac5771ad8614588a932ea8b0445323434adcf612dad",
+      "category": "recovery",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.410170375000045,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3799,
+        "output": 588,
+        "cachedInput": 2941,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 858,
+          "output": 588,
+          "cacheRead": 2941,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "bounded-retry",
+      "fixtureRevision": "d62bddf43b0c6b045283aac5771ad8614588a932ea8b0445323434adcf612dad",
+      "category": "recovery",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 7.553514291000028,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11274,
+        "output": 826,
+        "cachedInput": 9728,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1290,
+          "output": 261,
+          "cacheRead": 9344,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 8.282803625,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 4716,
+        "output": 1021,
+        "cachedInput": 3584,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1132,
+          "output": 1021,
+          "cacheRead": 3584,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 6.988864000000001,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11017,
+        "output": 666,
+        "cachedInput": 9344,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1424,
+          "output": 266,
+          "cacheRead": 8960,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-discount",
+      "fixtureRevision": "5cb9e5d55cb37a7c0669d371adbb8445c5b160869e0d043d5e66e95883c6cd5b",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 7.743558875000046,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 8,
+        "input": 7289,
+        "output": 403,
+        "cachedInput": 5760,
+        "responsesWithUsage": 8,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 8,
+        "errors": 0,
+        "tokens": {
+          "input": 1529,
+          "output": 403,
+          "cacheRead": 5760,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-discount",
+      "fixtureRevision": "5cb9e5d55cb37a7c0669d371adbb8445c5b160869e0d043d5e66e95883c6cd5b",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 10.197522708999983,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 9,
+        "input": 23029,
+        "output": 433,
+        "cachedInput": 20736,
+        "responsesWithUsage": 9,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 8,
+        "errors": 0,
+        "tokens": {
+          "input": 2066,
+          "output": 363,
+          "cacheRead": 20352,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-validation",
+      "fixtureRevision": "dac08d460f30049c07993e0b46e71109ffd4105ffa05dcfd0da7bf015ba9e8e9",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 12.557758791,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 11,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 1
+      },
+      "providerUsage": {
+        "requests": 12,
+        "input": 14110,
+        "output": 682,
+        "cachedInput": 11648,
+        "responsesWithUsage": 12,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 12,
+        "errors": 0,
+        "tokens": {
+          "input": 2462,
+          "output": 682,
+          "cacheRead": 11648,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-validation",
+      "fixtureRevision": "dac08d460f30049c07993e0b46e71109ffd4105ffa05dcfd0da7bf015ba9e8e9",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 14.07003341600002,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 11,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 1
+      },
+      "providerUsage": {
+        "requests": 13,
+        "input": 37265,
+        "output": 812,
+        "cachedInput": 34304,
+        "responsesWithUsage": 13,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 12,
+        "errors": 0,
+        "tokens": {
+          "input": 2726,
+          "output": 599,
+          "cacheRead": 33920,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-stale-view",
+      "fixtureRevision": "04e499a273a08221dcee1ee9b54c4af31fe1a6170e3984bc7bf4c199a126198f",
+      "category": "browser",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 9.890833334000025,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 9,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 10,
+        "input": 11097,
+        "output": 753,
+        "cachedInput": 9216,
+        "responsesWithUsage": 10,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 10,
+        "errors": 0,
+        "tokens": {
+          "input": 1881,
+          "output": 753,
+          "cacheRead": 9216,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    },
+    {
+      "fixture": "browser-stale-view",
+      "fixtureRevision": "04e499a273a08221dcee1ee9b54c4af31fe1a6170e3984bc7bf4c199a126198f",
+      "category": "browser",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "verifiedSeconds": 11.877585667000035,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 9,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 0
+      },
+      "providerUsage": {
+        "requests": 11,
+        "input": 29645,
+        "output": 564,
+        "cachedInput": 26752,
+        "responsesWithUsage": 11,
+        "rejected": 0,
+        "errors": 0,
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 10,
+        "errors": 0,
+        "tokens": {
+          "input": 2649,
+          "output": 469,
+          "cacheRead": 26368,
+          "cacheWrite": 0
+        }
+      },
+      "exitCode": 0,
+      "stopped": null
+    }
+  ],
+  "budget": {
+    "requests": 311,
+    "input": 554271,
+    "output": 44090
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T09:20:23.193Z",
+  "totalSeconds": 444.876573375
+}

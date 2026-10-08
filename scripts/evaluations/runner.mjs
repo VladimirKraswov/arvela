@@ -51,7 +51,8 @@ export function runProcess(command, args, { cwd, env, seconds = 120, bytes = 4 *
 }
 
 export async function gradeCode(fixture, work) {
-  // Candidate code cannot read the oracle, credentials, owner filesystem or spawn/network.
+  // Candidate filesystem reads and child-process APIs are restricted. This is
+  // an evaluator for our synthetic fixtures, not an OS sandbox for hostile code.
   const source = `const assert=require('node:assert/strict');const s=require('./solution.cjs');(async()=>{${fixture.assertions};process.stdout.write('ARVELA_OUTCOME_OK\\n')})().catch(e=>{console.error(e.message);process.exitCode=1});`;
   const result = await runProcess(process.execPath, ['--permission', `--allow-fs-read=${await realpath(work)}`, '-e', source], {
     cwd: work, env: cleanEnvironment(join(work, '.grade-home')), seconds: 5, bytes: 32768,
@@ -125,8 +126,17 @@ async function prepareAgent(engine, root, work, backend, proxy, model, effort, c
 }
 
 export function renderReport(report) {
-  const rows = report.trials.map(t => `| ${t.fixture} | ${t.engine} | ${t.repeat} | ${t.passed ? 'PASS' : t.status} | ${(t.verifiedSeconds).toFixed(1)} | ${t.providerUsage.responsesWithUsage ? t.providerUsage.input + t.providerUsage.output : 'unknown'} | ${t.tools.staleRefusals} |`);
-  return `# Arvela synthetic evaluation ${suiteVersion}\n\nModel: ${report.model}; requested effort: ${report.effort}; effective provider effort: ${report.effectiveEffort}.\n\n${report.trials.filter(t => t.passed).length}/${report.trials.length} independently verified trials. Owner interventions: 0 (unattended runner; not a statement about production).\n\n| Fixture | Agent | Repeat | Result | Verified seconds | Provider tokens | Stale refusals |\n|---|---|---:|---|---:|---:|---:|\n${rows.join('\n')}\n\nLimits: ${JSON.stringify(report.limits)}. Provider token usage is authoritative where present; missing usage is unknown, never zero. Admission checks apply between responses; one in-flight response can exceed the token ceiling.\n\nThese small synthetic trials do not measure local Qwen throughput, general model intelligence, production browser emulation, UI behavior or long-project quality. No history, skills or private code was sent. Tool/fixture revisions are in the JSON report. Sequential AB/BA order alternates between repeats; no automatic retries or result deletion.\n`;
+  const elapsed = t => t.elapsedSeconds ?? t.verifiedSeconds;
+  const median = values => { const a = [...values].sort((a, b) => a - b), m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+  const usageLabel = u => !u.responsesWithUsage ? 'unknown' : `${u.responsesWithUsage < u.requests ? 'partial ' : ''}${u.input + u.output}`;
+  const aggregates = [...new Set(report.trials.map(t => t.engine))].map(engine => {
+    const trials = report.trials.filter(t => t.engine === engine);
+    const knownTokens = trials.reduce((n, t) => n + (t.providerUsage.input || 0) + (t.providerUsage.output || 0), 0);
+    const fullUsage = trials.every(t => t.providerUsage.responsesWithUsage === t.providerUsage.requests && t.providerUsage.responsesWithUsage > 0);
+    return `| ${engine} | ${trials.filter(t => t.passed).length}/${trials.length} | ${median(trials.map(elapsed)).toFixed(2)} | ${fullUsage ? '' : 'partial '}${knownTokens} |`;
+  });
+  const rows = report.trials.map(t => `| ${t.fixture} | ${t.engine} | ${t.repeat} | ${t.passed ? 'PASS' : t.status} | ${elapsed(t).toFixed(1)} | ${usageLabel(t.providerUsage)} | ${t.tools.staleRefusals} |`);
+  return `# Arvela synthetic evaluation ${suiteVersion}\n\nModel: ${report.model}; requested effort: ${report.effort}; effective provider effort: ${report.effectiveEffort}.\n\n${report.trials.filter(t => t.passed).length}/${report.trials.length} independently verified trials. Owner interventions: 0 (unattended runner; not a statement about production).\n\n| Agent | Verified outcomes | Median elapsed seconds (all trials) | Provider tokens |\n|---|---:|---:|---:|\n${aggregates.join('\n')}\n\n| Fixture | Agent | Repeat | Result | Elapsed seconds through grading | Provider tokens | Stale refusals |\n|---|---|---:|---|---:|---:|---:|\n${rows.join('\n')}\n\nLimits: ${JSON.stringify(report.limits)}. Provider token usage is authoritative where present; missing usage is unknown, never zero. Admission checks apply between responses; one in-flight response can exceed the token ceiling.\n\nThese small synthetic trials do not measure local Qwen throughput, general model intelligence, production browser emulation, UI behavior or long-project quality. No history, skills or private code was sent. Tool/fixture revisions are in the JSON report. Sequential AB/BA order alternates between repeats; no automatic retries or result deletion.\n`;
 }
 
 async function main() {
@@ -163,7 +173,7 @@ async function main() {
   const revisions = Object.fromEntries(await Promise.all(sources.map(async name => [name, hash(await readFile(join(here, name)))])));
   const versions = {};
   for (const engine of engines) { const v = await runProcess(engine, ['--version'], { seconds: 10, bytes: 1024 }); if (v.exitCode !== 0) throw Error(`${engine} unavailable`); versions[engine] = v.stdout.trim(); }
-  const report = { schemaVersion: 1, suiteVersion, startedAt: new Date().toISOString(), model, effort, effectiveEffort: effort === 'off' ? 'off' : 'high', revisions, skillRevisions: [], versions, limits, trials: [], budget, complete: false };
+  const report = { schemaVersion: 2, suiteVersion, startedAt: new Date().toISOString(), model, effort, effectiveEffort: effort === 'off' ? 'off' : 'high', environment: { node: process.version, platform: process.platform, arch: process.arch }, revisions, skillRevisions: [], versions, limits, trials: [], budget, complete: false };
   const start = performance.now(); let cancelled = false;
   const interrupt = () => { cancelled = true; for (const child of active) child.evalKill('cancelled'); };
   process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
@@ -174,7 +184,7 @@ async function main() {
       if (cancelled || budget.requests >= limits.totalRequests || budget.input + budget.output >= limits.totalTokens) break;
       const root = await mkdtemp(join(tmpdir(), 'arvela-live-eval-')); const work = join(root, 'work'); await mkdir(work);
       let backend, proxy; const started = performance.now();
-      const trial = { fixture: fixture.id, fixtureRevision: hash(JSON.stringify(fixture)), category: fixture.category, engine, repeat, passed: false, status: 'setup-error', verifiedSeconds: 0, ownerInterventions: 0, tools: { calls: 0, errors: 0, staleRefusals: 0 }, providerUsage: { requests: 0, responsesWithUsage: 0 }, agentUsage: null };
+      const trial = { fixture: fixture.id, fixtureRevision: hash(JSON.stringify(fixture)), category: fixture.category, engine, repeat, passed: false, status: 'setup-error', elapsedSeconds: 0, verifiedSeconds: null, ownerInterventions: 0, tools: { calls: 0, errors: 0, staleRefusals: 0 }, providerUsage: { requests: 0, responsesWithUsage: 0 }, agentUsage: null };
       try {
         for (const [name, text] of Object.entries(fixture.files)) await writeFile(join(work, name), text);
         backend = await startBackend({ fixture, work, playwrightModule: value('--playwright-module') ? pathToFileURL(resolve(value('--playwright-module'))).href : undefined, browserExecutable: value('--browser-executable') ? resolve(value('--browser-executable')) : undefined });
@@ -184,18 +194,27 @@ async function main() {
         trial.agentUsage = parseAgentEvents(engine, result.stdout);
         trial.exitCode = result.exitCode; trial.stopped = result.stopped;
         const grade = fixture.category === 'browser' ? { passed: await backend.gradeBrowser() } : await gradeCode(fixture, work);
+        trial.outcomePassed = grade.passed;
+        if (fixture.category !== 'browser') {
+          const candidate = await readFile(join(work, 'solution.cjs'));
+          const artifact = `${fixture.id}-${engine}-${repeat}.cjs`;
+          await mkdir(join(output, 'solutions'), { recursive: true });
+          await writeFile(join(output, 'solutions', artifact), candidate, { mode: 0o600 });
+          trial.candidate = { file: `solutions/${artifact}`, sha256: hash(candidate) };
+        } else trial.browserVersion = backend.browserVersion;
         trial.passed = grade.passed && result.exitCode === 0 && !result.stopped && trial.agentUsage.errors === 0 && proxy.usage.rejected === 0 && proxy.usage.errors === 0;
         trial.status = trial.passed ? 'PASS' : (result.stopped ?? (proxy.usage.rejected ? 'budget-exhausted' : (proxy.usage.errors || trial.agentUsage.errors ? 'agent-error' : 'outcome-failed')));
         // Summaries/booleans only; no chain of thought, raw output, endpoints or credential-bearing args.
       } catch (e) { trial.status = 'setup-error'; trial.errorCode = e.code ?? 'EVAL_SETUP_FAILED'; }
       finally {
-        trial.verifiedSeconds = (performance.now() - started) / 1000;
+        trial.elapsedSeconds = (performance.now() - started) / 1000;
+        trial.verifiedSeconds = trial.passed ? trial.elapsedSeconds : null;
         if (backend) { trial.tools = { ...backend.metrics }; await backend.close(); }
         if (proxy) { trial.providerUsage = { ...proxy.usage }; await proxy.close(); }
         await rm(root, { recursive: true, force: true });
       }
       report.trials.push(trial); await save();
-      console.log(`${fixture.id} ${engine} #${repeat}: ${trial.status} ${trial.verifiedSeconds.toFixed(1)}s requests=${trial.providerUsage.requests}`);
+      console.log(`${fixture.id} ${engine} #${repeat}: ${trial.status} ${trial.elapsedSeconds.toFixed(1)}s requests=${trial.providerUsage.requests}`);
     }
     report.complete = !cancelled && report.trials.length === repeats * selected.length * engines.length;
     report.finishedAt = new Date().toISOString(); report.totalSeconds = (performance.now() - start) / 1000; await save();
