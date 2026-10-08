@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { JSDOM } from 'jsdom';
-import { fixtures, browserHtml } from '../scripts/evaluations/fixtures.mjs';
+import { fixtures, browserHtml,browserWorkflowHtml } from '../scripts/evaluations/fixtures.mjs';
 import { cleanEnvironment, gradeCode, selfCheck, runProcess, parseAgentEvents, renderReport } from '../scripts/evaluations/runner.mjs';
 import { startBackend } from '../scripts/evaluations/backend.mjs';
 import { startProxy } from '../scripts/evaluations/proxy.mjs';
@@ -13,12 +13,12 @@ import { startProxy } from '../scripts/evaluations/proxy.mjs';
 afterEach(() => vi.unstubAllGlobals());
 describe('reproducible evaluation fixtures', () => {
   it('every code/recovery baseline fails and every reference passes independent assertions', async () => {
-    const checks = await selfCheck(); expect(checks).toHaveLength(9);
+    const checks = await selfCheck(); expect(checks).toHaveLength(12);
     expect(checks.every(c => c.baselineFails && c.referencePasses)).toBe(true);
   }, 15000);
-  it('has 12 distinct versioned tasks across code/browser/recovery', () => {
-    expect(fixtures).toHaveLength(12); expect(new Set(fixtures.map(f => f.id)).size).toBe(12);
-    expect(new Set(fixtures.map(f => f.category))).toEqual(new Set(['code', 'browser', 'recovery']));
+  it('has 16 distinct versioned tasks including miniature projects', () => {
+    expect(fixtures).toHaveLength(16); expect(new Set(fixtures.map(f => f.id)).size).toBe(16);
+    expect(new Set(fixtures.map(f => f.category))).toEqual(new Set(['code', 'browser', 'recovery', 'project']));
   });
   it('browser baseline is wrong, invalid save is refused, corrected save preserves Pine', () => {
     const dom = new JSDOM(browserHtml, { runScripts: 'dangerously' });
@@ -126,6 +126,7 @@ describe('cloud admission limits and paired request policy', () => {
       const options = { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ model: 'wrong', reasoning_effort: 'low', max_tokens: 999999, stream: true, messages: [] }) };
       const response = await fetch(`${proxy.url}/chat/completions`, options); await response.text();
       expect(sent.model).toBe('deepseek-flash'); expect(sent.max_tokens).toBe(64); expect(sent.reasoning_effort).toBe('high'); expect(sent.thinking.type).toBe('enabled');
+      expect(proxy.usage.timings).toHaveLength(1);expect(proxy.usage.timings[0].firstResponseMs).toBeGreaterThanOrEqual(0);expect(JSON.stringify(proxy.usage.timings)).not.toContain('я');
       expect(proxy.usage.input).toBe(30); expect(proxy.usage.output).toBe(4); expect(proxy.usage.responsesWithUsage).toBe(1);
       const refused = await fetch(`${proxy.url}/chat/completions`, options); expect(refused.status).toBe(403); expect(budget.requests).toBe(1);
     } finally { await proxy.close(); }
@@ -160,4 +161,23 @@ describe('cloud admission limits and paired request policy', () => {
       expect(upstreamCalls).toBe(1); expect(proxy.usage.servedModels).toEqual(['served-revision']);
     } finally { unblock(); await proxy.close(); }
   });
+});
+it('miniature project tools expose public checks while preserving protected entrypoints and held-out oracle',async()=>{
+ const f=fixtures.find(f=>f.id==='project-checkout')!,root=await mkdtemp(join(tmpdir(),'arvela-project-tools-'));
+ for(const [name,text] of Object.entries(f.files)){await mkdir(dirname(join(root,name)),{recursive:true});await writeFile(join(root,name),text as string);}
+ const backend=await startBackend({fixture:f,work:root});
+ try{
+  await expect(backend.execute('write',{path:'solution.cjs',text:'exports.checkout=()=>42;'})).rejects.toThrow('READ_ONLY_FILE');
+  expect((await backend.execute('check')).passed).toBe(false);
+  for(const [name,text] of Object.entries(f.reference))await backend.execute('write',{path:name,text});
+  expect((await backend.execute('check')).passed).toBe(true);expect((await gradeCode(f,root)).passed).toBe(true);
+  await writeFile(join(root,'README.md'),'changed authority');expect((await gradeCode(f,root)).passed).toBe(false);
+ }finally{await backend.close();await rm(root,{recursive:true,force:true});}
+});
+
+it('two-product workflow preserves distinct targets and rejects invalid input before two saves',()=>{
+ const dom=new JSDOM(browserWorkflowHtml,{runScripts:'dangerously'});try{const d=dom.window.document;
+ (d.querySelector('[aria-label="Edit Oak"]') as HTMLButtonElement).click();const input=d.querySelector('input')!;input.value='120';(d.querySelector('[aria-label="Save"]') as HTMLButtonElement).click();expect(d.querySelector('#oak')!.textContent).toBe('0');input.value='20';(d.querySelector('[aria-label="Save"]') as HTMLButtonElement).click();
+ (d.querySelector('[aria-label="Edit Pine"]') as HTMLButtonElement).click();input.value='10';(d.querySelector('[aria-label="Save"]') as HTMLButtonElement).click();expect(d.querySelector('#oak')!.textContent).toBe('20');expect(d.querySelector('#pine')!.textContent).toBe('10');expect((dom.window as any).saved).toBe(2);expect((dom.window as any).invalid).toBe(1);expect(fixtures.find(f=>f.workflow)!.requests).toBe(32);
+ }finally{dom.window.close();}
 });

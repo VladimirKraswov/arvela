@@ -1,0 +1,1852 @@
+{
+  "schemaVersion": 3,
+  "suiteVersion": "2.0.0",
+  "startedAt": "2026-10-08T18:16:21.990Z",
+  "model": "deepseek-flash",
+  "effort": "medium",
+  "memoryMode": "off",
+  "effectiveEffort": "high",
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "revisions": {
+    "../../services/hub/memory.py": "dd1f24d22f9501f3781e45b01ed7cb9d1060a88962687f49c3ff4e5e237a9845",
+    "../../services/hub/server.py": "dd201869d53f725a5d5a40b889f0a0c1804f0786240f40d8947b871d3dbb48a2",
+    "fixtures.mjs": "524d8eb5f0f3d92896384c874a2d29942e11848e9e04923c2411ea2c44507a23",
+    "project-fixtures.mjs": "2347c2219dd560f35f873013802995a11041f3ebc1be2fb57c4da06c241c738d",
+    "backend.mjs": "13fa9f87731986ebd0e759194269f8fcad02a064c73875317ab1acc2de308083",
+    "proxy.mjs": "aba1fc8f7dbd041ae1a4f7b8834c1ae101254a095a81ec5cc1f53c37d185fe30",
+    "runner.mjs": "a368c92c438724107cc1eb9787613b971d026dcb10cdeec6f761abfa76432f0a",
+    "mcp.mjs": "11995aaabc233a32ec4be79d4c4071d57d02a57c1cf1a5dc8ee11d690eec7367",
+    "pi-extension.ts": "04bb483c1507ca5efc856a2671ac1961b0102659944878497116264f2b64f8e9",
+    "memory.mjs": "5b7989daeb4ea0d51005a8601eceef4c3ac34f6ec9d21e75b6337c3d81d6e6da",
+    "memory.py": "d96a3e59848890c243d234578647e750835c0dc97d9ed18735f807ac9f697c2c"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "opencode": "1.18.18",
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 1000000,
+    "totalRequests": 300,
+    "perTrialSeconds": 180,
+    "totalSeconds": 1800
+  },
+  "trials": [
+    {
+      "fixture": "project-checkout",
+      "fixtureRevision": "30ca64f81279630b4cb1fd15358be8da94ce9650f28e3b96ffbf558ca0b9e0c7",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 25.007424291,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 56.055084000000534,
+        "checkMs": 54.55833299999995,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 12011,
+        "output": 4646,
+        "cachedInput": 10112,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 727.0880839999998,
+            "elapsedMs": 1495.476125
+          },
+          {
+            "firstResponseMs": 686.3721249999999,
+            "elapsedMs": 811.7737079999997
+          },
+          {
+            "firstResponseMs": 778.743708,
+            "elapsedMs": 1250.3313750000007
+          },
+          {
+            "firstResponseMs": 773.48675,
+            "elapsedMs": 1608.2191669999993
+          },
+          {
+            "firstResponseMs": 880.8352080000004,
+            "elapsedMs": 18413.895458
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1589,
+          "output": 215,
+          "cacheRead": 9728,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 9.307874999999967,
+      "agentMs": 24952.457333,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 43.67566699999952,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-checkout-opencode-off-1.cjs",
+        "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-checkout-opencode-off-1/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-checkout-opencode-off-1/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-checkout-opencode-off-1/solution.cjs",
+          "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+        },
+        {
+          "path": "src/pricing.cjs",
+          "file": "projects/project-checkout-opencode-off-1/src/pricing.cjs",
+          "sha256": "23bbf6991950065a12e5ddb1a822055f99d896a614eb96cbc3eabf5aaf5f57ef"
+        },
+        {
+          "path": "src/orders.cjs",
+          "file": "projects/project-checkout-opencode-off-1/src/orders.cjs",
+          "sha256": "cb529d416f0fe06ffe438baea6c2537e730557ea84d11ef7d8385166a8335760"
+        }
+      ]
+    },
+    {
+      "fixture": "project-checkout",
+      "fixtureRevision": "30ca64f81279630b4cb1fd15358be8da94ce9650f28e3b96ffbf558ca0b9e0c7",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 19.792928708,
+      "verifiedSeconds": 19.792928708,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 143.14141600000585,
+        "checkMs": 138.0975000000035,
+        "checks": 2,
+        "calls": 10,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 13631,
+        "output": 3702,
+        "cachedInput": 12032,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 807.1946250000001,
+            "elapsedMs": 1010.4277499999989
+          },
+          {
+            "firstResponseMs": 807.9659170000014,
+            "elapsedMs": 1292.634750000001
+          },
+          {
+            "firstResponseMs": 902.0119999999988,
+            "elapsedMs": 9175.008916000003
+          },
+          {
+            "firstResponseMs": 759.648874999999,
+            "elapsedMs": 3478.4720000000016
+          },
+          {
+            "firstResponseMs": 949.5560409999962,
+            "elapsedMs": 1031.3840829999972
+          },
+          {
+            "firstResponseMs": 986.7329160000008,
+            "elapsedMs": 3162.2077910000007
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 1599,
+          "output": 3702,
+          "cacheRead": 12032,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.8375420000011218,
+      "agentMs": 19717.387708,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 71.81991700000071,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/project-checkout-pi-off-1.cjs",
+        "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-checkout-pi-off-1/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-checkout-pi-off-1/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-checkout-pi-off-1/solution.cjs",
+          "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+        },
+        {
+          "path": "src/pricing.cjs",
+          "file": "projects/project-checkout-pi-off-1/src/pricing.cjs",
+          "sha256": "fad1d289223c741eef5e10d6e1a330c1c447895b0c8600ab9326645f53611cdc"
+        },
+        {
+          "path": "src/orders.cjs",
+          "file": "projects/project-checkout-pi-off-1/src/orders.cjs",
+          "sha256": "64d607f1e5adc2950771579820138358cb1462c1c8c93f38d9cd8792c9ea1c09"
+        }
+      ]
+    },
+    {
+      "fixture": "project-outbox",
+      "fixtureRevision": "490af1e92511f271ad71bc1d77caca0441579d83b1e757ca0fa5a44b13950586",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 45.02879912499999,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 95.0430839999899,
+        "checkMs": 92.52529200000572,
+        "checks": 2,
+        "calls": 10,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 23486,
+        "output": 9112,
+        "cachedInput": 21376,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 581.7022920000018,
+            "elapsedMs": 2304.9995839999974
+          },
+          {
+            "firstResponseMs": 582.7972080000036,
+            "elapsedMs": 769.9261250000054
+          },
+          {
+            "firstResponseMs": 697.5702500000043,
+            "elapsedMs": 1137.4161250000034
+          },
+          {
+            "firstResponseMs": 892.6974590000027,
+            "elapsedMs": 18145.180917000005
+          },
+          {
+            "firstResponseMs": 789.3930829999881,
+            "elapsedMs": 1685.693665999992
+          },
+          {
+            "firstResponseMs": 618.3558750000084,
+            "elapsedMs": 19632.636084000012
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1795,
+          "output": 592,
+          "cacheRead": 20992,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.6719999999986612,
+      "agentMs": 44973.500083,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 48.30241699999897,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-outbox-opencode-off-1.cjs",
+        "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-outbox-opencode-off-1/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-outbox-opencode-off-1/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-outbox-opencode-off-1/solution.cjs",
+          "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+        },
+        {
+          "path": "src/classify.cjs",
+          "file": "projects/project-outbox-opencode-off-1/src/classify.cjs",
+          "sha256": "a45e3a3d79e743ae592ebc23c0abe0f51de00cfbc0d0bd203eeaa016ae9e827b"
+        },
+        {
+          "path": "src/delivery.cjs",
+          "file": "projects/project-outbox-opencode-off-1/src/delivery.cjs",
+          "sha256": "97c5143bfd153c64d40253d2ff50ea053948abd782e1a405a0a7ab70f637971a"
+        }
+      ]
+    },
+    {
+      "fixture": "project-outbox",
+      "fixtureRevision": "490af1e92511f271ad71bc1d77caca0441579d83b1e757ca0fa5a44b13950586",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 36.504866125,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 77.16758400000981,
+        "checkMs": 72.15975000000617,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 4,
+        "input": 6908,
+        "output": 7732,
+        "cachedInput": 5888,
+        "responsesWithUsage": 4,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 502.62770899999305,
+            "elapsedMs": 686.4105419999978
+          },
+          {
+            "firstResponseMs": 579.7368330000027,
+            "elapsedMs": 1085.8680409999943
+          },
+          {
+            "firstResponseMs": 673.9903330000088,
+            "elapsedMs": 15282.193
+          },
+          {
+            "firstResponseMs": 876.0074170000007,
+            "elapsedMs": 18938.549333999996
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1020,
+          "output": 7732,
+          "cacheRead": 5888,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 2.086790999994264,
+      "agentMs": 36417.665291,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 83.3777090000076,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-outbox-pi-off-1.cjs",
+        "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-outbox-pi-off-1/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-outbox-pi-off-1/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-outbox-pi-off-1/solution.cjs",
+          "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+        },
+        {
+          "path": "src/classify.cjs",
+          "file": "projects/project-outbox-pi-off-1/src/classify.cjs",
+          "sha256": "3adfca37080f76b79bdff4408e18a8ee80c9b21900b49ff5517302c0d43c6e2e"
+        },
+        {
+          "path": "src/delivery.cjs",
+          "file": "projects/project-outbox-pi-off-1/src/delivery.cjs",
+          "sha256": "4152da6c61238badb856e5eba7e76f889459659c04c1edb0888cc360b8770651"
+        }
+      ]
+    },
+    {
+      "fixture": "project-session-router",
+      "fixtureRevision": "1199376d806c4497c3e2e20b8a73d0832d23f3a186027e74c4ff2a0fa3cbaf32",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 24.291374916999995,
+      "verifiedSeconds": 24.291374916999995,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 124.62629300000845,
+        "checkMs": 121.64725000000908,
+        "checks": 2,
+        "calls": 10,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 7,
+        "input": 25640,
+        "output": 4267,
+        "cachedInput": 23424,
+        "responsesWithUsage": 7,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 671.2030830000003,
+            "elapsedMs": 1368.680165999991
+          },
+          {
+            "firstResponseMs": 1043.9057080000057,
+            "elapsedMs": 1087.366875000007
+          },
+          {
+            "firstResponseMs": 673.3127499999828,
+            "elapsedMs": 1111.092416999978
+          },
+          {
+            "firstResponseMs": 884.3919170000008,
+            "elapsedMs": 2414.167333999998
+          },
+          {
+            "firstResponseMs": 961.1437079999887,
+            "elapsedMs": 14150.820832999976
+          },
+          {
+            "firstResponseMs": 1030.9596250000177,
+            "elapsedMs": 1045.9900830000115
+          },
+          {
+            "firstResponseMs": 791.2269579999847,
+            "elapsedMs": 1555.3555419999757
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 1912,
+          "output": 629,
+          "cacheRead": 23040,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.9709169999987353,
+      "agentMs": 24242.08529199999,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 45.563916999992216,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/project-session-router-opencode-off-1.cjs",
+        "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-session-router-opencode-off-1/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-session-router-opencode-off-1/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-session-router-opencode-off-1/solution.cjs",
+          "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+        },
+        {
+          "path": "src/scope.cjs",
+          "file": "projects/project-session-router-opencode-off-1/src/scope.cjs",
+          "sha256": "6f6bc2086b12d1f8045ecfb1b68478ca299ebdf70d08bdcc18253b85c724b635"
+        },
+        {
+          "path": "src/session.cjs",
+          "file": "projects/project-session-router-opencode-off-1/src/session.cjs",
+          "sha256": "9725be0f2f6d8a6ead3fe8431be761b09b091b82c88c1252fc0b26124aa9bd50"
+        }
+      ]
+    },
+    {
+      "fixture": "project-session-router",
+      "fixtureRevision": "1199376d806c4497c3e2e20b8a73d0832d23f3a186027e74c4ff2a0fa3cbaf32",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 22.19644279199999,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 68.76362700003665,
+        "checkMs": 65.58095900001354,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 4,
+        "input": 3635,
+        "output": 4628,
+        "cachedInput": 2688,
+        "responsesWithUsage": 4,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 524.6326249999984,
+            "elapsedMs": 650.7058749999851
+          },
+          {
+            "firstResponseMs": 839.3272500000021,
+            "elapsedMs": 1267.7929160000058
+          },
+          {
+            "firstResponseMs": 795.3995830000204,
+            "elapsedMs": 1977.9801250000019
+          },
+          {
+            "firstResponseMs": 828.1813750000147,
+            "elapsedMs": 17828.837874999997
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 947,
+          "output": 4628,
+          "cacheRead": 2688,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.9012499999953434,
+      "agentMs": 22123.578999999998,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 68.74579099999391,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-session-router-pi-off-1.cjs",
+        "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-session-router-pi-off-1/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-session-router-pi-off-1/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-session-router-pi-off-1/solution.cjs",
+          "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+        },
+        {
+          "path": "src/scope.cjs",
+          "file": "projects/project-session-router-pi-off-1/src/scope.cjs",
+          "sha256": "9a755492f0ff2af7a61b2aad5e1bea92238e43c6167f2ac74c69bb6f5981933e"
+        },
+        {
+          "path": "src/session.cjs",
+          "file": "projects/project-session-router-pi-off-1/src/session.cjs",
+          "sha256": "30069760358fdb671987013c537d845692e7fc55ff590048b3e37241e247054f"
+        }
+      ]
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "94e7aff461eb9c6d8a12a43d366030fa1c7e9b0d05e604c9a60cd849e876676d",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 21.59089712500002,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 203.8984979999077,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 17,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 18,
+        "input": 59657,
+        "output": 1080,
+        "cachedInput": 55552,
+        "responsesWithUsage": 18,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 561.6617079999996,
+            "elapsedMs": 885.3564159999951
+          },
+          {
+            "firstResponseMs": 847.7531250000175,
+            "elapsedMs": 1006.220250000013
+          },
+          {
+            "firstResponseMs": 589.3730839999916,
+            "elapsedMs": 829.9212920000136
+          },
+          {
+            "firstResponseMs": 809.9261249999981,
+            "elapsedMs": 837.9975829999894
+          },
+          {
+            "firstResponseMs": 721.1087079999852,
+            "elapsedMs": 1041.3780419999966
+          },
+          {
+            "firstResponseMs": 937.2017079999787,
+            "elapsedMs": 963.0317909999867
+          },
+          {
+            "firstResponseMs": 702.9314589999849,
+            "elapsedMs": 1111.7312089999905
+          },
+          {
+            "firstResponseMs": 680.7496669999964,
+            "elapsedMs": 709.0088749999995
+          },
+          {
+            "firstResponseMs": 792.1234159999876,
+            "elapsedMs": 901.9878749999916
+          },
+          {
+            "firstResponseMs": 903.0947920000181,
+            "elapsedMs": 930.0174170000246
+          },
+          {
+            "firstResponseMs": 663.7385829999985,
+            "elapsedMs": 1000.3650420000195
+          },
+          {
+            "firstResponseMs": 855.4833340000187,
+            "elapsedMs": 882.9217920000083
+          },
+          {
+            "firstResponseMs": 867.0271669999929,
+            "elapsedMs": 1001.4902089999814
+          },
+          {
+            "firstResponseMs": 865.2134580000129,
+            "elapsedMs": 892.1875
+          },
+          {
+            "firstResponseMs": 1005.8549999999814,
+            "elapsedMs": 1323.3391659999907
+          },
+          {
+            "firstResponseMs": 1019.7967500000086,
+            "elapsedMs": 1044.82491700002
+          },
+          {
+            "firstResponseMs": 1123.9115830000082,
+            "elapsedMs": 1287.6513750000158
+          },
+          {
+            "firstResponseMs": 937.958209000004,
+            "elapsedMs": 983.9409589999996
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 17,
+        "errors": 1,
+        "tokens": {
+          "input": 3843,
+          "output": 904,
+          "cacheRead": 55168,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1450.7275829999999,
+      "agentMs": 20138.641459000006,
+      "exitCode": 1,
+      "stopped": null,
+      "gradingMs": 1.5195830000157002,
+      "outcomePassed": false,
+      "browserVersion": "153.0.8010.12"
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "94e7aff461eb9c6d8a12a43d366030fa1c7e9b0d05e604c9a60cd849e876676d",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 18.530781208,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 165.83862300001783,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 18,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 18,
+        "input": 31113,
+        "output": 1235,
+        "cachedInput": 27520,
+        "responsesWithUsage": 18,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 562.9989169999899,
+            "elapsedMs": 794.0057500000112
+          },
+          {
+            "firstResponseMs": 869.3665829999954,
+            "elapsedMs": 1229.5750000000116
+          },
+          {
+            "firstResponseMs": 684.1939169999969,
+            "elapsedMs": 847.2841669999762
+          },
+          {
+            "firstResponseMs": 867.6788340000203,
+            "elapsedMs": 1070.8523750000168
+          },
+          {
+            "firstResponseMs": 916.5604170000006,
+            "elapsedMs": 916.7988340000156
+          },
+          {
+            "firstResponseMs": 821.9684580000176,
+            "elapsedMs": 1247.5222910000011
+          },
+          {
+            "firstResponseMs": 1002.1929170000076,
+            "elapsedMs": 1030.7127920000057
+          },
+          {
+            "firstResponseMs": 557.5159169999824,
+            "elapsedMs": 837.2942500000063
+          },
+          {
+            "firstResponseMs": 636.0982499999809,
+            "elapsedMs": 661.8796659999934
+          },
+          {
+            "firstResponseMs": 703.7536669999827,
+            "elapsedMs": 1146.971499999985
+          },
+          {
+            "firstResponseMs": 853.2358330000134,
+            "elapsedMs": 880.5564580000064
+          },
+          {
+            "firstResponseMs": 1037.8576250000042,
+            "elapsedMs": 1252.7135420000122
+          },
+          {
+            "firstResponseMs": 835.6756670000032,
+            "elapsedMs": 865.4212089999928
+          },
+          {
+            "firstResponseMs": 862.2376660000009,
+            "elapsedMs": 1196.1968750000233
+          },
+          {
+            "firstResponseMs": 822.8944579999952,
+            "elapsedMs": 841.3054160000174
+          },
+          {
+            "firstResponseMs": 491.5994580000115,
+            "elapsedMs": 882.9400000000023
+          },
+          {
+            "firstResponseMs": 600.7547499999928,
+            "elapsedMs": 612.7421249999898
+          },
+          {
+            "firstResponseMs": 926.6608340000093,
+            "elapsedMs": 1066.0874590000021
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 19,
+        "errors": 1,
+        "tokens": {
+          "input": 3593,
+          "output": 1235,
+          "cacheRead": 27520,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 558.6957080000138,
+      "agentMs": 17967.8045,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 4.273583000001963,
+      "outcomePassed": true,
+      "browserVersion": "153.0.8010.12"
+    },
+    {
+      "fixture": "project-checkout",
+      "fixtureRevision": "30ca64f81279630b4cb1fd15358be8da94ce9650f28e3b96ffbf558ca0b9e0c7",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 23.127503167000018,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 72.33683199997176,
+        "checkMs": 69.6160830000008,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 4,
+        "input": 4154,
+        "output": 5019,
+        "cachedInput": 3328,
+        "responsesWithUsage": 4,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 534.1797499999811,
+            "elapsedMs": 729.5732919999864
+          },
+          {
+            "firstResponseMs": 603.4852920000267,
+            "elapsedMs": 1067.0649590000103
+          },
+          {
+            "firstResponseMs": 872.3552909999853,
+            "elapsedMs": 3469.4671659999876
+          },
+          {
+            "firstResponseMs": 889.0431669999962,
+            "elapsedMs": 17395.291041999997
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 826,
+          "output": 5019,
+          "cacheRead": 3328,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.6398750000225846,
+      "agentMs": 23048.150374999997,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 63.81500000000233,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-checkout-pi-off-2.cjs",
+        "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-checkout-pi-off-2/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-checkout-pi-off-2/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-checkout-pi-off-2/solution.cjs",
+          "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+        },
+        {
+          "path": "src/pricing.cjs",
+          "file": "projects/project-checkout-pi-off-2/src/pricing.cjs",
+          "sha256": "23bbf6991950065a12e5ddb1a822055f99d896a614eb96cbc3eabf5aaf5f57ef"
+        },
+        {
+          "path": "src/orders.cjs",
+          "file": "projects/project-checkout-pi-off-2/src/orders.cjs",
+          "sha256": "cb529d416f0fe06ffe438baea6c2537e730557ea84d11ef7d8385166a8335760"
+        }
+      ]
+    },
+    {
+      "fixture": "project-checkout",
+      "fixtureRevision": "30ca64f81279630b4cb1fd15358be8da94ce9650f28e3b96ffbf558ca0b9e0c7",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 23.88240212499999,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 51.25049899998703,
+        "checkMs": 49.77974999998696,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11890,
+        "output": 4396,
+        "cachedInput": 10240,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 764.9834160000028,
+            "elapsedMs": 964.75991600001
+          },
+          {
+            "firstResponseMs": 743.5670419999806,
+            "elapsedMs": 885.674417000002
+          },
+          {
+            "firstResponseMs": 782.6058330000087,
+            "elapsedMs": 1507.5858750000189
+          },
+          {
+            "firstResponseMs": 1053.6473750000005,
+            "elapsedMs": 1240.6613329999964
+          },
+          {
+            "firstResponseMs": 522.389124999987,
+            "elapsedMs": 17876.604624999978
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1468,
+          "output": 215,
+          "cacheRead": 9728,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.6074169999919832,
+      "agentMs": 23834.79658299999,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 44.514541999960784,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-checkout-opencode-off-2.cjs",
+        "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-checkout-opencode-off-2/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-checkout-opencode-off-2/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-checkout-opencode-off-2/solution.cjs",
+          "sha256": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f"
+        },
+        {
+          "path": "src/pricing.cjs",
+          "file": "projects/project-checkout-opencode-off-2/src/pricing.cjs",
+          "sha256": "23bbf6991950065a12e5ddb1a822055f99d896a614eb96cbc3eabf5aaf5f57ef"
+        },
+        {
+          "path": "src/orders.cjs",
+          "file": "projects/project-checkout-opencode-off-2/src/orders.cjs",
+          "sha256": "cb529d416f0fe06ffe438baea6c2537e730557ea84d11ef7d8385166a8335760"
+        }
+      ]
+    },
+    {
+      "fixture": "project-outbox",
+      "fixtureRevision": "490af1e92511f271ad71bc1d77caca0441579d83b1e757ca0fa5a44b13950586",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 22.20735579100001,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 75.13045799999963,
+        "checkMs": 72.28874999994878,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 4,
+        "input": 3530,
+        "output": 4371,
+        "cachedInput": 2688,
+        "responsesWithUsage": 4,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 830.289999999979,
+            "elapsedMs": 901.7914589999709
+          },
+          {
+            "firstResponseMs": 784.4412909999955,
+            "elapsedMs": 1265.1722910000244
+          },
+          {
+            "firstResponseMs": 706.2782080000034,
+            "elapsedMs": 863.7539170000236
+          },
+          {
+            "firstResponseMs": 907.3707090000389,
+            "elapsedMs": 18714.947459000046
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 842,
+          "output": 4371,
+          "cacheRead": 2688,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.765625,
+      "agentMs": 22139.467917,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 64.45183299999917,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-outbox-pi-off-2.cjs",
+        "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-outbox-pi-off-2/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-outbox-pi-off-2/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-outbox-pi-off-2/solution.cjs",
+          "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+        },
+        {
+          "path": "src/classify.cjs",
+          "file": "projects/project-outbox-pi-off-2/src/classify.cjs",
+          "sha256": "3adfca37080f76b79bdff4408e18a8ee80c9b21900b49ff5517302c0d43c6e2e"
+        },
+        {
+          "path": "src/delivery.cjs",
+          "file": "projects/project-outbox-pi-off-2/src/delivery.cjs",
+          "sha256": "4152da6c61238badb856e5eba7e76f889459659c04c1edb0888cc360b8770651"
+        }
+      ]
+    },
+    {
+      "fixture": "project-outbox",
+      "fixtureRevision": "490af1e92511f271ad71bc1d77caca0441579d83b1e757ca0fa5a44b13950586",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 54.94441275000002,
+      "verifiedSeconds": 54.94441275000002,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 165.98891699989326,
+        "checkMs": 163.3440840000403,
+        "checks": 3,
+        "calls": 14,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 9,
+        "input": 53039,
+        "output": 10319,
+        "cachedInput": 50304,
+        "responsesWithUsage": 9,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 942.057415999996,
+            "elapsedMs": 2890.4192909999983
+          },
+          {
+            "firstResponseMs": 540.8568749999977,
+            "elapsedMs": 759.2862919999752
+          },
+          {
+            "firstResponseMs": 826.2749169999734,
+            "elapsedMs": 1294.7297919999692
+          },
+          {
+            "firstResponseMs": 977.9651250000461,
+            "elapsedMs": 12500.908125000016
+          },
+          {
+            "firstResponseMs": 1031.7207920000073,
+            "elapsedMs": 1117.4003749999683
+          },
+          {
+            "firstResponseMs": 550.3954590000212,
+            "elapsedMs": 14226.709167000023
+          },
+          {
+            "firstResponseMs": 933.6748340000049,
+            "elapsedMs": 10535.879125000036
+          },
+          {
+            "firstResponseMs": 1159.6916250000359,
+            "elapsedMs": 1406.671708000009
+          },
+          {
+            "firstResponseMs": 807.6429159999825,
+            "elapsedMs": 8651.86933299998
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 8,
+        "errors": 0,
+        "tokens": {
+          "input": 2548,
+          "output": 1230,
+          "cacheRead": 49792,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.504040999978315,
+      "agentMs": 54880.876624999975,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 47.71920799999498,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/project-outbox-opencode-off-2.cjs",
+        "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-outbox-opencode-off-2/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-outbox-opencode-off-2/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-outbox-opencode-off-2/solution.cjs",
+          "sha256": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102"
+        },
+        {
+          "path": "src/classify.cjs",
+          "file": "projects/project-outbox-opencode-off-2/src/classify.cjs",
+          "sha256": "f3a28ec75a898bf40cc093dad494e6a0ab4e06622a46e16403a51d5f0a49292d"
+        },
+        {
+          "path": "src/delivery.cjs",
+          "file": "projects/project-outbox-opencode-off-2/src/delivery.cjs",
+          "sha256": "91a3dd0fef90171e2e3dd47073a2449524d5733e63bb40861a66e74acf1590da"
+        }
+      ]
+    },
+    {
+      "fixture": "project-session-router",
+      "fixtureRevision": "1199376d806c4497c3e2e20b8a73d0832d23f3a186027e74c4ff2a0fa3cbaf32",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 21.77840758300002,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 75.97521000012057,
+        "checkMs": 73.28266700002132,
+        "checks": 1,
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 4,
+        "input": 3407,
+        "output": 4379,
+        "cachedInput": 2560,
+        "responsesWithUsage": 4,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 828.2232080000103,
+            "elapsedMs": 994.6761660000193
+          },
+          {
+            "firstResponseMs": 735.846790999989,
+            "elapsedMs": 1209.4629580000183
+          },
+          {
+            "firstResponseMs": 698.8803750000079,
+            "elapsedMs": 987.8354160000454
+          },
+          {
+            "firstResponseMs": 862.1055000000051,
+            "elapsedMs": 18104.050749999995
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 847,
+          "output": 4379,
+          "cacheRead": 2560,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.7645829999819398,
+      "agentMs": 21698.708832999982,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 76.12387499999022,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-session-router-pi-off-2.cjs",
+        "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-session-router-pi-off-2/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-session-router-pi-off-2/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-session-router-pi-off-2/solution.cjs",
+          "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+        },
+        {
+          "path": "src/scope.cjs",
+          "file": "projects/project-session-router-pi-off-2/src/scope.cjs",
+          "sha256": "9a755492f0ff2af7a61b2aad5e1bea92238e43c6167f2ac74c69bb6f5981933e"
+        },
+        {
+          "path": "src/session.cjs",
+          "file": "projects/project-session-router-pi-off-2/src/session.cjs",
+          "sha256": "30069760358fdb671987013c537d845692e7fc55ff590048b3e37241e247054f"
+        }
+      ]
+    },
+    {
+      "fixture": "project-session-router",
+      "fixtureRevision": "1199376d806c4497c3e2e20b8a73d0832d23f3a186027e74c4ff2a0fa3cbaf32",
+      "category": "project",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": false,
+      "status": "outcome-failed",
+      "elapsedSeconds": 22.179103042000033,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 98.69216699997196,
+        "checkMs": 96.3275840000133,
+        "checks": 2,
+        "calls": 10,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 21182,
+        "output": 3784,
+        "cachedInput": 19328,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 916.4515830000164,
+            "elapsedMs": 1508.250166999991
+          },
+          {
+            "firstResponseMs": 672.8252080000238,
+            "elapsedMs": 872.5056660000118
+          },
+          {
+            "firstResponseMs": 679.622166999965,
+            "elapsedMs": 1145.4585829999996
+          },
+          {
+            "firstResponseMs": 733.7904169999529,
+            "elapsedMs": 14159.709666999988
+          },
+          {
+            "firstResponseMs": 982.9902080000029,
+            "elapsedMs": 1319.9951249999576
+          },
+          {
+            "firstResponseMs": 768.5464159999974,
+            "elapsedMs": 1783.1847079999861
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1678,
+          "output": 673,
+          "cacheRead": 18816,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.695084000006318,
+      "agentMs": 22082.355666999996,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 45.38279100001091,
+      "outcomePassed": false,
+      "candidate": {
+        "file": "solutions/project-session-router-opencode-off-2.cjs",
+        "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+      },
+      "candidateFiles": [
+        {
+          "path": "README.md",
+          "file": "projects/project-session-router-opencode-off-2/README.md",
+          "sha256": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914"
+        },
+        {
+          "path": "docs/architecture.md",
+          "file": "projects/project-session-router-opencode-off-2/docs/architecture.md",
+          "sha256": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b"
+        },
+        {
+          "path": "solution.cjs",
+          "file": "projects/project-session-router-opencode-off-2/solution.cjs",
+          "sha256": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7"
+        },
+        {
+          "path": "src/scope.cjs",
+          "file": "projects/project-session-router-opencode-off-2/src/scope.cjs",
+          "sha256": "f60edbad0a1523beae4c8d53edaa94952eea6cdd6d505287826d30e309929728"
+        },
+        {
+          "path": "src/session.cjs",
+          "file": "projects/project-session-router-opencode-off-2/src/session.cjs",
+          "sha256": "98609febeaaf71fb2b13a999c4ff80c4a7c6068f2fe1f65e42a1f8cd748316f3"
+        }
+      ]
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "94e7aff461eb9c6d8a12a43d366030fa1c7e9b0d05e604c9a60cd849e876676d",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 19.654619999999994,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 230.00558200012892,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 18,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 18,
+        "input": 31854,
+        "output": 1403,
+        "cachedInput": 28416,
+        "responsesWithUsage": 18,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 760.1453749999637,
+            "elapsedMs": 961.8829169999808
+          },
+          {
+            "firstResponseMs": 617.8350420000497,
+            "elapsedMs": 982.7427090000128
+          },
+          {
+            "firstResponseMs": 681.5987919999752,
+            "elapsedMs": 843.6236249999492
+          },
+          {
+            "firstResponseMs": 919.4202499999665,
+            "elapsedMs": 1127.843165999977
+          },
+          {
+            "firstResponseMs": 739.8540829999838,
+            "elapsedMs": 812.0330829999875
+          },
+          {
+            "firstResponseMs": 539.5791660000104,
+            "elapsedMs": 1028.9310410000035
+          },
+          {
+            "firstResponseMs": 696.8542080000043,
+            "elapsedMs": 697.3510419999948
+          },
+          {
+            "firstResponseMs": 909.5004160000244,
+            "elapsedMs": 1174.0923750000075
+          },
+          {
+            "firstResponseMs": 597.6479580000159,
+            "elapsedMs": 628.3543749999953
+          },
+          {
+            "firstResponseMs": 682.7567080000299,
+            "elapsedMs": 1171.7755830000388
+          },
+          {
+            "firstResponseMs": 937.6592090000049,
+            "elapsedMs": 964.6083750000107
+          },
+          {
+            "firstResponseMs": 958.2999999999884,
+            "elapsedMs": 1177.4704589999747
+          },
+          {
+            "firstResponseMs": 845.4719170000171,
+            "elapsedMs": 873.7894170000218
+          },
+          {
+            "firstResponseMs": 791.7243749999907,
+            "elapsedMs": 1057.9220000000205
+          },
+          {
+            "firstResponseMs": 904.353833000001,
+            "elapsedMs": 907.6389169999748
+          },
+          {
+            "firstResponseMs": 934.568249999953,
+            "elapsedMs": 1307.2991249999614
+          },
+          {
+            "firstResponseMs": 712.3988330000429,
+            "elapsedMs": 713.1617079999996
+          },
+          {
+            "firstResponseMs": 710.1219169999822,
+            "elapsedMs": 1304.701000000001
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 19,
+        "errors": 1,
+        "tokens": {
+          "input": 3438,
+          "output": 1403,
+          "cacheRead": 28416,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1259.2390829999931,
+      "agentMs": 18389.068749999977,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 6.306084000039846,
+      "outcomePassed": true,
+      "browserVersion": "153.0.8010.12"
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "94e7aff461eb9c6d8a12a43d366030fa1c7e9b0d05e604c9a60cd849e876676d",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 21.74882379200001,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 158.7020800000173,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 17,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 18,
+        "input": 59814,
+        "output": 1310,
+        "cachedInput": 55808,
+        "responsesWithUsage": 18,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 872.8564999999944,
+            "elapsedMs": 2107.1748329999973
+          },
+          {
+            "firstResponseMs": 436.90608300000895,
+            "elapsedMs": 608.9325829999871
+          },
+          {
+            "firstResponseMs": 745.7874590000138,
+            "elapsedMs": 963.5745420000167
+          },
+          {
+            "firstResponseMs": 775.4076670000213,
+            "elapsedMs": 916.0784170000115
+          },
+          {
+            "firstResponseMs": 684.5537920000497,
+            "elapsedMs": 1029.9704999999958
+          },
+          {
+            "firstResponseMs": 787.9274999999907,
+            "elapsedMs": 815.2150839999667
+          },
+          {
+            "firstResponseMs": 564.9011250000331,
+            "elapsedMs": 1012.2260419999948
+          },
+          {
+            "firstResponseMs": 1029.859083999996,
+            "elapsedMs": 1057.126209000009
+          },
+          {
+            "firstResponseMs": 843.6104999999516,
+            "elapsedMs": 1023.2324999999837
+          },
+          {
+            "firstResponseMs": 874.2579159999732,
+            "elapsedMs": 874.5509580000071
+          },
+          {
+            "firstResponseMs": 859.0415829999838,
+            "elapsedMs": 1320.1956670000218
+          },
+          {
+            "firstResponseMs": 1009.8716669999994,
+            "elapsedMs": 1034.5891669999692
+          },
+          {
+            "firstResponseMs": 1047.4170000000158,
+            "elapsedMs": 1171.1043340000324
+          },
+          {
+            "firstResponseMs": 1132.9387920000008,
+            "elapsedMs": 1157.6008750000037
+          },
+          {
+            "firstResponseMs": 700.3977500000037,
+            "elapsedMs": 1056.9517500000075
+          },
+          {
+            "firstResponseMs": 999.1515420000069,
+            "elapsedMs": 1023.3727090000175
+          },
+          {
+            "firstResponseMs": 1290.9894579999964,
+            "elapsedMs": 1419.898125000007
+          },
+          {
+            "firstResponseMs": 850.9374160000007,
+            "elapsedMs": 877.0271250000224
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 17,
+        "errors": 1,
+        "tokens": {
+          "input": 3872,
+          "output": 906,
+          "cacheRead": 55296,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 520.7937089999905,
+      "agentMs": 21226.710667000036,
+      "exitCode": 1,
+      "stopped": null,
+      "gradingMs": 1.315999999991618,
+      "outcomePassed": false,
+      "browserVersion": "153.0.8010.12"
+    }
+  ],
+  "budget": {
+    "requests": 136,
+    "input": 364951,
+    "output": 71383
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T18:23:28.649Z",
+  "totalSeconds": 426.661548375
+}

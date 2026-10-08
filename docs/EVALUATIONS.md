@@ -131,3 +131,40 @@ npm run eval:live -- --memory compare --cases zero-value,idempotent-usage,stale-
 speed/quality benefit, so app automatic context preparation stays unimplemented.
 The eval adapter and native MCP differ in transport; compare trends, not a
 claim of native latency. Native SDK/Pi/OpenCode acceptance is separate.
+
+## M44 miniature projects (suite 2.0.0, report schema 3)
+
+The suite now has 16 tasks: the original 12 plus three synthetic multi-module
+projects and a two-product browser workflow with validation and stale-state
+recovery. They are miniature projects (five files each), not large-repository
+benchmarks. The three domains exercise checkout arithmetic/validation/idempotence,
+durable outbox delivery/uncertainty and engine/server/session routing/generation.
+
+Each project has protected README/architecture/entrypoint files, editable domain
+modules, a bounded `check` tool with public smoke assertions, and additional
+held-out grading outside the agent-visible files. Protected files are checked
+again during grading. Both engines receive the same file/check capability policy;
+there is no arbitrary shell, installed app, owner checkout or live database.
+Each project trial retains all five candidate files with SHA256 (not merely its
+entrypoint). Public check success is not a substitute for held-out acceptance.
+
+```sh
+npm run eval:live -- --cases project-checkout,project-outbox,project-session-router,browser-workflow \
+  --repeats 2 --timeout 180 --total-timeout 1800 \
+  --playwright-module /absolute/path/to/playwright/index.mjs \
+  --browser-executable /absolute/path/to/chromium \
+  --output .local/evaluations/projects
+```
+
+Schema 3 retains full elapsed-to-grading and successful verified time separately,
+plus setup, CLI execution and grading phases. Tool durations/check durations and
+provider request first-content/elapsed timings are numeric only; they are not
+summed into elapsed (overlap/other setup may exist). First-content timing is
+observed at the evaluation gateway, includes visible reasoning/tool proposals,
+and does not claim isolated model TTFT/prefill. Internal title calls remain in
+provider request/usage totals. Unreported usage/response timestamps remain unknown.
+
+Compare agents on identical new tasks/repetitions. Do not compare their absolute
+medians with M39's single-function fixtures and claim a regression or acceleration.
+The browser workflow uses real isolated Chromium and semantic refs, not installed
+Arvela mouse-emulation acceptance. No production model or owner project is tested.

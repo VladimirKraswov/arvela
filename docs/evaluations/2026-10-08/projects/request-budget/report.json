@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 3,
+  "suiteVersion": "2.0.1",
+  "startedAt": "2026-10-08T18:25:09.586Z",
+  "model": "deepseek-flash",
+  "effort": "medium",
+  "memoryMode": "off",
+  "effectiveEffort": "high",
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "revisions": {
+    "../../services/hub/memory.py": "dd1f24d22f9501f3781e45b01ed7cb9d1060a88962687f49c3ff4e5e237a9845",
+    "../../services/hub/server.py": "dd201869d53f725a5d5a40b889f0a0c1804f0786240f40d8947b871d3dbb48a2",
+    "fixtures.mjs": "cd7cb64153568626c8fb3c4c1da99b7d8f4786eaf19f0a61da330718428ea181",
+    "project-fixtures.mjs": "2347c2219dd560f35f873013802995a11041f3ebc1be2fb57c4da06c241c738d",
+    "backend.mjs": "13fa9f87731986ebd0e759194269f8fcad02a064c73875317ab1acc2de308083",
+    "proxy.mjs": "aba1fc8f7dbd041ae1a4f7b8834c1ae101254a095a81ec5cc1f53c37d185fe30",
+    "runner.mjs": "ddecbf6a224966b87653891befa11438ef23ff6b613cd1381d7fb226f5622437",
+    "mcp.mjs": "11995aaabc233a32ec4be79d4c4071d57d02a57c1cf1a5dc8ee11d690eec7367",
+    "pi-extension.ts": "04bb483c1507ca5efc856a2671ac1961b0102659944878497116264f2b64f8e9",
+    "memory.mjs": "5b7989daeb4ea0d51005a8601eceef4c3ac34f6ec9d21e75b6337c3d81d6e6da",
+    "memory.py": "d96a3e59848890c243d234578647e750835c0dc97d9ed18735f807ac9f697c2c"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "opencode": "1.18.18",
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 500000,
+    "totalRequests": 150,
+    "perTrialSeconds": 180,
+    "totalSeconds": 900
+  },
+  "trials": [
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "b06cd83ca3fac554db1e41c4b4f9095f390de53a560e19f9ae23e89ad4c476a7",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 21.077920457999998,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 171.22500000000582,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 17,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 18,
+        "input": 59430,
+        "output": 996,
+        "cachedInput": 55424,
+        "responsesWithUsage": 18,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 1010.3486250000001,
+            "elapsedMs": 1021.8653750000003
+          },
+          {
+            "firstResponseMs": 978.3500830000003,
+            "elapsedMs": 1192.7430830000003
+          },
+          {
+            "firstResponseMs": 614.6471249999995,
+            "elapsedMs": 880.2808749999995
+          },
+          {
+            "firstResponseMs": 689.4940829999996,
+            "elapsedMs": 818.4107919999997
+          },
+          {
+            "firstResponseMs": 918.2624580000002,
+            "elapsedMs": 1053.0959579999999
+          },
+          {
+            "firstResponseMs": 973.8124589999998,
+            "elapsedMs": 974.1642089999996
+          },
+          {
+            "firstResponseMs": 617.5335410000007,
+            "elapsedMs": 989.1490410000006
+          },
+          {
+            "firstResponseMs": 1048.9223330000004,
+            "elapsedMs": 1076.5761660000007
+          },
+          {
+            "firstResponseMs": 850.7391250000001,
+            "elapsedMs": 1137.03125
+          },
+          {
+            "firstResponseMs": 1273.270290999999,
+            "elapsedMs": 1289.400458
+          },
+          {
+            "firstResponseMs": 868.4190420000014,
+            "elapsedMs": 1187.5935840000002
+          },
+          {
+            "firstResponseMs": 893.6256669999984,
+            "elapsedMs": 922.4860840000001
+          },
+          {
+            "firstResponseMs": 804.0340829999986,
+            "elapsedMs": 940.1027499999982
+          },
+          {
+            "firstResponseMs": 707.0824160000011,
+            "elapsedMs": 733.0110410000016
+          },
+          {
+            "firstResponseMs": 982.2796659999985,
+            "elapsedMs": 1261.875
+          },
+          {
+            "firstResponseMs": 899.8304580000004,
+            "elapsedMs": 929.3795830000017
+          },
+          {
+            "firstResponseMs": 813.0334579999981,
+            "elapsedMs": 994.2482920000002
+          },
+          {
+            "firstResponseMs": 1066.543708000001,
+            "elapsedMs": 1112.8893329999992
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 17,
+        "errors": 1,
+        "tokens": {
+          "input": 3872,
+          "output": 891,
+          "cacheRead": 54912,
+          "cacheWrite": 0
+        }
+      },
+      "limits": {
+        "requests": 32,
+        "outputTokens": 4096,
+        "tokens": 60000,
+        "requestBytes": 100000,
+        "totalTokens": 500000,
+        "totalRequests": 150,
+        "perTrialSeconds": 180,
+        "totalSeconds": 900
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 798.1545,
+      "agentMs": 20278.494749999998,
+      "exitCode": 1,
+      "stopped": null,
+      "gradingMs": 1.2615829999995185,
+      "outcomePassed": false,
+      "browserVersion": "153.0.8010.12"
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "b06cd83ca3fac554db1e41c4b4f9095f390de53a560e19f9ae23e89ad4c476a7",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 21.820656542000002,
+      "verifiedSeconds": 21.820656542000002,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 227.91575000000375,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 19,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 20,
+        "input": 38001,
+        "output": 1455,
+        "cachedInput": 34176,
+        "responsesWithUsage": 20,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 747.0567499999997,
+            "elapsedMs": 912.3579590000008
+          },
+          {
+            "firstResponseMs": 828.2581250000003,
+            "elapsedMs": 1394.639916
+          },
+          {
+            "firstResponseMs": 717.3606249999975,
+            "elapsedMs": 910.8554159999985
+          },
+          {
+            "firstResponseMs": 587.9444589999985,
+            "elapsedMs": 902.5835420000003
+          },
+          {
+            "firstResponseMs": 637.9071669999976,
+            "elapsedMs": 818.7687919999989
+          },
+          {
+            "firstResponseMs": 646.7071670000005,
+            "elapsedMs": 1120.965541999998
+          },
+          {
+            "firstResponseMs": 791.7520000000004,
+            "elapsedMs": 818.8846249999988
+          },
+          {
+            "firstResponseMs": 518.07575,
+            "elapsedMs": 874.530791000001
+          },
+          {
+            "firstResponseMs": 930.085916,
+            "elapsedMs": 956.8147499999977
+          },
+          {
+            "firstResponseMs": 818.6823750000003,
+            "elapsedMs": 1194.2516250000008
+          },
+          {
+            "firstResponseMs": 1078.6666669999977,
+            "elapsedMs": 1104.3713329999955
+          },
+          {
+            "firstResponseMs": 728.9024999999965,
+            "elapsedMs": 1074.3225420000017
+          },
+          {
+            "firstResponseMs": 793.1884169999976,
+            "elapsedMs": 823.2546670000011
+          },
+          {
+            "firstResponseMs": 745.6160840000011,
+            "elapsedMs": 1067.9024999999965
+          },
+          {
+            "firstResponseMs": 1190.637499999997,
+            "elapsedMs": 1218.5089579999985
+          },
+          {
+            "firstResponseMs": 566.6796660000036,
+            "elapsedMs": 914.5218330000062
+          },
+          {
+            "firstResponseMs": 999.0821659999929,
+            "elapsedMs": 1026.5326249999998
+          },
+          {
+            "firstResponseMs": 772.559583000002,
+            "elapsedMs": 1088.4711250000037
+          },
+          {
+            "firstResponseMs": 982.7547919999997,
+            "elapsedMs": 1010.2790840000016
+          },
+          {
+            "firstResponseMs": 927.0118749999965,
+            "elapsedMs": 1404.0619579999984
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 20,
+        "errors": 0,
+        "tokens": {
+          "input": 3825,
+          "output": 1455,
+          "cacheRead": 34176,
+          "cacheWrite": 0
+        }
+      },
+      "limits": {
+        "requests": 32,
+        "outputTokens": 4096,
+        "tokens": 60000,
+        "requestBytes": 100000,
+        "totalTokens": 500000,
+        "totalRequests": 150,
+        "perTrialSeconds": 180,
+        "totalSeconds": 900
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 526.9802080000009,
+      "agentMs": 21290.423208,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 3.2462500000037835,
+      "outcomePassed": true,
+      "browserVersion": "153.0.8010.12"
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "b06cd83ca3fac554db1e41c4b4f9095f390de53a560e19f9ae23e89ad4c476a7",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 20.793431290999994,
+      "verifiedSeconds": 20.793431290999994,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 227.2964979999815,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 19,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 20,
+        "input": 37592,
+        "output": 1424,
+        "cachedInput": 33792,
+        "responsesWithUsage": 20,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 691.6526660000018,
+            "elapsedMs": 859.2382500000022
+          },
+          {
+            "firstResponseMs": 685.4385420000035,
+            "elapsedMs": 914.4276250000039
+          },
+          {
+            "firstResponseMs": 553.2999169999966,
+            "elapsedMs": 770.7162919999973
+          },
+          {
+            "firstResponseMs": 631.1494999999995,
+            "elapsedMs": 928.130624999998
+          },
+          {
+            "firstResponseMs": 729.0785419999957,
+            "elapsedMs": 756.661457999995
+          },
+          {
+            "firstResponseMs": 767.151082999997,
+            "elapsedMs": 1589.093832999999
+          },
+          {
+            "firstResponseMs": 861.0508339999942,
+            "elapsedMs": 894.8786249999976
+          },
+          {
+            "firstResponseMs": 533.765833999998,
+            "elapsedMs": 827.1090419999964
+          },
+          {
+            "firstResponseMs": 856.0767919999998,
+            "elapsedMs": 884.362457999996
+          },
+          {
+            "firstResponseMs": 708.1774579999983,
+            "elapsedMs": 1123.1596659999996
+          },
+          {
+            "firstResponseMs": 824.736874999995,
+            "elapsedMs": 851.4729579999985
+          },
+          {
+            "firstResponseMs": 859.7699589999975,
+            "elapsedMs": 909.3218749999942
+          },
+          {
+            "firstResponseMs": 695.3948749999981,
+            "elapsedMs": 724.896249999998
+          },
+          {
+            "firstResponseMs": 765.351208,
+            "elapsedMs": 1077.3675000000003
+          },
+          {
+            "firstResponseMs": 1003.4562500000029,
+            "elapsedMs": 1031.9950000000026
+          },
+          {
+            "firstResponseMs": 851.913916999998,
+            "elapsedMs": 1018.7873749999999
+          },
+          {
+            "firstResponseMs": 977.007832999996,
+            "elapsedMs": 988.8885829999999
+          },
+          {
+            "firstResponseMs": 764.8025000000052,
+            "elapsedMs": 869.2352920000048
+          },
+          {
+            "firstResponseMs": 723.5832089999967,
+            "elapsedMs": 753.1787089999998
+          },
+          {
+            "firstResponseMs": 1021.7350000000006,
+            "elapsedMs": 1591.7790840000016
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 20,
+        "errors": 0,
+        "tokens": {
+          "input": 3800,
+          "output": 1424,
+          "cacheRead": 33792,
+          "cacheWrite": 0
+        }
+      },
+      "limits": {
+        "requests": 32,
+        "outputTokens": 4096,
+        "tokens": 60000,
+        "requestBytes": 100000,
+        "totalTokens": 500000,
+        "totalRequests": 150,
+        "perTrialSeconds": 180,
+        "totalSeconds": 900
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 661.7635410000003,
+      "agentMs": 20125.116416999997,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 6.543874999995751,
+      "outcomePassed": true,
+      "browserVersion": "153.0.8010.12"
+    },
+    {
+      "fixture": "browser-workflow",
+      "fixtureRevision": "b06cd83ca3fac554db1e41c4b4f9095f390de53a560e19f9ae23e89ad4c476a7",
+      "category": "browser",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": false,
+      "status": "budget-exhausted",
+      "elapsedSeconds": 20.627087250000002,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 158.3753770000476,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 17,
+        "errors": 1,
+        "staleRefusals": 1,
+        "validationErrors": 1,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 18,
+        "input": 59239,
+        "output": 1093,
+        "cachedInput": 54656,
+        "responsesWithUsage": 18,
+        "rejected": 1,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 682.8011249999981,
+            "elapsedMs": 1280.4365419999958
+          },
+          {
+            "firstResponseMs": 632.3288330000069,
+            "elapsedMs": 750.7641670000012
+          },
+          {
+            "firstResponseMs": 720.6956250000076,
+            "elapsedMs": 1032.0210420000076
+          },
+          {
+            "firstResponseMs": 787.7682910000003,
+            "elapsedMs": 951.2384159999929
+          },
+          {
+            "firstResponseMs": 1034.361042000004,
+            "elapsedMs": 1173.1407920000056
+          },
+          {
+            "firstResponseMs": 811.2534999999916,
+            "elapsedMs": 863.6763329999958
+          },
+          {
+            "firstResponseMs": 790.5244999999995,
+            "elapsedMs": 1123.6081669999985
+          },
+          {
+            "firstResponseMs": 1054.8338749999966,
+            "elapsedMs": 1082.6036250000034
+          },
+          {
+            "firstResponseMs": 735.1717079999944,
+            "elapsedMs": 861.3292079999956
+          },
+          {
+            "firstResponseMs": 1018.6814169999998,
+            "elapsedMs": 1026.564583000014
+          },
+          {
+            "firstResponseMs": 863.2146670000075,
+            "elapsedMs": 1229.1889579999988
+          },
+          {
+            "firstResponseMs": 827.5421670000069,
+            "elapsedMs": 856.6650000000081
+          },
+          {
+            "firstResponseMs": 936.3898749999935,
+            "elapsedMs": 1073.997583999997
+          },
+          {
+            "firstResponseMs": 986.1099160000012,
+            "elapsedMs": 1017.5853329999954
+          },
+          {
+            "firstResponseMs": 846.9344169999968,
+            "elapsedMs": 1133.1798750000016
+          },
+          {
+            "firstResponseMs": 816.8705420000042,
+            "elapsedMs": 840.7701249999955
+          },
+          {
+            "firstResponseMs": 1184.2698329999985,
+            "elapsedMs": 1322.1515000000072
+          },
+          {
+            "firstResponseMs": 780.6258329999982,
+            "elapsedMs": 806.8584159999882
+          }
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 17,
+        "errors": 1,
+        "tokens": {
+          "input": 4449,
+          "output": 891,
+          "cacheRead": 54144,
+          "cacheWrite": 0
+        }
+      },
+      "limits": {
+        "requests": 32,
+        "outputTokens": 4096,
+        "tokens": 60000,
+        "requestBytes": 100000,
+        "totalTokens": 500000,
+        "totalRequests": 150,
+        "perTrialSeconds": 180,
+        "totalSeconds": 900
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 497.8208339999983,
+      "agentMs": 20128.054832999995,
+      "exitCode": 1,
+      "stopped": null,
+      "gradingMs": 1.2062910000095144,
+      "outcomePassed": false,
+      "browserVersion": "153.0.8010.12"
+    }
+  ],
+  "budget": {
+    "requests": 76,
+    "input": 194262,
+    "output": 4968
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T18:26:34.908Z",
+  "totalSeconds": 85.323634959
+}

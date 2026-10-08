@@ -54,11 +54,13 @@ Evidence: CI run37781057191 passed on macOS ARM64/Windows x64/Ubuntu 24.04 x64: 
 
 Implementation evidence: focused21/21, Hub37/37, TS/Vite and real isolated Chromium details interaction/320–760px geometry pass. Native installation/publication remains in the final combined release; no inference speed claim. [Semantics](docs/TASK-DIAGNOSTICS.md).
 
-### M44 — Representative project evaluations (next)
+### M44 — Representative project evaluations (done, measured baseline)
 
-- [ ] Versioned multi-file coding and browser/recovery tasks with held-out assertions, explicit scope and baseline failures.
-- [ ] Paired OpenCode/Pi trials on authorized DeepSeek, elapsed-to-verified-result, known usage, failures and intervention accounting.
-- [ ] Report every outcome; no production/local-GPU performance extrapolation.
+- [x] Versioned multi-file coding and browser/recovery tasks with held-out assertions, explicit scope and baseline failures.
+- [x] Paired OpenCode/Pi trials on authorized DeepSeek, elapsed-to-verified-result, known usage, failures and intervention accounting.
+- [x] Report every outcome; no production/local-GPU performance extrapolation.
+
+Evidence: 12 offline baseline/reference discriminations and 16 eval regressions pass; 12 paired project trials (OpenCode2/6, Pi1/6) plus four qualified browser passes. Eight earlier browser budget-limited trials retained separately; all sources/candidates SHA-bound. [Report](docs/evaluations/2026-10-08/projects/REPORT.md). No general/local-model quality claim.
 
 ### M45 — Current project navigation (next)
 
