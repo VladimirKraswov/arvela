@@ -45,6 +45,15 @@ hashes match, SQL integrity/history/memory tables preserved. Own207/SSD staging
 removed. External OpenCode PID3714 remains healthy1.18.18; externally owned
 browser MCP processes and user chats preserved.
 
+Source `3d6b080ab35ae58555f6d8a83b7e852d6687455e` pushed to main;
+public [v0.2.32](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.32)
+targets that exact source. CI Synthetic evaluation contracts run37772620531
+passed. Fresh downloaded release DMG matches build, Downloads and GitHub digest;
+hdiutil verifies it. Final installed package includes offline grant revocation;
+About and both agent status checks pass. Own fixture listeners/tabs/key material
+removed; production memory unchanged.
+
+
 # Arvela 0.2.31 — curated project memory (2026-10-08)
 
 M40 adds explicit UUID project binding shared by OpenCode/Pi, accepted-result
