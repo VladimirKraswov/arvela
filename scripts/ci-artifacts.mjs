@@ -19,7 +19,7 @@ if (platform === 'linux') {
   const packaged = execFileSync('dpkg-deb', ['--field', file, 'Version'], { encoding: 'utf8' }).trim();
   if (packaged !== version) throw Error('Debian version differs from source');
   const listing = execFileSync('dpkg-deb', ['--contents', file], { encoding: 'utf8' });
-  if (!listing.includes('/usr/bin/opencode-desktop') || /Entitlements\.plist|Info\.plist|\.icns\b/.test(listing)) throw Error('Debian payload/platform isolation failed');
+  if (!listing.includes('/usr/bin/opencode-desktop') || /Entitlements\.plist|Info\.plist|\.icns\b/.test(listing)) throw Error(`Debian payload/platform isolation failed:\n${listing.slice(0, 8192)}`);
 }
 if (platform === 'macos') execFileSync('hdiutil', ['verify', file], { stdio: 'inherit' });
 const receipt = { schema: 1, version, platform, arch: process.arch, commit: process.env.GITHUB_SHA ?? null,
