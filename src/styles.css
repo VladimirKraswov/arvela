@@ -2886,3 +2886,14 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .memory-card small { color:var(--text-dim); font-size:11px; margin-top:6px; line-height:1.5; }
 .memory-text { white-space:pre-wrap; font-size:12px; line-height:1.6; margin:10px 0; }
 .memory-section > details > .btn { margin-top:8px; white-space:normal; overflow-wrap:anywhere; max-width:100%; }
+
+/* Task diagnostics stays quiet in chat details and fits narrow panels. */
+.task-diagnostics details { margin-block: 12px; }
+.task-diagnostics select { display: block; max-width: 100%; margin-block: 8px; }
+.task-timings { margin-block: 12px; }
+.task-timings > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto); gap: 12px; padding-block: 6px; }
+.task-timings dt, .task-timings dd { margin: 0; overflow-wrap: anywhere; }
+.task-timings dd { text-align: right; }
+
+.task-diagnostics select { width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-input); }
+.task-diagnostics summary { cursor: pointer; font-weight: 500; }

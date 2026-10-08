@@ -11,7 +11,11 @@ import type {
   SessionStatus,
 } from "../api/types";
 
+import { observeTask, type DispatchTiming, type TaskObservation } from '../diagnostics/tasks';
+
 export interface SessionChatState {
+  pendingTiming?: DispatchTiming;
+  taskObservations?: Record<string, TaskObservation>;
   messageOrder: string[];
   messages: Record<string, Message>;
   partsByMessage: Record<string, string[]>;
@@ -284,6 +288,10 @@ export function reduceEvent(root: ChatRootState, event: ServerEvent): boolean {
     default:
       break;
   }
+  if (changed) {
+    const sid = sessionID ?? (props.info as Message | undefined)?.sessionID ?? (props.part as MessagePart | undefined)?.sessionID;
+    if (sid && root.sessions[sid]) observeTask(root.sessions[sid], event, Date.now());
+  }
   return changed;
 }
 
@@ -330,6 +338,8 @@ export function applyHistory(
   messages: Array<{ info: Message; parts: MessagePart[] }>,
 ): void {
   const slot = emptySessionChat();
+  slot.pendingTiming = root.sessions[sessionID]?.pendingTiming;
+  slot.taskObservations = root.sessions[sessionID]?.taskObservations;
   slot.status = root.sessions[sessionID]?.status ?? { type: "idle" };
   slot.lastError = root.sessions[sessionID]?.lastError ?? null;
   for (const { info, parts } of messages) {

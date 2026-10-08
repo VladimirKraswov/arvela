@@ -2028,6 +2028,7 @@ class Store {
         locked: this.queueLocks.has(task.sessionID) || this.compactLocks.has(task.sessionID),
         dialog: this.state.ui.piDialog?.sessionId === task.sessionID,
       });
+    const preparationStarted = Date.now();
     let sending = false;
     this.scheduledLocks.add(task.sessionID);
     try {
@@ -2079,8 +2080,12 @@ class Store {
       try {
         await modelServices.ensure(task.model.providerID, task.model.modelID, task.engine);
         if (!current()) return waiting("Подключение изменилось");
+        const messageID = newMessageId(), dispatchAt = Date.now();
+        (this.state.chat.sessions[task.sessionID] ??= emptySessionChat()).pendingTiming = {
+          ...(pi ? {} : {messageID}), dispatchAt, preparationMs: dispatchAt - preparationStarted, queueMs: null,
+        };
         await backend.prompt(task.sessionID, task.directory, {
-          messageID: newMessageId(), model: { providerID: task.model.providerID, modelID: task.model.modelID },
+          messageID, model: { providerID: task.model.providerID, modelID: task.model.modelID },
           variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
         });
       } catch (error) {
@@ -2130,6 +2135,7 @@ class Store {
       return false;
     // Capture the full request identity before any await: it must never be re-read after
     // the user switched project/session mid-flight (R3), and the draft slot is revision-bound (R5).
+    const preparationStarted = Date.now();
     const gen = this.directoryGeneration;
     const endpoint = this.backend.endpoint;
     // The engine is resolved once, from the chat being composed: a folder switch
@@ -2229,7 +2235,14 @@ class Store {
         }
       }
       const target = sessionId;
+      const messageID = newMessageId();
+      const dispatchAt = Date.now();
+      (this.state.chat.sessions[target] ??= emptySessionChat()).pendingTiming = {
+        ...(engineId === PI_BACKEND_ID ? {} : {messageID}), dispatchAt,
+        preparationMs: dispatchAt - preparationStarted, queueMs: 0,
+      };
       await backend.prompt(target, directory, {
+        messageID,
         model: { providerID: model.providerID, modelID: model.modelID },
         agent: agent ?? undefined,
         variant: model.variant ?? undefined,
@@ -2522,6 +2535,7 @@ class Store {
       model: { ...model },
       agent: this.getAgentChoice() ?? undefined,
       state: "ready",
+      queuedAt: Date.now(),
     };
     this.writeQueue(id, [...this.getQueue(id), item]);
     this.queueArmed.add(id);
@@ -2622,14 +2636,21 @@ class Store {
     );
     savePrefs(this.state.prefs);
     flushPrefs(); // persist sending before the network side effect
+    const preparationStarted = Date.now();
     const seq = this.statusSequence;
     try {
       // OpenCode persists a new user message, then joins the existing run loop.
       // No abort: the correction is seen at the next model/tool boundary.
       await modelServices.ensure(item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory));
       if (backend !== this.backend || sid !== this.state.activeSessionId || this.state.directory !== item.directory) throw new Error("Чат изменился; запрос не отправлен.");
+      const messageID = newMessageId(), dispatchAt = Date.now();
+      (this.state.chat.sessions[sid] ??= emptySessionChat()).pendingTiming = {
+        ...(this.engineIdFor(sid, item.directory) === PI_BACKEND_ID ? {} : {messageID}), dispatchAt,
+        preparationMs: dispatchAt - preparationStarted,
+        queueMs: typeof item.queuedAt === 'number' && preparationStarted >= item.queuedAt ? preparationStarted - item.queuedAt : null,
+      };
       await backend.prompt(sid, item.directory, {
-        messageID: newMessageId(),
+        messageID,
         model: {
           providerID: item.model.providerID,
           modelID: item.model.modelID,

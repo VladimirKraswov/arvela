@@ -3,6 +3,7 @@ import { store } from "../state/store";
 import { isNative } from "../native/platform";
 import { config, disable, drain, idle, install, request, spool, type HubItem } from "./client";
 import { assessmentIndex, attachAssessment } from "../outcomes/sharing";
+import { taskDiagnostics } from "../diagnostics/tasks";
 import { record, type HubRecord } from "./records";
 export function HubRuntime(){useEffect(()=>{
  if(!isNative())return;
@@ -17,6 +18,7 @@ export function HubRuntime(){useEffect(()=>{
   for(const id of chat.messageOrder){const m=chat.messages[id];if(!m)continue;
    const parts=(chat.partsByMessage[id]??[]).map(p=>chat.parts[p]).filter(Boolean);
    const r=attachAssessment(record(store.engineIdFor(sid,session.directory)==="pi"?"pi":"opencode",session,m,parts,c.shareText),assessments,server,session.directory??"",c.shareText);if(!r)continue;
+   if(m.role==="user") {const d=taskDiagnostics(chat,id);if(d)r.diagnostics=d;}
    const key=r.engine+":"+sid+":"+id,value=JSON.stringify(r);if(observed.get(key)!==value){records.push(r);}
   }
  }

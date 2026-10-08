@@ -45,6 +45,33 @@ Evidence: explicit project-granted native MCP through existing shared adapters; 
 
 Evidence: CI run37781057191 passed on macOS ARM64/Windows x64/Ubuntu 24.04 x64: 626 frontend and 34 Hub tests each, Rust 94/77/96 respectively, three native packages and source-bound SHA256 receipts. Mac 0.2.33 installed/GUI and public release round-trip verified. State facade reduced from 3510 to 3222 lines with selection/scope regressions; generated frontend unchanged by final whitespace cleanup. Windows/Linux current live GUI remains separate/unrun. See [verification](docs/VERIFICATION.md) and [platform checklist](docs/PLATFORM-ACCEPTANCE.md).
 
+### M43 — Task timing and reliability diagnostics (in progress)
+
+- [x] One bounded, engine-neutral task breakdown in chat details, using existing normalized events and timestamps.
+- [x] Measure Desktop queue/preparation and observed first response where attributable; distinguish unavailable/history-only data, overlapping phases, cancellation and owner acceptance.
+- [x] Optional numeric-only Hub transfer under existing consent, safe export and regressions; no raw reasoning/screenshots/tool payloads.
+- [ ] Build, isolated real UI/API acceptance, package/install and publication.
+
+Implementation evidence: focused21/21, Hub37/37, TS/Vite and real isolated Chromium details interaction/320–760px geometry pass. Native installation/publication remains in the final combined release; no inference speed claim. [Semantics](docs/TASK-DIAGNOSTICS.md).
+
+### M44 — Representative project evaluations (next)
+
+- [ ] Versioned multi-file coding and browser/recovery tasks with held-out assertions, explicit scope and baseline failures.
+- [ ] Paired OpenCode/Pi trials on authorized DeepSeek, elapsed-to-verified-result, known usage, failures and intervention accounting.
+- [ ] Report every outcome; no production/local-GPU performance extrapolation.
+
+### M45 — Current project navigation (next)
+
+- [ ] Explicit bounded read-only file/symbol/entrypoint/check map, through common tools for both agents.
+- [ ] Revision/freshness, secret/path/symlink/ignore bounds; no automatic prompt injection or second agent loop.
+- [ ] Validate usefulness against M44 and keep optional unless measured benefit justifies promotion.
+
+### M46 — Live platform acceptance (after M45)
+
+- [ ] Mac installed GUI and both-agent isolated scenarios.
+- [ ] Windows and Linux installed desktop scenarios on actual available hosts; CI-only evidence stays distinct.
+- [ ] Record unavailable hosts/scenarios explicitly, preserve owner data and external services.
+
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 
 Windows in-app panel follow-up (2026-10-05): headless Chromium projection with

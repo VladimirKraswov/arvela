@@ -55,6 +55,9 @@ export interface MessageBase {
   role: "user" | "assistant";
   time: { created: number; completed?: number | null };
   error?: unknown;
+  /** App observation identity/provenance; never forwarded to agent APIs. */
+  timingKey?: string;
+  timingSource?: 'live' | 'entry';
 }
 
 export interface UserMessage extends MessageBase {

@@ -5,6 +5,7 @@ export interface HubRecord {
  title:string; project:string; provider:string; model:string; variant:string; text:string; error:string; finish:string; truncated:boolean;
  tokens:{input:number;output:number;cacheRead:number;cacheWrite:number;reasoning:number;total:number};
  assessment?:Assessment;
+ diagnostics?:import("../diagnostics/tasks").TaskDiagnostics;
  tools:Array<{id:string;name:string;status:string;durationMs:number;error:string}>;
 }
 /** Defense in depth, not a claim of perfect personal-data removal. */

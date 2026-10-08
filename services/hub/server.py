@@ -39,6 +39,25 @@ def digest(value):
 def number(value):
     return min(9*10**15, max(0, int(value))) if isinstance(value, (int, float)) and math.isfinite(value) else 0
 
+def task_diagnostics(value):
+    # Only bounded numeric counters/provenance, never a generic trace payload.
+    times=('wallMs','queueMs','preparationMs','firstResponseMs','toolMs','reasoningMs','unattributedMs')
+    counts=('calls','failed','repeatedCalls','retries','input','output','reasoning')
+    keys={'schema','source','state','usageComplete',*times,*counts}
+    if (not isinstance(value,dict) or set(value)!=keys or type(value.get('schema')) is not int
+        or value['schema']!=1 or value.get('source') not in ('observed','history')
+        or value.get('state') not in ('running','ended','error','aborted','unknown')
+        or type(value.get('usageComplete')) is not bool):
+        raise Fault(400, 'Некорректная числовая диагностика.')
+    result={k:value[k] for k in ('schema','source','state','usageComplete')}
+    for k in (*times,*counts):
+        n=value[k]
+        limit=30*86400000 if k in times else 10**12
+        if n is not None and (type(n) not in (int,float) or not math.isfinite(n) or n<0 or n>limit):
+            raise Fault(400,'Диагностика превышает числовые границы.')
+        result[k]=int(n) if n is not None else None
+    return result
+
 def assessment(value):
     """Owner reports, not independently verified tests or training approval."""
     if not isinstance(value, dict): raise Fault(400, 'Некорректная карточка результата.')
@@ -152,6 +171,9 @@ class Hub:
             CREATE TABLE IF NOT EXISTS assessments(record_id TEXT REFERENCES records(id),
                 device_id TEXT REFERENCES devices(id), revision INTEGER, goal TEXT, criteria TEXT,
                 notes TEXT, checks TEXT, verdict TEXT, updated INTEGER, PRIMARY KEY(record_id,device_id));
+            CREATE TABLE IF NOT EXISTS task_diagnostics(record_id TEXT REFERENCES records(id),
+                device_id TEXT REFERENCES devices(id), metrics TEXT, updated INTEGER,
+                PRIMARY KEY(record_id,device_id));
             CREATE TABLE IF NOT EXISTS issues(id TEXT PRIMARY KEY, title TEXT, tool TEXT, example TEXT,
                 state TEXT DEFAULT 'candidate', created INTEGER, updated INTEGER);
             CREATE TABLE IF NOT EXISTS issue_hits(issue_id TEXT, record_id TEXT, session_id TEXT, call_id TEXT,
@@ -283,10 +305,12 @@ class Hub:
             if 'assessment' in r:
                 if r['role']!='user': raise Fault(400, 'Карточка привязана только к запросу пользователя.')
                 a=assessment(r['assessment'])
-            normalized.append((r,sid,rid,tools,text,input_,output,cache_read,cache_write,total,a))
+            d=task_diagnostics(r['diagnostics']) if 'diagnostics' in r else None
+            if d and r['role']!='user': raise Fault(400,'Диагностика привязана к запросу.')
+            normalized.append((r,sid,rid,tools,text,input_,output,cache_read,cache_write,total,a,d))
         with self.lock, self.connection() as c:
             c.execute('UPDATE devices SET seen=?,app_version=? WHERE id=?', (now,scrub(data.get('appVersion',''),40),actor['id']))
-            for r,sid,rid,tools,text,input_,output,cache_read,cache_write,total,a in normalized:
+            for r,sid,rid,tools,text,input_,output,cache_read,cache_write,total,a,d in normalized:
                 created, completed = number(r.get('created')) or now, number(r.get('completed'))
                 c.execute('''INSERT INTO sessions(id,engine,title,project,first_device,created,updated) VALUES (?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET updated=MAX(updated,excluded.updated),
@@ -317,6 +341,15 @@ class Hub:
                         goal=excluded.goal,criteria=excluded.criteria,notes=excluded.notes,checks=excluded.checks,
                         verdict=excluded.verdict,updated=excluded.updated WHERE excluded.revision>assessments.revision''',
                         (rid,actor['id'],a['revision'],a['goal'],a['criteria'],a['notes'],encode(a['checks']),a['verdict'],now))
+                if d:
+                    old=c.execute('SELECT metrics FROM task_diagnostics WHERE record_id=? AND device_id=?',(rid,actor['id'])).fetchone()
+                    previous=json.loads(old['metrics']) if old else None
+                    # A history-only replay cannot replace a measured turn; partial live updates cannot erase known times.
+                    if not previous or previous['source']!='observed' or d['source']=='observed':
+                        if previous and previous['source']==d['source']:
+                            d={k:(previous[k] if v is None else v) for k,v in d.items()}
+                            if previous['state'] in ('ended','error','aborted') and d['state'] in ('unknown','running'): d['state']=previous['state']
+                        c.execute('INSERT OR REPLACE INTO task_diagnostics VALUES (?,?,?,?)',(rid,actor['id'],encode(d),now))
                 errors=[(x['name'],x['id'],x['error']) for x in tools if x['status']=='error' and x['error']]
                 if r.get('error'): errors.append(('agent',r['id'],scrub(r['error'],1500)))
                 for tool,call,error in errors:
@@ -445,6 +478,7 @@ class Hub:
                 total=c.execute('SELECT COUNT(*) FROM records WHERE session_id=?',(sid,)).fetchone()[0]
                 for record in page:
                     record['tools']=json.loads(record['tools'])
+                    record['diagnostics']=[{**dict(x),'metrics':json.loads(x['metrics'])} for x in c.execute('SELECT t.*,d.name deviceName FROM task_diagnostics t JOIN devices d ON d.id=t.device_id WHERE record_id=? ORDER BY t.updated DESC',(record['id'],))]
                     record['assessments']=[{**dict(a),'checks':json.loads(a['checks'])} for a in c.execute('''
                         SELECT a.*,d.name deviceName FROM assessments a JOIN devices d ON d.id=a.device_id
                         WHERE record_id=? ORDER BY a.updated DESC,d.id''',(record['id'],))]
@@ -493,6 +527,7 @@ class Hub:
             c.execute('UPDATE issues SET example="",title=tool WHERE updated<?',(cutoff,))
             c.execute('''UPDATE assessments SET goal="",criteria="",notes="",checks="[]"
                 WHERE record_id IN (SELECT id FROM records WHERE created<?)''',(cutoff,))
+            c.execute('DELETE FROM task_diagnostics WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))
             c.execute('DELETE FROM assessments WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))
             c.execute('DELETE FROM observations WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))
             c.execute('DELETE FROM issue_hits WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))

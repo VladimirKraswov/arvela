@@ -133,6 +133,8 @@ export function entriesToHistory(
         id,
         sessionID,
         role: "user",
+        timingSource: 'entry',
+        ...(typeof message.timestamp === 'number' ? {timingKey: `pi:user:${message.timestamp}`} : {}),
         time: { created },
       };
       const parts: MessagePart[] = [];
@@ -166,6 +168,7 @@ export function entriesToHistory(
         id,
         sessionID,
         role: "assistant",
+        timingSource: 'entry',
         time: { created, completed: created },
         providerID: assistant.provider,
         modelID: assistant.model,
@@ -383,6 +386,8 @@ export class PiStreamTranslator {
         id,
         sessionID: this.sessionID,
         role: "user",
+        timingSource: 'live',
+        ...(typeof message.timestamp === 'number' ? {timingKey: `pi:user:${message.timestamp}`} : {}),
         time: { created: Date.now() },
       };
       return {

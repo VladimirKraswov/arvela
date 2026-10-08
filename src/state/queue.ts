@@ -7,6 +7,7 @@ export interface QueuedPrompt {
   agent?: string;
   state: "ready" | "sending" | "uncertain";
   error?: string;
+  queuedAt?: number;
 }
 /** Message IDs are increasing, as required by OpenCode's parent/last-user comparison. */
 let lastIdTime = 0;
