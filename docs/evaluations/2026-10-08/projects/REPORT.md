@@ -45,7 +45,7 @@ scripted real-browser reference satisfied the same unchanged acceptance oracle.
 
 Exact evaluation sources in each run's `sources/` match every corresponding
 SHA256 in the report. Unchanged Hub/memory Python dependencies are in source commit
-`8118196` and their report hashes match. Each multi-file candidate and entrypoint
+`8118196`, also archived under `sources/dependencies/hub/`; their report hashes match. Each multi-file candidate and entrypoint
 is retained with its receipt, including failures. They are model-generated code;
 inspect them, do not execute them as trusted scripts outside the bounded grader.
 

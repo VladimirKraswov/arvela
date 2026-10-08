@@ -1,0 +1,1 @@
+const {matches}=require('./scope.cjs');exports.apply=(s,e)=>{if(!matches(s.scope,e.scope))return s;s.text+=e.text;s.seen.push(e.id);return s};exports.switchTo=(s,scope)=>({...s,scope});

@@ -132,7 +132,7 @@ speed/quality benefit, so app automatic context preparation stays unimplemented.
 The eval adapter and native MCP differ in transport; compare trends, not a
 claim of native latency. Native SDK/Pi/OpenCode acceptance is separate.
 
-## M44 miniature projects (suite 2.0.0, report schema 3)
+## M44 miniature projects (suite 2.0.2, report schema 3)
 
 The suite now has 16 tasks: the original 12 plus three synthetic multi-module
 projects and a two-product browser workflow with validation and stale-state
@@ -168,3 +168,7 @@ Compare agents on identical new tasks/repetitions. Do not compare their absolute
 medians with M39's single-function fixtures and claim a regression or acceleration.
 The browser workflow uses real isolated Chromium and semantic refs, not installed
 Arvela mouse-emulation acceptance. No production model or owner project is tested.
+
+## M45 optional project map (suite 2.1.0)
+
+Use `--cases project-checkout,project-outbox,project-session-router --navigation compare --repeats 2` for a paired off/tools comparison with AB/BA ordering. Tool mode calls the same read-only production map core against the synthetic project. It neither injects context nor changes task/assertion budgets. Every report distinguishes navigation mode and records map calls. Source revisions, per-file candidates and failed outcomes remain preserved. See [map boundaries](PROJECT-NAVIGATION.md).

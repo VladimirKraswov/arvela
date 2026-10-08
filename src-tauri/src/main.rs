@@ -30,6 +30,11 @@ fn main() {
             eprintln!("{error}");
             std::process::exit(1);
         }
+    } else if std::env::args().nth(1).as_deref() == Some("--project-map-mcp") {
+        if let Err(error) = arvela_lib::capabilities::project_map::mcp_main() {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
     } else if std::env::args().nth(1).as_deref() == Some("--shared-mcp") {
         if let Err(error) = arvela_lib::capabilities::mcp_main() {
             eprintln!("{error}");

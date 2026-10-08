@@ -1,0 +1,1 @@
+const {classify}=require('./classify.cjs');exports.resume=(q,id)=>q.map(x=>x.id===id?{...x,state:'ready'}:x);exports.drain=async(q,post,persist)=>{for(const item of q){if(item.state!=='ready')continue;try{await post(item);q.splice(q.indexOf(item),1)}catch(e){item.state=classify(e)}}await persist(q);return q;};

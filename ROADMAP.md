@@ -45,14 +45,14 @@ Evidence: explicit project-granted native MCP through existing shared adapters; 
 
 Evidence: CI run37781057191 passed on macOS ARM64/Windows x64/Ubuntu 24.04 x64: 626 frontend and 34 Hub tests each, Rust 94/77/96 respectively, three native packages and source-bound SHA256 receipts. Mac 0.2.33 installed/GUI and public release round-trip verified. State facade reduced from 3510 to 3222 lines with selection/scope regressions; generated frontend unchanged by final whitespace cleanup. Windows/Linux current live GUI remains separate/unrun. See [verification](docs/VERIFICATION.md) and [platform checklist](docs/PLATFORM-ACCEPTANCE.md).
 
-### M43 — Task timing and reliability diagnostics (in progress)
+### M43 — Task timing and reliability diagnostics (done, 0.2.34)
 
 - [x] One bounded, engine-neutral task breakdown in chat details, using existing normalized events and timestamps.
 - [x] Measure Desktop queue/preparation and observed first response where attributable; distinguish unavailable/history-only data, overlapping phases, cancellation and owner acceptance.
 - [x] Optional numeric-only Hub transfer under existing consent, safe export and regressions; no raw reasoning/screenshots/tool payloads.
-- [ ] Build, isolated real UI/API acceptance, package/install and publication.
+- [x] Build, isolated real UI/API acceptance and Mac package/install; source/release publication recorded below.
 
-Implementation evidence: focused21/21, Hub37/37, TS/Vite and real isolated Chromium details interaction/320–760px geometry pass. Native installation/publication remains in the final combined release; no inference speed claim. [Semantics](docs/TASK-DIAGNOSTICS.md).
+Implementation evidence: focused21/21, Hub37/37, TS/Vite and real isolated Chromium details interaction/320–760px geometry pass. Mac0.2.34 installed/live diagnostics verified; Hub37 tests/integrity/history preserved and NAS archive checked. No inference speed claim. [Semantics](docs/TASK-DIAGNOSTICS.md).
 
 ### M44 — Representative project evaluations (done, measured baseline)
 
@@ -62,17 +62,19 @@ Implementation evidence: focused21/21, Hub37/37, TS/Vite and real isolated Chrom
 
 Evidence: 12 offline baseline/reference discriminations and 16 eval regressions pass; 12 paired project trials (OpenCode2/6, Pi1/6) plus four qualified browser passes. Eight earlier browser budget-limited trials retained separately; all sources/candidates SHA-bound. [Report](docs/evaluations/2026-10-08/projects/REPORT.md). No general/local-model quality claim.
 
-### M45 — Current project navigation (next)
+### M45 — Current project navigation (done, optional)
 
-- [ ] Explicit bounded read-only file/symbol/entrypoint/check map, through common tools for both agents.
-- [ ] Revision/freshness, secret/path/symlink/ignore bounds; no automatic prompt injection or second agent loop.
-- [ ] Validate usefulness against M44 and keep optional unless measured benefit justifies promotion.
+- [x] Explicit bounded read-only file/symbol/entrypoint/check map, through common tools for both agents.
+- [x] Revision/freshness, secret/path/symlink/ignore bounds; no automatic prompt injection or second agent loop.
+- [x] Validate usefulness against M44; no stable benefit, keep explicit opt-in.
 
-### M46 — Live platform acceptance (after M45)
+Evidence:24 paired DeepSeek trials;OpenCodeoff2/6/tools2/6,Pi off3/6/tools0/6. Exact source/candidate receipts retained. Real native signedSDK/Pi/OpenCode scope/revocation and installedMac preview/toggle PASS. [Report](docs/evaluations/2026-10-08/navigation/REPORT.md), [bounds](docs/PROJECT-NAVIGATION.md).
 
-- [ ] Mac installed GUI and both-agent isolated scenarios.
-- [ ] Windows and Linux installed desktop scenarios on actual available hosts; CI-only evidence stays distinct.
-- [ ] Record unavailable hosts/scenarios explicitly, preserve owner data and external services.
+### M46 — Selected live acceptance (Mac completed; other platforms excluded)
+
+- [x] Mac installed GUI for M43/M45 and both-agent isolated shared-tool scenarios.
+- [x] Windows/Linux live work excluded at the owner's explicit request; no current GUI pass claimed. Existing automatic CI remains separate.
+- [x] Preserve owner history/chat/model/Medium and external OpenCode; retain unrun mic/SSH/new packaged agent-inference scenarios explicitly in verification.
 
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 

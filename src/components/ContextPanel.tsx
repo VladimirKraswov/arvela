@@ -9,6 +9,7 @@ import { ScheduleSection } from "./ScheduleSection";
 import { TaskDiagnostics } from "./TaskDiagnostics";
 import { OutcomeSection } from "./OutcomeSection";
 import { MemorySection } from "./MemorySection";
+import { ProjectMapSection } from "./ProjectMapSection";
 import type { Outcome } from "../outcomes/store";
 import { Icon } from "./Icon";
 
@@ -71,6 +72,7 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
     {sid && <TaskDiagnostics chat={chat}/>}
     {sid && (engine === "opencode" || engine === "pi") && <OutcomeSection scope={{server,directory:directory??"",sessionID:sid,engine}} requests={(chat?.messageOrder??[]).filter(id=>chat?.messages[id]?.role==="user").map(id=>({id,label:safeLabel((chat?.partsByMessage[id]??[]).map(p=>chat?.parts[p]).filter(p=>p?.type==="text"&&!p.synthetic).map(p=>p?.text??"").join(" "),100)}))} onOpen={jump} onPropose={card=>setProposed({...card})}/>}
     <MemorySection server={server} directory={directory} proposed={proposed}/>
+    <ProjectMapSection server={server} directory={directory}/>
     <ScheduleSection scheduler={scheduler} server={server} directory={directory} sessionID={sid} />
     <FileSection id="results" title="Результаты" files={context.results} empty="Здесь появятся файлы из выполненных изменений и явные ссылки на файлы в ответах."
       action={{ label: "Подготовить запрос на создание результата", disabled: !sid, run: draftResult }}

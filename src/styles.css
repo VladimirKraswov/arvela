@@ -2897,3 +2897,8 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 
 .task-diagnostics select { width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-input); }
 .task-diagnostics summary { cursor: pointer; font-weight: 500; }
+
+.project-map-query { display:grid; gap:6px; margin-block:10px; font-size:var(--font-sm); }
+.project-map-query input { width:100%; min-width:0; }
+.project-map-list li { display:grid; gap:4px; padding-block:6px; overflow-wrap:anywhere; }
+.project-map-list small { color:var(--fg-muted); }

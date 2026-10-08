@@ -1,5 +1,6 @@
 //! App-owned, scoped shared capability registry. No user histories or skills are
 //! rewritten. Engine approvals remain authoritative; metadata never executes a tool.
+pub mod project_map;
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -44,6 +45,14 @@ const FILES: &[(&str, &str)] = &[
     ),
     ("client.mjs", include_str!("../resources/shared/client.mjs")),
     ("proxy.mjs", include_str!("../resources/shared/proxy.mjs")),
+    (
+        "project-map-core.mjs",
+        include_str!("../resources/shared/project-map-core.mjs"),
+    ),
+    (
+        "project-map.mjs",
+        include_str!("../resources/shared/project-map.mjs"),
+    ),
     (
         "pi-extension.ts",
         include_str!("../resources/shared/pi-extension.ts"),

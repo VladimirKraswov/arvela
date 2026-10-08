@@ -1,3 +1,24 @@
+# Arvela 0.2.34 — M43/M44/M45 and selected Mac acceptance (2026-10-08)
+
+The combined release adds passive per-request timing diagnostics, realistic miniature-project/browser evaluations and an optional shared read-only project map. No inference engine, GPU, provider defaults, existing histories or native agent permissions changed.
+
+Mac ARM64: final frontend640/6 existing opt-in skips; Hub37; Rust94/1 existing OS-vault ignore; TypeScript/Vite, locked all-targets check, fmt, offline baseline/reference checks and native app/DMG build pass. Source/candidate audit covers45 exact source hashes,180 project candidate files and36 wrapper hashes, including failures. Runtime package dependencies remain unchanged except the application version.
+
+Actual isolated Chromium: M43 diagnostics measured/missing values and M45 preview/enable/disable,320/480/760px geometry pass. Actual signed native binary with officialSDK: map query,UTF8 budget,input refusal,wrongCWD,disable/re-enable oldconnection refusal pass. InstalledPi0.85.1 loads/calls the common tool; isolated officialOpenCode1.18.18 reports MCP connected with no inference. A separate native budget check verifies20 calls then refusal. Early fixture-only failures (copying a resource directory; fixture incorrectly insideGitignored.local) were diagnosed and corrected without changing assertions or production ignore rules.
+
+Installed `/Applications/Arvela.app` visibly shows0.2.34,OpenCode1.18.18 andPi0.85.1. Owner chat/history/Medium restored, shared scripts match source byte-for-byte, externalOpenCode remainshealthy; no prompt,stop or model/GPU change was issued. Installed native Context preview searches this repository, reports partial coverage and heuristic symbols, and project toggle enables/disables correctly. Existing stopped history displaysunknown elapsed/first-response fields honestly and separates tool/reasoning phases from result acceptance. Previous0.2.33 bundle retained privately. Current GUI is left onAbout.
+
+Installed/build executable SHA256: `33108c7a159a74ad18d21c4d45fb2148d407a404ccd823057d0011804e390597`.
+Built/Downloads DMG SHA256: `35f0791592957ff7f0d30498df1f24d72c5e5c74920fbb404fba2fe79eadcbd5`.
+Strict bundle signature/audio entitlement/microphone description andDMGCRC pass. Ad-hoc signed, not notarized. Updated UI model-inference,live dictation/clipboard/SSH were not rerun; CLI syntheticmodel trials and native shared-tool qualification are separate evidence, not packaged end-to-end inference claims. Windows/Linux live work is explicitly excluded by owner; existing CI is not live acceptance.
+
+M44: three five-file projects plus two-product validation/stale browser workflow. Initial projectOpenCode2/6/Pi1/6,final qualifiedbrowser2/2each. Eight earlier browser budget-limited trials preserved; no retries erase failures. [Report](evaluations/2026-10-08/projects/REPORT.md).
+M45:24 paired same-budget trials. OpenCodeoff/tools2/6each;Pi off3/6/tools0/6. No reliable improvement: map remainsoff-by-default/manual; no automatic context injection. [Report](evaluations/2026-10-08/navigation/REPORT.md). No localQwen speed/generalquality claim.
+
+HubCT206: additive numeric task-diagnostics table/API/Web deployed,37actual tests/sourcehashmatch/integrityok,all10314historyrecords preserved. One postdeploymentSQLquoting error in the verification helper was corrected with independent typedPython; no redeployment needed. FullNASarchive0.2.34 bytecmp/zstd and extractedSQLite history/schema/integrity pass; ownSSDarchive removed. SHA256 `d2e38eb08854da1abe51325be1ced10f298beb5e170bab04c5309bbf3e1ab4f2`. This checks archived contents, not a newly booted restore. Private .local receipts hold logs/oldbundle/backup metadata; none published.
+
+Source/main and release round-trip are recorded after publication. No delegation, new automation, localGPU benchmarks or Windows/Linux live tasks.
+
 # Arvela 0.2.33 — engineering foundations (2026-10-08)
 
 M42 extracts state schema, fresh startup construction and pure OpenCode/Pi model

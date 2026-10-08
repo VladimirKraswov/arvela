@@ -12,6 +12,21 @@ import { startProxy } from '../scripts/evaluations/proxy.mjs';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('reproducible evaluation fixtures', () => {
+  it('M44/M45 archived sources and all failed/successful project files match their receipts', async () => {
+    const base=fileURLToPath(new URL('../docs/evaluations/2026-10-08/',import.meta.url));let sources=0,files=0,wrappers=0;
+    for(const run of ['projects/initial','projects/request-budget','projects/qualified-browser','navigation']){
+      const root=join(base,run),report=JSON.parse(await readFile(join(root,'report.json'),'utf8'));
+      for(const [name,sha] of Object.entries(report.revisions)){
+        const file=name.startsWith('../../services/hub/')?`dependencies/hub/${name.split('/').at(-1)}`:name.startsWith('../../src-tauri/')?'dependencies/project-map-core.mjs':name;
+        expect(file).not.toContain('..');const bytes=await readFile(join(root,'sources',file));expect(createHash('sha256').update(bytes).digest('hex')).toBe(sha);sources++;
+      }
+      for(const trial of report.trials){
+        if(trial.candidate){const bytes=await readFile(join(root,trial.candidate.file));expect(createHash('sha256').update(bytes).digest('hex')).toBe(trial.candidate.sha256);wrappers++;}
+        for(const candidate of trial.candidateFiles??[]){expect(candidate.file).not.toContain('..');const bytes=await readFile(join(root,candidate.file));expect(createHash('sha256').update(bytes).digest('hex')).toBe(candidate.sha256);files++;}
+      }
+    }
+    expect({sources,files,wrappers}).toEqual({sources:45,files:180,wrappers:36});
+  });
   it('every code/recovery baseline fails and every reference passes independent assertions', async () => {
     const checks = await selfCheck(); expect(checks).toHaveLength(12);
     expect(checks.every(c => c.baselineFails && c.referencePasses)).toBe(true);

@@ -56,6 +56,7 @@ pub fn run() {
             config::read_opencode_config,
             config::write_opencode_config,
             capabilities::shared_catalog,
+            capabilities::project_map::project_map_preview,
             capabilities::shared_save,
             capabilities::shared_install,
             capabilities::shared_probe,
