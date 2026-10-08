@@ -77,6 +77,7 @@ jobs:
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/nsis/*-setup.exe
             .local/ci-artifacts.json
+          include-hidden-files: true # only the explicitly listed .local receipt, not its directory
           if-no-files-found: error
           retention-days: 14
 # No production installation, model requests, credentials, owner services or auto-release.
