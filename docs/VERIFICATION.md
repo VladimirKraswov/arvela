@@ -1,3 +1,14 @@
+# Arvela 0.2.30 — full-card Hub batching follow-up (2026-10-08)
+
+Final boundary review found the old native 64KB record cap could reject a valid
+long Unicode assessment attached to a user request. Assessed records now allow
+192KB; complete records are sent in FIFO batches bounded to 20 records /1.5MiB,
+leaving space under the existing HTTP 2MiB cap. Ordinary records retain64KB;
+queue1200/12MiB bounds and consent rules remain. No task evidence is truncated.
+New native regression checks complete partitioning/byte cap. Version0.2.30
+supersedes the already-published initial0.2.29 package; do not rewrite its tag.
+Final checks/install/release hashes are recorded when complete.
+
 # Arvela 0.2.29 — task result cards (2026-10-08)
 
 M38 adds request-anchored owner assessments for OpenCode/Pi in the context panel,

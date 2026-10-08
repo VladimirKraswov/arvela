@@ -20,11 +20,11 @@ export function HubSettings({onDirtyChange}:{onDirtyChange?:(v:boolean)=>void}){
    for(const session of sessions){controller.signal.throwIfAborted();let before:string|undefined;const seen=new Set<string>();
     try{for(let page=0;page<20;page++){controller.signal.throwIfAborted();const d=await source.messages(session,before,controller.signal),batch=d.messages.map(m=>attachAssessment(record(source.engine==="Pi"?"pi":"opencode",session,m.info,m.parts,saved.shareText),assessments,server,session.directory??"",saved.shareText)).filter(x=>x!==null);
      for(let i=0;i<batch.length;i+=50)await spool("enqueue",batch.slice(i,i+50));
-     for(let i=0;i<Math.ceil(batch.length/20);i++)await drain();count+=batch.length;if(mounted.current)setNotice(`Передано сообщений: ${count}; ошибок чтения: ${failures}`);
+     for(let i=0;i<Math.ceil(batch.length/20);i++)await drain();count+=batch.length;if(mounted.current)setNotice(`Обработано сообщений: ${count}; ошибок чтения: ${failures}`);
      if(!d.before||seen.has(d.before))break;before=d.before;seen.add(before);
     }}catch(e){if(controller.signal.aborted)throw e;failures++;}
    }
-  }if(mounted.current){setStatus(await spool("read"));setNotice(`Импорт истории завершён: ${count} сообщений; ${failures} сессий с ошибкой. Предел: 500 сессий / 20 страниц на агент.`);}
+  }if(mounted.current){const queued=await spool("read");setStatus(queued);setNotice(`Обработано ${count} сообщений; ${failures} сессий с ошибкой; в очереди: ${queued.pending}. Предел: 500 сессий / 20 страниц на агент.`);}
   }finally{cancel.current=null;}
  }
  return <div className="hub-settings"><p className="settings-intro">Общая библиотека и история для ваших устройств. OpenCode и Pi используют существующие адаптеры навыков и MCP; облако хранит пакеты и опыт работы.</p>

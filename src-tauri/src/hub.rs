@@ -371,6 +371,18 @@ fn strip_text(r: &mut Value) {
         o.remove("assessment");
     }
 }
+fn upload_batch(pending: &[Value]) -> Vec<Value> {
+    let mut bytes = 2;
+    pending
+        .iter()
+        .take(20)
+        .take_while(|r| {
+            bytes += r.to_string().len() + 1;
+            bytes <= 1536 * 1024
+        })
+        .cloned()
+        .collect()
+}
 #[tauri::command]
 pub async fn hub_spool(
     window: tauri::WebviewWindow,
@@ -402,7 +414,9 @@ pub async fn hub_spool(
                     return Err("Batch too large".into());
                 }
                 for mut r in records {
-                    if r.to_string().len() > 64000 {
+                    // A complete user result card can be larger than the old message cap.
+                    let limit = if r.get("assessment").is_some() { 192000 } else { 64000 };
+                    if r.to_string().len() > limit {
                         return Err("Record too large".into());
                     }
                     let o = r.as_object_mut().ok_or("Invalid record")?;
@@ -480,7 +494,8 @@ pub async fn hub_spool(
                 &serde_json::to_string(&s).map_err(|_| "Cannot encode outbox")?,
             )?;
         }
-        let batch: Vec<_> = s.pending.iter().take(20).cloned().collect();
+        // Respect the server's 2MiB body cap even when cards carry long Unicode evidence.
+        let batch = upload_batch(&s.pending);
         let hash: Vec<_> = batch.iter().map(fingerprint).collect();
         Ok(json!({"pending":s.pending.len(),"dropped":s.dropped,"records":batch,"hashes":hash,"origin":s.origin}))
     })
@@ -490,6 +505,29 @@ pub async fn hub_spool(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn large_cards_are_uploaded_in_bounded_complete_batches() {
+        let check = json!({"name":"漢".repeat(160),"status":"passed","evidence":"漢".repeat(1500)});
+        let assessment = json!({"revision":1,"goal":"漢".repeat(4000),"criteria":"漢".repeat(4000),"notes":"漢".repeat(2000),"checks":vec![check;8],"verdict":"accepted"});
+        let pending: Vec<_> = (0..20)
+            .map(|i| json!({"id":i.to_string(),"sessionId":"s","role":"user","engine":"pi","text":"漢".repeat(16000),"tools":[],"assessment":assessment}))
+            .collect();
+        assert!(pending[0].to_string().len() > 64000);
+        assert!(pending[0].to_string().len() < 192000);
+        let first = upload_batch(&pending);
+        assert!(!first.is_empty());
+        assert!(first.len() < 20);
+        assert!(
+            json!({"appVersion":"0.2.30","records":first})
+                .to_string()
+                .len()
+                < 2 * 1024 * 1024
+        );
+        let rest = upload_batch(&pending[first.len()..]);
+        assert_eq!(first.len() + rest.len(), pending.len());
+        assert_eq!(first[0], pending[0]);
+        assert_eq!(rest.last(), pending.last());
+    }
     #[test]
     fn private_assessment_is_removed_when_text_sharing_is_off() {
         let mut r = json!({"text":"request","title":"private","assessment":{"goal":"private"},"tokens":{"total":12}});

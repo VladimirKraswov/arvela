@@ -1,3 +1,9 @@
+# M38 final boundary follow-up — 0.2.30 IN PROGRESS (2026-10-08)
+
+Initial0.2.29 source50074eaf8e13277a6ac99e9e1b6616084c6ffba7 pushed/published/installed; downloadroundtrip finishing. Boundary review thenfoundvalidlongUnicodecard+request canexceed native64KB recordcap. Fixassessedrecordcap192KB plusFIFO20/1.5MiB completebatch underHTTP2MiB; no truncation, existing ordinary64KB/queue1200/12MiB unchanged. Newnative regression. Do not rewritetagv0.2.29; ship0.2.30 superseding it.
+
+NASfullbackup59a70030cb90a38fc90cd7e9b18788027f2e648ea17ae4400f0c3f2be1ec3f87 verifiedbyte/zstd/isolatedunstarted207restoreintegrity/10314records/sourcehashmatch/tablepresent;207andownSSDstage removed, CT206running. Noadditionalbackendchange for0.2.30 soarchive remainscurrent. Mac0.2.29Hubconnected/catalog6/queue0/drop0/OpenCode3714healthy1.18.18. Noownerchats/GPUmodelchanges. Next: nativefollowupchecks/alltargets,frontend/Mac0.2.30build/install, commit/push/publicrelease/downloadverify then markM38done. M39–42future.
+
 # Verified project experience — M38 SOURCE VERIFIED / MAC INSTALLED (2026-10-08)
 
 Owner authorized roadmap + stepwise work. First slice task cards anchored to explicituserrequest, scopedserver/directory/engine/session/request; IndexedDB atomic CAS,500card/100draftlimits/noeviction, explicitownerverdict/evidenceeditinvalidates, storagefaildraftretention. Optionalpercard+Hubtexts sharing through existing durable outbox; device-specific revisioned SQLite assessments and escapedWebhistory. Useracceptance neverapprovesdataset; knownsecretfilter/retention. No modelrequests/GPU/globalconfig/ownerchatwrites; ownerallowsDeepSeekonlyifneeded. M39–42 planned, not implemented.
