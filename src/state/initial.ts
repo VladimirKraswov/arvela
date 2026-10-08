@@ -63,4 +63,3 @@ export function initialState(prefs: Prefs): AppState {
     rev: 0,
   };
 }
-
