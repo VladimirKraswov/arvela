@@ -17,14 +17,16 @@
 
 ```text
 src/components/       презентация
-src/state/store.ts    выбор проекта/сессии, редьюсер потока, действия
+src/state/store.ts    фасад команд и подписок, выбор проекта/сессии
+src/state/modelChoice.ts  чистая политика выбора модели
+src/state/initial.ts + types.ts  схема и создание состояния
         ↓ вызывает только AgentBackend
 src/agent/backend.ts  нейтральный контракт (типы, возможности, подписки)
 src/agent/registry.ts реестр дескрипторов; по умолчанию opencode
 src/agent/opencode.ts OpenCodeClient + два SSE-потока
 src/agent/pi/         Pi: RPC-протокол, трансляция событий, нативный мост
-        ↓ loopback HTTP/SSE/WebSocket
-отдельно установленный сервер OpenCode
+        ├ OpenCode → loopback HTTP/SSE/WebSocket → отдельный сервер
+        └ Pi → нативный JSONL RPC → app-owned процесс
 ```
 
 - `store.backend` — подключение и проекты OpenCode. Боковая панель объединяет

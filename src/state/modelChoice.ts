@@ -124,6 +124,11 @@ export function parseModelId(
   return { providerID: parts[0], modelID: parts.slice(1).join("/") };
 }
 
+/**
+ * Pi's catalog uses its own shape; the attachment pipeline only needs the
+ * declared input modalities and context window, so this projects the minimum
+ * rather than pretending Pi models are OpenCode models.
+ */
 export function piModelInfo(
   health: PiHealth | null,
   choice: { providerID: string; modelID: string },

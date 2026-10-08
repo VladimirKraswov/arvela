@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, toNamespacedPath } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -54,7 +54,11 @@ export async function gradeCode(fixture, work) {
   // Candidate filesystem reads and child-process APIs are restricted. This is
   // an evaluator for our synthetic fixtures, not an OS sandbox for hostile code.
   const source = `const assert=require('node:assert/strict');const s=require('./solution.cjs');(async()=>{${fixture.assertions};process.stdout.write('ARVELA_OUTCOME_OK\\n')})().catch(e=>{console.error(e.message);process.exitCode=1});`;
-  const result = await runProcess(process.execPath, ['--permission', `--allow-fs-read=${await realpath(work)}`, '-e', source], {
+  // Windows module reads can retain the short-name/namespaced form of cwd.
+  // Grant only lexical/canonical aliases of this same disposable directory.
+  const roots = [resolve(work), await realpath(work)];
+  const aliases = [...new Set([...roots, ...roots.map(toNamespacedPath)])];
+  const result = await runProcess(process.execPath, ['--permission', ...aliases.map(p => `--allow-fs-read=${p}`), '-e', source], {
     cwd: work, env: cleanEnvironment(join(work, '.grade-home')), seconds: 5, bytes: 32768,
   });
   const passed = result.exitCode === 0 && !result.stopped && result.stdout.trim() === 'ARVELA_OUTCOME_OK';

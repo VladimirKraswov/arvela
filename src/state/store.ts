@@ -3181,11 +3181,6 @@ class Store {
   }
 }
 
-/**
- * Pi's catalog uses its own shape; the attachment pipeline only needs the
- * declared input modalities and context window, so this projects the minimum
- * rather than pretending Pi models are OpenCode models.
- */
 export function errText(e: unknown): string {
   if (e instanceof ApiError)
     return e.status === 404 ? "Not found on the OpenCode server" : e.detail;

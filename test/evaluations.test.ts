@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mkdtemp, writeFile, readFile, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -52,10 +52,13 @@ describe('reproducible evaluation fixtures', () => {
   it('candidate grading cannot read files outside its fixture', async () => {
     const root = await mkdtemp(join(tmpdir(), 'arvela-grade-test-'));
     try {
-      await writeFile(join(root, 'solution.cjs'), 'require("node:fs").readFileSync("/etc/hosts");exports.price=(q,u)=>(q??1)*u;');
-      expect((await gradeCode(fixtures[0], root)).passed).toBe(false);
-      await writeFile(join(root, 'solution.cjs'), 'process.exit(0);');
-      expect((await gradeCode(fixtures[0], root)).passed).toBe(false);
+      const work = join(root, 'work'); await mkdir(work);
+      const outside = join(root, 'outside.txt'); await writeFile(outside, 'synthetic owner fixture');
+      await writeFile(join(work, 'solution.cjs'), `require("node:fs").readFileSync(${JSON.stringify(outside)});exports.price=(q,u)=>(q??1)*u;`);
+      const denied = await gradeCode(fixtures[0], work);
+      expect(denied.passed).toBe(false); expect(denied.diagnostic).toContain('ERR_ACCESS_DENIED');
+      await writeFile(join(work, 'solution.cjs'), 'process.exit(0);');
+      expect((await gradeCode(fixtures[0], work)).passed).toBe(false);
     } finally { await rm(root, { recursive: true, force: true }); }
   });
   it('timed-out and over-output processes are failures, never green exit markers', async () => {
