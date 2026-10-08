@@ -6,6 +6,7 @@ import { attachmentScope } from "../attachments/drafts";
 import { focusComposer, requestComposerFiles } from "../attachments/composerBridge";
 import type { Session, SessionStatus } from "../api/types";
 import { ScheduleSection } from "./ScheduleSection";
+import { OutcomeSection } from "./OutcomeSection";
 import { Icon } from "./Icon";
 
 export const CONTEXT_PANEL_ID = "chat-context-panel";
@@ -63,6 +64,7 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
       <button className="icon-btn" aria-label="Закрыть контекст задачи" onClick={close}><Icon name="close" size={16}/></button>
     </div>
     {!sid && <p className="context-note">Создайте или откройте чат, чтобы увидеть его контекст и добавить расписание.</p>}
+    {sid && (engine === "opencode" || engine === "pi") && <OutcomeSection scope={{server,directory:directory??"",sessionID:sid,engine}} requests={(chat?.messageOrder??[]).filter(id=>chat?.messages[id]?.role==="user").map(id=>({id,label:safeLabel((chat?.partsByMessage[id]??[]).map(p=>chat?.parts[p]).filter(p=>p?.type==="text"&&!p.synthetic).map(p=>p?.text??"").join(" "),100)}))} onOpen={jump}/>}
     <ScheduleSection scheduler={scheduler} server={server} directory={directory} sessionID={sid} />
     <FileSection id="results" title="Результаты" files={context.results} empty="Здесь появятся файлы из выполненных изменений и явные ссылки на файлы в ответах."
       action={{ label: "Подготовить запрос на создание результата", disabled: !sid, run: draftResult }}

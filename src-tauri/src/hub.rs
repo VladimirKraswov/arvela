@@ -178,8 +178,7 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         if !c.share_text {
             if let Some(records) = b["records"].as_array_mut() {
                 for r in records {
-                    r["text"] = json!("");
-                    r["title"] = json!("");
+                    strip_text(r);
                 }
             }
         }
@@ -364,6 +363,14 @@ fn scope(c: &Config) -> String {
 fn fingerprint(v: &Value) -> String {
     format!("{:x}", Sha256::digest(v.to_string().as_bytes()))
 }
+// Apply privacy at enqueue, queue read and final HTTP send, including older queued cards.
+fn strip_text(r: &mut Value) {
+    if let Some(o) = r.as_object_mut() {
+        o.insert("text".into(), json!(""));
+        o.insert("title".into(), json!(""));
+        o.remove("assessment");
+    }
+}
 #[tauri::command]
 pub async fn hub_spool(
     window: tauri::WebviewWindow,
@@ -418,12 +425,12 @@ pub async fn hub_spool(
                             "tools",
                             "finish",
                             "truncated",
+                            "assessment",
                         ]
                         .contains(&k.as_str())
                     });
                     if !c.share_text {
-                        o.insert("text".into(), json!(""));
-                    o.insert("title".into(), json!(""));
+                        strip_text(&mut r);
                     }
                     let h = fingerprint(&r);
                     if !s.seen.contains(&h) && !s.pending.iter().any(|v| fingerprint(v) == h) {
@@ -464,8 +471,7 @@ pub async fn hub_spool(
         }
         if !c.share_text {
             for r in &mut s.pending {
-                r["text"] = json!("");
-                r["title"] = json!("");
+                strip_text(r);
             }
         }
         if action != "read" {
@@ -484,6 +490,15 @@ pub async fn hub_spool(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn private_assessment_is_removed_when_text_sharing_is_off() {
+        let mut r = json!({"text":"request","title":"private","assessment":{"goal":"private"},"tokens":{"total":12}});
+        strip_text(&mut r);
+        assert!(r.get("assessment").is_none());
+        assert_eq!(r["text"], "");
+        assert_eq!(r["title"], "");
+        assert_eq!(r["tokens"]["total"], 12);
+    }
     #[test]
     fn endpoints() {
         assert!(origin("https://192.168.31.223:8443").is_ok());

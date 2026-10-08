@@ -2870,3 +2870,13 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .hub-toggle input { flex: 0 0 auto; }
 .hub-settings .capability-item > div { min-width: 0; overflow-wrap: anywhere; }
 .hub-settings .capability-item small { color: var(--text-muted); }
+
+.outcome-section summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text); padding:4px 0; }
+.outcome-section label { display:flex; flex-direction:column; gap:5px; margin-top:12px; font-size:12px; color:var(--text-dim); min-width:0; }
+.outcome-section input:not([type=checkbox]),.outcome-section textarea,.outcome-section select { width:100%; min-width:0; box-sizing:border-box; font:inherit; padding:8px; border:1px solid var(--border); border-radius:8px; background:var(--bg-input); color:var(--text); }
+.outcome-section textarea { min-height:64px; resize:vertical; }
+.outcome-section fieldset { min-width:0; margin:12px 0; padding:8px; border:1px solid var(--border); border-radius:8px; }
+.outcome-section .outcome-share { flex-direction:row; align-items:flex-start; line-height:1.5; }
+.outcome-share input { flex-shrink:0; margin-top:2px; }
+.outcome-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.outcome-actions .btn { white-space:normal; overflow-wrap:anywhere; }

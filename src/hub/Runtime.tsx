@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { store } from "../state/store";
 import { isNative } from "../native/platform";
 import { config, disable, drain, idle, install, request, spool, type HubItem } from "./client";
+import { assessmentIndex, attachAssessment } from "../outcomes/sharing";
 import { record, type HubRecord } from "./records";
 export function HubRuntime(){useEffect(()=>{
  if(!isNative())return;
@@ -9,12 +10,13 @@ export function HubRuntime(){useEffect(()=>{
  const observed=new Map<string,string>();
  async function tick(){if(disposed||busy||Date.now()<next)return;busy=true;
  try{const c=await config();if(disposed||!c.enabled)return;
- const records:HubRecord[]=[];
+ const records:HubRecord[]=[],assessments=await assessmentIndex(),server=store.state.prefs.workspaceKey??store.state.prefs.endpoint;
+ if(disposed)return;
  for(const [sid,chat] of Object.entries(store.state.chat.sessions)){
   const session=store.state.sessions.find(s=>s.id===sid)??{id:sid,title:store.state.prefs.piSessions?.[sid]?.title??"",directory:store.state.directory??""};
   for(const id of chat.messageOrder){const m=chat.messages[id];if(!m)continue;
    const parts=(chat.partsByMessage[id]??[]).map(p=>chat.parts[p]).filter(Boolean);
-   const r=record(store.engineIdFor(sid,session.directory)==="pi"?"pi":"opencode",session,m,parts,c.shareText);if(!r)continue;
+   const r=attachAssessment(record(store.engineIdFor(sid,session.directory)==="pi"?"pi":"opencode",session,m,parts,c.shareText),assessments,server,session.directory??"",c.shareText);if(!r)continue;
    const key=r.engine+":"+sid+":"+id,value=JSON.stringify(r);if(observed.get(key)!==value){records.push(r);}
   }
  }

@@ -73,6 +73,7 @@ async function openSession(id,title){
    const part=card(r.role==='user'?'Запрос':'Ответ',r.model+' · '+r.variant+' · '+date(r.created)+' · '+fmt(r.total)+' токенов');
    part.append(n('pre',r.text||'Текст не передан / удалён по сроку хранения.'));if(r.error)part.append(n('p',r.error,'danger'));
    if(r.tools.length)part.append(table(['Инструмент','Статус','Время','Ошибка'],r.tools.map(t=>[t.name,t.status,fmt(t.durationMs)+' мс',t.error])));
+   for(const a of r.assessments||[]){const verdict={accepted:'Принято пользователем',needs_work:'Нужна доработка',unreviewed:'Не проверено'}[a.verdict]||'Не проверено';const result=card('Оценка результата · '+a.deviceName,verdict+' · версия '+a.revision);result.append(n('small','Проверки указаны пользователем; принятие задачи не одобряет сессию для датасета.'),n('h3','Цель'),n('pre',a.goal||'Текст удалён по сроку хранения.'),n('h3','Критерии приёмки'),n('pre',a.criteria||'—'));if(a.notes)result.append(n('pre',a.notes));if(a.checks.length)result.append(table(['Проверка','Указанный результат','Подтверждение'],a.checks.map(x=>[x.name,{passed:'Прошла',failed:'Не прошла',not_run:'Не выполнена'}[x.status]||'—',x.evidence])));part.append(result);}
    if(r.truncated)part.append(n('small','Текст ограничен 16 000 символами.'));page.append(part);
   }records.prepend(page);cursor=d.nextCursor;more.hidden=!cursor;status.textContent=`Показано ${fmt(seen.size)} из ${fmt(total)} сообщений. Отбор для датасета относится ко всей сессии.`;
   return d;

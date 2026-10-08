@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { config, drain, emptyConfig, install, request, spool, type HubConfig, type HubItem, type Spool } from "../hub/client";
+import { assessmentIndex, attachAssessment } from "../outcomes/sharing";
 import { record } from "../hub/records";
 import { usageSources } from "../usage/sources";
 import { store } from "../state/store";
@@ -14,10 +15,10 @@ export function HubSettings({onDirtyChange}:{onDirtyChange?:(v:boolean)=>void}){
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){if(mounted.current)setError(String(e));}finally{if(mounted.current)setBusy(false);}};
  async function refresh(){const d=await request<{items:HubItem[]}>("catalog");if(mounted.current){setItems(d.items);setStatus(await spool("read"));}}
  async function backfill(){const controller=new AbortController();cancel.current=controller;let count=0,failures=0;
-  try{for(const source of usageSources()){
+  try{const assessments=await assessmentIndex(),server=store.state.prefs.workspaceKey??store.state.prefs.endpoint;for(const source of usageSources()){
    const sessions=(await source.sessions(controller.signal)).filter(s=>s.time.updated>Date.now()-30*86400000).slice(0,500);
    for(const session of sessions){controller.signal.throwIfAborted();let before:string|undefined;const seen=new Set<string>();
-    try{for(let page=0;page<20;page++){controller.signal.throwIfAborted();const d=await source.messages(session,before,controller.signal),batch=d.messages.map(m=>record(source.engine==="Pi"?"pi":"opencode",session,m.info,m.parts,saved.shareText)).filter(x=>x!==null);
+    try{for(let page=0;page<20;page++){controller.signal.throwIfAborted();const d=await source.messages(session,before,controller.signal),batch=d.messages.map(m=>attachAssessment(record(source.engine==="Pi"?"pi":"opencode",session,m.info,m.parts,saved.shareText),assessments,server,session.directory??"",saved.shareText)).filter(x=>x!==null);
      for(let i=0;i<batch.length;i+=50)await spool("enqueue",batch.slice(i,i+50));
      for(let i=0;i<Math.ceil(batch.length/20);i++)await drain();count+=batch.length;if(mounted.current)setNotice(`Передано сообщений: ${count}; ошибок чтения: ${failures}`);
      if(!d.before||seen.has(d.before))break;before=d.before;seen.add(before);

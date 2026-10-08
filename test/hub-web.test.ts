@@ -8,7 +8,7 @@ function fixture(){
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
  w.HTMLDialogElement.prototype.close=function(){if(this.open){this.open=false;this.dispatchEvent(new w.Event('close'));}};
  const session={id:'safe-id',title:'Long task',engine:'pi',project:'project',updated:1,verdict:'unreviewed',notes:'Keep this note'};
- const record=(id:string,text:string)=>({id,role:'assistant',model:'local',variant:'medium',created:1,total:20,text,tools:[],error:'',truncated:false});
+ const record=(id:string,text:string)=>({id,role:'assistant',model:'local',variant:'medium',created:1,total:20,text,tools:[],error:'',truncated:false,assessments:id==='new'?[{deviceName:'Mac',revision:2,goal:'<script>unsafe()</script>',criteria:'Reopen preserves value',notes:'Owner note',verdict:'accepted',checks:[{name:'Reopen',status:'passed',evidence:'Observed restored value'}]}]:[]});
  const fetch=vi.fn(async(path:string)=>{
   const url=new URL(path,'https://hub.test');let data:any={};
   if(url.pathname==='/api/me')data={admin:true};
@@ -38,6 +38,15 @@ describe('private Hub Web UI',()=>{
    expect(note.value).toBe('Owner draft');expect(f.w.document.querySelector('#detail-body')?.textContent?.indexOf('Earlier text')).toBeLessThan(f.w.document.querySelector('#detail-body')?.textContent?.indexOf('Latest answer')!);
    f.click('Выйти');await vi.waitFor(()=>expect(f.w.document.querySelector('#detail-body')?.textContent).toBe(''));
    expect((f.w.document.querySelector('#detail') as HTMLDialogElement).open).toBe(false);
+  }finally{f.dom.window.close();}
+ });
+ it('shows owner evidence as escaped text, separate from dataset approval',async()=>{
+  const f=fixture();try{
+   await vi.waitFor(()=>expect(f.w.document.querySelector('#workspace')?.hasAttribute('hidden')).toBe(false));f.click('История');await vi.waitFor(()=>expect(f.w.document.querySelector('#view')?.textContent).toContain('Long task'));f.click('Открыть');
+   await vi.waitFor(()=>expect(f.w.document.querySelector('#detail-body')?.textContent).toContain('Оценка результата · Mac'));
+   expect(f.w.document.querySelector('#detail-body')?.textContent).toContain('Принято пользователем');expect(f.w.document.querySelector('#detail-body')?.textContent).toContain('не одобряет сессию для датасета');
+   expect(f.w.document.querySelector('#detail-body')?.textContent).toContain('<script>unsafe()</script>');expect(f.w.document.querySelector('#detail-body script')).toBeNull();
+   expect(f.w.document.querySelector('#detail-body')?.textContent).toContain('Observed restored value');
   }finally{f.dom.window.close();}
  });
  it('filters expected refusals separately and links to the affected session',async()=>{

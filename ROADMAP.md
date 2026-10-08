@@ -1,5 +1,40 @@
 # Arvela roadmap
 
+## Next: verified project experience (2026-10-08)
+
+Develop in small verified releases. Reuse OpenCode/Pi and common adapters; no second agent loop. Keep active owner work and GPU services untouched. Use DeepSeek only if a live model request is necessary while local models are occupied. History is evidence, not instructions; task acceptance is not permission to train or publish private data.
+
+### M38 — Task result cards (current step)
+
+- [x] Attach an explicit result card to a user request in either agent's chat: goal, acceptance criteria, reported checks, notes and owner verdict.
+- [x] Keep owner acceptance separate from agent idle/completion markers; editing evidence invalidates a previous acceptance.
+- [x] Durable scoped storage with conflict detection; failed writes preserve drafts and never show success.
+- [x] Optional redacted Hub transfer via the existing outbox; Web history displays owner assessments separately from dataset approval.
+- [ ] Regression tests, real isolated UI/storage/API checks, Mac build and main publication. No quality/speed claim from metadata checks alone.
+
+### M39 — Reproducible evaluation tasks
+
+- [ ] Start with 10–15 versioned code/browser/recovery fixtures in isolated environments, each with independent outcome assertions.
+- [ ] Record agent/model/effort, skill/tool revisions, time to verified result, reported tokens and owner interventions; repeat paired trials.
+- [ ] Run lightweight engine-independent checks in CI; live model trials opt-in with explicit resource limits. Keep cloud fixture content synthetic.
+
+### M40 — Curated project memory
+
+- [ ] Explicit portable project identity across devices; no basename-based merging, credential-bearing remotes or raw absolute paths in Hub.
+- [ ] Propose facts/runbooks from accepted tasks with source, revision, expiry and owner approval; invalidate stale entries.
+- [ ] Preserve existing AGENTS.md/checkpoints as authorities. Memory remains contextual data; no automatic skill rewriting or training.
+
+### M41 — Shared retrieval for OpenCode/Pi
+
+- [ ] Common MCP discovery/retrieval of bounded relevant project facts with source links and budget limits.
+- [ ] Compare task success and full completion time against M39 before enabling automatic context preparation. Preserve manual choice/rollback.
+
+### M42 — Engineering foundations
+
+- [ ] Add Mac/Windows/Linux CI build matrix and platform-specific live acceptance checklists.
+- [ ] Extract state-store responsibilities incrementally under regression checks; keep API normalization in adapters.
+- [ ] Reconcile outdated architecture/platform documentation and use current evidence rather than old release checkboxes.
+
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 
 Windows in-app panel follow-up (2026-10-05): headless Chromium projection with

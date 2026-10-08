@@ -1,3 +1,39 @@
+# Arvela 0.2.29 — task result cards (2026-10-08)
+
+M38 adds request-anchored owner assessments for OpenCode/Pi in the context panel,
+atomic IndexedDB revision checks and durable optional Hub delivery. Agent idle,
+completion markers and reported tool success never become owner acceptance.
+Changes to evidence invalidate the previous assessment. Checks are user reports,
+not independently executed tests. Sharing is opt-in per card, respects text
+privacy at enqueue/read/final send, redacts known secrets and keeps separate
+per-device assessments. Dataset approval remains independent.
+
+Verification: 587 frontend tests pass / 6 opt-in live skipped; 21 Python Hub tests
+pass locally and on CT206; 90 Rust tests pass / 1 unchanged vault test ignored.
+TypeScript/Vite, Rust fmt/all-targets and final macOS app/DMG build pass.
+Tests cover simultaneous/stale writes, scope isolation, explicit acceptance,
+failed-write draft retention, reopen, sharing boundaries, old revision replay,
+per-device reviews, invalid-batch rollback, safe rendering and retention.
+Real isolated browser storage save/accept/reload restored all fields; a 340px
+panel and actual isolated Web history/API showed the owner report separately
+from session approval. Final installed Mac exposes the section and enables
+creation after its storage opens; no fake card was added to owner history.
+
+CT206 source hashes match local server/Web code, schema migration preserved all
+10314 pre-update records, integrity_check=ok. Updated installed native Hub CLI
+reports connected=true/catalog6. External OpenCode remains healthy1.18.18;
+no model requests, inference/GPU changes, owner session submissions or aborts.
+Windows/Linux live acceptance and model quality/speed A/B were not run.
+
+Installed/built binary SHA256:
+`65dc1ab5cfdaa4ee59512b5e78b0bf44fd94da08de7855f279c51b2259ae255e`.
+DMG SHA256:
+`90ec4269b1b801e34f3b9ae48b4641c5d0fe15c440e9910951dfcc7141bec815`.
+Strict signature/microphone/DMG verification passed; previous app is retained
+privately. Main publication, release round-trip and NAS archive verification
+are recorded in the final checkpoint below once complete. M39–42 remain future
+work; this release does not implement project memory or automatic training.
+
 # Arvela 0.2.26 — balanced settings and new icon (2026-10-08)
 
 Common app/capability settings are separate from equal OpenCode/Pi sidebar

@@ -35,6 +35,31 @@ def digest(value):
 def number(value):
     return min(9*10**15, max(0, int(value))) if isinstance(value, (int, float)) and math.isfinite(value) else 0
 
+def assessment(value):
+    """Owner reports, not independently verified tests or training approval."""
+    if not isinstance(value, dict): raise Fault(400, 'Некорректная карточка результата.')
+    revision, verdict, checks = value.get('revision'), value.get('verdict'), value.get('checks')
+    if (type(revision) is not int or not 1 <= revision <= 9*10**15
+        or verdict not in ('unreviewed','accepted','needs_work')
+        or not isinstance(checks,list) or len(checks)>8):
+        raise Fault(400, 'Некорректная версия или оценка результата.')
+    clean = {'revision':revision,'verdict':verdict}
+    for key,limit in [('goal',4000),('criteria',4000),('notes',2000)]:
+        text=value.get(key)
+        if not isinstance(text,str) or len(text)>limit: raise Fault(400, 'Карточка превышает лимит текста.')
+        clean[key]=scrub(text,limit)
+    if verdict=='accepted' and (not clean['goal'].strip() or not clean['criteria'].strip()):
+        raise Fault(400, 'Для принятия нужны цель и критерии.')
+    clean['checks']=[]
+    for check in checks:
+        if (not isinstance(check,dict) or not isinstance(check.get('name'),str)
+            or not check['name'].strip() or len(check['name'])>160
+            or check.get('status') not in ('not_run','passed','failed')
+            or not isinstance(check.get('evidence'),str) or len(check['evidence'])>1500):
+            raise Fault(400, 'Некорректное подтверждение проверки.')
+        clean['checks'].append({'name':scrub(check['name'],160),'status':check['status'],'evidence':scrub(check['evidence'],1500)})
+    return clean
+
 class Fault(Exception):
     def __init__(self, status, message):
         self.status, self.message = status, message
@@ -120,6 +145,9 @@ class Hub:
             CREATE INDEX IF NOT EXISTS records_device ON records(device_id);
             CREATE TABLE IF NOT EXISTS observations(record_id TEXT, device_id TEXT, seen INTEGER,
                 PRIMARY KEY(record_id,device_id));
+            CREATE TABLE IF NOT EXISTS assessments(record_id TEXT REFERENCES records(id),
+                device_id TEXT REFERENCES devices(id), revision INTEGER, goal TEXT, criteria TEXT,
+                notes TEXT, checks TEXT, verdict TEXT, updated INTEGER, PRIMARY KEY(record_id,device_id));
             CREATE TABLE IF NOT EXISTS issues(id TEXT PRIMARY KEY, title TEXT, tool TEXT, example TEXT,
                 state TEXT DEFAULT 'candidate', created INTEGER, updated INTEGER);
             CREATE TABLE IF NOT EXISTS issue_hits(issue_id TEXT, record_id TEXT, session_id TEXT, call_id TEXT,
@@ -246,10 +274,14 @@ class Hub:
             total = max(number(t.get('total')),input_+output+cache_read+cache_write)
             if r['role']=='user': input_=output=cache_read=cache_write=total=0
             text = scrub(r.get('text',''))
-            normalized.append((r,sid,rid,tools,text,input_,output,cache_read,cache_write,total))
+            a=None
+            if 'assessment' in r:
+                if r['role']!='user': raise Fault(400, 'Карточка привязана только к запросу пользователя.')
+                a=assessment(r['assessment'])
+            normalized.append((r,sid,rid,tools,text,input_,output,cache_read,cache_write,total,a))
         with self.lock, self.connection() as c:
             c.execute('UPDATE devices SET seen=?,app_version=? WHERE id=?', (now,scrub(data.get('appVersion',''),40),actor['id']))
-            for r,sid,rid,tools,text,input_,output,cache_read,cache_write,total in normalized:
+            for r,sid,rid,tools,text,input_,output,cache_read,cache_write,total,a in normalized:
                 created, completed = number(r.get('created')) or now, number(r.get('completed'))
                 c.execute('''INSERT INTO sessions(id,engine,title,project,first_device,created,updated) VALUES (?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET updated=MAX(updated,excluded.updated),
@@ -274,6 +306,12 @@ class Hub:
                     tools=CASE WHEN excluded.completed>=completed THEN excluded.tools ELSE tools END,
                     error=CASE WHEN excluded.error!='' THEN excluded.error ELSE error END,updated=excluded.updated''',values)
                 c.execute('INSERT OR REPLACE INTO observations VALUES (?,?,?)',(rid,actor['id'],now))
+                if a:
+                    c.execute('''INSERT INTO assessments VALUES (?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(record_id,device_id) DO UPDATE SET revision=excluded.revision,
+                        goal=excluded.goal,criteria=excluded.criteria,notes=excluded.notes,checks=excluded.checks,
+                        verdict=excluded.verdict,updated=excluded.updated WHERE excluded.revision>assessments.revision''',
+                        (rid,actor['id'],a['revision'],a['goal'],a['criteria'],a['notes'],encode(a['checks']),a['verdict'],now))
                 errors=[(x['name'],x['id'],x['error']) for x in tools if x['status']=='error' and x['error']]
                 if r.get('error'): errors.append(('agent',r['id'],scrub(r['error'],1500)))
                 for tool,call,error in errors:
@@ -396,7 +434,11 @@ class Hub:
                 next_=cursor_encode(sid+':'+direction,page[-1]['created'],page[-1]['id']) if len(records)>limit else None
                 if direction=='older': page.reverse()
                 total=c.execute('SELECT COUNT(*) FROM records WHERE session_id=?',(sid,)).fetchone()[0]
-                for record in page:record['tools']=json.loads(record['tools'])
+                for record in page:
+                    record['tools']=json.loads(record['tools'])
+                    record['assessments']=[{**dict(a),'checks':json.loads(a['checks'])} for a in c.execute('''
+                        SELECT a.*,d.name deviceName FROM assessments a JOIN devices d ON d.id=a.device_id
+                        WHERE record_id=? ORDER BY a.updated DESC,d.id''',(record['id'],))]
                 return {'session':dict(row),'records':page,'limit':limit,'nextCursor':next_,'total':total}
             if method=='POST' and path=='/api/sessions/review':
                 self.admin(actor)
@@ -440,6 +482,9 @@ class Hub:
                 c.execute('UPDATE records SET text="",error="",tools=? WHERE id=?', (encode(steps),row['id']))
             c.execute('UPDATE sessions SET notes="",title="" WHERE updated<?',(cutoff,))
             c.execute('UPDATE issues SET example="",title=tool WHERE updated<?',(cutoff,))
+            c.execute('''UPDATE assessments SET goal="",criteria="",notes="",checks="[]"
+                WHERE record_id IN (SELECT id FROM records WHERE created<?)''',(cutoff,))
+            c.execute('DELETE FROM assessments WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))
             c.execute('DELETE FROM observations WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))
             c.execute('DELETE FROM issue_hits WHERE record_id IN (SELECT id FROM records WHERE created<?)',(now-keep['metadataDays']*86400000,))
             c.execute('DELETE FROM records WHERE created<?',(now-keep['metadataDays']*86400000,))

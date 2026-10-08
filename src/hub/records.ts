@@ -1,8 +1,10 @@
+import type { Assessment } from "../outcomes/store";
 import type { Message, MessagePart, Session } from "../api/types";
 export interface HubRecord {
  engine: "opencode" | "pi"; sessionId: string; id:string; role:"user"|"assistant"; created:number; completed:number;
  title:string; project:string; provider:string; model:string; variant:string; text:string; error:string; finish:string; truncated:boolean;
  tokens:{input:number;output:number;cacheRead:number;cacheWrite:number;reasoning:number;total:number};
+ assessment?:Assessment;
  tools:Array<{id:string;name:string;status:string;durationMs:number;error:string}>;
 }
 /** Defense in depth, not a claim of perfect personal-data removal. */
