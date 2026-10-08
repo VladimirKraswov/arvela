@@ -29,7 +29,9 @@ DMG SHA256:
 `30150526fce56811e3b7a553d81d46da680db7b2f3f3cf097a8a9c1aca6085cb`.
 Strict signature/microphone/hdiutil pass; ad-hoc signed, not notarized.
 Final native About shows0.2.31/OpenCode1.18.18/Pi0.85.1; source/release round-trip
-is recorded in the final checkpoint.
+passed: sourcec8512204754444b0463b8a267f0dd65a144f4ba2 is the publicv0.2.31
+target, freshly downloaded asset equals build/Downloads/GitHub digest and passes
+hdiutil. GitHub CI [contracts run37763498470](https://github.com/VladimirKraswov/arvela/actions/runs/37763498470) succeeds.
 
 Full private NAS CT206 archive0.2.31 SHA256:
 `bdc9d9e9e79506409fccde847bad7d966d5290f491c2b7d27f508c7ed34e56f0`.
