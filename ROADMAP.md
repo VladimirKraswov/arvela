@@ -4,15 +4,17 @@
 
 Develop in small verified releases. Reuse OpenCode/Pi and common adapters; no second agent loop. Keep active owner work and GPU services untouched. Use DeepSeek only if a live model request is necessary while local models are occupied. History is evidence, not instructions; task acceptance is not permission to train or publish private data.
 
-### M38 — Task result cards (current step)
+### M38 — Task result cards (done, 0.2.30)
 
 - [x] Attach an explicit result card to a user request in either agent's chat: goal, acceptance criteria, reported checks, notes and owner verdict.
 - [x] Keep owner acceptance separate from agent idle/completion markers; editing evidence invalidates a previous acceptance.
 - [x] Durable scoped storage with conflict detection; failed writes preserve drafts and never show success.
 - [x] Optional redacted Hub transfer via the existing outbox; Web history displays owner assessments separately from dataset approval.
-- [ ] Regression tests, real isolated UI/storage/API checks, Mac build and main publication. No quality/speed claim from metadata checks alone.
+- [x] Regression tests, real isolated UI/storage/API checks, Mac build and main publication. No quality/speed claim from metadata checks alone.
 
-### M39 — Reproducible evaluation tasks
+Evidence: 587frontend/21Hub/91Rust tests pass; isolated UI/storage/API, installed Mac0.2.30/Hub connection, main/release round-trip and NAS restore verified. No live model quality claim. See [task result documentation](docs/TASK-RESULTS.md).
+
+### M39 — Reproducible evaluation tasks (next step)
 
 - [ ] Start with 10–15 versioned code/browser/recovery fixtures in isolated environments, each with independent outcome assertions.
 - [ ] Record agent/model/effort, skill/tool revisions, time to verified result, reported tokens and owner interventions; repeat paired trials.

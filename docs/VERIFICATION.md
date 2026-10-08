@@ -7,7 +7,22 @@ leaving space under the existing HTTP 2MiB cap. Ordinary records retain64KB;
 queue1200/12MiB bounds and consent rules remain. No task evidence is truncated.
 New native regression checks complete partitioning/byte cap. Version0.2.30
 supersedes the already-published initial0.2.29 package; do not rewrite its tag.
-Final checks/install/release hashes are recorded when complete.
+Final587frontend/21Hub/91Rust tests pass (6 optional live skipped/1 unchanged
+vault ignore); TypeScript/Vite, fmt/all-targets and Mac build/signature/mic/DMG
+checks pass. Installed Mac footer0.2.30, real catalog6/installedskills3 and
+queue0/drop0 verified; unchanged OpenCode3714 healthy1.18.18. No owner chat writes,
+model requests or GPU changes. Main source83ece421512d0d9db9038751c6d119fb800a79bd
+is the publicv0.2.30 target. Downloaded asset SHA equals build/Downloads/GitHub
+digest, hdiutil passes. Installed/built binary:
+`e754ba015992f21f9b3209747e7d9db5b3340607e65960e686db399d659f8067`.
+DMG:
+`d1aff0e7282fc0d3b5ef8f199cd1837c7a8c3795e7050495cc4b922197327716`.
+Hub backend is unchanged from0.2.29 deployment. Full NAS archive
+`59a70030cb90a38fc90cd7e9b18788027f2e648ea17ae4400f0c3f2be1ec3f87`
+was byte/zstd verified and restored to isolated unstarted207 with integrityok,
+10314records/sourcehashmatch/newtablepresent; own207 and SSD staging removed.
+Windows/Linux live tests and model-quality/speed A/B remain unrun. M38 complete;
+M39–42 are roadmap work, not implemented or silently scheduled.
 
 # Arvela 0.2.29 — task result cards (2026-10-08)
 
