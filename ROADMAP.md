@@ -437,5 +437,5 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Revise three existing portable skills from observed edit/target/verification failures; publish catalog revisions without bypassing busy guards.
 - [x] Frontend/service/native regression checks, isolated Web interaction and real TLS API pagination.
 - [x] Mac0.2.28 build/signature/install and NAS full archive; isolated restore checked.
-- [ ] Updated Mac vault access and idle application of skill revisions; requires owner OS confirmation.
+- [x] Updated Mac vault/HTTPS access and idle-applied skill revisions; actual Pi/OpenCode loaders checked without inference.
 - [x] Main/release publication and downloaded Mac asset verification; live Windows/Linux acceptance remains separate.
