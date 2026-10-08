@@ -1,0 +1,1 @@
+exports.total=(cart,coupon,shipping)=>cart.reduce((n,i)=>n+(i.quantity||1)*i.price,shipping)*(1-coupon/100);

@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "graderPrefixSha256": "ed1e062bc01a7154ba5b2bd7eb1371d0acb8c0e945ddeb5b2b271e5901889db4",
+  "preservationProbe": "const q=[{id:'a',state:'ready'},{id:'b',state:'ready'}],before=JSON.stringify(q);await s.drain(q,async i=>{if(i.id==='b')throw Error('transport')},async()=>{});assert.equal(JSON.stringify(q),before);",
+  "generationProbe": "const scope={server:'s',directory:'d',engine:'pi',session:'x'},state={scope,generation:3,text:'',seen:[],theme:'dark'};assert.equal(s.switchTo(state,{...scope,directory:'new'}).generation,4);",
+  "rows": [
+    {
+      "run": "projects-initial",
+      "fixture": "project-outbox",
+      "engine": "opencode",
+      "navigationMode": "tools",
+      "repeat": 1,
+      "originalStatus": "timeout",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": false,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 0,
+      "toolErrorCodes": null,
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102",
+        "src/classify.cjs": "b23bf74ae279d9719b07142596cf7d322663d6d0cb5bb3a0bea9248557cd8e3d",
+        "src/delivery.cjs": "71b5e1421ad5dbaef2c25a1fd47f2b8a94be42cb337df2b4a0371e8149879c2c"
+      }
+    },
+    {
+      "run": "projects-initial",
+      "fixture": "project-outbox",
+      "engine": "pi",
+      "navigationMode": "off",
+      "repeat": 1,
+      "originalStatus": "timeout",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": false,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 2,
+      "toolErrorCodes": null,
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102",
+        "src/classify.cjs": "8f36d80caef05ace3a72ae9727f11d73a8881ee56353b1f1cb78d940bad37aab",
+        "src/delivery.cjs": "ac2bdfc96bda69fda10c510cf021ad7954d9da567390dfec566da53d02db7c92"
+      }
+    },
+    {
+      "run": "projects-initial",
+      "fixture": "project-outbox",
+      "engine": "pi",
+      "navigationMode": "tools",
+      "repeat": 1,
+      "originalStatus": "timeout",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": false,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 0,
+      "toolErrorCodes": null,
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102",
+        "src/classify.cjs": "c7dacf1a006d32266341acc8436c7cb5c50af6d91c41b0d351c83b8049c61b41",
+        "src/delivery.cjs": "593712fb9ba5b86cc26bc2033f1abd03f9d7e388f067b83e21e273cd9e62827c"
+      }
+    },
+    {
+      "run": "projects-initial",
+      "fixture": "project-checkout",
+      "engine": "opencode",
+      "navigationMode": "off",
+      "repeat": 2,
+      "originalStatus": "outcome-failed",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": null,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 3,
+      "toolErrorCodes": null,
+      "filesUnchanged": true,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "a626b688a27eff3b0e0f138e21a215198cf5366150c749c2edcc037e88086e7f",
+        "src/pricing.cjs": "23bbf6991950065a12e5ddb1a822055f99d896a614eb96cbc3eabf5aaf5f57ef",
+        "src/orders.cjs": "cb529d416f0fe06ffe438baea6c2537e730557ea84d11ef7d8385166a8335760"
+      }
+    },
+    {
+      "run": "projects-initial",
+      "fixture": "project-outbox",
+      "engine": "pi",
+      "navigationMode": "tools",
+      "repeat": 2,
+      "originalStatus": "timeout",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": false,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 0,
+      "toolErrorCodes": null,
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102",
+        "src/classify.cjs": "02687d4ee0b8e84db58ca12803761a0c946c93541f6e740726496fb330fe111b",
+        "src/delivery.cjs": "4a773b7435f0c92d9728b579a18335a1452bcc30b37c5f7254635992685712ae"
+      }
+    },
+    {
+      "run": "projects-initial",
+      "fixture": "project-outbox",
+      "engine": "pi",
+      "navigationMode": "off",
+      "repeat": 2,
+      "originalStatus": "timeout",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": false,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 0,
+      "toolErrorCodes": null,
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102",
+        "src/classify.cjs": "40bb692668d3a7aec4bf07aca96656259c58b578a79e3029963f6d5ee6a9cc3b",
+        "src/delivery.cjs": "032c70a3fea58912ea07093af4d1149af1607a544744f408bb74a1fd2d930a22"
+      }
+    },
+    {
+      "run": "projects-continuation",
+      "fixture": "project-outbox",
+      "engine": "opencode",
+      "navigationMode": "tools",
+      "repeat": 2,
+      "originalStatus": "timeout",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": false,
+      "topLevelGenerationUpdated": null,
+      "toolErrors": 0,
+      "toolErrorCodes": {},
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "c2eaf47578931fe1a6a3bb018c7326621f1ee2e98c7b8b6558cfdb8b29846102",
+        "src/classify.cjs": "23edb209ece002a2b4b55c604223019b650606530d06d304b9f8644293c13b54",
+        "src/delivery.cjs": "1e6590c18de7488b63fb5044394a24926cb9ea97c486b26bdf28b72c86d881e2"
+      }
+    },
+    {
+      "run": "projects-continuation",
+      "fixture": "project-session-router",
+      "engine": "pi",
+      "navigationMode": "off",
+      "repeat": 2,
+      "originalStatus": "outcome-failed",
+      "heldOutFailureReproduced": true,
+      "inputPreserved": null,
+      "topLevelGenerationUpdated": false,
+      "toolErrors": 0,
+      "toolErrorCodes": {},
+      "filesUnchanged": false,
+      "candidateFiles": {
+        "README.md": "4e4345cde3b6de8d71497c59714b619b9470f05b52bd51e2f436ed05bcf41914",
+        "docs/architecture.md": "36ec6fe7d8aad5945d3fcac49e7598026d950a6c693bdf43da36cc10a7c9c26b",
+        "solution.cjs": "5448de12b38a0c8984e08d42fa902ca4f20e834f1a030af1af6d5e178d1936b7",
+        "src/scope.cjs": "ef5f2a1d1580f8a6e4f121cc46755d4f4f80d819f7a39d917146612405076da6",
+        "src/session.cjs": "f45579bbc3d31b2acb178274fb9800bace82d6054d0d6d34c076420034a3c7da"
+      }
+    }
+  ]
+}

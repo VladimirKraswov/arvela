@@ -1,0 +1,14 @@
+{
+  "../../services/hub/memory.py": "dd1f24d22f9501f3781e45b01ed7cb9d1060a88962687f49c3ff4e5e237a9845",
+  "../../services/hub/server.py": "dd201869d53f725a5d5a40b889f0a0c1804f0786240f40d8947b871d3dbb48a2",
+  "fixtures.mjs": "af4e22a67d15254d04ef75f9730e340fbcb581a08cf1624fe0d8631ae35fa216",
+  "project-fixtures.mjs": "2347c2219dd560f35f873013802995a11041f3ebc1be2fb57c4da06c241c738d",
+  "backend.mjs": "eca45d376fcf9eabcbcf3716be41828479b0156a72f67bc4de296ab2f5c26fba",
+  "proxy.mjs": "6b508f27303a151145b3e6b157370ceb43a814153715d12cd4ea8b7167c28e3d",
+  "runner.mjs": "787ef4aa6836540402598e13dd492bbe90ff6d1d43928cc00a12f1a9254fcfc5",
+  "mcp.mjs": "eb9699db6cb6ba48c93d02e3895f89851c834fe2709535450270b49086634f68",
+  "pi-extension.ts": "ab8c7752e9d4885b09ea36d6280d95b9275468d2c710f3a34c37c5af90c11cf9",
+  "memory.mjs": "5b7989daeb4ea0d51005a8601eceef4c3ac34f6ec9d21e75b6337c3d81d6e6da",
+  "memory.py": "d96a3e59848890c243d234578647e750835c0dc97d9ed18735f807ac9f697c2c",
+  "../../src-tauri/resources/shared/project-map-core.mjs": "3871c8d9135dd19c2214b232b947b39321a07d7c70b743cd9efeec6976cf5fce"
+}

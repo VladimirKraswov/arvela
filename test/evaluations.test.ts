@@ -1,17 +1,57 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { JSDOM } from 'jsdom';
 import { fixtures, browserHtml,browserWorkflowHtml } from '../scripts/evaluations/fixtures.mjs';
-import { cleanEnvironment, gradeCode, selfCheck, runProcess, parseAgentEvents, renderReport } from '../scripts/evaluations/runner.mjs';
+import { cleanEnvironment, gradeCode, selfCheck, runProcess, parseAgentEvents, renderReport, trialPlan } from '../scripts/evaluations/runner.mjs';
 import { startBackend } from '../scripts/evaluations/backend.mjs';
-import { startProxy } from '../scripts/evaluations/proxy.mjs';
+import { startProxy, providerPolicy } from '../scripts/evaluations/proxy.mjs';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('reproducible evaluation fixtures', () => {
+  it('local Qwen receipts retain every attempt and reproduce archived code outcomes', async () => {
+    const base=fileURLToPath(new URL('../docs/evaluations/2026-10-08/qwen/',import.meta.url));
+    let sources=0,files=0,wrappers=0,replays=0,cancelled=0;const fullProjects:string[]=[];
+    for(const [run,count] of [['protocol',2],['projects-initial',19],['projects-continuation',6],['browser',4]] as const){
+      const root=join(base,run),report=JSON.parse(await readFile(join(root,'report.json'),'utf8'));
+      expect(report.trials).toHaveLength(count);expect(report.complete).toBe(run!=='projects-initial');
+      expect(report.provider).toBe('local-qwen');expect(report.model).toBe('qwen38-flash-next');expect(report.effort).toBe('medium');expect(report.effectiveEffort).toBe('medium');
+      expect(report.modelMetadata.contextWindow).toBe(262144);
+      for(const [name,sha] of Object.entries(report.revisions)){
+        const file=name.startsWith('../../services/hub/')?`dependencies/hub/${name.split('/').at(-1)}`:name.startsWith('../../src-tauri/')?'dependencies/project-map-core.mjs':name;
+        expect(file).not.toContain('..');expect(createHash('sha256').update(await readFile(join(root,'sources',file))).digest('hex')).toBe(sha);sources++;
+      }
+      const archived=await import(/* @vite-ignore */ pathToFileURL(join(root,'sources/fixtures.mjs')).href);
+      for(const trial of report.trials){
+        expect(trial.providerUsage.servedModels).toEqual(['qwen38-flash-next']);expect(trial.providerUsage.modelMismatch).toBe(false);
+        if(trial.status==='cancelled')cancelled++;
+        else if(trial.category==='project')fullProjects.push([trial.fixture,trial.engine,trial.navigationMode,trial.repeat].join(':'));
+        if(trial.candidate){expect(createHash('sha256').update(await readFile(join(root,trial.candidate.file))).digest('hex')).toBe(trial.candidate.sha256);wrappers++;}
+        for(const c of trial.candidateFiles??[]){expect(c.file).not.toContain('..');expect(createHash('sha256').update(await readFile(join(root,c.file))).digest('hex')).toBe(c.sha256);files++;}
+        if(trial.category==='browser')continue;
+        const fixture=archived.fixtures.find((f:any)=>f.id===trial.fixture);expect(createHash('sha256').update(JSON.stringify(fixture)).digest('hex')).toBe(trial.fixtureRevision);
+        const work=await mkdtemp(join(tmpdir(),'arvela-archived-outcome-'));
+        try{
+          for(const c of trial.candidateFiles??[{path:'solution.cjs',file:trial.candidate.file}]){expect(c.path).not.toContain('..');expect(Object.hasOwn(fixture.files,c.path)).toBe(true);await mkdir(dirname(join(work,c.path)),{recursive:true});await writeFile(join(work,c.path),await readFile(join(root,c.file)));}
+          expect((await gradeCode(fixture,work)).passed).toBe(trial.outcomePassed);replays++;
+        }finally{await rm(work,{recursive:true,force:true});}
+      }
+    }
+    expect({sources,files,wrappers,replays,cancelled}).toEqual({sources:48,files:125,wrappers:27,replays:27,cancelled:1});
+    expect(fullProjects).toHaveLength(24);expect(new Set(fullProjects).size).toBe(24);
+  },30000);
+  it('bounded continuation skips exactly the attempted prefix and retains the paired AB/BA order', () => {
+    const options = { repeats: 2, selected: [{ id: 'a' }, { id: 'b' }], engines: ['opencode', 'pi'], memoryModes: ['off'], navigationModes: ['off', 'tools'] };
+    const plan = trialPlan(options);
+    expect(plan).toHaveLength(16);
+    expect(plan.slice(0,4).map(t => [t.engine,t.navigationMode,t.repeat])).toEqual([['opencode','off',1],['opencode','tools',1],['pi','off',1],['pi','tools',1]]);
+    expect(plan.slice(8,12).map(t => [t.engine,t.navigationMode,t.repeat])).toEqual([['pi','tools',2],['pi','off',2],['opencode','tools',2],['opencode','off',2]]);
+    expect(trialPlan({ ...options, offset: 11 })).toEqual(plan.slice(11));
+    for (const offset of [-1, 16, 1.5]) expect(() => trialPlan({ ...options, offset })).toThrow();
+  });
   it('M44/M45 archived sources and all failed/successful project files match their receipts', async () => {
     const base=fileURLToPath(new URL('../docs/evaluations/2026-10-08/',import.meta.url));let sources=0,files=0,wrappers=0;
     for(const run of ['projects/initial','projects/request-budget','projects/qualified-browser','navigation']){
@@ -57,9 +97,15 @@ describe('reproducible evaluation fixtures', () => {
     const backend = await startBackend({ fixture: fixtures[0], work });
     try {
       await expect(backend.execute('read', { path: '../owner.txt' })).rejects.toThrow('FILE_NOT_ALLOWED');
+      expect(backend.metrics.errorCodes).toEqual({ FILE_NOT_ALLOWED: 1 });
+      expect(JSON.stringify(backend.metrics)).not.toContain('owner.txt');
       await expect(backend.execute('write', { path: 'solution.cjs', text: 'x'.repeat(65537) })).rejects.toThrow('FILE_TOO_LARGE');
       await rm(join(work, 'solution.cjs')); await symlink(owner, join(work, 'solution.cjs'));
       await expect(backend.execute('write', { path: 'solution.cjs', text: 'changed' })).rejects.toThrow('NOT_REGULAR_FILE');
+      await rm(join(work, 'solution.cjs'));
+      await expect(backend.execute('read', { path: 'solution.cjs' })).rejects.toThrow();
+      expect(backend.metrics.errorCodes).toEqual({ FILE_NOT_ALLOWED: 1, FILE_TOO_LARGE: 1, NOT_REGULAR_FILE: 1, TOOL_FAILED: 1 });
+      expect(JSON.stringify(backend.metrics)).not.toContain(root);
       expect(await readFile(owner, 'utf8')).toBe('owner data');
       const unauthorized = await fetch(`${backend.url}/tool`, { method: 'POST', body: '{}' }); expect(unauthorized.status).toBe(401);
     } finally { await backend.close(); await rm(root, { recursive: true, force: true }); }
@@ -126,6 +172,30 @@ describe('reproducible evaluation fixtures', () => {
 
 describe('cloud admission limits and paired request policy', () => {
   const limits = { requests: 1, outputTokens: 64, tokens: 1000, requestBytes: 10000, totalTokens: 10000, totalRequests: 2 };
+  it('local evaluation forbids remote, credential-bearing and redirected endpoint policies', () => {
+    for (const url of ['https://127.0.0.1/v1', 'http://localhost/v1', 'http://192.168.31.71/v1', 'http://key@127.0.0.1/v1', 'http://127.0.0.1/v1?key=secret', 'http://127.0.0.1/v1/']) expect(() => providerPolicy('local-qwen', url, 'medium')).toThrow();
+    expect(() => providerPolicy('deepseek', 'http://127.0.0.1/v1', 'medium')).toThrow();
+    expect(providerPolicy('local-qwen', 'http://127.0.0.1:18019/v1', 'medium').effectiveEffort).toBe('medium');
+  });
+  it('local Qwen preserves Medium with production sampling and marks a wrong served model as failure', async () => {
+    const realFetch = globalThis.fetch; let sent: any, headers: any, redirect: any;
+    vi.stubGlobal('fetch', async (url: string, options: any) => {
+      if (String(url) !== 'http://127.0.0.1:18019/v1/chat/completions') return realFetch(url, options);
+      sent = JSON.parse(options.body); headers = options.headers; redirect = options.redirect;
+      return new Response(JSON.stringify({ model: 'unexpected-model', usage: { prompt_tokens: 3, completion_tokens: 2, prompt_tokens_details: { cached_tokens: 2 } } }));
+    });
+    const proxy = await startProxy({ provider: 'local-qwen', baseUrl: 'http://127.0.0.1:18019/v1', model: 'qwen38-flash-next', effort: 'medium', budget: { requests: 0, input: 0, output: 0 }, limits });
+    try {
+      const r = await fetch(`${proxy.url}/chat/completions`, { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ reasoning_effort: 'xhigh', thinking: { type: 'enabled' }, temperature: 0, messages: [] }) }); await r.text();
+      expect(sent.reasoning_effort).toBe('medium'); expect(sent.thinking).toBeUndefined();
+      expect(sent.chat_template_kwargs).toEqual({ enable_thinking: true, preserve_thinking: true });
+      expect(sent.temperature).toBe(1); expect(sent.top_p).toBe(0.95); expect(sent.top_k).toBe(20);
+      expect(headers.Authorization).toBeUndefined(); expect(redirect).toBe('error');
+      expect(proxy.usage.modelMismatch).toBe(true); expect(proxy.usage.errors).toBe(1); expect(proxy.usage.effectiveEffort).toBe('medium');
+      expect(proxy.usage.cachedInput).toBe(2);
+      expect(proxy.usage.responsesWithCacheUsage).toBe(1);
+    } finally { await proxy.close(); }
+  });
   it('normalizes both agents, counts chunked UTF-8 SSE usage once and refuses excess requests', async () => {
     const realFetch = globalThis.fetch;
     let sent: any;

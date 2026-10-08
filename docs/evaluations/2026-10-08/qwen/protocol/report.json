@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 3,
+  "suiteVersion": "2.1.0",
+  "startedAt": "2026-10-08T19:03:35.847Z",
+  "provider": "local-qwen",
+  "modelMetadata": {
+    "id": "qwen38-flash-next",
+    "contextWindow": 262144,
+    "supportedEfforts": [
+      "xhigh",
+      "medium",
+      "low"
+    ]
+  },
+  "model": "qwen38-flash-next",
+  "effort": "medium",
+  "memoryMode": "off",
+  "navigationMode": "off",
+  "effectiveEffort": "medium",
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "revisions": {
+    "../../services/hub/memory.py": "dd1f24d22f9501f3781e45b01ed7cb9d1060a88962687f49c3ff4e5e237a9845",
+    "../../services/hub/server.py": "dd201869d53f725a5d5a40b889f0a0c1804f0786240f40d8947b871d3dbb48a2",
+    "fixtures.mjs": "af4e22a67d15254d04ef75f9730e340fbcb581a08cf1624fe0d8631ae35fa216",
+    "project-fixtures.mjs": "2347c2219dd560f35f873013802995a11041f3ebc1be2fb57c4da06c241c738d",
+    "backend.mjs": "2f2135861bc1054217772056e515b88bc5f86476952572049e60d5f31acb4338",
+    "proxy.mjs": "560bcb4bbee4d185a8631af7529389d88d61be2a5f0a76e33db2686acddcf4f1",
+    "runner.mjs": "1cf77a3ff36bce9076df56d92de831726c5de733327fa248bd3122cf7d074442",
+    "mcp.mjs": "eb9699db6cb6ba48c93d02e3895f89851c834fe2709535450270b49086634f68",
+    "pi-extension.ts": "ab8c7752e9d4885b09ea36d6280d95b9275468d2c710f3a34c37c5af90c11cf9",
+    "memory.mjs": "5b7989daeb4ea0d51005a8601eceef4c3ac34f6ec9d21e75b6337c3d81d6e6da",
+    "memory.py": "d96a3e59848890c243d234578647e750835c0dc97d9ed18735f807ac9f697c2c",
+    "../../src-tauri/resources/shared/project-map-core.mjs": "3871c8d9135dd19c2214b232b947b39321a07d7c70b743cd9efeec6976cf5fce"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "opencode": "1.18.18",
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 1000000,
+    "totalRequests": 400,
+    "perTrialSeconds": 300,
+    "totalSeconds": 900
+  },
+  "trials": [
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "off",
+      "navigationMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 40.414141625000006,
+      "verifiedSeconds": 40.414141625000006,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 2.2167070000032254,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0,
+        "mapCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10735,
+        "output": 391,
+        "cachedInput": 0,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "modelMismatch": false,
+        "servedModels": [
+          "qwen38-flash-next"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 5296.759042000001,
+            "elapsedMs": 9952.311542
+          },
+          {
+            "firstResponseMs": 5249.145708,
+            "elapsedMs": 6290.385792000001
+          },
+          {
+            "firstResponseMs": 2525.513874999997,
+            "elapsedMs": 3566.013874999997
+          },
+          {
+            "firstResponseMs": 5725.067458000001,
+            "elapsedMs": 8299.690417000002
+          },
+          {
+            "firstResponseMs": 7879.618750000005,
+            "elapsedMs": 10850.522791
+          }
+        ],
+        "effectiveEffort": "medium"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 2760,
+          "output": 251,
+          "cacheRead": 7360,
+          "cacheWrite": 0
+        }
+      },
+      "limits": {
+        "requests": 18,
+        "outputTokens": 4096,
+        "tokens": 60000,
+        "requestBytes": 100000,
+        "totalTokens": 1000000,
+        "totalRequests": 400,
+        "perTrialSeconds": 300,
+        "totalSeconds": 900
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 9.685958000000028,
+      "agentMs": 40348.374958,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 43.667208999999275,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-off-1.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "off",
+      "navigationMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 35.51374345800001,
+      "verifiedSeconds": 35.51374345800001,
+      "ownerInterventions": 0,
+      "tools": {
+        "durationMs": 1.5570419999930891,
+        "checkMs": 0,
+        "checks": 0,
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0,
+        "mapCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3148,
+        "output": 547,
+        "cachedInput": 0,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "modelMismatch": false,
+        "servedModels": [
+          "qwen38-flash-next"
+        ],
+        "timings": [
+          {
+            "firstResponseMs": 5237.057583000002,
+            "elapsedMs": 6072.2425
+          },
+          {
+            "firstResponseMs": 1089.5302499999962,
+            "elapsedMs": 2567.4212079999998
+          },
+          {
+            "firstResponseMs": 4723.836875000001,
+            "elapsedMs": 7812.029167000001
+          },
+          {
+            "firstResponseMs": 903.2751250000001,
+            "elapsedMs": 3031.391291
+          },
+          {
+            "firstResponseMs": 4920.930625000008,
+            "elapsedMs": 15617.757083000004
+          }
+        ],
+        "effectiveEffort": "medium"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 716,
+          "output": 547,
+          "cacheRead": 2432,
+          "cacheWrite": 0
+        }
+      },
+      "limits": {
+        "requests": 18,
+        "outputTokens": 4096,
+        "tokens": 60000,
+        "requestBytes": 100000,
+        "totalTokens": 1000000,
+        "totalRequests": 400,
+        "perTrialSeconds": 300,
+        "totalSeconds": 900
+      },
+      "preparedContextBytes": 0,
+      "setupMs": 1.1042079999970156,
+      "agentMs": 35444.053334000004,
+      "exitCode": 0,
+      "stopped": null,
+      "gradingMs": 67.65224999999919,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-off-1.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    }
+  ],
+  "budget": {
+    "requests": 10,
+    "input": 13883,
+    "output": 938
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T19:04:52.101Z",
+  "totalSeconds": 76.25509587500001
+}

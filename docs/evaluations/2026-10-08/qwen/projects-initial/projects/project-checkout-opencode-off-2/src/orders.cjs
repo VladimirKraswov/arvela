@@ -1,0 +1,1 @@
+const pricing=require('./pricing.cjs');exports.checkout=async(store,id,cart,coupon,shipping,charge)=>{const receipt={id,total:pricing.total(cart,coupon,shipping)};await charge(receipt.total);store.set(id,receipt);return receipt;};

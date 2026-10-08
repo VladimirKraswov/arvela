@@ -70,6 +70,8 @@ Evidence: 12 offline baseline/reference discriminations and 16 eval regressions 
 
 Evidence:24 paired DeepSeek trials;OpenCodeoff2/6/tools2/6,Pi off3/6/tools0/6. Exact source/candidate receipts retained. Real native signedSDK/Pi/OpenCode scope/revocation and installedMac preview/toggle PASS. [Report](docs/evaluations/2026-10-08/navigation/REPORT.md), [bounds](docs/PROJECT-NAVIGATION.md).
 
+Local Qwen Flash Next follow-up: Medium, protocol2/2, projects16/24 (OpenCode9/12,Pi7/12), browser4/4. No stable project-map improvement; keep opt-in. All eight full failures reproduced offline, one extra total-deadline cancellation retained separately. Engine/app/owner sessions unchanged. [Local qualification](docs/evaluations/2026-10-08/qwen/REPORT.md).
+
 ### M46 — Selected live acceptance (Mac completed; other platforms excluded)
 
 - [x] Mac installed GUI for M43/M45 and both-agent isolated shared-tool scenarios.

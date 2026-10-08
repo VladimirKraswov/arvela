@@ -1,0 +1,1 @@
+exports.classify=err=>{const s=err&&(err.status!=null?err.status:err.statusCode);if(typeof s==='number'&&s>=400&&s<500&&s!==408)return 'rejected';return 'uncertain';};

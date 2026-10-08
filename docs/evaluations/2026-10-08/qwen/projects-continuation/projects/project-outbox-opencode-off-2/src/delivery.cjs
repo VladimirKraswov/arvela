@@ -1,0 +1,3 @@
+const {classify}=require('./classify.cjs');
+exports.resume=(q,id)=>q.map(x=>x.id===id&&x.state==='uncertain'?{...x,state:'ready'}:x);
+exports.drain=async(q,post,persist)=>{const out=[];for(let i=0;i<q.length;i++){const item=q[i];if(item.state!=='ready'){out.push(item);continue}let state=null;try{await post(item)}catch(e){state=classify(e)}if(state===null)continue;out.push({...item,state});if(state==='uncertain'){for(let j=i+1;j<q.length;j++)out.push(q[j]);break}}await persist(out);return out;};

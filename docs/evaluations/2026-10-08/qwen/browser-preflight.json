@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "browserVersion": "153.0.8010.12",
+  "tools": {
+    "durationMs": 284.1282100000003,
+    "checkMs": 0,
+    "checks": 0,
+    "calls": 19,
+    "errors": 1,
+    "errorCodes": {
+      "STALE_SNAPSHOT": 1
+    },
+    "staleRefusals": 1,
+    "validationErrors": 1,
+    "memoryCalls": 0,
+    "mapCalls": 0
+  },
+  "modelRequests": 0
+}

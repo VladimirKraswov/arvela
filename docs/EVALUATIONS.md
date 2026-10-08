@@ -3,8 +3,9 @@
 This is a test harness, not another production agent loop. It submits one task
 to an independently installed OpenCode or Pi, waits under a deadline, checks
 the actual outcome, records the result and removes its own temporary project.
-It does not resume owner chats, change installed agents/settings or call local
-GPU services. No history, screenshots, secrets or private project code is sent.
+It does not resume owner chats or change installed agents/settings. Local GPU
+inference requires explicit opt-in through the local adapter below. No history,
+screenshots, secrets or private project code is sent.
 
 ## Offline contract checks
 
@@ -58,6 +59,39 @@ accepted by this first cloud adapter. A loopback gateway normalizes both agents'
 requests to identical model/effort/output settings. DeepSeek maps requested
 Medium to High; the report records both rather than inventing a distinct Medium
 setting. See [DeepSeek thinking mode](https://api-docs.deepseek.com/guides/thinking_mode/).
+
+For the separately authorized local Qwen Flash Next qualification, use
+`--provider local-qwen --base-url http://127.0.0.1:18019/v1`. This adapter accepts
+only a credential-free HTTP loopback `/v1` URL, rejects redirects and cloud key
+files, checks that `qwen38-flash-next` and the requested Medium effort are
+advertised, and records a wrong served model as a failure. No DeepSeek credential
+is read in local mode. Both agents receive the same Medium request, thinking
+template and production sampling (temperature 1, top-p 0.95, top-k 20); the 4096
+output-token and fixture request/token limits remain unchanged. The model's
+advertised context is recorded; these small tasks do not qualify a full 262K
+conversation. Local upstream timeout is 240s; use `--timeout 300` for the whole
+agent trial, preserving the bounded total deadline and every failed outcome.
+The gateway reads cache hits from DeepSeek's `prompt_cache_hit_tokens` or the
+OpenAI `prompt_tokens_details.cached_tokens` and records how many responses
+actually supplied cache detail. An absent detail is not proof that caching was
+disabled; total prompt/output usage remains separate from this partial counter.
+
+```sh
+npm run eval:live -- --provider local-qwen \
+  --base-url http://127.0.0.1:18019/v1 --cases zero-value --repeats 1 \
+  --timeout 300 --output .local/evaluations/local-protocol
+```
+
+Long matrices can continue into a fresh report with `--trial-offset N`, preserving
+the original cases/agents/modes/repeats and AB/BA order. N is the number of already
+attempted plan entries, including failures. There is no result import, overwrite
+or automatic retry: retain the earlier report, list both sets of source revisions,
+and disclose any separately repeated trial interrupted by the total deadline.
+Each continuation has its own bounded time/resource budget and records its exact
+remaining plan. Never select an offset to remove failed outcomes from a comparison.
+Tool diagnostics retain only counts under a fixed error-code vocabulary; unknown
+errors become `TOOL_FAILED`. Filesystem paths, error messages, argument payloads
+and model reasoning are not included in these counters.
 
 Both agents have only scoped fixture tools: list/read/write for code tasks or
 snapshot/action for browser tasks. OpenCode receives them through stdio MCP; Pi
