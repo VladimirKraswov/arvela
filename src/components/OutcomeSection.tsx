@@ -3,7 +3,7 @@ import {blankOutcome,changeOutcome,outcomes,reviewOutcome,scopeKey,subscribeOutc
 const labels:Record<Verdict,string>={unreviewed:'Не проверено',accepted:'Принято вами',needs_work:'Нужна доработка'};
 // Uncommitted forms survive panel close/reopen in this app run. Persisted cards use IndexedDB.
 const drafts=new Map<string,{value:Outcome;base:Outcome|null}>();
-export function OutcomeSection({scope,requests,onOpen}:{scope:OutcomeScope;requests:Array<{id:string;label:string}>;onOpen:(id:string)=>void}){
+export function OutcomeSection({scope,requests,onOpen,onPropose}:{scope:OutcomeScope;requests:Array<{id:string;label:string}>;onOpen:(id:string)=>void;onPropose?:(card:Outcome)=>void}){
  const [cards,setCards]=useState<Outcome[]>([]),[selected,setSelected]=useState(''),[value,setValue]=useState<Outcome|null>(null),[base,setBase]=useState<Outcome|null>(null),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const mounted=useRef(true),current=useRef({selected,value,base});current.current={selected,value,base};
  const dirty=!!value&&JSON.stringify(value)!==JSON.stringify(base);
@@ -40,6 +40,7 @@ export function OutcomeSection({scope,requests,onOpen}:{scope:OutcomeScope;reque
  <p className="context-note">Передача требует включённой библиотеки и передачи текстов; секреты фильтруются. Уже переданная оценка остаётся до срока хранения. Сохранённые карточки остаются на этом устройстве.</p>
  <div className="outcome-actions"><button className="btn small primary" disabled={!dirty||busy||!ready} onClick={()=>void save()}>Сохранить карточку</button><button className="btn small" disabled={busy} onClick={()=>void reset()}>Перечитать сохранённую</button></div>
  <div className="outcome-actions" aria-label="Оценка результата"><button className="btn small" disabled={!base||dirty||busy} onClick={()=>void save('accepted')}>Принять результат</button><button className="btn small" disabled={!base||dirty||busy} onClick={()=>void save('needs_work')}>Нужна доработка</button><button className="btn small ghost" disabled={!base||dirty||busy||base.verdict==='unreviewed'} onClick={()=>void save('unreviewed')}>Снять оценку</button></div>
+ {onPropose&&base?.verdict==='accepted'&&<button className="btn small" disabled={dirty||busy} onClick={()=>onPropose(base)}>Предложить в память проекта</button>}
  {dirty&&<p className="context-note">Есть несохранённые изменения. Черновик сохраняется при закрытии панели до выхода из приложения; прежняя оценка изменённых сведений будет сброшена.</p>}
  </>}
  </>}

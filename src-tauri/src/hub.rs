@@ -152,13 +152,19 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         || path == "devices"
         || path.starts_with("catalog/")
         || path.starts_with("metrics?")
-        || path == "ingest";
+        || path == "ingest"
+        || memory_path(path);
     if !allowed || path.contains(['#', '\\', '\r', '\n']) || path.contains("..") || path.len() > 512
     {
         return Err("Unsupported Hub API path".into());
     }
-    if body.is_some() && path != "ingest" {
+    if body.is_some() && path != "ingest" && path != "memory" {
         return Err("Unsupported Hub write operation".into());
+    }
+    if path == "memory" {
+        if let Some(value) = &body {
+            memory_write(value, c.share_text)?;
+        }
     }
     let key = vault(&c.endpoint)?
         .get_password()
@@ -192,6 +198,20 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         .map_err(|_| "Библиотека недоступна или сертификат не совпадает")?;
     let status = response.status();
     if !status.is_success() {
+        if memory_path(path) {
+            let mut text = String::new();
+            if response.take(4096).read_to_string(&mut text).is_ok() {
+                if let Ok(value) = serde_json::from_str::<Value>(&text) {
+                    if let Some(error) = value["error"].as_str() {
+                        return Err(format!(
+                            "Hub HTTP {} — {}",
+                            status.as_u16(),
+                            error.chars().take(300).collect::<String>()
+                        ));
+                    }
+                }
+            }
+        }
         return Err(format!(
             "Hub HTTP {} — проверьте доступ и ключ устройства",
             status.as_u16()
@@ -206,6 +226,107 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         return Err("Hub response exceeds 8MiB".into());
     }
     serde_json::from_str(&raw).map_err(|_| "Invalid Hub JSON".into())
+}
+fn portable_uuid(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36
+        && bytes.iter().enumerate().all(|(i, b)| {
+            if [8, 13, 18, 23].contains(&i) {
+                *b == b'-'
+            } else {
+                matches!(b, b'0'..=b'9' | b'a'..=b'f')
+            }
+        })
+        && bytes[14] == b'4'
+        && matches!(bytes[19], b'8' | b'9' | b'a' | b'b')
+}
+fn memory_path(path: &str) -> bool {
+    path == "memory"
+        || path
+            .strip_prefix("memory?project=")
+            .is_some_and(portable_uuid)
+}
+fn exact_keys(value: &Value, keys: &[&str]) -> bool {
+    value
+        .as_object()
+        .is_some_and(|o| o.len() == keys.len() && keys.iter().all(|k| o.contains_key(*k)))
+}
+fn memory_source(value: &Value) -> bool {
+    exact_keys(
+        value,
+        &["anchor", "revision", "digest", "accepted", "engine"],
+    ) && ["anchor", "digest"]
+        .iter()
+        .all(|k| value[*k].as_str().is_some_and(hash_ok))
+        && value["revision"]
+            .as_u64()
+            .is_some_and(|n| n > 0 && n <= 9_007_199_254_740_991)
+        && value["accepted"].is_boolean()
+        && matches!(value["engine"].as_str(), Some("opencode" | "pi"))
+}
+fn memory_write(value: &Value, share_text: bool) -> Result<(), String> {
+    let valid = match value["action"].as_str() {
+        Some("sources") => {
+            exact_keys(value, &["action", "sources"])
+                && value["sources"]
+                    .as_array()
+                    .is_some_and(|s| s.len() <= 500 && s.iter().all(memory_source))
+        }
+        Some("approve" | "invalidate") => {
+            exact_keys(value, &["action", "id", "expected"])
+                && value["id"].as_str().is_some_and(portable_uuid)
+                && value["expected"].as_u64().is_some_and(|n| n > 0)
+        }
+        Some("project") => {
+            share_text
+                && exact_keys(value, &["action", "id", "title"])
+                && value["id"].as_str().is_some_and(portable_uuid)
+                && value["title"]
+                    .as_str()
+                    .is_some_and(|s| !s.is_empty() && s.chars().count() <= 80)
+        }
+        Some("save") => {
+            share_text
+                && exact_keys(value, &["action", "entry", "expected"])
+                && exact_keys(
+                    &value["entry"],
+                    &[
+                        "id",
+                        "project",
+                        "kind",
+                        "title",
+                        "text",
+                        "source",
+                        "expiresAt",
+                    ],
+                )
+                && memory_source(&value["entry"]["source"])
+                && value["entry"]["id"].as_str().is_some_and(portable_uuid)
+                && value["entry"]["project"]
+                    .as_str()
+                    .is_some_and(portable_uuid)
+                && (value["expected"].is_null()
+                    || value["expected"]
+                        .as_u64()
+                        .is_some_and(|n| n > 0 && n <= 9_007_199_254_740_991))
+                && matches!(value["entry"]["kind"].as_str(), Some("fact" | "runbook"))
+                && value["entry"]["source"]["accepted"] == true
+                && value["entry"]["expiresAt"]
+                    .as_u64()
+                    .is_some_and(|n| n > 0 && n <= 9_007_199_254_740_991)
+                && [("title", 120), ("text", 4000)].iter().all(|(k, max)| {
+                    value["entry"][*k]
+                        .as_str()
+                        .is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= *max)
+                })
+        }
+        _ => false,
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err("Memory request rejected: check fields and text-sharing consent".into())
+    }
 }
 fn main_window(w: &tauri::WebviewWindow) -> Result<(), String> {
     if w.label() != "main" {
@@ -536,6 +657,43 @@ mod tests {
         assert_eq!(r["text"], "");
         assert_eq!(r["title"], "");
         assert_eq!(r["tokens"]["total"], 12);
+    }
+    #[test]
+    fn memory_paths_and_consent_are_explicit() {
+        let id = "f699c7f4-a21c-4a3b-99f3-6beac4fe6a8f";
+        assert!(memory_path("memory"));
+        assert!(memory_path(&format!("memory?project={id}")));
+        for path in [
+            "memory?project=/local/path",
+            "memory?project=x&key=secret",
+            "memory/../me",
+            "memory?project=F699C7F4-a21c-4a3b-99f3-6beac4fe6a8f",
+        ] {
+            assert!(!memory_path(path));
+        }
+        let project = json!({"action":"project","id":id,"title":"Project"});
+        assert!(memory_write(&project, true).is_ok());
+        assert!(memory_write(&project, false).is_err());
+        assert!(memory_write(
+            &json!({"action":"project","id":id,"title":"P","remote":"https://secret@host"}),
+            true
+        )
+        .is_err());
+        let source = json!({"anchor":"a".repeat(64),"revision":2,"digest":"b".repeat(64),"accepted":true,"engine":"pi"});
+        assert!(memory_write(
+            &json!({"action":"sources","sources":[source.clone()]}),
+            false
+        )
+        .is_ok());
+        let mut private = source.clone();
+        private["directory"] = json!("/private/project");
+        assert!(memory_write(&json!({"action":"sources","sources":[private]}), false).is_err());
+        let mut save = json!({"action":"save","expected":null,"entry":{"id":id,"project":id,"title":"Build","text":"Use documented build","kind":"fact","source":source,"expiresAt":1900000000000u64}});
+        assert!(memory_write(&save, true).is_ok());
+        assert!(memory_write(&save, false).is_err());
+        save["entry"]["source"]["accepted"] = json!(false);
+        assert!(memory_write(&save, true).is_err());
+        assert!(memory_write(&json!({"action":"invalidate","id":id,"expected":1}), false).is_ok());
     }
     #[test]
     fn endpoints() {

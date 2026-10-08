@@ -1,3 +1,45 @@
+# Arvela 0.2.31 — curated project memory (2026-10-08)
+
+M40 adds explicit UUID project binding shared by OpenCode/Pi, accepted-result
+proposals with editable fact/runbook text, separate owner approval, source
+revision/digest, expiry and deterministic invalidation. Local paths/server identity
+remain on the device; native text consent and client/server known-secret/path
+filters protect writes. SQLite CAS prevents overwrites; reviewer identity in the
+version ledger does not transfer source ownership. Web «Память проектов» exposes
+current entries and review actions. AGENTS.md/checkpoints stay authoritative.
+M41 retrieval/injection, training and skill rewriting are not implemented.
+
+612frontend pass/6opt-in live skipped;30Python Hub pass locally and on CT206;
+92Rust pass/1unchanged vault test ignored. TypeScript/Vite, Rust fmt/all-targets,
+reviewed Mac app/DMG build pass. Tests cover explicit identity/CAS/races/reopen,
+accepted-source gating, draft retention/network errors, stale drafts/source replay,
+cross-device reviewer ownership, expiry, consent and unknown field rejection.
+Real isolated CUA browser exercised result acceptance → candidate → separate
+approval → source change → stale, a340px form without horizontal overflow, and
+actual Web/API source/revision/state. Synthetic data remains in isolated fixtures;
+no fake project, task result or memory entry was added to production Hub.
+
+CT206 preserves all10314 pre-update history records, integrity_check=ok, four
+additive memory tables. HTTPS authenticated memory API/certificate validation and
+installed native panel readiness/catalog reading pass. External OpenCode3714
+remains healthy1.18.18; browser bridge children and owner chats preserved. No
+inference, GPU/model/global-provider changes. Reviewed installed executable equals build:
+`88be29c79696c0f81393357ac7d6e3af5bb28afe160c343123fa9a17713d41c8`.
+DMG SHA256:
+`30150526fce56811e3b7a553d81d46da680db7b2f3f3cf097a8a9c1aca6085cb`.
+Strict signature/microphone/hdiutil pass; ad-hoc signed, not notarized.
+Final native About shows0.2.31/OpenCode1.18.18/Pi0.85.1; source/release round-trip
+is recorded in the final checkpoint.
+
+Full private NAS CT206 archive0.2.31 SHA256:
+`bdc9d9e9e79506409fccde847bad7d966d5290f491c2b7d27f508c7ed34e56f0`.
+Byte/zstd verified, restored to isolated unstarted207: integrityok/10314records,
+server/memory/Web source hashes match, four memory tables present. Own207 and
+backup SSD staging removed. Expiry/invalidation do not erase audit text; memory
+versions persist separately from chat retention. Stale source detection requires
+the originating device to reconnect/sync; offline changes cannot be known instantly.
+Windows/Linux live checks and model-quality/speed comparisons remain unrun.
+
 # Arvela 0.2.30 — full-card Hub batching follow-up (2026-10-08)
 
 Final boundary review found the old native 64KB record cap could reject a valid

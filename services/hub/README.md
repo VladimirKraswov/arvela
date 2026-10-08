@@ -59,3 +59,7 @@ Concepts follow [OpenTelemetry GenAI conventions](https://github.com/open-teleme
 Catalog deactivation disables its managed entry on idle sync. Updates preserve a locally disabled skill; re-enable deliberately in shared settings or apply manually. Shared registry and connection saves use compare-and-swap; stale upload/ack cannot target a changed Hub.
 
 macOS local network access requires the normal owner permission; Info.plist contains NSLocalNetworkUsageDescription. Without it the OS may reject LAN connections. See [Apple local-network privacy](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy). No firewall/privacy bypass is installed.
+
+## Curated project memory (0.2.31)
+
+Authenticated `/api/memory` shares explicit UUID projects, owner-approved fact/runbook candidates, opaque source/revision/digest metadata and expiry. Source changes invalidate after the originating device syncs; expiry is computed server-side. CAS protects edits/reviews; the version ledger records the reviewing device without transferring source ownership. No raw local identity paths/Git remotes, model calls, execution or prompt injection. Memory/versions persist independently of chat retention; expiry/invalidation do not delete content. Up to200projects/200entries per project. Copy **memory.py together with server.py** during deployment/backup. Web «Память проектов» reads and reviews existing entries. See [workflow and limits](../../docs/PROJECT-MEMORY.md).

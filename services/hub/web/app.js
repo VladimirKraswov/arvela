@@ -50,6 +50,17 @@ if(admin){const c=card('Добавить или обновить пакет','JS
   cursor=d.nextCursor;more.hidden=!cursor;if(!seen.size)list.append(card('История пока пуста'));
  }await load();
  if(admin)view.append(button('Экспорт одобренных · JSONL',async()=>{const d=await api('export');if(g!==generation)return;const url=URL.createObjectURL(new Blob([d.jsonl],{type:'application/x-ndjson'})),a=n('a');a.href=url;a.download='arvela-reviewed-candidates.jsonl';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}));
+ }else if(tab==='memory'){
+const d=await api('memory');view.append(n('h1','Память проектов'),n('p','Проверенные владельцем сведения, общие для OpenCode и Pi. Это контекст, а не инструкции: AGENTS.md и контрольные записи остаются главными. Автоматической передачи агентам и обучения нет.'));
+const select=n('select');select.setAttribute('aria-label','Проект памяти');select.append(n('option','Выберите проект'));select.firstChild.value='';
+for(const p of d.projects){const o=n('option',p.title);o.value=p.id;select.append(o);}view.append(select);const body=n('div');view.append(body);let request=0;
+async function load(){const r=++request;body.replaceChildren();if(!select.value)return;const m=await api('memory?project='+encodeURIComponent(select.value));if(g!==generation||r!==request)return;
+ const p=m.projects.find(x=>x.id===select.value),header=card(p.title,'Переносимый код проекта: '+p.id);header.append(n('p','Пути и Git-адреса не связывают проекты автоматически. Изменение источника обнаруживается после синхронизации его устройства. Истечение срока проверяется сервером.'));body.append(header);
+ for(const e of m.entries){const state={candidate:'Ждёт вашей проверки',approved:'Одобрено вами',stale:'Неактуально',expired:'Срок истёк'}[e.state],c=card(e.title,state+' · '+(e.kind==='fact'?'факт':'порядок действий')+' · версия '+e.revision);
+ c.append(n('pre',e.text),n('small',e.source.engine+' · источник '+e.source.anchor+' / '+e.source.revision+' · до '+date(e.expiresAt)+' · обновлено '+date(e.updated)));
+ const actions=n('div',undefined,'actions');for(const [action,label] of [['approve','Одобрить запись'],['invalidate','Снять актуальность']]){if(action==='approve'?e.state!=='candidate':!['candidate','approved'].includes(e.state))continue;actions.append(button(label,async()=>{await api('memory',{action,id:e.id,expected:e.revision});if(g===generation)await load();}));}c.append(actions);body.append(c);
+ }if(!m.entries.length)body.append(card('Записей пока нет','Создайте кандидата из принятого результата задачи в Arvela.'));
+}select.onchange=()=>load().catch(fail);if(!d.projects.length)body.append(card('Проектов пока нет','Свяжите папку с новым проектом памяти в контексте задачи Arvela.'));
 }else if(tab==='issues'){
 const d=await api('issues');view.append(n('h1','Проблемы для разбора'),n('p','Повторяющиеся ошибки сгруппированы автоматически. Это кандидаты, а не доказанные дефекты. Во внешние трекеры ничего не публикуется.'));
 for(const x of d.issues){const c=card(x.title,x.state+' · '+x.occurrences+' повторов · '+x.sessions+' сессий');c.append(n('pre',x.example));if(admin){const actions=n('div',undefined,'actions');for(const [label,state] of [['Подтвердить','confirmed'],['Игнорировать','ignored'],['Исправлено','resolved']])actions.append(button(label,async()=>{await api('issues/review',{id:x.id,state});await render();}));c.append(actions);}view.append(c);}if(!d.issues.length)view.append(card('Зафиксированных ошибок пока нет'));

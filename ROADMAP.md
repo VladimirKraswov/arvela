@@ -22,11 +22,13 @@ Evidence: 587frontend/21Hub/91Rust tests pass; isolated UI/storage/API, installe
 
 Evidence: all 48 trials completed on DeepSeek Flash; OpenCode 23/24 and Pi 24/24 independent successes, median elapsed 7.69/7.58s. Browser 12/12, including stale-state recovery. A failed code outcome remains in the report; this is a baseline, not a claim of general quality improvement. Final runner smoke/candidate provenance and exhausted-budget stop checked separately. [Report](docs/evaluations/2026-10-08/REPORT.md) · [Run/limits](docs/EVALUATIONS.md). Local GPUs, owner history/settings and app runtime unchanged; Windows/Linux live trials remain unrun.
 
-### M40 — Curated project memory
+### M40 — Curated project memory (done, 0.2.31)
 
-- [ ] Explicit portable project identity across devices; no basename-based merging, credential-bearing remotes or raw absolute paths in Hub.
-- [ ] Propose facts/runbooks from accepted tasks with source, revision, expiry and owner approval; invalidate stale entries.
-- [ ] Preserve existing AGENTS.md/checkpoints as authorities. Memory remains contextual data; no automatic skill rewriting or training.
+- [x] Explicit portable project identity across devices; no basename-based merging, credential-bearing remotes or raw absolute paths in Hub.
+- [x] Propose facts/runbooks from accepted tasks with source, revision, expiry and owner approval; invalidate stale entries.
+- [x] Preserve existing AGENTS.md/checkpoints as authorities. Memory remains contextual data; no automatic skill rewriting or training.
+
+Evidence: 612frontend/30Hub/92Rust pass; actual isolated UI/API/Web candidate approval and stale-source invalidation, installed Mac readiness and NAS unstarted restore verified. No inference or automatic prompt injection. See [project memory](docs/PROJECT-MEMORY.md).
 
 ### M41 — Shared retrieval for OpenCode/Pi
 

@@ -7,6 +7,10 @@ import base64, contextlib, math, argparse, hashlib, http.cookies, ipaddress, jso
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 from urllib.parse import parse_qs, urlsplit
+import importlib.util
+_memory_spec = importlib.util.spec_from_file_location('arvela_memory', Path(__file__).with_name('memory.py'))
+_memory_module = importlib.util.module_from_spec(_memory_spec)
+_memory_spec.loader.exec_module(_memory_module)
 
 MAX_BODY = 2 * 1024 * 1024
 KINDS = {'skill', 'prompt', 'tool', 'template', 'runbook'}
@@ -156,6 +160,7 @@ class Hub:
             INSERT OR IGNORE INTO settings VALUES ('retention','{"textDays":180,"metadataDays":730}');
             ''')
         os.chmod(self.db, 0o600)
+        self.memory = _memory_module.Memory(self.connection, self.lock, scrub, Fault)
 
     @contextlib.contextmanager
     def connection(self):
@@ -381,6 +386,8 @@ class Hub:
             'note':'Категории эвристические. Отказы и отмены не означают поломку. Статус completed не гарантирует успешный exit code; сырые выводы не собираются. Скорость и качество моделей по этим данным не оцениваются.'}
 
     def api(self, method, path, query, actor, data):
+        if path == '/api/memory':
+            return self.memory.api(method, query, actor, data)
         with self.connection() as c:
             if method=='GET' and path=='/api/me':
                 return {k:actor[k] for k in ('id','name','platform','admin')}

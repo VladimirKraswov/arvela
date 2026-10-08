@@ -1,3 +1,4 @@
+import { MemoryRuntime } from "./memory/Runtime";
 import { HubRuntime } from "./hub/Runtime";
 import { ContextPanel } from "./components/ContextPanel";
 import { ScheduleRuntime } from "./schedules/Runtime";
@@ -113,7 +114,7 @@ export default function App() {
         {layout.sidebarOpen && <Sidebar />}
         <BrowserPresence />
         <ScheduleRuntime />
-        <HubRuntime />
+        <HubRuntime /><MemoryRuntime />
         <div
           className="resizer-v"
           style={{ display: layout.sidebarOpen ? undefined : "none" }}

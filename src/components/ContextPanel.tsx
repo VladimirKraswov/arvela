@@ -7,6 +7,8 @@ import { focusComposer, requestComposerFiles } from "../attachments/composerBrid
 import type { Session, SessionStatus } from "../api/types";
 import { ScheduleSection } from "./ScheduleSection";
 import { OutcomeSection } from "./OutcomeSection";
+import { MemorySection } from "./MemorySection";
+import type { Outcome } from "../outcomes/store";
 import { Icon } from "./Icon";
 
 export const CONTEXT_PANEL_ID = "chat-context-panel";
@@ -31,6 +33,7 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
   const runs = subagentRuns(chat);
   const scope = attachmentScope(server, directory, sid);
   const [notice, setNotice] = useState("");
+  const [proposed, setProposed] = useState<Outcome | null>(null);
   const close = () => store.setUi({ contextOpen: false });
 
   useEffect(() => {
@@ -64,7 +67,8 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
       <button className="icon-btn" aria-label="Закрыть контекст задачи" onClick={close}><Icon name="close" size={16}/></button>
     </div>
     {!sid && <p className="context-note">Создайте или откройте чат, чтобы увидеть его контекст и добавить расписание.</p>}
-    {sid && (engine === "opencode" || engine === "pi") && <OutcomeSection scope={{server,directory:directory??"",sessionID:sid,engine}} requests={(chat?.messageOrder??[]).filter(id=>chat?.messages[id]?.role==="user").map(id=>({id,label:safeLabel((chat?.partsByMessage[id]??[]).map(p=>chat?.parts[p]).filter(p=>p?.type==="text"&&!p.synthetic).map(p=>p?.text??"").join(" "),100)}))} onOpen={jump}/>}
+    {sid && (engine === "opencode" || engine === "pi") && <OutcomeSection scope={{server,directory:directory??"",sessionID:sid,engine}} requests={(chat?.messageOrder??[]).filter(id=>chat?.messages[id]?.role==="user").map(id=>({id,label:safeLabel((chat?.partsByMessage[id]??[]).map(p=>chat?.parts[p]).filter(p=>p?.type==="text"&&!p.synthetic).map(p=>p?.text??"").join(" "),100)}))} onOpen={jump} onPropose={card=>setProposed({...card})}/>}
+    <MemorySection server={server} directory={directory} proposed={proposed}/>
     <ScheduleSection scheduler={scheduler} server={server} directory={directory} sessionID={sid} />
     <FileSection id="results" title="Результаты" files={context.results} empty="Здесь появятся файлы из выполненных изменений и явные ссылки на файлы в ответах."
       action={{ label: "Подготовить запрос на создание результата", disabled: !sid, run: draftResult }}
