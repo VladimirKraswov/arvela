@@ -10,7 +10,7 @@ for await (const line of lines) {
     let result;
     if (request.method === 'initialize') result = { protocolVersion: request.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'arvela-eval', version: '1.0.0' } };
     else if (request.method === 'ping') result = {};
-    else if (request.method === 'tools/list') result = { tools: tools.filter(t => process.env.ARVELA_EVAL_CATEGORY === 'browser' ? t.name.startsWith('browser_') : !t.name.startsWith('browser_')) };
+    else if (request.method === 'tools/list') result = { tools: tools.filter(t => t.name !== 'memory_search' || process.env.ARVELA_EVAL_MEMORY === 'tools').filter(t => process.env.ARVELA_EVAL_CATEGORY === 'browser' ? t.name.startsWith('browser_') : !t.name.startsWith('browser_')) };
     else if (request.method === 'tools/call') {
       const response = await fetch(`${process.env.ARVELA_EVAL_URL}/tool`, {
         method: 'POST', headers: { authorization: `Bearer ${process.env.ARVELA_EVAL_TOKEN}`, 'Content-Type': 'application/json' },

@@ -30,10 +30,12 @@ Evidence: all 48 trials completed on DeepSeek Flash; OpenCode 23/24 and Pi 24/24
 
 Evidence: 612frontend/30Hub/92Rust pass; actual isolated UI/API/Web candidate approval and stale-source invalidation, installed Mac readiness and NAS unstarted restore verified. No inference or automatic prompt injection. See [project memory](docs/PROJECT-MEMORY.md).
 
-### M41 — Shared retrieval for OpenCode/Pi
+### M41 — Shared retrieval for OpenCode/Pi (done, 0.2.32)
 
-- [ ] Common MCP discovery/retrieval of bounded relevant project facts with source links and budget limits.
-- [ ] Compare task success and full completion time against M39 before enabling automatic context preparation. Preserve manual choice/rollback.
+- [x] Common MCP discovery/retrieval of bounded relevant project facts with source links and budget limits.
+- [x] Compare task success and full completion time against M39 before enabling automatic context preparation. Preserve manual choice/rollback.
+
+Evidence: explicit project-granted native MCP through existing shared adapters; approved/current only, bounded whole entries, provenance links, fail-closed revocation. 36 fresh trials on three unchanged M39 tasks; 35 full successes, all36 code assertions pass. No stable speed benefit: automatic preparation remains off; search opt-in. Signed Mac SDK/Pi retrieval and OpenCode metadata connection checked separately. [Comparison](docs/evaluations/2026-10-08/retrieval/REPORT.md) · [Limits](docs/PROJECT-MEMORY.md).
 
 ### M42 — Engineering foundations
 

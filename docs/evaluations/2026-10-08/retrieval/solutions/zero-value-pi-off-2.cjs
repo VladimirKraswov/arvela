@@ -1,0 +1,1 @@
+exports.price=(q,u)=>((q==null?1:q))*u;

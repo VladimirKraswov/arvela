@@ -1,0 +1,1887 @@
+{
+  "schemaVersion": 2,
+  "suiteVersion": "1.0.0",
+  "startedAt": "2026-10-08T11:12:47.239Z",
+  "model": "deepseek-flash",
+  "effort": "medium",
+  "memoryMode": "compare",
+  "effectiveEffort": "high",
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "revisions": {
+    "../../services/hub/memory.py": "dd1f24d22f9501f3781e45b01ed7cb9d1060a88962687f49c3ff4e5e237a9845",
+    "../../services/hub/server.py": "265713c644a1771b3461225124638172a91133220c488ad0fb46ebef50fb325e",
+    "fixtures.mjs": "be6bd5d9610c39ff46b635da6d888cf102b05bde6c86277419c4576392cbddb9",
+    "backend.mjs": "c5787db6a129bedbb5d163ac09f040a658d05b19052362b0f41c2d1729819025",
+    "proxy.mjs": "95485c293e8686a2df57eb830f6eead71726d69c50c668060f095f6127afec71",
+    "runner.mjs": "175943d4b2973e2b6bb7acfec394e53f3ec231980d8c585dc74cabd38edd6361",
+    "mcp.mjs": "8104c53f3026a90c47d6ce89898237b17b24755dd6f6cc0e60d18cc00d8e9f41",
+    "pi-extension.ts": "d90cfe2254adad17f805663c5dc0d5d183373558555de544b7f2e2f8aad175f3",
+    "memory.mjs": "5b7989daeb4ea0d51005a8601eceef4c3ac34f6ec9d21e75b6337c3d81d6e6da",
+    "memory.py": "d96a3e59848890c243d234578647e750835c0dc97d9ed18735f807ac9f697c2c"
+  },
+  "skillRevisions": [],
+  "versions": {
+    "opencode": "1.18.18",
+    "pi": "0.85.1"
+  },
+  "limits": {
+    "requests": 18,
+    "outputTokens": 4096,
+    "tokens": 60000,
+    "requestBytes": 100000,
+    "totalTokens": 900000,
+    "totalRequests": 300,
+    "perTrialSeconds": 90,
+    "totalSeconds": 1100
+  },
+  "trials": [
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": false,
+      "status": "agent-error",
+      "elapsedSeconds": 24.336575,
+      "verifiedSeconds": null,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 10634,
+        "output": 325,
+        "cachedInput": 9088,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 1,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1314,
+          "output": 170,
+          "cacheRead": 8704,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-off-1.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.593328917000003,
+      "verifiedSeconds": 6.593328917000003,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11176,
+        "output": 265,
+        "cachedInput": 9472,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1472,
+          "output": 178,
+          "cacheRead": 9088,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-tools-1.cjs",
+        "sha256": "24a472ccf6cd3528a01e08e1d06a555d5580b8513d1a8ddac456c38d5ad00225"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.581301583000004,
+      "verifiedSeconds": 6.581301583000004,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 12188,
+        "output": 300,
+        "cachedInput": 10240,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1543,
+          "output": 169,
+          "cacheRead": 9728,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 765,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-context-1.cjs",
+        "sha256": "3eca73bc1e71e644693e851bb934c2d64d21eb05303161251a05e51083ade87e"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.191559166999999,
+      "verifiedSeconds": 6.191559166999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3323,
+        "output": 516,
+        "cachedInput": 2304,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1019,
+          "output": 516,
+          "cacheRead": 2304,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-off-1.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 5.453730582999997,
+      "verifiedSeconds": 5.453730582999997,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 5,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 1
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 5051,
+        "output": 471,
+        "cachedInput": 3968,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1083,
+          "output": 471,
+          "cacheRead": 3968,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-tools-1.cjs",
+        "sha256": "5e8b81e3481c7b8092328f5e1ed1446db852e34b2de6729e8164734eb8fbb16b"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.278085665999999,
+      "verifiedSeconds": 6.278085665999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 4499,
+        "output": 370,
+        "cachedInput": 3328,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1171,
+          "output": 370,
+          "cacheRead": 3328,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 765,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-context-1.cjs",
+        "sha256": "d149d71a0cf07cdb86d015a8465f91532e9519f4499e148309813625358b246f"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 12.269052000000004,
+      "verifiedSeconds": 12.269052000000004,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11932,
+        "output": 1696,
+        "cachedInput": 10368,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1325,
+          "output": 267,
+          "cacheRead": 9984,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-opencode-off-1.cjs",
+        "sha256": "95a7ea3fc13d3f9549cf48b6ba62f66bc8af4d0d30bf781d2c14f9798a0099cf"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 13.415675499999997,
+      "verifiedSeconds": 13.415675499999997,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 5,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 1
+      },
+      "providerUsage": {
+        "requests": 7,
+        "input": 19845,
+        "output": 1518,
+        "cachedInput": 17536,
+        "responsesWithUsage": 7,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 2070,
+          "output": 394,
+          "cacheRead": 17152,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-opencode-tools-1.cjs",
+        "sha256": "3eb443f713a10efa7c5e2ed909731f353cac44400aee432ce0b91c3db003a27d"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 17.711678707999994,
+      "verifiedSeconds": 17.711678707999994,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 14671,
+        "output": 2882,
+        "cachedInput": 12672,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1578,
+          "output": 353,
+          "cacheRead": 12160,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 785,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-opencode-context-1.cjs",
+        "sha256": "8e6ff4b007154eb3b0b03db0712df82d0dd607e1f5d67435f8f22fd3b9cdebeb"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 13.358623584,
+      "verifiedSeconds": 13.358623584,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 6737,
+        "output": 2245,
+        "cachedInput": 5504,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1233,
+          "output": 2245,
+          "cacheRead": 5504,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-pi-off-1.cjs",
+        "sha256": "6d7c4e6d004ecd7cc3ccb693bdd20ebcd133bf5c29d9fc4f370e9d5d2e97d840"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 11.801256125,
+      "verifiedSeconds": 11.801256125,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 6,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 2
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 7975,
+        "output": 1684,
+        "cachedInput": 6400,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 1575,
+          "output": 1684,
+          "cacheRead": 6400,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-pi-tools-1.cjs",
+        "sha256": "98c116a696297f578831402189aa84ae846e0606c7b61b83729049b577487fef"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 17.798064500000006,
+      "verifiedSeconds": 17.798064500000006,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10540,
+        "output": 3329,
+        "cachedInput": 9344,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1196,
+          "output": 3329,
+          "cacheRead": 9344,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 785,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-pi-context-1.cjs",
+        "sha256": "b0ac56486286c2baaa4e7c7e1a2a7f150f1c0d370d6b8e9b2c66e7f52da65a36"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 9.009840375,
+      "verifiedSeconds": 9.009840375,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10945,
+        "output": 975,
+        "cachedInput": 9344,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1352,
+          "output": 363,
+          "cacheRead": 8960,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-opencode-off-1.cjs",
+        "sha256": "29ffe6e2db049a64bc5f79b97d82baf150ac4d05c6dcf36d9a26d04fddd6656f"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "tools",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 10.758878124999988,
+      "verifiedSeconds": 10.758878124999988,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 1
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 15168,
+        "output": 1141,
+        "cachedInput": 13056,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1863,
+          "output": 372,
+          "cacheRead": 12672,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-opencode-tools-1.cjs",
+        "sha256": "81b774d9c47d918428ed856bba501819e3fdf77b55257f777d06b5528c956a0d"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "context",
+      "engine": "opencode",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 10.365341291999997,
+      "verifiedSeconds": 10.365341291999997,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 12946,
+        "output": 1350,
+        "cachedInput": 10880,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1637,
+          "output": 436,
+          "cacheRead": 10368,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 806,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-opencode-context-1.cjs",
+        "sha256": "a19ff7d0a4d531b9515f055bd250ce75c5d34d219c746fdd7dd5d9b5703fc3a9"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 7.150568499999994,
+      "verifiedSeconds": 7.150568499999994,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 4720,
+        "output": 972,
+        "cachedInput": 3456,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1264,
+          "output": 972,
+          "cacheRead": 3456,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-pi-off-1.cjs",
+        "sha256": "ec56cc7362597faf8cbecb5b4b3434698ea46eb598ad0e11c0d7965fb59bddfd"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "tools",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 7.152420167000004,
+      "verifiedSeconds": 7.152420167000004,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 5,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 1
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 5468,
+        "output": 691,
+        "cachedInput": 4224,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1244,
+          "output": 691,
+          "cacheRead": 4224,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-pi-tools-1.cjs",
+        "sha256": "721d00f3c91a0691952c050f302fa51c3298ea90b45f2edb02bae75beffc414c"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "context",
+      "engine": "pi",
+      "repeat": 1,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 8.018249416000007,
+      "verifiedSeconds": 8.018249416000007,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 5868,
+        "output": 946,
+        "cachedInput": 4608,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1260,
+          "output": 946,
+          "cacheRead": 4608,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 806,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-pi-context-1.cjs",
+        "sha256": "9892528b63a93717e7a20e8a7b626cf89c5c2507979edd60282ae70642405dc3"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.36306820899999,
+      "verifiedSeconds": 6.36306820899999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 4683,
+        "output": 444,
+        "cachedInput": 3456,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1227,
+          "output": 444,
+          "cacheRead": 3456,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 765,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-context-2.cjs",
+        "sha256": "d149d71a0cf07cdb86d015a8465f91532e9519f4499e148309813625358b246f"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 7.853584124999994,
+      "verifiedSeconds": 7.853584124999994,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 5,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 1
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 6123,
+        "output": 668,
+        "cachedInput": 4736,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 1387,
+          "output": 668,
+          "cacheRead": 4736,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-tools-2.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.051361124999996,
+      "verifiedSeconds": 6.051361124999996,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3322,
+        "output": 474,
+        "cachedInput": 2304,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1018,
+          "output": 474,
+          "cacheRead": 2304,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-pi-off-2.cjs",
+        "sha256": "0d66a568f1912b4638de23f6b0189fe06b08736f869b526cf034fe1545f36b3d"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.313235083999985,
+      "verifiedSeconds": 6.313235083999985,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 12139,
+        "output": 285,
+        "cachedInput": 9984,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1752,
+          "output": 170,
+          "cacheRead": 9472,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 765,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-context-2.cjs",
+        "sha256": "fedb8336a0b57d4545a245661f74204a2a180b5547a958c0f3e6a1a7c846334c"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 6.790229334000004,
+      "verifiedSeconds": 6.790229334000004,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11234,
+        "output": 274,
+        "cachedInput": 9472,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1530,
+          "output": 179,
+          "cacheRead": 9088,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-tools-2.cjs",
+        "sha256": "bf5b912c6bb0f4a19a4f4dc4e7bf8f757a2b1f2e5d9108c99203c7222b8133aa"
+      }
+    },
+    {
+      "fixture": "zero-value",
+      "fixtureRevision": "0b877b7e663ec2c498d1cab822427090cfa906904eeb8f28607e00190965a9e1",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 7.674118665999995,
+      "verifiedSeconds": 7.674118665999995,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 10722,
+        "output": 514,
+        "cachedInput": 9216,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1274,
+          "output": 184,
+          "cacheRead": 8832,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/zero-value-opencode-off-2.cjs",
+        "sha256": "fedb8336a0b57d4545a245661f74204a2a180b5547a958c0f3e6a1a7c846334c"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 29.842637874999987,
+      "verifiedSeconds": 29.842637874999987,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 6,
+        "errors": 1,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 7,
+        "input": 22198,
+        "output": 5628,
+        "cachedInput": 20352,
+        "responsesWithUsage": 7,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 7,
+        "errors": 0,
+        "tokens": {
+          "input": 1846,
+          "output": 5628,
+          "cacheRead": 20352,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 785,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-pi-context-2.cjs",
+        "sha256": "737e8a1d0851215e47851cb82fb56d52836a002b4b5ca65bcfead55e9a2bc69d"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 14.798364999999992,
+      "verifiedSeconds": 14.798364999999992,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 3
+      },
+      "providerUsage": {
+        "requests": 7,
+        "input": 11920,
+        "output": 2043,
+        "cachedInput": 10240,
+        "responsesWithUsage": 7,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 7,
+        "errors": 0,
+        "tokens": {
+          "input": 1680,
+          "output": 2043,
+          "cacheRead": 10240,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-pi-tools-2.cjs",
+        "sha256": "ee34086f062d35c3a1de40d76157bc748ccef43c98169dfeac966cde4b176054"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 13.008656499999983,
+      "verifiedSeconds": 13.008656499999983,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 6849,
+        "output": 2037,
+        "cachedInput": 5760,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1089,
+          "output": 2037,
+          "cacheRead": 5760,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-pi-off-2.cjs",
+        "sha256": "d1b1ebe0662e5787b517b5d5c50e1e76f91198ed6d0decabfa3d1aa7917b9a93"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "context",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 12.28662929100002,
+      "verifiedSeconds": 12.28662929100002,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 17077,
+        "output": 1543,
+        "cachedInput": 14848,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1807,
+          "output": 462,
+          "cacheRead": 14336,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 785,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-opencode-context-2.cjs",
+        "sha256": "00892128db9386373865d8b0a0b1fa9190357a2b96b5ab6c701efe5ab3f44e4a"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "tools",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 15.111222500000032,
+      "verifiedSeconds": 15.111222500000032,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 1
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 16139,
+        "output": 1833,
+        "cachedInput": 14080,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1820,
+          "output": 333,
+          "cacheRead": 13696,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-opencode-tools-2.cjs",
+        "sha256": "d270c41769e87a514ead17a419ce0f1fbc203a9085e087278bddacfc0af31896"
+      }
+    },
+    {
+      "fixture": "idempotent-usage",
+      "fixtureRevision": "fca7b228f1af80468041744f6f70c45dcc52266c1e0557b78137eaa8b6684e44",
+      "category": "code",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 9.507252124999999,
+      "verifiedSeconds": 9.507252124999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11315,
+        "output": 1262,
+        "cachedInput": 9728,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1348,
+          "output": 267,
+          "cacheRead": 9344,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/idempotent-usage-opencode-off-2.cjs",
+        "sha256": "40917e125728c762cc70d16b7c6d10c59013e251df1cd67b3846f82c2eb72b1d"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "context",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 8.190278708999976,
+      "verifiedSeconds": 8.190278708999976,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 5622,
+        "output": 939,
+        "cachedInput": 4480,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1142,
+          "output": 939,
+          "cacheRead": 4480,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 806,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-pi-context-2.cjs",
+        "sha256": "61dd0bb6abd56a275efc4516849f4d7b9f0e75c890b52fd512f3db5b8fc70fdd"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "tools",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 25.031549667000014,
+      "verifiedSeconds": 25.031549667000014,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 7,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 3
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 18998,
+        "output": 4381,
+        "cachedInput": 16896,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 6,
+        "errors": 0,
+        "tokens": {
+          "input": 2102,
+          "output": 4381,
+          "cacheRead": 16896,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-pi-tools-2.cjs",
+        "sha256": "52553933926d42f2ae11ef9afadce5d7192b4b068541871aa4490afcc48b753a"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "off",
+      "engine": "pi",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 7.109047417000053,
+      "verifiedSeconds": 7.109047417000053,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 3723,
+        "output": 612,
+        "cachedInput": 2688,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1035,
+          "output": 612,
+          "cacheRead": 2688,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-pi-off-2.cjs",
+        "sha256": "159b1d8b74a4bfa369e554228cf04cfc8595476fe0b443bac93fa2c318dca761"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "context",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 9.219824249999947,
+      "verifiedSeconds": 9.219824249999947,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 12814,
+        "output": 1047,
+        "cachedInput": 10752,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1626,
+          "output": 325,
+          "cacheRead": 10240,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 806,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-opencode-context-2.cjs",
+        "sha256": "caf2c7b69bb2ce3d52b10ba534351233e178461bc399df52b249ae5f59c63213"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "tools",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 14.497634957999981,
+      "verifiedSeconds": 14.497634957999981,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 4,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 6,
+        "input": 14918,
+        "output": 2117,
+        "cachedInput": 12928,
+        "responsesWithUsage": 6,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 5,
+        "errors": 0,
+        "tokens": {
+          "input": 1741,
+          "output": 478,
+          "cacheRead": 12544,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-opencode-tools-2.cjs",
+        "sha256": "b26d4bc73eee2b00169f82520e96ca182295affe4884de953e2b945f72eaf969"
+      }
+    },
+    {
+      "fixture": "stale-edit",
+      "fixtureRevision": "e15d66328b486ab0576903f9cc0768675efcdf82a5209e6e25417f99e35835c4",
+      "category": "recovery",
+      "memoryMode": "off",
+      "engine": "opencode",
+      "repeat": 2,
+      "passed": true,
+      "status": "PASS",
+      "elapsedSeconds": 9.519797707999999,
+      "verifiedSeconds": 9.519797707999999,
+      "ownerInterventions": 0,
+      "tools": {
+        "calls": 3,
+        "errors": 0,
+        "staleRefusals": 0,
+        "validationErrors": 0,
+        "memoryCalls": 0
+      },
+      "providerUsage": {
+        "requests": 5,
+        "input": 11313,
+        "output": 918,
+        "cachedInput": 9728,
+        "responsesWithUsage": 5,
+        "rejected": 0,
+        "errors": 0,
+        "servedModels": [
+          "deepseek-flash"
+        ],
+        "effectiveEffort": "high"
+      },
+      "agentUsage": {
+        "assistantTurns": 4,
+        "errors": 0,
+        "tokens": {
+          "input": 1336,
+          "output": 325,
+          "cacheRead": 9344,
+          "cacheWrite": 0
+        }
+      },
+      "preparedContextBytes": 0,
+      "exitCode": 0,
+      "stopped": null,
+      "outcomePassed": true,
+      "candidate": {
+        "file": "solutions/stale-edit-opencode-off-2.cjs",
+        "sha256": "25506f499a2e202a47aa3f59ae4451ea10cf07a4c754ca44c71cc354e525e44b"
+      }
+    }
+  ],
+  "budget": {
+    "requests": 194,
+    "input": 374795,
+    "output": 48695
+  },
+  "complete": true,
+  "finishedAt": "2026-10-08T11:19:34.435Z",
+  "totalSeconds": 407.197711667
+}

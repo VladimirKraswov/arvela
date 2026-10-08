@@ -1,6 +1,6 @@
 [package]
 name = "arvela"
-version = "0.2.31"
+version = "0.2.32"
 description = "Desktop client for OpenCode and Pi"
 authors = ["Arvela contributors"]
 edition = "2021"

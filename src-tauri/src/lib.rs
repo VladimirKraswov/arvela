@@ -33,6 +33,7 @@ pub fn run() {
             asr::transcribe_audio,
             hub::hub_config,
             hub::hub_request,
+            hub::retrieval::memory_retrieval,
             hub::hub_package,
             hub::hub_spool,
             model_credentials::model_service_key,

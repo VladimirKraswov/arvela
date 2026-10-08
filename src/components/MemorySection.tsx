@@ -4,6 +4,7 @@ import { config, type HubConfig } from '../hub/client';
 import { outcomes, subscribeOutcomes, type Outcome } from '../outcomes/store';
 import { hubIdentity, memoryPage, memoryWrite, portableText, proposal, sourceOf, synchronizeMemorySources, type EntryInput, type MemoryEntry, type MemoryPage } from '../memory/client';
 import { projects, projectKey, uuid, type Binding, type ProjectScope } from '../memory/projects';
+import { connectRetrieval, readRetrieval, retrievalScope, isGranted, retrievalAvailable, type Connection } from '../memory/retrieval';
 const states: Record<MemoryEntry['state'], string> = { candidate: 'Ждёт вашей проверки', approved: 'Одобрено вами', stale: 'Неактуально', expired: 'Срок истёк' };
 type Draft = { id: string; sourceCard: string; sourceRevision: number; kind: 'fact' | 'runbook'; title: string; text: string; days: number };
 // Only unsaved local forms, bounded and never transmitted on panel close.
@@ -25,16 +26,22 @@ export function MemorySection({ server, directory, proposed }: { server: string;
 }
 
 export function ProjectMemory({ scope, shareText, proposed }: { scope: ProjectScope; shareText: boolean; proposed: Outcome | null }) {
-  const key = projectKey(scope), [binding, setBinding] = useState<Binding | null>(null), [page, setPage] = useState<MemoryPage>({ projects: [], entries: [] }), [cards, setCards] = useState<Outcome[]>([]);
+  const key = projectKey(scope), [binding, setBinding] = useState<Binding | null>(null), [localBinding,setLocalBinding] = useState<Binding | null>(null), [page, setPage] = useState<MemoryPage>({ projects: [], entries: [] }), [cards, setCards] = useState<Outcome[]>([]);
   const [draft, setDraft] = useState<Draft | null>(() => drafts.get(key) ?? null), [title, setTitle] = useState(''), [code, setCode] = useState(''), [chosen, setChosen] = useState<{ id: string; title: string } | null>(null);
   const [ready, setReady] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [loadError, setLoadError] = useState(''), [notice, setNotice] = useState('');
+  const [retrieval, setRetrieval] = useState<Connection | null>(null), [retrievalError, setRetrievalError] = useState('');
   const newID = useRef(crypto.randomUUID());
   const live = useRef(true), serial = useRef(0), details = useRef<HTMLDetailsElement>(null);
   const refresh = async () => {
     const n = ++serial.current;
-    try { const b = await projects.get(scope); await synchronizeMemorySources(); const p = await memoryPage(scope, b?.projectID), all = await outcomes.list();
+    try { const b = await projects.get(scope);
       if (!live.current || n !== serial.current) return;
-      setBinding(b); setPage(p); setCards(all.filter(x => x.scope.server === scope.server && x.scope.directory === scope.directory && x.verdict === 'accepted')); setReady(true); setLoadError('');
+      setLocalBinding(b);
+      if (isNative() && retrievalAvailable(scope.server) && b) { try { const r = await readRetrieval(retrievalScope(scope,b)); if (live.current && n === serial.current) { setRetrieval(r); setRetrievalError(''); } } catch (e) { if (live.current && n === serial.current) { setRetrieval(null); setRetrievalError(String(e)); } } }
+      await synchronizeMemorySources(); const p = await memoryPage(scope, b?.projectID), all = await outcomes.list();
+      if (!live.current || n !== serial.current) return;
+      setBinding(b); setPage(p);
+      setCards(all.filter(x => x.scope.server === scope.server && x.scope.directory === scope.directory && x.verdict === 'accepted')); setReady(true); setLoadError('');
     } catch (e) { if (live.current && n === serial.current) { setReady(false); setPage({ projects: [], entries: [] }); setLoadError(String(e)); } }
   };
   useEffect(() => { live.current = true; void refresh(); const off = subscribeOutcomes(() => void refresh()); const tick = setInterval(() => void refresh(), 60000); return () => { live.current = false; serial.current++; off(); clearInterval(tick); }; }, [key]);
@@ -53,15 +60,16 @@ export function ProjectMemory({ scope, shareText, proposed }: { scope: ProjectSc
   const review = (e: MemoryEntry, action: 'approve' | 'invalidate') => void run(async () => { await synchronizeMemorySources(); await memoryWrite(scope, { action, id: e.id, expected: e.revision }); if (live.current) { await refresh(); setNotice(action === 'approve' ? 'Запись одобрена вами.' : 'Запись исключена из актуальной памяти.'); } });
   const edit = (patch: Partial<Draft>) => { if (draft) keep({ ...draft, ...patch }); };
   return <section className="outcome-section memory-section"><details ref={details}><summary>Память проекта{binding ? ` · ${binding.title}` : ''}</summary>
-    <p className="context-note">Общая для OpenCode и Pi. Проверенные сведения с источником; AGENTS.md и контрольные записи остаются главными. Автоматической передачи агентам и обучения пока нет.</p>
+    <p className="context-note">Общая для OpenCode и Pi. Проверенные сведения с источником; AGENTS.md и контрольные записи остаются главными. Поиск подключается отдельно и не вставляет память в каждый промпт. Автоматического обучения нет.</p>
     {!shareText && <p className="context-note">Новые записи требуют разрешения передачи текстов в настройках библиотеки. Читать и проверять уже сохранённые можно.</p>}
     <button className="btn small ghost" disabled={busy} onClick={() => void run(refresh)}>Обновить память</button>
+    {localBinding && isNative() && retrievalAvailable(scope.server) && <div className="memory-card"><strong>Поиск для OpenCode и Pi</strong><p className="context-note">Только одобренные актуальные записи этой папки. До 8 записей / 8 КиБ за запрос; источник и версия включены. Тексты могут попасть выбранной модели при вызове инструмента. Новый MCP подключается перед следующим запросом OpenCode; для Pi переоткройте сессию.</p><button className="btn small" disabled={busy || (!ready && !isGranted(retrieval,retrievalScope(scope,localBinding)))} onClick={() => void run(async () => { if (!isGranted(retrieval,retrievalScope(scope,localBinding))) await synchronizeMemorySources(); const r = await connectRetrieval(retrievalScope(scope,localBinding), !isGranted(retrieval,retrievalScope(scope,localBinding))); if (live.current) { setRetrieval(r); setRetrievalError(''); setNotice(r.grant?.enabled ? 'Поиск подключён обоим агентам для этой папки.' : 'Поиск отключён. Уже переданный контекст остаётся в истории чата.'); } })}>{isGranted(retrieval,retrievalScope(scope,localBinding)) ? 'Отключить поиск агентам' : 'Подключить поиск обоим агентам'}</button>{retrievalError && <p role="alert" className="context-error">{retrievalError}</p>}</div>}
     {!binding && <><label>Название нового проекта<input aria-label="Название проекта памяти" maxLength={80} value={title} disabled={busy} onChange={e => { setTitle(e.target.value); newID.current = crypto.randomUUID(); setChosen(null); }} /></label>
       <button className="btn small" disabled={busy || !ready || !shareText || !title.trim()} onClick={create}>Создать проект памяти</button>
       <label>Код проекта с другого устройства<input aria-label="Код проекта памяти" value={code} maxLength={36} disabled={busy} onChange={e => { setCode(e.target.value); setChosen(null); }} /></label>
       <button className="btn small" disabled={busy || !ready || !uuid(code)} onClick={find}>Проверить код проекта</button></>}
     {chosen && <div className="memory-card"><strong>{chosen.title}</strong><p className="context-note">Связать текущую папку с этим проектом? Имена и Git-адреса не используются для автоматического объединения.</p><button className="btn small primary" disabled={busy} onClick={bind}>Подтвердить привязку папки</button></div>}
-    {binding && <><label>Код для другого устройства<input aria-label="Переносимый код проекта" value={binding.projectID} readOnly onFocus={e => e.target.select()} /></label>
+    {binding && <>{!retrievalAvailable(scope.server) && <p className="context-note">MCP-поиск памяти пока доступен локальным агентам. Для удалённой рабочей папки можно читать память вручную.</p>}<label>Код для другого устройства<input aria-label="Переносимый код проекта" value={binding.projectID} readOnly onFocus={e => e.target.select()} /></label>
       <p className="context-note">Пути папки и сервера хранятся только здесь. Скопируйте код и подтвердите привязку на другом устройстве.</p>
       {!draft && <><label>Принятый результат<select aria-label="Источник памяти" disabled={busy || !ready || !shareText} defaultValue="" onChange={e => { const c = cards.find(x => x.id === e.target.value); if (c) begin(c); e.target.value = ''; }}><option value="">Выберите результат…</option>{cards.map(c => <option key={c.id} value={c.id}>{c.scope.engine === 'pi' ? 'Pi' : 'OpenCode'} · {c.goal.slice(0,100)}</option>)}</select></label>{!cards.length && <p className="context-note">Сначала сохраните и примите результат задачи в этой папке.</p>}</>}
       {draft && <fieldset disabled={busy}><legend>Предложение в память</legend><label>Вид<select aria-label="Вид записи памяти" value={draft.kind} onChange={e => edit({ kind: e.target.value as Draft['kind'] })}><option value="fact">Факт</option><option value="runbook">Порядок действий</option></select></label>

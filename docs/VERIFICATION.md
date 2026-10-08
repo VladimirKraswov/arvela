@@ -1,3 +1,50 @@
+# Arvela 0.2.32 — shared project-memory retrieval (2026-10-08)
+
+M41 adds explicit local project grants for a read-only memory MCP through the
+existing shared OpenCode/Pi adapters. Approved, unexpired, latest-known accepted
+sources only; lexical ranking, whole-entry byte budgets, coverage and revisioned
+Hub Web links. Vault-held HTTPS auth never enters model arguments/registry. CWD,
+project/revision/Hub identity checks fail closed, including after delayed response
+and revocation. Disabled by default; no production prompt injection/training.
+Foreign registry entries cannot prevent native revocation and are preserved.
+Offline Hub access cannot prevent disabling an existing grant; the UI checks local
+state before network refresh, with a regression test for this failure case.
+
+617frontend pass/6opt-in skipped,34Hub Python pass locally/on CT206,94Rust pass/
+1unchanged vault ignore; TypeScript/Vite, Rust fmt/all-targets, final Mac app/DMG,
+strict signature/audio-input/usage-description/hdiutil pass. Actual isolated SDK
+and installed Pi loader read approved data over HTTPS through native + shared
+proxy, refused extra project selectors and revoked grants; isolated OpenCode
+metadata confirmed MCP connected with no inference. Test HOME had its own
+disposable OS keychain; owner default/search-list and credentials were unchanged.
+An initially unsuitable CA:TRUE test leaf was rejected; corrected CA:FALSE leaf
+with serverAuth worked, without disabling native TLS validation.
+
+Actual isolated UI opt-in/disable and340px layout passed, no horizontal overflow.
+Installed native panel reads production Hub and enables create after unsaved title
+entry (then cleared; no project created). About:0.2.32/OpenCode1.18.18/Pi0.85.1.
+Build equals installed executable SHA256:
+`9bb4e81fdcdda0aaa5f72c80e83b0b8d4e34fde4f878f26f301cf2369260ec8a`.
+DMG SHA256:`530b94d3f47861292aac615e03345fa76557241ffa392aa0683f5dc59ae62dae`.
+Ad-hoc signed, not notarized; Windows/Linux live acceptance unrun.
+
+[36-trial comparison](evaluations/2026-10-08/retrieval/REPORT.md) on3unchanged M39
+fixtures: all36 independent code assertions pass;35full successes, one provider
+path error retained/partial usage. New baseline medians OpenCode/Pi9.51/7.13s;
+optional search12.09/9.83s; prepared context9.79/8.10s. No stable benefit,
+so automatic preparation remains off/unimplemented.194provider requests,
+193responses with usage,423490known tokens. Synthetic facts/fixtures only; no
+owner sessions/files/skills or local inference/GPU changes. A preliminary aborted
+run found mode-specific artifact collisions; final36files all match their SHA.
+
+CT206 code hashes match; all10314pre-update records preserved, integrityok,
+production memory remains empty/catalog6. Full private NAS0.2.32 archive SHA256:
+`adfe2cde573ed10657f87b20a11106e2a63fdec7de5adda16e838edb25173539`.
+Byte/zstd verification and isolated unstarted207restore pass: code/server/Web
+hashes match, SQL integrity/history/memory tables preserved. Own207/SSD staging
+removed. External OpenCode PID3714 remains healthy1.18.18; externally owned
+browser MCP processes and user chats preserved.
+
 # Arvela 0.2.31 — curated project memory (2026-10-08)
 
 M40 adds explicit UUID project binding shared by OpenCode/Pi, accepted-result

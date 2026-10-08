@@ -110,3 +110,24 @@ versioned tasks and repeat the same checks before promoting M40/M41 retrieval.
 Historical accepted-fix replay remains in
 `integrations/opencode-agent/evals/`; it is separate from cloud-safe synthetic
 fixtures and must never send owner project sources to a cloud model implicitly.
+
+
+## M41 memory comparison
+
+`--memory off` is the unchanged default. `tools` exposes a bounded optional search;
+`context` prepares synthetic reference facts before the agent starts. `compare`
+runs all three modes for each fixture/agent, reversing mode and agent order on
+repeat2. Preparation/backend setup time is charged. Each trial has a distinct
+mode-specific candidate filename. Python3 is required for memory modes; they
+use production Hub retrieval in a disposable SQLite database. No solutions,
+owner memory, vault credentials or private sessions enter this comparison.
+
+```sh
+npm run eval:live -- --memory compare --cases zero-value,idempotent-usage,stale-edit \
+  --repeats 2 --output .local/evaluations/memory-comparison
+```
+
+[Actual 36-trial result](evaluations/2026-10-08/retrieval/REPORT.md): no stable
+speed/quality benefit, so app automatic context preparation stays unimplemented.
+The eval adapter and native MCP differ in transport; compare trends, not a
+claim of native latency. Native SDK/Pi/OpenCode acceptance is separate.

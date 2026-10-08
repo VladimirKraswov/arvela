@@ -1,4 +1,5 @@
 //! Scoped HTTPS client; device secrets never cross the WebView boundary on read.
+pub mod retrieval;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -153,13 +154,17 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         || path.starts_with("catalog/")
         || path.starts_with("metrics?")
         || path == "ingest"
-        || memory_path(path);
+        || memory_path(path)
+        || path == "memory/retrieve";
     if !allowed || path.contains(['#', '\\', '\r', '\n']) || path.contains("..") || path.len() > 512
     {
         return Err("Unsupported Hub API path".into());
     }
-    if body.is_some() && path != "ingest" && path != "memory" {
+    if body.is_some() && path != "ingest" && path != "memory" && path != "memory/retrieve" {
         return Err("Unsupported Hub write operation".into());
+    }
+    if path == "memory/retrieve" && !body.as_ref().is_some_and(retrieval::retrieval_input) {
+        return Err("Invalid read-only retrieval request".into());
     }
     if path == "memory" {
         if let Some(value) = &body {

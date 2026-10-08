@@ -164,7 +164,10 @@ fn private(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-fn key_for(scope: &str, directory: Option<&str>) -> Result<(String, Option<String>), String> {
+pub(crate) fn key_for(
+    scope: &str,
+    directory: Option<&str>,
+) -> Result<(String, Option<String>), String> {
     if scope == "global" {
         return Ok(("global".into(), None));
     }

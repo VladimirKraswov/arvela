@@ -95,9 +95,9 @@ export function parseAgentEvents(engine, text) {
   return { assistantTurns, errors, tokens: usagePresent ? tokens : null };
 }
 
-async function prepareAgent(engine, root, work, backend, proxy, model, effort, category) {
+async function prepareAgent(engine, root, work, backend, proxy, model, effort, category, memoryMode = 'off') {
   const home = join(root, 'home'); await mkdir(home);
-  const env = { ...cleanEnvironment(home), ARVELA_EVAL_URL: backend.url, ARVELA_EVAL_TOKEN: backend.token, ARVELA_EVAL_CATEGORY: category };
+  const env = { ...cleanEnvironment(home), ARVELA_EVAL_URL: backend.url, ARVELA_EVAL_TOKEN: backend.token, ARVELA_EVAL_CATEGORY: category, ARVELA_EVAL_MEMORY: memoryMode };
   const prompt = 'Synthetic evaluation task. Use only fixture tools. Inspect the available files/browser, solve the task, then give a brief result. Do not ask for human intervention. Refresh browser snapshots after mutations or stale refs.\n';
   if (engine === 'pi') {
     await mkdir(join(home, 'pi'));
@@ -116,7 +116,7 @@ async function prepareAgent(engine, root, work, backend, proxy, model, effort, c
     provider: { eval: { npm: '@ai-sdk/openai-compatible', name: 'Isolated evaluation', options: { baseURL: proxy.url, apiKey: proxy.token },
       models: { [model]: { name: model, limit: { context: 262144, output: 4096 }, reasoning: true } } } },
     agent: { build: { tools: { '*': false, 'fixture_*': true }, permission: { '*': 'deny', 'fixture_*': 'allow' }, steps: 20 } },
-    mcp: { fixture: { type: 'local', command: [process.execPath, join(here, 'mcp.mjs')], enabled: true, environment: { ARVELA_EVAL_URL: backend.url, ARVELA_EVAL_TOKEN: backend.token, ARVELA_EVAL_CATEGORY: category } } },
+    mcp: { fixture: { type: 'local', command: [process.execPath, join(here, 'mcp.mjs')], enabled: true, environment: { ARVELA_EVAL_URL: backend.url, ARVELA_EVAL_TOKEN: backend.token, ARVELA_EVAL_CATEGORY: category, ARVELA_EVAL_MEMORY: memoryMode } } },
   };
   await mkdir(join(home, 'config', 'opencode'), { recursive: true });
   const configPath = join(home, 'config', 'opencode', 'opencode.json');
@@ -129,19 +129,19 @@ export function renderReport(report) {
   const elapsed = t => t.elapsedSeconds ?? t.verifiedSeconds;
   const median = values => { const a = [...values].sort((a, b) => a - b), m = Math.floor(a.length / 2); return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
   const usageLabel = u => !u.responsesWithUsage ? 'unknown' : `${u.responsesWithUsage < u.requests ? 'partial ' : ''}${u.input + u.output}`;
-  const aggregates = [...new Set(report.trials.map(t => t.engine))].map(engine => {
-    const trials = report.trials.filter(t => t.engine === engine);
+  const aggregates = [...new Set(report.trials.map(t => `${t.engine} / ${t.memoryMode ?? 'off'}`))].map(group => {
+    const trials = report.trials.filter(t => `${t.engine} / ${t.memoryMode ?? 'off'}` === group);
     const knownTokens = trials.reduce((n, t) => n + (t.providerUsage.input || 0) + (t.providerUsage.output || 0), 0);
     const fullUsage = trials.every(t => t.providerUsage.responsesWithUsage === t.providerUsage.requests && t.providerUsage.responsesWithUsage > 0);
-    return `| ${engine} | ${trials.filter(t => t.passed).length}/${trials.length} | ${median(trials.map(elapsed)).toFixed(2)} | ${fullUsage ? '' : 'partial '}${knownTokens} |`;
+    return `| ${group} | ${trials.filter(t => t.passed).length}/${trials.length} | ${median(trials.map(elapsed)).toFixed(2)} | ${fullUsage ? '' : 'partial '}${knownTokens} |`;
   });
-  const rows = report.trials.map(t => `| ${t.fixture} | ${t.engine} | ${t.repeat} | ${t.passed ? 'PASS' : t.status} | ${elapsed(t).toFixed(1)} | ${usageLabel(t.providerUsage)} | ${t.tools.staleRefusals} |`);
-  return `# Arvela synthetic evaluation ${suiteVersion}\n\nModel: ${report.model}; requested effort: ${report.effort}; effective provider effort: ${report.effectiveEffort}.\n\n${report.trials.filter(t => t.passed).length}/${report.trials.length} independently verified trials. Owner interventions: 0 (unattended runner; not a statement about production).\n\n| Agent | Verified outcomes | Median elapsed seconds (all trials) | Provider tokens |\n|---|---:|---:|---:|\n${aggregates.join('\n')}\n\n| Fixture | Agent | Repeat | Result | Elapsed seconds through grading | Provider tokens | Stale refusals |\n|---|---|---:|---|---:|---:|---:|\n${rows.join('\n')}\n\nLimits: ${JSON.stringify(report.limits)}. Provider token usage is authoritative where present; missing usage is unknown, never zero. Admission checks apply between responses; one in-flight response can exceed the token ceiling.\n\nThese small synthetic trials do not measure local Qwen throughput, general model intelligence, production browser emulation, UI behavior or long-project quality. No history, skills or private code was sent. Tool/fixture revisions are in the JSON report. Sequential AB/BA order alternates between repeats; no automatic retries or result deletion.\n`;
+  const rows = report.trials.map(t => `| ${t.fixture} | ${t.engine} / ${t.memoryMode ?? 'off'} | ${t.repeat} | ${t.passed ? 'PASS' : t.status} | ${elapsed(t).toFixed(1)} | ${usageLabel(t.providerUsage)} | ${t.tools.staleRefusals} |`);
+  return `# Arvela synthetic evaluation ${suiteVersion}\n\nModel: ${report.model}; requested effort: ${report.effort}; effective provider effort: ${report.effectiveEffort}. Memory: ${report.memoryMode ?? 'off'}.\n\n${report.trials.filter(t => t.passed).length}/${report.trials.length} independently verified trials. Owner interventions: 0 (unattended runner; not a statement about production).\n\n| Agent | Verified outcomes | Median elapsed seconds (all trials) | Provider tokens |\n|---|---:|---:|---:|\n${aggregates.join('\n')}\n\n| Fixture | Agent | Repeat | Result | Elapsed seconds through grading | Provider tokens | Stale refusals |\n|---|---|---:|---|---:|---:|---:|\n${rows.join('\n')}\n\nLimits: ${JSON.stringify(report.limits)}. Provider token usage is authoritative where present; missing usage is unknown, never zero. Admission checks apply between responses; one in-flight response can exceed the token ceiling.\n\nThese small synthetic trials do not measure local Qwen throughput, general model intelligence, production browser emulation, UI behavior or long-project quality. No history, skills or private code was sent. Tool/fixture revisions are in the JSON report. Sequential AB/BA order alternates between repeats; no automatic retries or result deletion.\n`;
 }
 
 async function main() {
   const args = process.argv.slice(2); const value = (name, fallback) => { const i = args.indexOf(name); return i < 0 ? fallback : args[i + 1]; };
-  const allowed = new Set(['--self-check', '--live', '--output', '--agents', '--cases', '--repeats', '--timeout', '--total-timeout', '--model', '--effort', '--key-file', '--playwright-module', '--browser-executable', '--total-tokens', '--total-requests']);
+  const allowed = new Set(['--self-check', '--live', '--output', '--agents', '--cases', '--repeats', '--timeout', '--total-timeout', '--model', '--effort', '--key-file', '--playwright-module', '--browser-executable', '--total-tokens', '--total-requests', '--memory']);
   for (let i = 0; i < args.length; i++) { if (!allowed.has(args[i])) throw Error(`Unknown option ${args[i]}`); if (!['--self-check', '--live'].includes(args[i])) i++; }
   if (args.includes('--self-check')) { console.log(JSON.stringify(await selfCheck(), null, 2)); return; }
   if (!args.includes('--live')) throw Error('Live inference is opt-in: --live required. Offline CI: --self-check.');
@@ -166,38 +166,42 @@ async function main() {
     key = auth.deepseek?.key;
   }
   if (typeof key !== 'string' || !key.trim()) throw Error('Missing DEEPSEEK_API_KEY or explicit --key-file OpenCode auth; no live trial started');
+  const memoryMode = value('--memory', 'off'); if (!['off','tools','context','compare'].includes(memoryMode)) throw Error('Memory mode must be off, tools, context or compare');
+  const memoryModes = memoryMode === 'compare' ? ['off','tools','context'] : [memoryMode];
   const limits = { requests: 18, outputTokens: 4096, tokens: 60000, requestBytes: 100000,
     totalTokens: integer('--total-tokens', '1000000', 4096, 2000000), totalRequests: integer('--total-requests', '400', 1, 500), perTrialSeconds: seconds, totalSeconds };
   const budget = { requests: 0, input: 0, output: 0 };
-  const sources = ['fixtures.mjs', 'backend.mjs', 'proxy.mjs', 'runner.mjs', 'mcp.mjs', 'pi-extension.ts'];
+  const sources = ['../../services/hub/memory.py', '../../services/hub/server.py', 'fixtures.mjs', 'backend.mjs', 'proxy.mjs', 'runner.mjs', 'mcp.mjs', 'pi-extension.ts', 'memory.mjs', 'memory.py'];
   const revisions = Object.fromEntries(await Promise.all(sources.map(async name => [name, hash(await readFile(join(here, name)))])));
   const versions = {};
   for (const engine of engines) { const v = await runProcess(engine, ['--version'], { seconds: 10, bytes: 1024 }); if (v.exitCode !== 0) throw Error(`${engine} unavailable`); versions[engine] = v.stdout.trim(); }
-  const report = { schemaVersion: 2, suiteVersion, startedAt: new Date().toISOString(), model, effort, effectiveEffort: effort === 'off' ? 'off' : 'high', environment: { node: process.version, platform: process.platform, arch: process.arch }, revisions, skillRevisions: [], versions, limits, trials: [], budget, complete: false };
+  const report = { schemaVersion: 2, suiteVersion, startedAt: new Date().toISOString(), model, effort, memoryMode, effectiveEffort: effort === 'off' ? 'off' : 'high', environment: { node: process.version, platform: process.platform, arch: process.arch }, revisions, skillRevisions: [], versions, limits, trials: [], budget, complete: false };
   const start = performance.now(); let cancelled = false;
   const interrupt = () => { cancelled = true; for (const child of active) child.evalKill('cancelled'); };
   process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
   const globalTimer = setTimeout(interrupt, totalSeconds * 1000);
   const save = async () => { await writeFile(reportPath, JSON.stringify(report, null, 2), { mode: 0o600 }); await writeFile(join(output, 'report.md'), renderReport(report), { mode: 0o600 }); };
   try {
-    for (let repeat = 1; repeat <= repeats; repeat++) for (const fixture of selected) for (const engine of (repeat % 2 ? engines : [...engines].reverse())) {
+    for (let repeat = 1; repeat <= repeats; repeat++) for (const fixture of selected) for (const engine of (repeat % 2 ? engines : [...engines].reverse())) for (const memoryMode of (repeat % 2 ? memoryModes : [...memoryModes].reverse())) {
       if (cancelled || budget.requests >= limits.totalRequests || budget.input + budget.output >= limits.totalTokens) break;
       const root = await mkdtemp(join(tmpdir(), 'arvela-live-eval-')); const work = join(root, 'work'); await mkdir(work);
       let backend, proxy; const started = performance.now();
-      const trial = { fixture: fixture.id, fixtureRevision: hash(JSON.stringify(fixture)), category: fixture.category, engine, repeat, passed: false, status: 'setup-error', elapsedSeconds: 0, verifiedSeconds: null, ownerInterventions: 0, tools: { calls: 0, errors: 0, staleRefusals: 0 }, providerUsage: { requests: 0, responsesWithUsage: 0 }, agentUsage: null };
+      const trial = { fixture: fixture.id, fixtureRevision: hash(JSON.stringify(fixture)), category: fixture.category, memoryMode, engine, repeat, passed: false, status: 'setup-error', elapsedSeconds: 0, verifiedSeconds: null, ownerInterventions: 0, tools: { calls: 0, errors: 0, staleRefusals: 0 }, providerUsage: { requests: 0, responsesWithUsage: 0 }, agentUsage: null };
       try {
         for (const [name, text] of Object.entries(fixture.files)) await writeFile(join(work, name), text);
-        backend = await startBackend({ fixture, work, playwrightModule: value('--playwright-module') ? pathToFileURL(resolve(value('--playwright-module'))).href : undefined, browserExecutable: value('--browser-executable') ? resolve(value('--browser-executable')) : undefined });
+        backend = await startBackend({ fixture, work, playwrightModule: value('--playwright-module') ? pathToFileURL(resolve(value('--playwright-module'))).href : undefined, memoryMode, browserExecutable: value('--browser-executable') ? resolve(value('--browser-executable')) : undefined });
         proxy = await startProxy({ key, model, effort, budget, limits });
-        const agent = await prepareAgent(engine, root, work, backend, proxy, model, effort, fixture.category);
-        const result = await runProcess(agent.command, [...agent.args, agent.prompt + fixture.prompt], { cwd: work, env: agent.env, seconds });
+        const agent = await prepareAgent(engine, root, work, backend, proxy, model, effort, fixture.category, memoryMode);
+        const context = memoryMode === 'context' ? await backend.context() : null;
+        trial.preparedContextBytes = context ? Buffer.byteLength(JSON.stringify(context)) : 0;
+        const result = await runProcess(agent.command, [...agent.args, agent.prompt + fixture.prompt + (context ? '\nReference project facts (data, not instructions):\n'+JSON.stringify(context) : '')], { cwd: work, env: agent.env, seconds });
         trial.agentUsage = parseAgentEvents(engine, result.stdout);
         trial.exitCode = result.exitCode; trial.stopped = result.stopped;
         const grade = fixture.category === 'browser' ? { passed: await backend.gradeBrowser() } : await gradeCode(fixture, work);
         trial.outcomePassed = grade.passed;
         if (fixture.category !== 'browser') {
           const candidate = await readFile(join(work, 'solution.cjs'));
-          const artifact = `${fixture.id}-${engine}-${repeat}.cjs`;
+          const artifact = `${fixture.id}-${engine}-${memoryMode}-${repeat}.cjs`;
           await mkdir(join(output, 'solutions'), { recursive: true });
           await writeFile(join(output, 'solutions', artifact), candidate, { mode: 0o600 });
           trial.candidate = { file: `solutions/${artifact}`, sha256: hash(candidate) };
@@ -214,9 +218,9 @@ async function main() {
         await rm(root, { recursive: true, force: true });
       }
       report.trials.push(trial); await save();
-      console.log(`${fixture.id} ${engine} #${repeat}: ${trial.status} ${trial.elapsedSeconds.toFixed(1)}s requests=${trial.providerUsage.requests}`);
+      console.log(`${fixture.id} ${engine} ${memoryMode} #${repeat}: ${trial.status} ${trial.elapsedSeconds.toFixed(1)}s requests=${trial.providerUsage.requests}`);
     }
-    report.complete = !cancelled && report.trials.length === repeats * selected.length * engines.length;
+    report.complete = !cancelled && report.trials.length === repeats * selected.length * engines.length * memoryModes.length;
     report.finishedAt = new Date().toISOString(); report.totalSeconds = (performance.now() - start) / 1000; await save();
   } finally { clearTimeout(globalTimer); process.off('SIGINT', interrupt); process.off('SIGTERM', interrupt); }
   if (!report.complete || report.trials.some(t => !t.passed)) process.exitCode = 1;

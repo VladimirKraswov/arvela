@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto';
 import { webcrypto } from 'node:crypto';
+const platform = vi.hoisted(() => ({native:false}));
+vi.mock('../src/native/platform', () => ({isNative:()=>platform.native}));
 vi.mock('../src/hub/client', () => ({config: vi.fn(), request: vi.fn()}));
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -10,8 +12,10 @@ import { projects } from '../src/memory/projects';
 import { outcomes, blankOutcome, reviewOutcome, changeOutcome, type Outcome } from '../src/outcomes/store';
 import { memoryPage, memoryWrite, synchronizeMemorySources, type MemoryPage, type MemoryEntry } from '../src/memory/client';
 vi.mock('../src/memory/client', async importOriginal => ({ ...await importOriginal<typeof import('../src/memory/client')>(), memoryPage: vi.fn(), memoryWrite: vi.fn(), synchronizeMemorySources: vi.fn(async () => {}) }));
+import { readRetrieval, connectRetrieval } from '../src/memory/retrieval';
+vi.mock('../src/memory/retrieval', async importOriginal => ({...await importOriginal<typeof import('../src/memory/retrieval')>(),readRetrieval:vi.fn(),connectRetrieval:vi.fn()}));
 let root: Root, node: HTMLDivElement, scope: {hub:string;server:string;directory:string}, page: MemoryPage, card: Outcome;
-beforeEach(async () => {
+beforeEach(async () => { platform.native=false;
  vi.stubGlobal('crypto', webcrypto); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
  scope = { hub: crypto.randomUUID(), server: 'test', directory: '/test/' + crypto.randomUUID() }; const id = crypto.randomUUID();
  await projects.bind(scope, id, 'Explicit project', null); page = { projects: [{id,title:'Explicit project',created:1}], entries: [] };
@@ -57,4 +61,13 @@ it('creating a Hub project still requires separate local binding confirmation',a
  vi.mocked(memoryWrite).mockImplementationOnce(async (_scope,body)=>{const b=body as {id:string;title:string};const p={id:b.id,title:b.title,created:1};page.projects.push(p);return p;});
  await until(()=>expect(node.querySelector('[aria-label="Название проекта памяти"]')).not.toBeNull());await fillInput('Название проекта памяти','New project');await until(()=>expect(button('Создать проект памяти').disabled).toBe(false));await click('Создать проект памяти');
  await until(()=>expect(button('Подтвердить привязку папки')).toBeDefined());expect(await projects.get(scope)).toBeNull();await click('Подтвердить привязку папки');await until(()=>expect(node.querySelector('[aria-label="Переносимый код проекта"]')).not.toBeNull());expect((await projects.get(scope))?.title).toBe('New project');
+});
+
+it('allows revoking the native memory grant when Hub is unavailable',async()=>{
+ const original=await projects.get(scope);scope={...scope,server:'http://127.0.0.1:4096'};await projects.bind(scope,original!.projectID,original!.title,null);platform.native=true;
+ const grant={scope:{...scope,project:original!.projectID},enabled:true,revision:1};vi.mocked(readRetrieval).mockResolvedValue({grant,key:'project-0123456789abcdef',registered:true});
+ vi.mocked(connectRetrieval).mockResolvedValue({grant:{...grant,enabled:false,revision:2},key:'project-0123456789abcdef',registered:false});vi.mocked(memoryPage).mockRejectedValue(Error('Hub offline'));
+ await mount(null);await until(()=>expect(node.querySelector('[role=alert]')?.textContent).toContain('Hub offline'));expect(button('Отключить поиск агентам').disabled).toBe(false);
+ const observations=vi.mocked(synchronizeMemorySources).mock.calls.length;await click('Отключить поиск агентам');await until(()=>expect(button('Подключить поиск обоим агентам').disabled).toBe(true));
+ expect(connectRetrieval).toHaveBeenCalledWith(grant.scope,false);expect(synchronizeMemorySources).toHaveBeenCalledTimes(observations);expect(node.textContent).toContain('Поиск отключён');
 });

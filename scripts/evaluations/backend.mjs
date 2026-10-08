@@ -2,11 +2,13 @@ import { createServer } from 'node:http';
 import { readFile, writeFile, lstat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { evaluationMemory, memoryTool } from './memory.mjs';
 import { browserHtml } from './fixtures.mjs';
 
 const object = properties => ({ type: 'object', properties, additionalProperties: false });
 const string = { type: 'string' };
 export const tools = [
+  memoryTool,
   { name: 'read', description: 'Read an allowed fixture file. Use list to discover files.', inputSchema: { ...object({ path: string }), required: ['path'] } },
   { name: 'write', description: 'Replace an allowed fixture file with complete text. Cannot write outside this fixture.', inputSchema: { ...object({ path: string, text: string }), required: ['path', 'text'] } },
   { name: 'list', description: 'List allowed fixture files.', inputSchema: object({}) },
@@ -14,10 +16,11 @@ export const tools = [
   { name: 'browser_action', description: 'Click or fill an observed ref in the test browser. On STALE_SNAPSHOT observe again before acting.', inputSchema: { ...object({ revision: { type: 'integer' }, ref: string, action: { enum: ['click', 'fill'] }, value: string }), required: ['revision', 'ref', 'action'] } },
 ];
 
-export async function startBackend({ fixture, work, playwrightModule, browserExecutable }) {
+export async function startBackend({ fixture, work, playwrightModule, browserExecutable, memoryMode = 'off' }) {
   const token = randomUUID();
+  const memory = memoryMode === 'off' ? null : await evaluationMemory(join(work, '..'), fixture);
   let browser, page, revision = 0, refs = [], disturbed = false;
-  const metrics = { calls: 0, errors: 0, staleRefusals: 0, validationErrors: 0 };
+  const metrics = { calls: 0, errors: 0, staleRefusals: 0, validationErrors: 0, memoryCalls: 0 };
   async function file(path) {
     if (!Object.hasOwn(fixture.files, path)) throw Error('FILE_NOT_ALLOWED');
     const target = join(work, path);
@@ -27,6 +30,7 @@ export async function startBackend({ fixture, work, playwrightModule, browserExe
   async function execute(name, args = {}) {
     metrics.calls++;
     try {
+      if (name === 'memory_search') { metrics.memoryCalls++;  if (!memory || memoryMode !== 'tools') throw Error('MEMORY_DISABLED'); return await memory.search(args); }
       if (name === 'list') return Object.keys(fixture.files);
       if (name === 'read') return await readFile(await file(args.path), 'utf8');
       if (name === 'write') {
@@ -85,6 +89,7 @@ export async function startBackend({ fixture, work, playwrightModule, browserExe
     }
   } catch (e) { server.close(); if (browser) await browser.close(); throw e; }
   return {
+    async context() { return memory ? memory.search({query:fixture.id+' '+fixture.prompt.slice(0,200)}) : null; },
     url: `http://127.0.0.1:${server.address().port}`, token, execute, metrics, browserVersion: browser?.version() ?? null,
     async gradeBrowser() {
       if (!page) return false;

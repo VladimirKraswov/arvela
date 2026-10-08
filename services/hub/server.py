@@ -386,6 +386,8 @@ class Hub:
             'note':'Категории эвристические. Отказы и отмены не означают поломку. Статус completed не гарантирует успешный exit code; сырые выводы не собираются. Скорость и качество моделей по этим данным не оцениваются.'}
 
     def api(self, method, path, query, actor, data):
+        if path == '/api/memory/retrieve' and method == 'POST':
+            return self.memory.retrieve(data)
         if path == '/api/memory':
             return self.memory.api(method, query, actor, data)
         with self.connection() as c:

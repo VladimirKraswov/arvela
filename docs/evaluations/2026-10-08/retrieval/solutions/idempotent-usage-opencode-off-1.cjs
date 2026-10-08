@@ -1,0 +1,1 @@
+exports.total=r=>{const seen=new Set();let sum=0;for(const x of r){const key=`${x.device}\u0000${x.id}`;if(seen.has(key))continue;seen.add(key);const t=typeof x.tokens==="string"?Number(x.tokens):x.tokens;if(typeof t==="number"&&Number.isFinite(t))sum+=t;}return sum;};
