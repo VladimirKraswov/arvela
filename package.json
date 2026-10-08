@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "eval:check": "node scripts/evaluations/runner.mjs --self-check",
+    "eval:live": "node scripts/evaluations/runner.mjs --live",
     "tauri": "tauri",
     "build:linux": "tauri build --bundles deb",
     "build:windows": "tauri build --bundles nsis",

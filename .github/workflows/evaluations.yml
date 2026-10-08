@@ -1,0 +1,20 @@
+name: Synthetic evaluation contracts
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run eval:check
+      - run: npx vitest run test/evaluations.test.ts
+# Live agent trials deliberately have no CI trigger, provider credentials or GPU access.

@@ -1,0 +1,117 @@
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { mkdtemp, writeFile, readFile, rm, symlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { JSDOM } from 'jsdom';
+import { fixtures, browserHtml } from '../scripts/evaluations/fixtures.mjs';
+import { cleanEnvironment, gradeCode, selfCheck, runProcess, parseAgentEvents, renderReport } from '../scripts/evaluations/runner.mjs';
+import { startBackend } from '../scripts/evaluations/backend.mjs';
+import { startProxy } from '../scripts/evaluations/proxy.mjs';
+
+afterEach(() => vi.unstubAllGlobals());
+describe('reproducible evaluation fixtures', () => {
+  it('every code/recovery baseline fails and every reference passes independent assertions', async () => {
+    const checks = await selfCheck(); expect(checks).toHaveLength(9);
+    expect(checks.every(c => c.baselineFails && c.referencePasses)).toBe(true);
+  }, 15000);
+  it('has 12 distinct versioned tasks across code/browser/recovery', () => {
+    expect(fixtures).toHaveLength(12); expect(new Set(fixtures.map(f => f.id)).size).toBe(12);
+    expect(new Set(fixtures.map(f => f.category))).toEqual(new Set(['code', 'browser', 'recovery']));
+  });
+  it('browser baseline is wrong, invalid save is refused, corrected save preserves Pine', () => {
+    const dom = new JSDOM(browserHtml, { runScripts: 'dangerously' });
+    try {
+      const d = dom.window.document;
+      expect(d.querySelector('#oak')!.textContent).toBe('0');
+      (d.querySelector('[aria-label="Edit Oak"]') as HTMLButtonElement).click();
+      const input = d.querySelector('input')!; input.value = '120';
+      (d.querySelector('[aria-label="Save"]') as HTMLButtonElement).click();
+      expect(d.querySelector('#oak')!.textContent).toBe('0');
+      expect(d.querySelector('[role="alert"]')!.textContent).toContain('0 to 100');
+      input.value = '20'; (d.querySelector('[aria-label="Save"]') as HTMLButtonElement).click();
+      expect(d.querySelector('#oak')!.textContent).toBe('20'); expect(d.querySelector('#pine')!.textContent).toBe('5');
+      expect((dom.window as any).saved).toBe(1);
+    } finally { dom.window.close(); }
+  });
+  it('scoped tools refuse arbitrary paths, symlinks and oversized writes without changing owner files', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'arvela-tools-test-'));
+    const work = join(root, 'work'); const { mkdir } = await import('node:fs/promises'); await mkdir(work);
+    const owner = join(root, 'owner.txt'); await writeFile(owner, 'owner data'); await writeFile(join(work, 'solution.cjs'), 'fixture');
+    const backend = await startBackend({ fixture: fixtures[0], work });
+    try {
+      await expect(backend.execute('read', { path: '../owner.txt' })).rejects.toThrow('FILE_NOT_ALLOWED');
+      await expect(backend.execute('write', { path: 'solution.cjs', text: 'x'.repeat(65537) })).rejects.toThrow('FILE_TOO_LARGE');
+      await rm(join(work, 'solution.cjs')); await symlink(owner, join(work, 'solution.cjs'));
+      await expect(backend.execute('write', { path: 'solution.cjs', text: 'changed' })).rejects.toThrow('NOT_REGULAR_FILE');
+      expect(await readFile(owner, 'utf8')).toBe('owner data');
+      const unauthorized = await fetch(`${backend.url}/tool`, { method: 'POST', body: '{}' }); expect(unauthorized.status).toBe(401);
+    } finally { await backend.close(); await rm(root, { recursive: true, force: true }); }
+  });
+  it('candidate grading cannot read files outside its fixture', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'arvela-grade-test-'));
+    try {
+      await writeFile(join(root, 'solution.cjs'), 'require("node:fs").readFileSync("/etc/hosts");exports.price=(q,u)=>(q??1)*u;');
+      expect((await gradeCode(fixtures[0], root)).passed).toBe(false);
+      await writeFile(join(root, 'solution.cjs'), 'process.exit(0);');
+      expect((await gradeCode(fixtures[0], root)).passed).toBe(false);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+  it('timed-out and over-output processes are failures, never green exit markers', async () => {
+    const timeout = await runProcess(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { seconds: 0.1 });
+    expect(timeout.stopped).toBe('timeout'); expect(timeout.exitCode).not.toBe(0);
+    const flood = await runProcess(process.execPath, ['-e', 'console.log("x".repeat(4096));setInterval(()=>{},1000)'], { bytes: 64 });
+    expect(flood.stopped).toBe('output-limit');
+  });
+  it('child environments exclude owner credentials, provider variables and configuration', () => {
+    const previous = process.env.DEEPSEEK_API_KEY;
+    process.env.DEEPSEEK_API_KEY = 'synthetic-secret';
+    try {
+      const env = cleanEnvironment('/test-home');
+      expect(env.DEEPSEEK_API_KEY).toBeUndefined(); expect(env.HOME).toBe('/test-home');
+      expect(env.OPENCODE_TEST_HOME).toBe('/test-home'); expect(env.PI_CODING_AGENT_DIR).toBe('/test-home/pi');
+    } finally { if (previous === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = previous; }
+  });
+  it('counts only terminal usage events, not streaming snapshots or duplicated agent_end', () => {
+    const message = { role: 'assistant', usage: { input: 12, output: 4, cacheRead: 8 }, stopReason: 'stop' };
+    const stream = [{ type: 'message_update', usage: message.usage }, { type: 'message_end', message }, { type: 'agent_end', messages: [message] }].map(JSON.stringify).join('\n');
+    expect(parseAgentEvents('pi', stream).tokens).toEqual({ input: 12, output: 4, cacheRead: 8, cacheWrite: 0 });
+    expect(parseAgentEvents('pi', '').tokens).toBeNull();
+    expect(parseAgentEvents('opencode', JSON.stringify({ type: 'error' })).errors).toBe(1);
+  });
+  it('report leaves unavailable provider usage unknown and failures visible', () => {
+    const text = renderReport({ model: 'synthetic', effort: 'medium', effectiveEffort: 'high', limits: {}, trials: [{ fixture: 'a', engine: 'pi', repeat: 1, passed: false, status: 'timeout', verifiedSeconds: 2, tools: { staleRefusals: 0 }, providerUsage: { responsesWithUsage: 0 } }] });
+    expect(text).toContain('0/1'); expect(text).toContain('unknown'); expect(text).toContain('timeout');
+  });
+});
+
+describe('cloud admission limits and paired request policy', () => {
+  const limits = { requests: 1, outputTokens: 64, tokens: 1000, requestBytes: 10000, totalTokens: 10000, totalRequests: 2 };
+  it('normalizes both agents, counts chunked UTF-8 SSE usage once and refuses excess requests', async () => {
+    const realFetch = globalThis.fetch;
+    let sent: any;
+    vi.stubGlobal('fetch', async (url: string, options: any) => {
+      if (!String(url).startsWith('https://api.deepseek.com/')) return realFetch(url, options);
+      sent = JSON.parse(options.body);
+      const bytes = new TextEncoder().encode('data: {"choices":[{"delta":{"content":"я"}}]}\n\ndata: {"usage":{"prompt_tokens":30,"completion_tokens":4,"prompt_cache_hit_tokens":20}}\n\ndata: [DONE]\n\n');
+      return new Response(new ReadableStream({ start(controller) { for (const byte of bytes) controller.enqueue(new Uint8Array([byte])); controller.close(); } }));
+    });
+    const budget = { requests: 0, input: 0, output: 0 };
+    const proxy = await startProxy({ key: 'fixture-only', model: 'deepseek-flash', effort: 'medium', budget, limits });
+    try {
+      const options = { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ model: 'wrong', reasoning_effort: 'low', max_tokens: 999999, stream: true, messages: [] }) };
+      const response = await fetch(`${proxy.url}/chat/completions`, options); await response.text();
+      expect(sent.model).toBe('deepseek-flash'); expect(sent.max_tokens).toBe(64); expect(sent.reasoning_effort).toBe('high'); expect(sent.thinking.type).toBe('enabled');
+      expect(proxy.usage.input).toBe(30); expect(proxy.usage.output).toBe(4); expect(proxy.usage.responsesWithUsage).toBe(1);
+      const refused = await fetch(`${proxy.url}/chat/completions`, options); expect(refused.status).toBe(429); expect(budget.requests).toBe(1);
+    } finally { await proxy.close(); }
+  });
+  it('provider rejection remains an error without manufactured token counts or credential echoes', async () => {
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', (url: string, options: any) => String(url).startsWith('https://api.deepseek.com/') ? Promise.resolve(new Response('secret upstream body', { status: 401 })) : realFetch(url, options));
+    const proxy = await startProxy({ key: 'do-not-echo', model: 'deepseek-flash', effort: 'off', budget: { requests: 0, input: 0, output: 0 }, limits });
+    try {
+      const response = await fetch(`${proxy.url}/chat/completions`, { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ messages: [] }) });
+      expect(response.status).toBe(401); expect(await response.text()).not.toContain('secret'); expect(proxy.usage.responsesWithUsage).toBe(0); expect(proxy.usage.errors).toBe(1);
+    } finally { await proxy.close(); }
+  });
+});
