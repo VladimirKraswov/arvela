@@ -1,3 +1,76 @@
+# Arvela 0.2.33 — engineering foundations (2026-10-08)
+
+M42 extracts state schema, fresh startup construction and pure OpenCode/Pi model
+selection from the central store (3510→3222 lines). Existing facade/type exports,
+selection priority, separate engine verification, session/project scope and
+transport normalization in adapters are retained. Seven initial behavior tests
+and two Debian payload regressions cover the extracted contracts and packaging.
+Architecture/platform docs now distinguish implementations, native build evidence
+and actual per-platform GUI acceptance.
+
+CI qualification: all three jobs passed. Source
+`6fe9477da1da2c9d89d19e7d618d50ed493d6f37`; native matrix run 37781057191,
+separate Synthetic evaluation contracts run 37781057171 passed.
+
+| Platform | Frontend | Hub Python | Rust | Native artifact |
+|---|---:|---:|---:|---|
+| macOS ARM64 | 626 | 34 | 94 | signed .app / verified .dmg |
+| Windows x64 | 626 | 34 | 77 | NSIS PE, artifact-only verifier |
+| Ubuntu 24.04 x64 | 626 | 34 | 96 | .deb version / exact executable / no macOS payload |
+
+Six existing opt-in frontend skips and one existing OS-vault Rust ignore remain
+on each platform. Locked Cargo check/fmt, TypeScript/Vite and offline evaluation
+contracts pass. CI never installs the app or calls a model; receipts explicitly
+say `liveAcceptance: not-run`. Packages and source-bound SHA256 receipts are
+available in the CI artifacts. Only the exact qualified file is uploaded, even
+when Cargo cache contains old packages.
+
+Actual CI findings fixed rather than hidden: LF checkout preserves immutable
+candidate hashes on Windows; test paths use host separators; Node permissions
+grant only lexical/canonical/namespaced aliases of the same disposable fixture,
+and an existing sibling file is refused with ERR_ACCESS_DENIED. Debian archives
+can list tar-relative `usr/bin/...` without a leading slash; verification accepts
+that syntax while requiring the exact regular executable and rejecting missing,
+nonexecutable, indirect and macOS payloads. Old failed/superseded runs remain
+historical and are not counted as successful qualification.
+
+Local final Mac package source `5545138033ae76ae4c205a38b515f6f111499a31`;
+subsequent edits affect CI helpers/tests/docs and EOF whitespace only. Rebuilt
+frontend asset bytes remained identical; native runtime source is unchanged.
+Actual installation and native launch passed: About 0.2.33, OpenCode 1.18.18,
+Pi 0.85.1, restored history and model metadata (Medium, 262144 tokens), authenticated Hub catalog
+six packages/three installed skills and empty outbox. No prompt, model benchmark,
+provider change, GPU operation or production Hub update was performed. Existing
+external OpenCode remains healthy; previous installed bundle is privately retained.
+
+Installed executable equals final build SHA256:
+`180eaaa7ebebbbaba93b1bccea7a47622177e9c6f239d02550f7fee006a13e16`.
+Local Mac DMG SHA256:
+`0d9621b3a6cf7389ba922bb746e76789d80d8cd5c1688fd1e2f8b8b9bb68b47d`.
+Strict signature/audio-input/microphone usage description and DMG integrity pass.
+Mac is ad-hoc signed, not notarized. Windows/Linux current packaged GUI, OS vault,
+microphone and live agent scenarios remain unrun; use the separate
+[platform acceptance checklist](PLATFORM-ACCEPTANCE.md). No inference performance
+or model quality improvement is claimed by this engineering release.
+
+Source published in main as `53b7baa69111a49c1fc61e193c02b37df157106c`;
+[v0.2.33](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.33) targets
+that exact commit and contains three native packages plus three public build
+receipts. All six freshly downloaded assets equal the prepared bytes, sizes and
+GitHub SHA256 digest. Published DMG CRC passes; a read-only temporary mount
+confirmed its app version, signature/microphone and executable equal the installed
+bundle. The first optional mount inside the external workspace was denied; a
+test-owned system temporary mount succeeded and was detached/removed.
+
+Released Windows installer SHA256:
+`7dfc238443c8aea4620c85178a15743551e3566fbb26563fc8989962109c21da`.
+Released Linux package SHA256:
+`9aa34184a0ded0bf0ab5e84f542ebcf7dc22164adf1a9ae9f319c3a97de7916e`.
+CI Mac DMG is a separate build with SHA256:
+`bb67ae8e53f24c8efe6e81df126ab3fcdbc948e1a7a501a1bc17acb74fa2a85c`;
+its downloaded CRC and exact receipt binding pass, but the release/installed Mac
+DMG is the local build listed above. Completion receipt commits change docs only.
+
 # Arvela 0.2.32 — shared project-memory retrieval (2026-10-08)
 
 M41 adds explicit local project grants for a read-only memory MCP through the

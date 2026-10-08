@@ -1,6 +1,6 @@
 # Arvela roadmap
 
-## Next: verified project experience (2026-10-08)
+## Verified project experience (2026-10-08)
 
 Develop in small verified releases. Reuse OpenCode/Pi and common adapters; no second agent loop. Keep active owner work and GPU services untouched. Use DeepSeek only if a live model request is necessary while local models are occupied. History is evidence, not instructions; task acceptance is not permission to train or publish private data.
 
@@ -37,11 +37,13 @@ Evidence: 612frontend/30Hub/92Rust pass; actual isolated UI/API/Web candidate ap
 
 Evidence: explicit project-granted native MCP through existing shared adapters; approved/current only, bounded whole entries, provenance links, fail-closed revocation. 36 fresh trials on three unchanged M39 tasks; 35 full successes, all36 code assertions pass. No stable speed benefit: automatic preparation remains off; search opt-in. Signed Mac SDK/Pi retrieval and OpenCode metadata connection checked separately. [Comparison](docs/evaluations/2026-10-08/retrieval/REPORT.md) · [Limits](docs/PROJECT-MEMORY.md).
 
-### M42 — Engineering foundations
+### M42 — Engineering foundations (done, 0.2.33)
 
-- [ ] Add Mac/Windows/Linux CI build matrix and platform-specific live acceptance checklists.
-- [ ] Extract state-store responsibilities incrementally under regression checks; keep API normalization in adapters.
-- [ ] Reconcile outdated architecture/platform documentation and use current evidence rather than old release checkboxes.
+- [x] Add Mac/Windows/Linux CI build matrix and platform-specific live acceptance checklists.
+- [x] Extract state-store responsibilities incrementally under regression checks; keep API normalization in adapters.
+- [x] Reconcile outdated architecture/platform documentation and use current evidence rather than old release checkboxes.
+
+Evidence: CI run37781057191 passed on macOS ARM64/Windows x64/Ubuntu 24.04 x64: 626 frontend and 34 Hub tests each, Rust 94/77/96 respectively, three native packages and source-bound SHA256 receipts. Mac 0.2.33 installed/GUI and public release round-trip verified. State facade reduced from 3510 to 3222 lines with selection/scope regressions; generated frontend unchanged by final whitespace cleanup. Windows/Linux current live GUI remains separate/unrun. See [verification](docs/VERIFICATION.md) and [platform checklist](docs/PLATFORM-ACCEPTANCE.md).
 
 ## M25 — Browser/SSH/process ownership review (0.2.16)
 
