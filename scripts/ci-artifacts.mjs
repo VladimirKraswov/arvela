@@ -1,8 +1,9 @@
 // Read-only package checks and a bounded public provenance receipt. No user HOME/config.
-import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readdir, readFile, mkdir, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { assertDebianPayload } from './artifact-policy.mjs';
 const platform = process.argv[2];
 const kinds = { macos: ['dmg', '.dmg'], linux: ['deb', '.deb'], windows: ['nsis', '-setup.exe'] };
 if (!Object.hasOwn(kinds, platform)) throw Error('Expected macos, linux or windows');
@@ -19,7 +20,7 @@ if (platform === 'linux') {
   const packaged = execFileSync('dpkg-deb', ['--field', file, 'Version'], { encoding: 'utf8' }).trim();
   if (packaged !== version) throw Error('Debian version differs from source');
   const listing = execFileSync('dpkg-deb', ['--contents', file], { encoding: 'utf8' });
-  if (!listing.includes('/usr/bin/opencode-desktop') || /Entitlements\.plist|Info\.plist|\.icns\b/.test(listing)) throw Error(`Debian payload/platform isolation failed:\n${listing.slice(0, 8192)}`);
+  assertDebianPayload(listing);
 }
 if (platform === 'macos') execFileSync('hdiutil', ['verify', file], { stdio: 'inherit' });
 const receipt = { schema: 1, version, platform, arch: process.arch, commit: process.env.GITHUB_SHA ?? null,
@@ -28,4 +29,6 @@ const receipt = { schema: 1, version, platform, arch: process.arch, commit: proc
   liveAcceptance: 'not-run' };
 await mkdir('.local', { recursive: true });
 await writeFile('.local/ci-artifacts.json', JSON.stringify(receipt, null, 2) + '\n');
+// Cargo cache can retain older bundles. Upload only the file just qualified.
+if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `artifact=${file}\n`);
 console.log(JSON.stringify(receipt, null, 2));

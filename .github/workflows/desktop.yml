@@ -68,14 +68,13 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-windows.ps1 -ArtifactOnly
       - name: Artifact receipt
+        id: receipt
         run: node scripts/ci-artifacts.mjs ${{ matrix.platform }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: arvela-${{ matrix.platform }}-${{ runner.arch }}-${{ github.sha }}
           path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/nsis/*-setup.exe
+            ${{ steps.receipt.outputs.artifact }}
             .local/ci-artifacts.json
           include-hidden-files: true # only the explicitly listed .local receipt, not its directory
           if-no-files-found: error
