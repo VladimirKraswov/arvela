@@ -1,7 +1,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mkdtemp, writeFile, readFile, rm, symlink } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { JSDOM } from 'jsdom';
 import { fixtures, browserHtml } from '../scripts/evaluations/fixtures.mjs';
 import { cleanEnvironment, gradeCode, selfCheck, runProcess, parseAgentEvents, renderReport } from '../scripts/evaluations/runner.mjs';
@@ -86,6 +88,21 @@ describe('reproducible evaluation fixtures', () => {
     const text = renderReport({ model: 'synthetic', effort: 'off', effectiveEffort: 'off', limits: {}, trials: [{ fixture: 'a', engine: 'pi', repeat: 1, passed: false, status: 'budget-exhausted', elapsedSeconds: 3, verifiedSeconds: null, tools: { staleRefusals: 0 }, providerUsage: { requests: 2, responsesWithUsage: 1, input: 10, output: 2 } }] });
     expect(text).toContain('partial 12'); expect(text).toContain('3.0'); expect(text).toContain('0/1');
     expect(text).toContain('Elapsed seconds through grading');
+  });
+  it('published synthetic candidates remain byte-identical to each report, including failed trials', async () => {
+    const root = fileURLToPath(new URL('../docs/evaluations/2026-10-08/', import.meta.url));
+    let candidates = 0;
+    for (const relative of ['paired.json', 'final-smoke.json', 'budget-stop/report.json']) {
+      const path = join(root, relative);
+      const report = JSON.parse(await readFile(path, 'utf8'));
+      for (const trial of report.trials) if (trial.candidate) {
+        expect(trial.candidate.file).toMatch(/^solutions\/[a-z0-9-]+\.cjs$/);
+        const content = await readFile(join(dirname(path), trial.candidate.file));
+        expect(createHash('sha256').update(content).digest('hex')).toBe(trial.candidate.sha256);
+        candidates++;
+      }
+    }
+    expect(candidates).toBe(3);
   });
 });
 
