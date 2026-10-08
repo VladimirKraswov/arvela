@@ -70,7 +70,7 @@ describe('reproducible evaluation fixtures', () => {
     try {
       const env = cleanEnvironment('/test-home');
       expect(env.DEEPSEEK_API_KEY).toBeUndefined(); expect(env.HOME).toBe('/test-home');
-      expect(env.OPENCODE_TEST_HOME).toBe('/test-home'); expect(env.PI_CODING_AGENT_DIR).toBe('/test-home/pi');
+      expect(env.OPENCODE_TEST_HOME).toBe('/test-home'); expect(env.PI_CODING_AGENT_DIR).toBe(join('/test-home','pi'));
     } finally { if (previous === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = previous; }
   });
   it('counts only terminal usage events, not streaming snapshots or duplicated agent_end', () => {

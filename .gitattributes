@@ -1,0 +1,9 @@
+# Preserve source/evaluation receipt bytes on every checkout (including Windows).
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.dmg binary
+*.exe binary
+*.zip binary
+*.xlsx binary

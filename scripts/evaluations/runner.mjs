@@ -58,7 +58,7 @@ export async function gradeCode(fixture, work) {
     cwd: work, env: cleanEnvironment(join(work, '.grade-home')), seconds: 5, bytes: 32768,
   });
   const passed = result.exitCode === 0 && !result.stopped && result.stdout.trim() === 'ARVELA_OUTCOME_OK';
-  return { passed, reason: passed ? null : result.stopped ?? 'independent-assertion-failed' };
+  return { passed, reason: passed ? null : result.stopped ?? 'independent-assertion-failed', diagnostic: passed ? null : result.stderr.slice(0, 1024) };
 }
 export async function selfCheck() {
   const checks = [];
@@ -69,10 +69,10 @@ export async function selfCheck() {
       const base = await gradeCode(f, root);
       for (const [name, text] of Object.entries(f.reference)) await writeFile(join(root, name), text);
       const reference = await gradeCode(f, root);
-      checks.push({ id: f.id, baselineFails: !base.passed, referencePasses: reference.passed });
+      checks.push({ id: f.id, baselineFails: !base.passed, referencePasses: reference.passed, ...(reference.passed ? {} : { diagnostic: reference.diagnostic }) });
     } finally { await rm(root, { recursive: true, force: true }); }
   }
-  if (!checks.every(c => c.baselineFails && c.referencePasses)) throw Error('Fixture discrimination failed');
+  if (!checks.every(c => c.baselineFails && c.referencePasses)) throw Error('Fixture discrimination failed: '+JSON.stringify(checks.filter(c => !c.baselineFails || !c.referencePasses)));
   return checks;
 }
 

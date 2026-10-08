@@ -70,7 +70,7 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 if [ ${#toolchain_missing[@]} -gt 0 ]; then
   echo "Missing toolchains: $(list "${toolchain_missing[@]}")"
-  echo "  Rust:   https://rustup.rs        Node 20+: https://github.com/nvm-sh/nvm"
+  echo "  Rust:   https://rustup.rs        Node 24: https://github.com/nvm-sh/nvm"
   echo "  Do not install these from apt; the distribution versions are too old."
 fi
 if [ ${#optional_missing[@]} -gt 0 ]; then

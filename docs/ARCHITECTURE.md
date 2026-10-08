@@ -3,13 +3,13 @@
 ## Separation
 
 ```text
-Arvela (Tauri app; independent version)
-  React UI → typed application adapter → WebView HTTP/SSE/WebSocket transport
-                                            ↓ loopback API
-Separately installed OpenCode server (independent version)
-  sessions / execution / permissions / PTY / agents / model providers
-                                            ↓ configured provider
-Local Qwen / FreeToken (already managed outside this project)
+Arvela (Tauri + React; independent app version)
+  store facade → normalized AgentBackend → OpenCode HTTP/SSE (loopback / strict SSH)
+                                    └──→ Pi JSONL RPC (app-owned local process)
+  shared capability registry → OpenCode config adapter / Pi extension → same MCP/skills
+  native Hub client → HTTPS + OS vault → private Hub catalog/history/project memory
+  browser panel → app-owned private gateway → managed Chromium + official Playwright MCP
+Agents → separately configured inference providers (local or authorized cloud)
 ```
 
 Never import OpenCode internal database schemas or maintain a fork of its engine. Use published server interfaces and capabilities, with the live OpenAPI contract as the authority for the installed version. Keep HTTP concerns and schema normalization out of presentation components. An official SDK is acceptable only after validating its version against this server; do not accidentally install a v2 client for incompatible v1 interfaces.
@@ -17,10 +17,12 @@ Never import OpenCode internal database schemas or maintain a fork of its engine
 ## Boundaries
 
 - `src/api/`: contract types, transport facade, response validation, API version/capability normalization.
-- `src/agent/`: the backend-neutral `AgentBackend` contract, its capability flags and the descriptor registry. OpenCode (`src/agent/opencode.ts`) is the default and the only implementation; see `docs/AGENT-BACKENDS.md`. The state layer calls only this contract, so another agent runtime is an added implementation rather than a UI/state rewrite. PTY, `/mcp` and the JSONC config editor are deliberately outside the contract and reach the OpenCode client through `asOpenCodeClient`, which returns null for any other backend.
+- `src/agent/`: the backend-neutral `AgentBackend` contract, its capability flags and the descriptor registry. OpenCode (`src/agent/opencode.ts`) is the default; Pi is a second implementation; see `docs/AGENT-BACKENDS.md`. The state layer calls only this contract, so another agent runtime is an added implementation rather than a UI/state rewrite. PTY, `/mcp` and the JSONC config editor are deliberately outside the contract and reach the OpenCode client through `asOpenCodeClient`, which returns null for any other backend.
 - `src/agent/pi/`: the Pi engine — RPC protocol types, a pure translator from Pi's event vocabulary into this app's own event model, the `AgentBackend` implementation and the native bridge. Pi is a local CLI driven over its documented JSONL RPC mode; see `docs/PI-ENGINE.md`.
 - `src/state/engines.ts`: which engine drives a folder or chat (per-chat override → folder preference → OpenCode). Pure and unit-tested; the absence of an entry *is* the migration for pre-existing projects and chats.
-- `src/state/`: selected project/session, normalized message store, stream reducer, pending permissions/questions, drafts; unit-testable without Tauri.
+- `src/state/`: the store remains the public command/subscription facade; `types.ts` defines the schema, `initial.ts` constructs transient state from already-loaded preferences, and `modelChoice.ts` selects models from normalized state without I/O. Type exports from `store.ts` remain compatible. Preferences migration/persistence stays in `prefs.ts`; pure stream/history merge stays in `chatReducer.ts`. Connection generations, queues, permission/stop ownership stay in the facade for this incremental extraction; no API normalization moved into selectors.
+- `src/capabilities/` and native `capabilities.rs` / `shared_mcp.rs`: explicit shared catalog/adapters, independent agent capability boundaries and bounded MCP proxy. Native auth/paths never become privileged APIs in web pages.
+- `src/outcomes/`, `src/memory/`, `src/hub/` plus native `hub.rs`/`hub/retrieval.rs`: accepted task records, explicit project bindings and approved memory, durable scrubbed telemetry, optional read-only shared memory MCP with per-folder grants. Native Hub/vault credentials never enter MCP arguments; search is off by default and automatic context preparation is not enabled. See `PROJECT-MEMORY.md` and M41 evidence.
 - `src/components/` and feature folders: workspace chrome, projects/sessions, conversation/composer, review/files, terminal, settings.
 - `src/native/`: the thin Tauri bridges (SSH tunnels, chime, chat workspaces) plus host-platform detection. Platform detection drives presentation only — window-chrome insets, the modifier-key label and OS-specific help text. Feature availability is decided by `AgentBackend.capabilities`, never by the host OS.
 - `src-tauri/src/pi.rs`: Pi process ownership — absolute-path launch, one child per (directory, session), strict JSONL framing, extension dialogs surfaced to the UI with default-deny on timeout, and every child killed on app exit.
@@ -39,7 +41,7 @@ Async submission acknowledgement means accepted, not finished. Handle server err
 
 ## Security and ownership
 
-The OpenCode endpoint is loopback-only. The separately configured ASR URL allows HTTPS, or HTTP on private/loopback hosts, with redirects disabled and bounded payloads/timeouts. ASR keys remain in memory and are bound to the selected URL. Validate allowed hosts/schemes/ports; remote support is a later explicit trust feature. Do not disable backend authorization or globally loosen CORS. Use narrow Tauri capabilities and a real production CSP before packaging. Model Markdown and tool/file output are untrusted; never enable raw script-capable HTML. Open external links through controlled native APIs with safe scheme checks. Credentials must not appear in logs, URLs, Git, local storage or generated reports.
+The OpenCode endpoint is loopback-only. The separately configured ASR URL allows HTTPS, or HTTP on private/loopback hosts, with redirects disabled and bounded payloads/timeouts. ASR keys remain in memory and are bound to the selected URL. Validate allowed hosts/schemes/ports; remote workspaces use explicitly configured strict-key SSH tunnels; configured Hub requests use native HTTPS and pinned server identity. Do not disable backend authorization or globally loosen CORS. Use narrow Tauri capabilities and a real production CSP before packaging. Model Markdown and tool/file output are untrusted; never enable raw script-capable HTML. Open external links through controlled native APIs with safe scheme checks. Credentials must not appear in logs, URLs, Git, local storage or generated reports.
 
 Reuse externally managed OpenCode without claiming process ownership. If the app starts its own installed executable, use an explicit argument vector, known working directory, startup health deadline and process identity. Never `pkill opencode` or stop an external daemon on app shutdown. Browser/preview content cannot share privileged Tauri APIs.
 
@@ -47,19 +49,19 @@ Reuse externally managed OpenCode without claiming process ownership. If the app
 
 Record shell and detected server versions separately. Feature detection and adapter tests must tolerate additive fields/missing optional capabilities. Missing required endpoints cause a compatibility message with versions, not data migration. Updating the app touches only its own bundle/preferences. Updating the OpenCode CLI does not require changing the model, engine or existing session database.
 
-## Host platforms
+## Host platforms and verification
 
-macOS and Linux are two separately configured build variants of the same codebase
-(`docs/PLATFORMS.md`). The shared Tauri config is platform-neutral; each variant adds
-only its own window chrome, bundle targets and signing/entitlement settings, so a
-Linux bundle can never pick up macOS chrome or entitlements. Per-OS preference paths
-are resolved in one place (`src-tauri/src/paths.rs`): Linux honours `XDG_CONFIG_HOME`
-/ `XDG_DATA_HOME` when they are absolute, macOS keeps `$HOME/.config` and
-`$HOME/.local/share` byte-for-byte so an installed release keeps its data. Windows is
-an unimplemented extension point, not a shipped variant. Platform-specific pieces are
-narrow and explicit: the completion chime picks the first installed system player from
-an absolute-path table (`afplay` on macOS, `canberra-gtk-play`/`paplay`/`pw-play` on
-Linux) and silently does nothing when none is present; only macOS reserves space for
-overlay window controls; the Cua Driver computer-control integration is macOS-only and
-reports itself unavailable elsewhere without disabling any other tool. `ssh` is always
-launched from an absolute path, never resolved through PATH.
+macOS, Windows and Linux are separate build overlays on one codebase. Shared
+configuration has no macOS window chrome or entitlements; each overlay supplies
+its own bundle target and platform settings. Stable app identity, binary name and
+paths survive product renames. Windows is an implemented variant; Unix Agent
+Control/Factory and macOS-only Cua Driver remain honestly unavailable there.
+Native process ownership is centralized; no external server is killed on shutdown.
+
+The three-platform CI builds and verifies packages with toolchain/commit/hash
+receipts, without installing an app or running a model. Unit/contract checks,
+packaging and live GUI/agent acceptance are separate kinds of evidence. Current
+boundaries and commands: [PLATFORMS.md](PLATFORMS.md). Live scenarios and results:
+[PLATFORM-ACCEPTANCE.md](PLATFORM-ACCEPTANCE.md), [VERIFICATION.md](VERIFICATION.md).
+Historical Windows/Linux reports remain historical, never automatic checkmarks
+for a new release.

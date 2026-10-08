@@ -1,3 +1,7 @@
+import { initialState } from './initial';
+import type { AppState, UiState } from './types';
+export type { AppState, UiState, ConnectionState, ConnectionPhase } from './types';
+import { chooseOpenCodeModel, choosePiModel, parseModelId, piModelInfo, type ModelChoice } from './modelChoice';
 import {configureShared} from "../capabilities/integration";
 import { modelServices, type ModelService } from "../models/services";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
@@ -17,7 +21,7 @@ import {
   validRemote,
   type RemoteHost,
 } from "../native/hosts";
-import { contextUsage, type CompactionConfig } from "./context";
+import { contextUsage } from "./context";
 import { accessRules, accessMode, type AccessMode } from "./access";
 import { newMessageId, type QueuedPrompt } from "./queue";
 import type { AsrSettings } from "../voice/asr";
@@ -43,8 +47,6 @@ import {
   PiBackend,
   piDescriptor,
   PI_BACKEND_ID,
-  type PiDialogRequest,
-  type PiHealth,
 } from "../agent/pi/backend";
 import { piBridge } from "../agent/pi/native";
 import { buildHandoffTranscript } from "./handoffTranscript";
@@ -58,18 +60,15 @@ import {
 } from "./engines";
 import { completionChime } from "../native/sound";
 import { startLocalServerIfNative } from "../native/localServer";
-import { emptySidebarList, emptyRecentList, mergeSidebarSessions, type SidebarList, type RecentList } from "./sidebar";
+import { emptySidebarList, emptyRecentList, mergeSidebarSessions } from "./sidebar";
 import type {
-  AgentInfo,
   ModelInfo,
   PermissionRequest,
-  Project,
   ProviderInfo,
   QuestionRequest,
   ServerEvent,
   Session,
   SessionStatus,
-  VcsInfo,
 } from "../api/types";
 import {
   applyHistory,
@@ -91,155 +90,11 @@ import {
   type Prefs,
 } from "./prefs";
 
-export type ConnectionPhase =
-  | "unknown"
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "incompatible";
-
-export interface ConnectionState {
-  phase: ConnectionPhase;
-  version: string | null;
-  error: string | null;
-  streamState:
-    | "idle"
-    | "connecting"
-    | "open"
-    | "reconnecting"
-    | "closed"
-    | "error";
-  lastEventAt: number;
-  endpoint: string;
-}
-
-export interface UiState {
-  remoteFolderOpen: boolean;
-  hostDialogOpen: boolean;
-  workspacePreparing: boolean;
-  runtimeLoading: boolean;
-  sessionListLoading: boolean;
-  sessionListError: string | null;
-  historyLoading: boolean;
-  historyError: string | null;
-  sending: boolean;
-  sendError: string | null;
-  vcs: VcsInfo | null;
-  settingsOpen: boolean;
-  browserOpen: boolean;
-  contextOpen: boolean;
-  revealMessage: { server: string; directory: string | null; sessionID: string; messageID: string } | null;
-  paletteOpen: boolean;
-  confirmDelete: Session | null;
-  handoffSource: Session | null;
-  toast: string | null;
-  /** Blocking Pi extension dialog awaiting the user. Never auto-answered. */
-  piDialog: PiDialogRequest | null;
-  /**
-   * The user picked a different engine for an existing chat. Engines cannot
-   * share a transcript, so this offers the handoff instead of refusing.
-   */
-  engineSwitch: { session: Session; from: EngineId; to: EngineId } | null;
-}
-
-export interface AppState {
-  prefs: Prefs;
-  connection: ConnectionState;
-  projects: Project[];
-  directory: string | null;
-  sessions: Session[];
-  archivedSessions: Session[];
-  projectSessionLists: Record<string, SidebarList>;
-  recentSessionList: RecentList;
-  activeSessionId: string | null;
-  statuses: Record<string, SessionStatus>;
-  activityStatuses: Record<string, SessionStatus>;
-  chat: ChatRootState;
-  providers: ProviderInfo[];
-  connectedProviderIds: string[];
-  providerDefaults: Record<string, string> | null;
-  configDefaultAgent: string | null;
-  configModel: string | null;
-  compaction: CompactionConfig;
-  agents: AgentInfo[];
-  /** Last Pi probe: install, model catalog, commands. Null until asked for. */
-  piHealth: PiHealth | null;
-  olderExhausted: Record<string, boolean>;
-  historyCursors: Record<string, string | null>;
-  ui: UiState;
-  rev: number;
-}
-
-/** Compatibility is a major-version contract; features degrade per-capability, not by version gate. */
-
-function initialState(): AppState {
-  const prefs =
-    typeof localStorage !== "undefined" ? loadPrefs() : { ...DEFAULT_PREFS };
-  return {
-    prefs,
-    connection: {
-      phase: "unknown",
-      version: null,
-      error: null,
-      streamState: "idle",
-      lastEventAt: 0,
-      endpoint: prefs.endpoint,
-    },
-    projects: [],
-    directory: prefs.selectedDirectory,
-    sessions: [],
-    archivedSessions: [],
-    projectSessionLists: {},
-    recentSessionList: emptyRecentList(),
-    activeSessionId: prefs.selectedDirectory
-      ? (prefs.lastSessionByDir[prefs.selectedDirectory] ?? null)
-      : null,
-    statuses: {},
-    activityStatuses: {},
-    chat: emptyChatRoot(),
-    providers: [],
-    connectedProviderIds: [],
-    providerDefaults: null,
-    configDefaultAgent: null,
-    configModel: null,
-    compaction: {},
-    agents: [],
-    piHealth: null,
-    olderExhausted: {},
-    historyCursors: {},
-    ui: {
-      remoteFolderOpen: false,
-      hostDialogOpen: false,
-      workspacePreparing: false,
-      runtimeLoading: false,
-      sessionListLoading: false,
-      sessionListError: null,
-      historyLoading: false,
-      historyError: null,
-      sending: false,
-      sendError: null,
-      vcs: null,
-      settingsOpen: false,
-      browserOpen: false,
-      contextOpen: false,
-      revealMessage: null,
-      paletteOpen: false,
-      confirmDelete: null,
-      handoffSource: null,
-      toast: null,
-      piDialog: null,
-      engineSwitch: null,
-    },
-    rev: 0,
-  };
-}
-
 class Store {
-  state: AppState = initialState();
+  state: AppState = initialState(typeof localStorage !== "undefined" ? loadPrefs() : { ...DEFAULT_PREFS });
   /**
-   * The agent runtime this shell drives. OpenCode is the default and currently the
-   * only implementation; everything below talks to the neutral `AgentBackend`
-   * contract so another runtime can be registered without touching UI or state.
+   * The OpenCode workspace backend. Pi conversations use a lazily created
+   * backend through the same neutral `AgentBackend` contract.
    */
   backend: AgentBackend = createBackend(
     DEFAULT_BACKEND_ID,
@@ -1884,78 +1739,10 @@ class Store {
   } | null {
     if (engine === PI_BACKEND_ID)
       return this.piModelChoice(directoryOverride ?? this.state.directory);
-    const dir = this.isProjectless() ? "@chats" : (this.state.directory ?? "");
-    const sessionId = this.state.activeSessionId;
-    const sessionChoice = sessionId
-      ? this.state.prefs.modelChoice[`session:${sessionId}`]
-      : undefined;
-    if (sessionChoice && this.state.connectedProviderIds.includes(sessionChoice.providerID))
-      return sessionChoice;
-    const active = sessionId
-      ? this.activeSession()?.model
-      : undefined;
-    if (active?.id && this.state.connectedProviderIds.includes(active.providerID)) {
-      return {
-        providerID: active.providerID,
-        modelID: active.id,
-        variant: active.variant ?? null,
-      };
-    }
-    const stored =
-      this.state.prefs.modelChoice[dir] ?? this.state.prefs.modelChoice["*"];
-    if (stored && this.state.connectedProviderIds.includes(stored.providerID))
-      return stored;
-    const agent = this.state.agents.find(
-      (a) => a.name === this.getAgentChoice(),
-    );
-    if (
-      agent?.model &&
-      this.state.connectedProviderIds.includes(agent.model.providerID)
-    ) {
-      return {
-        ...agent.model,
-        variant:
-          agent.variant ??
-          this.defaultVariant(agent.model.providerID, agent.model.modelID),
-      };
-    }
-    const configured = this.state.configModel?.split("/");
-    if (
-      configured &&
-      configured.length > 1 &&
-      this.state.connectedProviderIds.includes(configured[0])
-    ) {
-      return {
-        providerID: configured[0],
-        modelID: configured.slice(1).join("/"),
-        variant: this.defaultVariant(
-          configured[0],
-          configured.slice(1).join("/"),
-        ),
-      };
-    }
-    const defaults = this.state.providerDefaults;
-    if (defaults) {
-      for (const [pid, mid] of Object.entries(defaults)) {
-        if (this.state.connectedProviderIds.includes(pid))
-          return {
-            providerID: pid,
-            modelID: mid,
-            variant: this.defaultVariant(pid, mid),
-          };
-      }
-    }
-    for (const pid of this.state.connectedProviderIds) {
-      const provider = this.state.providers.find((p) => p.id === pid);
-      const first = provider && Object.values(provider.models)[0];
-      if (first)
-        return {
-          providerID: pid,
-          modelID: first.id,
-          variant: this.defaultVariant(pid, first.id),
-        };
-    }
-    return null;
+    return chooseOpenCodeModel(this.state, {
+      projectless: this.isProjectless(), activeModel: this.activeSession()?.model,
+      agentName: this.getAgentChoice(), defaultVariant: (p, m) => this.defaultVariant(p, m),
+    });
   }
 
   /** Pi's catalog comes from the engine itself, not from OpenCode providers. */
@@ -1971,40 +1758,8 @@ class Store {
    *
    * `checkPiModelAccess` records that evidence per model.
    */
-  private piModelChoice(directory: string | null): {
-    providerID: string;
-    modelID: string;
-    variant?: string | null;
-  } | null {
-    const models = this.state.piHealth?.models ?? [];
-    const custom = parseModelId(this.state.prefs.pi?.customModel);
-    const verified = (choice: { providerID: string; modelID: string }) => {
-      const id = `${choice.providerID}/${choice.modelID}`;
-      return this.state.prefs.pi?.verifiedModel === id ||
-        Boolean(this.state.prefs.pi?.verifiedModels?.[id]);
-    };
-    const usable = (choice: { providerID: string; modelID: string } | undefined) => {
-      return choice?.providerID && choice.modelID && verified(choice) ? choice : undefined;
-    };
-    const sessionId = this.state.activeSessionId;
-    const keys = [
-      sessionId ? modelScope(PI_BACKEND_ID, `session:${sessionId}`) : undefined,
-      modelScope(PI_BACKEND_ID, directory ?? "@chats"),
-      modelScope(PI_BACKEND_ID, "*"),
-    ].filter((k): k is string => Boolean(k));
-    for (const key of keys) {
-      const stored = usable(this.state.prefs.modelChoice[key]);
-      if (stored) return stored;
-    }
-    if (custom && verified(custom))
-      return { ...custom, variant: this.state.prefs.pi?.thinking ?? null };
-    const configured = usable(parseModelId(this.state.prefs.pi?.model) ?? undefined);
-    if (configured)
-      return { ...configured, variant: this.state.prefs.pi?.thinking ?? null };
-    const first = models.find((m) => verified({ providerID: m.provider, modelID: m.id }));
-    return first
-      ? { providerID: first.provider, modelID: first.id, variant: null }
-      : null;
+  private piModelChoice(directory: string | null): ModelChoice | null {
+    return choosePiModel(this.state, directory);
   }
 
   /** Only models with a successful access check belong in the chat picker. */
@@ -3431,44 +3186,6 @@ class Store {
  * declared input modalities and context window, so this projects the minimum
  * rather than pretending Pi models are OpenCode models.
  */
-function parseModelId(
-  value: string | undefined | null,
-): { providerID: string; modelID: string } | null {
-  const parts = (value ?? "").trim().split("/");
-  if (parts.length < 2 || !parts[0] || !parts.slice(1).join("/")) return null;
-  return { providerID: parts[0], modelID: parts.slice(1).join("/") };
-}
-
-function piModelInfo(
-  health: PiHealth | null,
-  choice: { providerID: string; modelID: string },
-): ModelInfo | null {
-  const model = health?.models.find(
-    (m) => m.provider === choice.providerID && m.id === choice.modelID,
-  );
-  // A custom model Pi accepts but does not describe still needs *some*
-  // metadata, or the attachment pipeline would refuse the whole prompt. Assume
-  // the conservative shape: text only.
-  if (!model)
-    return {
-      id: choice.modelID,
-      name: choice.modelID,
-      attachment: false,
-      reasoning: false,
-      input: ["text"],
-      limit: {},
-    } as unknown as ModelInfo;
-  return {
-    id: model.id,
-    providerID: model.provider,
-    name: model.name ?? model.id,
-    attachment: (model.input ?? []).includes("image"),
-    reasoning: Boolean(model.reasoning),
-    input: model.input ?? ["text"],
-    limit: { context: model.contextWindow, output: model.maxTokens },
-  } as unknown as ModelInfo;
-}
-
 export function errText(e: unknown): string {
   if (e instanceof ApiError)
     return e.status === 404 ? "Not found on the OpenCode server" : e.detail;
