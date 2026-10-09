@@ -10,4 +10,7 @@ These are observed failure patterns, not claims about the permanent availability
 - Download waits and oversized base64 outputs exhausted browser tool budgets. Prefer managed file download or bounded exports, verify the resulting file and respect current tool limits.
 - A shell recipe assumed GNU `timeout` and associative-array syntax unavailable in the running environment. Portable Python utilities and explicit dependency checks avoid that assumption.
 
+- A historical atlas and a related oncology book were mistaken for editions of modern requested works. Different authors or a different work require a wrong-match status, regardless of PDF page count.
+- An archive loan restriction led to a credential request and de-DRM research. Stop that access path, record the limitation and continue publicly accessible entries; never request passwords in chat or remove protection.
+
 Evidence sources: Crossref text-and-data-mining documentation (https://www.crossref.org/documentation/retrieve-metadata/text-and-data-mining/) and Internet Archive basic downloading guide (https://archivesupport.zendesk.com/hc/en-us/articles/360016398872-Downloading-A-Basic-Guide). Access must be confirmed for the actual item.
