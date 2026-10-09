@@ -61,7 +61,7 @@ GitHub workflow access through their own login before retrying publication.
 | Final built Desktop CLI across two AppData views | PASS: same disposable home/browser, 36 tools |
 | Real Pi 0.85.1 browser extension loader | PASS: argument validation/navigation/snapshot; no inference |
 | Real shared SDK + final Desktop CLI + Pi loader | PASS: alias/discovery without calls/project scope/errors without replay/revocation fail closed; no owner OpenCode attachment |
-| Installed 0.2.35 native UI/history/browser panel | PENDING action-time installation confirmation |
+| Installed 0.2.35 native UI/history/browser panel | PASS: normal per-user path, Settings version, retained recent chats/Qwen Medium, actual installed CLI 36 tools + panel input/click + DOM assertions |
 | Native dictation/attachments/SSH/vault/Hub credentials/Pi inference | NOT RUN; no new support claim |
 
 Hub tests used the existing `C:\Program Files\Git\usr\bin\openssl.exe` by
@@ -79,7 +79,10 @@ SHA256 `CF7E4B7EA833BE96C3A750D1CFB5379A8E61443D76BEB98CC326A4B8777F2D0B`.
 Standalone executable: 9,865,216 bytes.
 SHA256 `9FDCB7ED915FC7D1E78ED3EB5D5C40CDD7A3403C9661B0CBF62459CDC9204E67`.
 Tauri patches its bundle-type marker inside NSIS; standalone/installed hashes
-are expected to differ. The new installed payload has not yet been observed.
+are expected to differ. Installed payload and published common bridge both hash
+`D40F6A1A7706FFAB11424EAB72E2A51BD5F150ED42DAD17616097A0E96514434`.
+Exactly three bytes differ from standalone at offsets 9224407..9224409:
+`UNK` becomes `NSS`, the expected Tauri bundle-type marker.
 
 Private backup outside Git:
 `C:\Users\sprot\.opencode-desktop-backups\20261009-before-arvela-0.2.35`.
@@ -91,8 +94,27 @@ healthy and was never terminated. Existing aborted history was not continued.
 No old app/shortcut uninstall, data deletion or security barrier bypass.
 The old normal/MSIX installations remain until separately scoped cleanup.
 
-Before claiming deployment, run ordinary Explorer-launched installer (not a
-Codex-inherited MSIX launch), confirm actual normal path/version and retained
-history/preferences, new shared bridge, native browser/manual input and repeat
-relevant acceptance. Full live platform checklist remains partially unrun.
+## Installed acceptance addendum (2026-10-09)
+
+Owner approved installation, then personally completed the installer's running
+old bridge warning/Next and reported that Desktop opened. The agent did not
+press the kill confirmation. At the next inventory no Desktop window remained;
+opened the already-installed executable through ordinary Explorer (not inherited
+MSIX launch). Sky confirmed the normal process path
+`C:\Users\sprot\AppData\Local\Arvela\opencode-desktop.exe` and Settings
+`Arvela 0.2.35`. Existing recent chat list loaded, composer empty, local Qwen
+Medium/qwen-build selected; no prompt, abort or history mutation was sent.
+
+Opened the in-app panel at idle about:blank. Ran `installed-panel.mjs` with the
+actual installed executable/common runtime; navigated only its own loopback
+fixture, entered `PANEL_UI_OK` and clicked its button using native UI. Real MCP
+snapshot/evaluate asserted exact input and result. Exit 0:
+`{"installedAppCli":true,"tools":36,"liveProjection":true,"panelManualInputAndClick":true,"realDomEvaluation":true}`.
+No external Chrome launch. Returned panel to about:blank, exited Settings,
+left Desktop open. Common bridge 0.2.35 matches installed payload hash.
+External OpenCode remains healthy 1.18.33. This proves installed MCP and manual
+panel operation, not a fresh model-driven browser task, Pi inference/stop,
+dictation, attachment upload, or exhaustive preservation of every setting.
+Full live platform checklist remains partially unrun. Old pending-install
+handoff/archive is retained unchanged; a new installed-result archive supersedes it.
 Offline handoff must exclude all private backups/profiles/config/chat screenshots.
