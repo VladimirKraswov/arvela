@@ -1,3 +1,32 @@
+# Windows 0.2.35 archive integration — 2026-10-09
+
+Reviewed `Arvela-0.2.35-Windows-installed-20261009.zip`: all 26 payload sizes
+and SHA256 hashes match the supplied manifest; all 957 tracked source files
+match bundled HEAD `4842d2c7501063ca645da158941b7e65321c2e1f`. Its exact
+ancestor is main `0705a1491494a03115a1da20b9e4c77753dc4e34`; the three source
+commits were fast-forwarded without replacing newer work.
+
+Accepted the Git-for-Windows `NUL` global-config fix while retaining system/global
+config isolation, real unprivileged junction fixtures, a strict browser acceptance
+result parser, and a Windows-only Job Object child/grandchild regression. Added
+its two Node parser checks to the existing desktop CI matrix. No version,
+dependency, capability, browser production behavior or UI change.
+
+Independent Mac checks: 654 frontend passed / 6 existing opt-in skipped;
+2 Node parser checks passed; `npm run build` (TypeScript/Vite), `npm run eval:check`,
+Cargo fmt, locked all-targets check and Rust tests passed (94 passed / 1 unchanged
+vault opt-in ignored). Existing Vite chunk/dynamic-import warnings remain.
+No live UI or inference test was needed or run for this platform-specific import.
+The installed Mac 0.2.35 remains unchanged; Windows-only Rust behavior was not
+executed on Mac. Owner chats/settings, external agents and GPU services preserved.
+
+Windows verification is supplied-agent evidence, not a Mac rerun: 654 frontend,
+78 Rust, 37 Hub and installed browser/MCP acceptance. See
+[the original report and limitations](WINDOWS-RESULT-0.2.35-20261009.md).
+The unsigned Windows installer is retained locally with its verified manifest;
+it is not a new build from the Mac and is not placed in Git. Existing release
+tags/assets are unchanged; importing source does not requalify old binaries.
+
 # Arvela 0.2.35 — configured model discovery (2026-10-09)
 
 Configured model rows are independent of transient readiness. The picker adds

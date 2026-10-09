@@ -8,6 +8,7 @@
 - [x] Agent-owned catalogs, explicit refresh, access badges, readiness modal/retry and no substitute on failure.
 - [x] Scope asynchronous selection to the original engine/workspace/chat; remove rows through their configuration.
 - [x] 654 passing frontend tests, Mac UI/package acceptance and exact-source main/release publication.
+- [x] Reviewed Windows 0.2.35 handoff: Git null-config fix, unprivileged junction fixtures, strict browser acceptance parser and Job Object regression. Imported Windows evidence remains separate from Mac checks; see [Windows report](docs/WINDOWS-RESULT-0.2.35-20261009.md).
 
 ## Verified project experience (2026-10-08)
 

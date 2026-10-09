@@ -53,6 +53,7 @@ jobs:
           restore-keys: desktop-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
       - run: npm test -- --maxWorkers=2
+      - run: node --test src-tauri/resources/browser/test/evaluate-result.test.mjs
       - run: npm run eval:check
       - run: python -m unittest discover -s services/hub/tests
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
