@@ -89,3 +89,17 @@ it("cancels child reads when an SSH endpoint changes under the same server ident
  await act(async()=>resolve([{id:"old-child",parentID:"s",directory:"/project",title:"OLD_ENDPOINT_CHILD",time:{}}]));
  expect(document.body.textContent).not.toContain("OLD_ENDPOINT_CHILD");
 });
+
+it("prepares a common skill request in the selected chat without replacing its draft or starting work", async()=>{
+ await mount();
+ await act(async()=>[...document.querySelectorAll("button")].find(b=>b.textContent==="Подготовить создание навыка")!.click());
+ const request=fake.setDraft.mock.calls[0][0] as string;
+ expect(request).toMatch(/^user draft\n\n/);
+ expect(request).toContain("create-shared-skill");
+ expect(request).toContain("OpenCode и Pi");
+ expect(request).toContain("Если часть истории недоступна");
+ expect(fake.openChat).not.toHaveBeenCalled();
+ expect(fake.setUi).toHaveBeenCalledWith({contextOpen:false});
+ fake.engine="pi";await mount();
+ expect(document.body.textContent).toContain("Подготовить создание навыка");
+});

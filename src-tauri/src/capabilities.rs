@@ -1,5 +1,6 @@
 //! App-owned, scoped shared capability registry. No user histories or skills are
 //! rewritten. Engine approvals remain authoritative; metadata never executes a tool.
+mod authoring;
 pub mod project_map;
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
@@ -553,9 +554,12 @@ pub async fn shared_catalog(
     directory: Option<String>,
 ) -> Result<Document, String> {
     main_window(&window)?;
-    tauri::async_runtime::spawn_blocking(move || document(&scope, directory.as_deref()))
-        .await
-        .map_err(|_| "Проверка каталога прервана")?
+    tauri::async_runtime::spawn_blocking(move || {
+        authoring::ensure(&root()?)?;
+        document(&scope, directory.as_deref())
+    })
+    .await
+    .map_err(|_| "Проверка каталога прервана")?
 }
 fn main_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     if window.label() != "main" {
@@ -754,6 +758,7 @@ fn run_install(command: &mut Command, cancel: &AtomicBool) -> Result<(), String>
 pub fn pi_support(directory: &Path) -> Result<(String, Vec<String>, Option<PathBuf>), String> {
     let (key, _) = key_for("project", directory.to_str())?;
     let root = root()?;
+    authoring::ensure(&root)?;
     let registry = effective(&root, &key)?;
     let skills = registry
         .sources

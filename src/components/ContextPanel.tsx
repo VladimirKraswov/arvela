@@ -12,6 +12,7 @@ import { MemorySection } from "./MemorySection";
 import { ProjectMapSection } from "./ProjectMapSection";
 import type { Outcome } from "../outcomes/store";
 import { Icon } from "./Icon";
+import { skillAuthoringRequest } from "../capabilities/authoring";
 
 export const CONTEXT_PANEL_ID = "chat-context-panel";
 const PREVIEW = 5;
@@ -55,6 +56,12 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
     close();
     focusComposer(scope);
   };
+  const draftSkill = () => {
+    const draft = store.getDraft();
+    store.setDraft(`${draft}${draft.trim() ? "\n\n" : ""}${skillAuthoringRequest()}`);
+    close();
+    focusComposer(scope);
+  };
   const addSource = () => {
     // Must stay synchronous: the WebView opens a chooser only during the user's click.
     if (requestComposerFiles(scope)) setNotice("");
@@ -73,6 +80,11 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
     {sid && (engine === "opencode" || engine === "pi") && <OutcomeSection scope={{server,directory:directory??"",sessionID:sid,engine}} requests={(chat?.messageOrder??[]).filter(id=>chat?.messages[id]?.role==="user").map(id=>({id,label:safeLabel((chat?.partsByMessage[id]??[]).map(p=>chat?.parts[p]).filter(p=>p?.type==="text"&&!p.synthetic).map(p=>p?.text??"").join(" "),100)}))} onOpen={jump} onPropose={card=>setProposed({...card})}/>}
     <MemorySection server={server} directory={directory} proposed={proposed}/>
     <ProjectMapSection server={server} directory={directory}/>
+    {sid && <section aria-labelledby="context-skill-title">
+      <div className="context-section-title"><h3 id="context-skill-title">Навык по опыту чата</h3></div>
+      <p className="context-note">Разобрать удачные действия и ошибки, создать общий навык для OpenCode и Pi. Запрос появится в черновике; отправка остаётся за вами.</p>
+      <button className="btn small ghost" onClick={draftSkill}>Подготовить создание навыка</button>
+    </section>}
     <ScheduleSection scheduler={scheduler} server={server} directory={directory} sessionID={sid} />
     <FileSection id="results" title="Результаты" files={context.results} empty="Здесь появятся файлы из выполненных изменений и явные ссылки на файлы в ответах."
       action={{ label: "Подготовить запрос на создание результата", disabled: !sid, run: draftResult }}

@@ -1,0 +1,21 @@
+# Shared skill authoring — 0.2.38
+
+Arvela supplies `create-shared-skill` as a versioned common source, consumed by the existing OpenCode `skills.paths` and Pi `--skill` adapters. It appears in shared settings, can be disabled, and preserves that choice across updates. It does not run an agent, capture private history, override engine approvals or force a model to select the skill. Existing live agent contexts may require reopening/reloading to see changed skill lists.
+
+The chat Context panel offers **Подготовить создание навыка**. It appends a request to that selected chat's existing draft; it does not send, replay old tools or replace the draft. Both engines receive the same request. The skill tells the agent to analyse goals, verified successes, errors and recovery, obtain earlier history through supported interfaces where available, and disclose inaccessible history. The Desktop does not fabricate a complete transcript or claim an engine history API is available when it is not.
+
+User skills belong in global `~/.agents/skills/<name>/` or project `.agents/skills/<name>/`, or an explicitly connected shared source. `SKILL.md` includes `name` and a concrete trigger description; scripts and references use relative paths. These sources are shared; engine-only skill directories remain supported for intentionally engine-specific configuration. Built-in versioned directories and Hub caches are not editing targets.
+
+## Reviewed migration
+
+The requested session was identified by its exact title, «Смотри, задача — проанализировать вот этот текст и найти в И». Read-only history inspection found repeated search403s, guessed download filenames, incompatible browser APIs, timeouts, and incomplete/wrong-edition books reported as completed. The created `web-file-download` was useful but tied to OpenCode and overgeneralised temporary errors. Bibliographic full-text links were incorrectly treated as proof of open access.
+
+The reviewed common package preserves archive metadata lookup, encoded filenames, PDF verification and bounded recovery. It removes fixed engine/browser APIs and provider availability claims. PDF inspection reports hash/pages/structural status separately from completeness; missing/corrupt/unverified files fail. Restricted archive candidates do not receive suggested download URLs. Covers, partial sets and alternative editions cannot be counted as requested complete books. The original package is privately backed up outside skill discovery; owner downloaded books and original jobs are untouched.
+
+The portable download skill is editable in the user's common library and published in the private LAN Hub catalogue for explicit installation on other devices. Hub publication is separate from Git publication. Local histories, credentials and machine-specific task data are excluded from distributed packages. Secret scrubbing is imperfect, so authoring requires manual review before sharing.
+
+## Verification
+
+Run `python3 scripts/test-shared-skills.py` for offline document helper failures, exact filenames/restrictions and valid single-page ambiguity. A preinstalled `pypdf` or `pdfinfo` is required for the positive PDF structural test; production helpers report unverified when neither exists, without installing dependencies. Run Context panel frontend tests and Rust authoring tests for draft preservation, Pi availability, idempotent source installation, disabled choice, owner source preservation and symlink refusal. Model selection/usefulness still needs real future tasks; discovery alone is not performance or quality evidence.
+
+Acceptance on Mac: 678 frontend tests passed (6 existing opt-in skips), 96 Rust tests passed (1 existing vault opt-in ignored), five offline Python helper checks, frontmatter validation, type/build/fmt/locked all-targets checks. Real isolated Chromium verified the panel/draft with no send; actual OpenCode and Pi loaders discovered both installed common skills without inference. The 0.2.38 app and DMG were built and signature/CRC checked. Installation is deferred because the owner's current Arvela session is active; existing 0.2.37 and its external server were preserved. The common sources are installed already; the new Context action requires 0.2.38.

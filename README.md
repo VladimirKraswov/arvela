@@ -167,3 +167,5 @@ DOM-инструменты OpenCode/Pi. Также восстанавливае�
 Сборки трёх платформ и проверки пакетов выполняются в [CI](.github/workflows/desktop.yml). Это не заменяет [живую проверку](docs/PLATFORM-ACCEPTANCE.md); текущие результаты и ограничения — в [VERIFICATION](docs/VERIFICATION.md).
 
 При ошибке чтения проекта используйте «Проверить доступ к проекту»: история и черновик сохраняются, очередь не возобновляется автоматически. Подробности macOS-разрешений и подписи: [восстановление доступа](docs/PROJECT-ACCESS-RECOVERY.md).
+
+Shared skill authoring and the reviewed document-download workflow: [SHARED-SKILL-AUTHORING.md](docs/SHARED-SKILL-AUTHORING.md).

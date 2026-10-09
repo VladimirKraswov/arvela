@@ -543,3 +543,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Mac0.2.28 build/signature/install and NAS full archive; isolated restore checked.
 - [x] Updated Mac vault/HTTPS access and idle-applied skill revisions; actual Pi/OpenCode loaders checked without inference.
 - [x] Main/release publication and downloaded Mac asset verification; live Windows/Linux acceptance remains separate.
+
+## Shared skill authoring (0.2.38)
+
+- [x] Common bundled creation recipe, shared adapters and persistent disable choice.
+- [x] Selected-chat draft action: analysis, reuse/migration, portable package and verification; no automatic send or old-job replay.
+- [x] Reviewed document-download skill with partial/edition/access evidence and portable helper failure checks.
+- [ ] Qualify usefulness and automatic skill selection on future owner tasks; no unmeasured performance claim.
