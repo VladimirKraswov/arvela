@@ -23,6 +23,13 @@ def verify(app):
         info = plistlib.load(file)
     if not info.get("NSMicrophoneUsageDescription", "").strip():
         raise ValueError("Bundle is missing NSMicrophoneUsageDescription")
+    for key in ("NSDocumentsFolderUsageDescription", "NSDesktopFolderUsageDescription", "NSDownloadsFolderUsageDescription"):
+        if not info.get(key, "").strip():
+            raise ValueError(f"Bundle is missing {key}")
+    signature = subprocess.run(["codesign", "-d", "-r-", str(app)], capture_output=True, text=True, check=True)
+    requirement = signature.stdout + signature.stderr
+    if "designated => cdhash" in requirement:
+        print("WARNING: ad hoc identity changes between builds; macOS privacy grants may need renewal. Stable release signing requires Developer ID.")
     print(f"Verified signature and microphone capability: {info['CFBundleShortVersionString']}")
 
 

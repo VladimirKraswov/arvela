@@ -10,11 +10,11 @@ import { Icon } from "./Icon";
 import { pathBasename } from "../util/paths";
 export const pickFolder = pickProjectFolder;
 
-function ActivityMark({ id, pending = false }: { id: string; pending?: boolean }) {
+function ActivityMark({ id, directory, pending = false }: { id: string; directory: string; pending?: boolean }) {
   const status = store.activityStatus(id);
   if (status?.type === "busy" || status?.type === "retry") {
     const connection = store.state.connection;
-    if (!store.isPiSession(id) && (connection.phase !== "connected" || (connection.globalStreamState ?? connection.streamState) !== "open"))
+    if (!store.isPiSession(id) && ((directory === store.state.directory && !!connection.statusError) || connection.phase !== "connected" || (connection.globalStreamState ?? connection.streamState) !== "open"))
       return <span className="pending-dot" role="status" aria-label="Нет свежего статуса задачи" title="Нет связи: выполнение пока не подтверждено">?</span>;
     return <span className="session-spinner" role="status" aria-label="Задача выполняется" />;
   }
@@ -71,7 +71,7 @@ export function Sidebar() {
         >
           <Icon name="chat" size={15} />
           <span className="title">{sess.title}{recent && <small className="session-project">{store.isProjectlessDirectory(sess.directory) ? "Без проекта" : projectName(sess.directory)}</small>}</span>
-          <ActivityMark id={sess.id} pending={pending.permissions.length + pending.questions.length > 0} />
+          <ActivityMark id={sess.id} directory={sess.directory} pending={pending.permissions.length + pending.questions.length > 0} />
         </button>
         {isArchived ? (
           <button
@@ -196,7 +196,7 @@ export function Sidebar() {
                 <Icon name={expanded ? "down" : "chevron"} size={12} />
                 <Icon name="folder" size={17} />
                 <span className="project-name">{name}</span>
-                {!expanded && store.hasRunningInDirectory(dir) && (s.prefs.projectEngine?.[dir] === "pi" || s.connection.phase === "connected" && (s.connection.globalStreamState ?? s.connection.streamState) === "open"
+                {!expanded && store.hasRunningInDirectory(dir) && (s.prefs.projectEngine?.[dir] === "pi" || s.connection.phase === "connected" && !(dir === s.directory && s.connection.statusError) && (s.connection.globalStreamState ?? s.connection.streamState) === "open"
                   ? <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />
                   : <span className="pending-dot" role="status" aria-label="Нет свежего статуса проекта">?</span>)}
                 {!expanded && store.hasUnreadInDirectory(dir) && <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />}

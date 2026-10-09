@@ -241,6 +241,9 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
             "--cors",
             "http://tauri.localhost",
         ])
+        // Never inherit a removed/protected project working directory from the UI.
+        // Project access is checked separately through directory-scoped API calls.
+        .current_dir(data_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(stderr));
@@ -434,8 +437,9 @@ mod tests {
         fs::write(
             &binary,
             r#"#!/usr/bin/env python3
-import sys, time
+import sys, time, os
 from http.server import BaseHTTPRequestHandler, HTTPServer
+assert os.getcwd() == os.path.dirname(os.path.realpath(__file__))
 port = int(sys.argv[sys.argv.index('--port') + 1])
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):

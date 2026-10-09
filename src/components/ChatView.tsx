@@ -6,6 +6,7 @@ import { ChatScrollController, type ReadingPosition } from '../chat/scroll';
 import { groupConversation } from '../chat/turns';
 import { dayKey, dayLabel } from '../chat/time';
 import { Icon } from './Icon';
+import { platform } from '../native/platform';
 
 const positions = new Map<string, { position: ReadingPosition; first?: string; progress?: Record<string, boolean> }>();
 export function ChatView() {
@@ -165,7 +166,8 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
         {question && <QuestionCard key={question.id} req={question} onReply={a => void store.replyQuestion(question, a)} onReject={() => void store.rejectQuestion(question)} />}
         {(broken || s.connection.statusError) && !store.isPiSession(sessionId ?? "") && <div className="status-line" role="alert">
           {s.connection.statusError ? `Не удалось проверить состояние чата: ${s.connection.statusError}` : "Нет свежих событий. Выполнение не подтверждено; история сохранена."}
-          <button className="btn" onClick={() => void store.retryConnection()}>Проверить соединение</button>
+          <button className="btn" onClick={() => void (s.connection.statusError ? store.retryProjectAccess() : store.retryConnection())}>{s.connection.statusError ? "Проверить доступ к проекту" : "Проверить соединение"}</button>
+          {s.connection.statusError && platform() === "macos" && <a className="btn" href="https://support.apple.com/guide/mac-help/control-access-to-files-and-folders-on-mac-mchld5a35146/mac" target="_blank" rel="noreferrer">Восстановление доступа</a>}
         </div>}
       </div>
     </div>

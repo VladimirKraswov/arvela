@@ -263,3 +263,12 @@ it("reports a malformed body as an API fault, not as an unreachable server", asy
   expect(error).not.toBeInstanceOf(ConnectionError);
   expect((error as ApiError).message).toContain("malformed response");
 });
+
+it("decodes nested OpenCode errors without dumping their payload or losing the reference", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(500, {
+    name: "UnknownError", data: { message: "Unexpected server error.", ref: "err_abc123", secret: "DO_NOT_DISPLAY" },
+  })));
+  await expect(new OpenCodeClient().sessionStatuses("/test/A")).rejects.toMatchObject({
+    status: 500, detail: "Unexpected server error. (err_abc123)", filesystemDenied: false,
+  });
+});

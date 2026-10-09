@@ -1,5 +1,13 @@
 # Arvela roadmap
 
+## M48 — Project access diagnosis and recovery (0.2.37, installed locally)
+
+- [x] Correlated EPERM with TCC/signature and orphaned launch-context evidence; exact transaction limit documented.
+- [x] Safe autostart working directory and explicit filesystem usage descriptions.
+- [x] Scoped project error, truthful indicators, blocked sends, read-only recovery and queue disarming.
+- [x] Regression tests and Mac build; stable Developer ID signing remains unavailable on this host.
+- Evidence: [Project access recovery](docs/PROJECT-ACCESS-RECOVERY.md).
+
 ## M47 — Session isolation and recovery (0.2.36, installed locally)
 
 - [x] Queue-owned durable attachment copies, edit/remove recovery, once-only dispatch and uncertain POST protection.

@@ -30,11 +30,13 @@ export const DEFAULT_BASE_URL = "http://127.0.0.1:4096";
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
+  readonly filesystemDenied: boolean;
   constructor(status: number, detail: string) {
     super(detail || `HTTP ${status}`);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.filesystemDenied = /\b(?:EPERM|EACCES)\b/i.test(detail);
   }
 }
 
@@ -159,7 +161,10 @@ export class OpenCodeClient {
         let detail = text.slice(0, 400);
         try {
           const parsed = JSON.parse(text);
-          detail = parsed.message ?? parsed.error ?? detail;
+          const message = parsed.message ?? parsed.data?.message ?? parsed.error;
+          if (typeof message === "string") detail = message.slice(0, 400);
+          const ref = parsed.data?.ref;
+          if (typeof ref === "string" && /^err_[a-zA-Z0-9]{1,64}$/.test(ref)) detail += ` (${ref})`;
         } catch {
           /* plain text */
         }

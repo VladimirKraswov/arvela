@@ -1,3 +1,4 @@
+import { projectErrorText } from "../api/projectError";
 import { initialState } from './initial';
 import type { AppState, UiState } from './types';
 export type { AppState, UiState, ConnectionState, ConnectionPhase } from './types';
@@ -951,10 +952,11 @@ class Store {
         agents: (agents ?? []).filter((a) => !a.hidden),
       });
     } catch (e) {
-      if (gen === this.directoryGeneration && backend === this.backend)
-        this.patchUi({
-          toast: `Could not load model/agent list: ${errText(e)}`,
-        });
+      if (gen === this.directoryGeneration && backend === this.backend) {
+        if (directory && e instanceof ApiError && (e.filesystemDenied || e.status >= 500))
+          this.noteProjectFailure(e);
+        this.patchUi({ toast: `Не удалось загрузить модели и агентов: ${errText(e)}` });
+      }
     } finally {
       if (gen === this.directoryGeneration && backend === this.backend)
         this.patchUi({ runtimeLoading: false });
@@ -970,6 +972,26 @@ class Store {
 
   async retryConnection(): Promise<void> {
     await this.connect();
+  }
+
+  private noteProjectFailure(error: unknown): void {
+    // A recovered read must not silently release work paused by a project failure.
+    for (const id of this.queueArmed) {
+      if (this.engineIdFor(id, this.state.directory ?? undefined) !== PI_BACKEND_ID &&
+          this.getQueue(id).some(item => item.directory === this.state.directory))
+        this.queueArmed.delete(id);
+    }
+    this.mutate(s => ({ connection: { ...s.connection, statusError: projectErrorText(error) } }));
+  }
+
+  /** Read-only project recovery: preserves selection, draft, queue and history.
+   * It never dispatches queued work or restarts an external server. */
+  async retryProjectAccess(): Promise<void> {
+    const directory = this.state.directory, gen = this.directoryGeneration;
+    if (!directory || this.state.connection.phase !== "connected") return;
+    await this.resyncAfterReconnect(directory, gen, false);
+    if (gen === this.directoryGeneration && !this.state.connection.statusError)
+      await this.loadRuntimeMetadata();
   }
 
   /** Stores the typed value; validation/normalization happens on connect. */
@@ -1250,11 +1272,15 @@ class Store {
     const current = () =>
       myGen === this.listGeneration && dirGen === this.directoryGeneration;
     this.patchUi({ sessionListLoading: true, sessionListError: null });
+    const readOpenCode = <T,>(request: Promise<T>): Promise<T> => request.catch(error => {
+      if (current()) this.noteProjectFailure(error);
+      throw error;
+    });
     try {
       const [sessions, statuses, piSessions, piStatuses] = await Promise.all([
-        openCodeUp ? this.backend.listSessions(directory) : Promise.resolve([]),
+        openCodeUp ? readOpenCode(this.backend.listSessions(directory)) : Promise.resolve([]),
         openCodeUp
-          ? this.backend.sessionStatuses(directory)
+          ? readOpenCode(this.backend.sessionStatuses(directory))
           : Promise.resolve({} as Record<string, SessionStatus>),
         // A folder can hold chats from both engines; the sidebar shows both.
         this.piListFor(directory),
@@ -1376,8 +1402,11 @@ class Store {
       if (
         gen === this.directoryGeneration &&
         request === this.historyGeneration
-      )
+      ) {
+        if (!this.isPiSession(sessionId) && e instanceof ApiError && (e.filesystemDenied || e.status >= 500))
+          this.noteProjectFailure(e);
         this.patchUi({ historyError: errText(e) });
+      }
     } finally {
       this.historyJournals.delete(journal);
       if (
@@ -2182,6 +2211,7 @@ class Store {
   async sendPrompt(text: string, attachments: DraftAttachment[] = [], onProgress: (label: string) => void = () => {}): Promise<boolean> {
     if (
       !this.engineReady() ||
+      (this.engineIdFor() !== PI_BACKEND_ID && !!this.state.connection.statusError) ||
       (!text.trim() && !attachments.length) ||
       this.state.ui.sending ||
       this.state.ui.workspacePreparing ||
@@ -2715,6 +2745,7 @@ class Store {
       return;
     if (
       !this.engineReady() ||
+      (this.engineIdFor() !== PI_BACKEND_ID && !!this.state.connection.statusError) ||
       (this.engineIdFor() !== PI_BACKEND_ID && this.state.connection.streamState !== "open")
     )
       return;
@@ -2752,7 +2783,8 @@ class Store {
       this.accessChanging ||
       sid !== this.state.activeSessionId ||
       this.state.directory !== item.directory ||
-      !this.engineReady(engineId)
+      !this.engineReady(engineId) ||
+      (engineId !== PI_BACKEND_ID && !!this.state.connection.statusError)
     )
       return;
     if (!steer && this.isRunning(sid)) return;
@@ -2964,6 +2996,7 @@ class Store {
   private async resyncAfterReconnect(
     directory: string,
     gen: number,
+    dispatchQueue = true,
   ): Promise<void> {
     const journal: ServerEvent[] = [];
     this.historyJournals.add(journal);
@@ -3026,9 +3059,9 @@ class Store {
       });
       const active = this.state.activeSessionId;
       if (active) await this.loadHistory(active, directory);
-      void this.drainQueue();
+      if (dispatchQueue) void this.drainQueue();
     } catch (error) {
-      if (gen === this.directoryGeneration) this.mutate(s => ({ connection: { ...s.connection, statusError: errText(error) } }));
+      if (gen === this.directoryGeneration) this.noteProjectFailure(error);
     } finally {
       this.historyJournals.delete(journal);
     }

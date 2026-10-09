@@ -287,7 +287,7 @@ it("starts the browser before exposing a newly created browser task panel", asyn
   vi.spyOn(store,"configureBrowser").mockResolvedValue(undefined);
   let resolve!: (value: unknown) => void;
   const started=vi.spyOn(integration,"openSessionBrowser").mockReturnValue(new Promise(r => {resolve=r;}));
-  const pending=store.newBrowserTask(); await flush();
+  const pending=store.newBrowserTask(); await vi.waitFor(() => expect(started).toHaveBeenCalled());
   expect(started).toHaveBeenCalledWith({directory:"/test/browser-owned",engine:"opencode",sessionId:"browser-test"},expect.any(Function),null,null);
   expect(store.state.ui.browserOpen).toBe(false); resolve({browserOpen:true}); await pending;
   expect(store.state.ui.browserOpen).toBe(true);
@@ -301,4 +301,45 @@ it("waits for common tool preparation and preserves draft if preparation fails",
  const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
  expect(await store.sendPrompt("own draft")).toBe(false);
  expect(prompt).not.toHaveBeenCalled();expect(store.getDraft()).toBe("own draft");
+});
+
+it("healthy transport with failed project reads preserves state and blocks dispatch until read-only recovery", async () => {
+  const { ApiError } = await import("../src/api/client");
+  store.state.activeSessionId = "ses_a";
+  store.state.sessions = [session("ses_a")];
+  store.state.chat.sessions.ses_a = { messages: {}, messageOrder: [], status: { type: "busy" } };
+  store.state.prefs.queues = { ses_a: [{ id: "q", directory: "/test/A", text: "queued", state: "ready", model: {providerID:"p",modelID:"m"} }] };
+  store.queueArmed.add("ses_a");
+  const prompt = vi.spyOn(store.client, "prompt");
+  vi.mocked(store.client.sessionStatuses).mockRejectedValue(new ApiError(500, "EPERM: lstat project"));
+  await store.refreshSessions();
+  expect(store.state.connection.phase).toBe("connected");
+  expect(store.state.connection.statusError).toContain("отказ доступа");
+  expect(store.state.activeSessionId).toBe("ses_a");
+  expect(store.state.chat.sessions.ses_a).toBeDefined();
+  expect(await store.sendPrompt("new prompt")).toBe(false);
+  expect(store.queueArmed.has("ses_a")).toBe(false);
+  vi.mocked(store.client.sessionStatuses).mockResolvedValue({});
+  vi.mocked(store.client.listSessions).mockResolvedValue([session("ses_a")]);
+  await store.retryProjectAccess();
+  expect(store.state.connection.statusError).toBeNull();
+  expect(store.state.activeSessionId).toBe("ses_a");
+  expect(prompt).not.toHaveBeenCalled();
+});
+it("a late failure of project recovery does not contaminate the newly selected project", async () => {
+  let reject!: (error: Error) => void;
+  vi.mocked(store.client.sessionStatuses).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+  const recovery = store.retryProjectAccess();
+  await store.setDirectory("/test/B");
+  reject(new Error("old A failure"));
+  await recovery;
+  expect(store.state.connection.statusError).toBeNull();
+  expect(store.state.directory).toBe("/test/B");
+});
+
+it("a Pi listing failure does not mark the healthy OpenCode project inaccessible", async () => {
+  vi.spyOn(store, "piListFor").mockRejectedValue(new Error("Pi listing failed"));
+  await store.refreshSessions();
+  expect(store.state.ui.sessionListError).toContain("Pi listing failed");
+  expect(store.state.connection.statusError).toBeNull();
 });

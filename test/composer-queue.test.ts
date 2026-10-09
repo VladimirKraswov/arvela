@@ -21,7 +21,7 @@ it('the actual running composer accepts files into the queue instead of blocking
  const node=document.createElement('div');document.body.append(node);root=createRoot(node);
  await act(async()=>root!.render(createElement(Composer)));
  expect(document.querySelector('[aria-label="Приложить файлы"]')?.hasAttribute('disabled')).toBe(false);
- await act(async()=>{document.querySelector('textarea')!.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await new Promise(r=>setTimeout(r,40));});
+ await act(async()=>{document.querySelector('textarea')!.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await vi.waitFor(()=>expect(store.state.ui.sending).toBe(false), {timeout:3000});});
  expect(store.getQueue()).toHaveLength(1);expect(store.getQueue()[0].attachments?.files[0].name).toBe('note.txt');
  expect(document.body.textContent).toContain('note.txt');expect(document.body.textContent).not.toContain('Вложения можно отправить после');
  expect(attachmentDrafts.snapshot(scope)).toHaveLength(0);
