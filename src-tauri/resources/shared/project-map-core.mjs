@@ -26,7 +26,9 @@ export async function projectMap(directory, args = {}) {
   for(;;){try{await fs.lstat(path.join(ancestor,'.git'));git=true;break;}catch(e){if(e.code!=='ENOENT')throw Error('Cannot verify repository scope');} const next=path.dirname(ancestor);if(next===ancestor)break;ancestor=next;}
   if(git){
     const env={...process.env}; for(const key of Object.keys(env)) if(key.startsWith('GIT_'))delete env[key];
-    env.GIT_CONFIG_NOSYSTEM='1';env.GIT_CONFIG_GLOBAL=os.devNull;
+    // Git for Windows accepts NUL, not Node's device namespace spelling \\.\nul.
+    // Keep global configuration disabled; never fall back to owner settings.
+    env.GIT_CONFIG_NOSYSTEM='1';env.GIT_CONFIG_GLOBAL=process.platform==='win32'?'NUL':os.devNull;
     let executable;
     for(const p of process.platform==='win32'?[path.join(process.env.ProgramFiles||'C:\\Program Files','Git','cmd','git.exe')]:['/usr/bin/git','/opt/homebrew/bin/git']){try{await fs.access(p);executable=p;break;}catch{}}
     if(!executable)throw Error('Git is required to respect repository ignores');

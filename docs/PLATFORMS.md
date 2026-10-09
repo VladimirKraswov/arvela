@@ -6,6 +6,12 @@
 
 ## Общий код и реальные границы
 
+Windows 2026-10-09: main 0.2.35 с минимальным исправлением Git-карты проекта
+собран локально; 654 frontend, 78 Rust (включая дерево Job Object), 37 Hub и
+реальные изолированные browser/shared-MCP/Pi-loader проверки пройдены.
+Живая установка ожидает подтверждения; это не полная platform acceptance.
+[Отчёт и ограничения 0.2.35](WINDOWS-RESULT-0.2.35-20261009.md).
+
 | | macOS | Windows | Linux |
 |---|---|---|---|
 | CI runner | macos-14, ARM64 | windows-2022, x64 | ubuntu-24.04, x64 |

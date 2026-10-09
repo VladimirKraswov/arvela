@@ -18,7 +18,11 @@ it('returns scoped symbols and check names without source bodies or credentials;
  expect(JSON.stringify(map)).not.toMatch(/secret literal|SECRET|private instructions|private.example/);await writeFile(join(root,'src/router.ts'),'export function changed(){}');expect((await projectMap(root)).revision).not.toBe(map.revision);
 });
 it('honours Git ignores including nested roots, filters tracked secrets and refuses symlink traversal',async()=>{
- const root=await folder(),outside=await folder();execFileSync('git',['init','--quiet',root]);await writeFile(join(root,'.gitignore'),'ignored.ts\n');await mkdir(join(root,'src'));await writeFile(join(root,'src/ignored.ts'),'export const ignored=1;');await writeFile(join(root,'src/auth.json'),'{}');await writeFile(join(root,'src/good.ts'),'export const good=1;');await writeFile(join(outside,'outside.ts'),'export const outside=1;');await symlink(outside,join(root,'src/link'));await symlink(join(outside,'outside.ts'),join(root,'src/linked.ts'));
+ const root=await folder(),outside=await folder();execFileSync('git',['init','--quiet',root]);await writeFile(join(root,'.gitignore'),'ignored.ts\n');await mkdir(join(root,'src'));await writeFile(join(root,'src/ignored.ts'),'export const ignored=1;');await writeFile(join(root,'src/auth.json'),'{}');await writeFile(join(root,'src/good.ts'),'export const good=1;');await writeFile(join(outside,'outside.ts'),'export const outside=1;');
+ // Junctions exercise real outside-root reparse points without elevated Windows
+ // symlink privileges; Unix additionally covers a link to an individual file.
+ await symlink(outside,join(root,'src/link'),process.platform==='win32'?'junction':'dir');
+ await symlink(process.platform==='win32'?outside:join(outside,'outside.ts'),join(root,'src/linked.ts'),process.platform==='win32'?'junction':'file');
  execFileSync('git',['-C',root,'add','src/auth.json']);const map=await projectMap(join(root,'src'));expect(map.entries.map(e=>e.path)).toEqual(['good.ts']);expect(map.inventory).toBe('git-ignore-aware');
 });
 it('enforces full UTF8 JSON budget, input bounds and root/home refusal',async()=>{

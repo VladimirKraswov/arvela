@@ -270,6 +270,74 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_os = "windows")]
+    fn job_close_terminates_its_child_and_grandchild() {
+        use std::ffi::c_void;
+        use std::io::{BufRead, BufReader, Write};
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+            fn WaitForSingleObject(handle: *mut c_void, milliseconds: u32) -> u32;
+            fn CloseHandle(handle: *mut c_void) -> i32;
+        }
+        struct ProcessHandle(*mut c_void);
+        impl Drop for ProcessHandle {
+            fn drop(&mut self) {
+                unsafe { CloseHandle(self.0) };
+            }
+        }
+        let powershell =
+            std::path::PathBuf::from(std::env::var_os("SystemRoot").expect("Windows SystemRoot"))
+                .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        let mut command = Command::new(powershell);
+        // Attach before releasing stdin, so the fixture's descendant inherits
+        // the job. All processes are test-owned; no process-name discovery.
+        command.args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "$null=[Console]::ReadLine(); $p=Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList '-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 60' -WindowStyle Hidden -PassThru; [Console]::WriteLine($p.Id); [Console]::Out.Flush(); Start-Sleep -Seconds 60",
+        ]);
+        hide_console(&mut command);
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn fixture child");
+        let job = match KillOnCloseJob::attach(&child) {
+            Ok(job) => job,
+            Err(error) => {
+                terminate_group(&mut child, Duration::from_secs(1));
+                panic!("fixture job attachment failed: {error}");
+            }
+        };
+        let stdout = child.stdout.take().unwrap();
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            let mut line = String::new();
+            let result = BufReader::new(stdout).read_line(&mut line);
+            let _ = sender.send(result.map(|_| line));
+        });
+        child.stdin.take().unwrap().write_all(b"start\n").unwrap();
+        let pid: u32 = receiver
+            .recv_timeout(Duration::from_secs(15))
+            .expect("bounded grandchild startup")
+            .expect("read fixture PID")
+            .trim()
+            .parse()
+            .expect("grandchild PID");
+        // SYNCHRONIZE only. Retain the actual handle to avoid PID reuse races.
+        let grandchild = ProcessHandle(unsafe { OpenProcess(0x0010_0000, 0, pid) });
+        assert!(!grandchild.0.is_null(), "open test-owned descendant");
+        assert_eq!(unsafe { WaitForSingleObject(grandchild.0, 0) }, 258);
+        assert!(matches!(child.try_wait(), Ok(None)));
+        drop(job);
+        assert_eq!(unsafe { WaitForSingleObject(grandchild.0, 5000) }, 0);
+        assert!(wait_until(&mut child, Duration::from_secs(5)).is_some());
+    }
+
+    #[test]
     #[cfg(unix)]
     fn bounded_output_returns_captured_streams() {
         let mut command = Command::new("/bin/sh");

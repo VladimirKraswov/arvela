@@ -100,7 +100,10 @@ describe('reproducible evaluation fixtures', () => {
       expect(backend.metrics.errorCodes).toEqual({ FILE_NOT_ALLOWED: 1 });
       expect(JSON.stringify(backend.metrics)).not.toContain('owner.txt');
       await expect(backend.execute('write', { path: 'solution.cjs', text: 'x'.repeat(65537) })).rejects.toThrow('FILE_TOO_LARGE');
-      await rm(join(work, 'solution.cjs')); await symlink(owner, join(work, 'solution.cjs'));
+      await rm(join(work, 'solution.cjs'));
+      // A Windows junction is an unprivileged real reparse point. Point it at
+      // the owner folder; neither it nor a Unix file symlink may be written.
+      await symlink(process.platform === 'win32' ? root : owner, join(work, 'solution.cjs'), process.platform === 'win32' ? 'junction' : 'file');
       await expect(backend.execute('write', { path: 'solution.cjs', text: 'changed' })).rejects.toThrow('NOT_REGULAR_FILE');
       await rm(join(work, 'solution.cjs'));
       await expect(backend.execute('read', { path: 'solution.cjs' })).rejects.toThrow();
