@@ -31,7 +31,7 @@ benchmark or Windows/Linux live test was run for this UI fix.
 The installed executable matches the signed build SHA256
 `712a6fe79aadb3ac69407e735722b9c14d37da4b9cfc33df2b75a0f2a3b43622`.
 DMG SHA256: `d1f8567456b2d9607d22e4f18a3d731720ce76fbee42e1cb7322afca495fd421`.
-The prior app bundle is retained privately. Publication receipt follows after push.
+The prior app bundle is retained privately. Source commit `2ef6c81edebdd5fa517e38f7b9efc58a5ce0dd36` is pushed to main. Release [v0.2.35](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.35) targets that exact commit; its downloaded DMG matches the build and GitHub digest/size. The read-only mounted release app matches installed version, signature and executable. The Downloads copy matches too.
 
 # Arvela 0.2.34 — M43/M44/M45 and selected Mac acceptance (2026-10-08)
 

@@ -2,12 +2,12 @@
 
 ## Model discovery reliability (2026-10-09)
 
-### M46 — Persistent configured models (verification in progress, 0.2.35)
+### M46 — Persistent configured models (done, 0.2.35)
 
 - [x] Separate configured model visibility from live access/readiness; retain public display metadata and Pi-only catalog policy while offline.
 - [x] Agent-owned catalogs, explicit refresh, access badges, readiness modal/retry and no substitute on failure.
 - [x] Scope asynchronous selection to the original engine/workspace/chat; remove rows through their configuration.
-- [ ] Full regression suite, Mac UI/package acceptance and main/release publication.
+- [x] 654 passing frontend tests, Mac UI/package acceptance and exact-source main/release publication.
 
 ## Verified project experience (2026-10-08)
 
