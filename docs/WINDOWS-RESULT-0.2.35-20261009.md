@@ -8,6 +8,15 @@ Reused the clean existing checkout, preserving both earlier Windows branches
 and PR2. Upstream now uses the canonical HTTPS `VladimirKraswov/arvela` name.
 No version bump, manifest/lock change, main push, merge or release publication.
 
+PR publication is blocked by existing GitHub OAuth permissions: pushing the
+new upstream history to the old fork rejects inherited workflow files without
+`workflow` scope. Direct upstream-ref creation returned 404 because that commit
+was not in the fork. Created only the named review branch at the fork's old
+620fb78 base; standard merge-upstream of that branch was also rejected (422).
+No force push, token-scope change or main mutation. Local corrected commit and
+offline patch/bundle are preserved; no new PR was created. User must authorize
+GitHub workflow access through their own login before retrying publication.
+
 ## Confirmed defects and repairs
 
 - Upstream Windows CI run 37936390986 fails both Git-backed project-map tests.
