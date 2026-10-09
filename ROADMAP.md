@@ -1,5 +1,13 @@
 # Arvela roadmap
 
+## M47 — Session isolation and recovery (0.2.36, installed locally)
+
+- [x] Queue-owned durable attachment copies, edit/remove recovery, once-only dispatch and uncertain POST protection.
+- [x] Real OpenCode/Pi invoking identity, separate browser contexts/profiles, selected-only panel and passive monitor, stale input refusal.
+- [x] Session-scoped send/attachment/history errors and execution indicators based on current server evidence.
+- [x] Isolated Chromium scope/storage/input acceptance; no model inference or owner prompt replay.
+- [x] Final Mac installation/startup/signature/server verification; publication is not part of this local repair.
+
 ## Model discovery reliability (2026-10-09)
 
 ### M46 — Persistent configured models (done, 0.2.35)

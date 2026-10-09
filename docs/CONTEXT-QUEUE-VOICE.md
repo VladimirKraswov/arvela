@@ -35,7 +35,7 @@ Changes are unavailable during execution and apply to that session only. These a
 
 ## Queue and correction
 
-Enter during generation adds a prompt to the local queue (maximum 20 items), retaining its selected model, variant, agent, session and project. Items can be removed or moved back to an empty composer for editing. Normal completion sends the next item once.
+Enter during generation adds a prompt to the local queue (maximum 20 items), retaining its selected model, variant, agent, session and project. Each queued item owns separate IndexedDB copies of its attachments; localStorage contains only filenames/IDs and routing metadata. Copying and preference persistence must succeed before the draft files are removed. File-only messages are supported. Items can be removed or moved back to an empty composer for editing, with their files restored. Missing files or conversion errors pause the queue before POST. Normal completion sends the next item once. Late failures are scoped to the original session, never shown in a different chat. Pi receives prepared text/image parts through its own adapter and retains its supported attachment limits.
 
 **Скорректировать сейчас** posts that item to the existing OpenCode session immediately. The installed engine persists the new user message and joins its existing run loop; the agent sees it at the **next model/tool boundary**. It cannot retroactively change already generated tokens and does not kill an executing command. Contract: [prompt.ts](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/prompt.ts), [run-state.ts](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/run-state.ts).
 

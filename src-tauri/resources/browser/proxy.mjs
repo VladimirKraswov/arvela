@@ -1,3 +1,4 @@
+import { stripSession } from './session.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -46,7 +47,7 @@ async function send(method, params, signal) {
   try {
     response = await fetch(`${endpoint}/rpc`, {
       method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${ready.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, params, workspace: process.cwd() }), signal: combined(signal, timeout),
+      body: JSON.stringify({ method, ...(method === "tools/call" ? stripSession(params) : { params }), workspace: process.cwd() }), signal: combined(signal, timeout),
     });
   } catch (error) {
     if (signal?.aborted) throw new Error('Browser request was cancelled.');

@@ -1,3 +1,9 @@
+# Local session repair — 0.2.36 (2026-10-09)
+
+672 frontend / 94 Rust / 2 Node checks, final Mac package and isolated real
+Chromium/SDK session routing passed. Installed/reopened locally; no push/release.
+See [repair evidence and limits](SESSION-RECOVERY-0.2.36.md).
+
 # Windows 0.2.35 archive integration — 2026-10-09
 
 Reviewed `Arvela-0.2.35-Windows-installed-20261009.zip`: all 26 payload sizes

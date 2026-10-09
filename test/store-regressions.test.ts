@@ -286,9 +286,9 @@ it("starts the browser before exposing a newly created browser task panel", asyn
   vi.spyOn(store,"createSessionNow").mockImplementation(async () => {store.state.activeSessionId="browser-test"; return session("browser-test","/test/browser-owned");});
   vi.spyOn(store,"configureBrowser").mockResolvedValue(undefined);
   let resolve!: (value: unknown) => void;
-  const started=vi.spyOn(integration,"browserNative").mockReturnValue(new Promise(r => {resolve=r;}));
+  const started=vi.spyOn(integration,"openSessionBrowser").mockReturnValue(new Promise(r => {resolve=r;}));
   const pending=store.newBrowserTask(); await flush();
-  expect(started).toHaveBeenCalledWith("browser_open", {url:null,nodeProgram:null});
+  expect(started).toHaveBeenCalledWith({directory:"/test/browser-owned",engine:"opencode",sessionId:"browser-test"},expect.any(Function),null,null);
   expect(store.state.ui.browserOpen).toBe(false); resolve({browserOpen:true}); await pending;
   expect(store.state.ui.browserOpen).toBe(true);
 });

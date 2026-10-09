@@ -64,15 +64,20 @@ export function Composer() {
   // The engine that will run the prompt decides readiness, not OpenCode alone.
   const connected = store.engineReady();
 
-  useEffect(() => { void attachmentDrafts.ensure(scope).catch(error => setAttachmentError(String(error))); }, [scope]);
+  useEffect(() => {
+    let cancelled = false;
+    setAttachmentError(""); setAttachmentProgress("");
+    void attachmentDrafts.ensure(scope).catch(error => { if (!cancelled) setAttachmentError(String(error)); });
+    return () => { cancelled = true; };
+  }, [scope]);
   // Files from a chooser belong to the chat it was opened for, even if the user
   // switched chats while the native dialog was open.
   const chooserScope = useRef<string | null>(null);
   const addFiles = (files: File[], target = scope) => {
     if (!files.length) return;
-    if (s.ui.sending) { setAttachmentError("Дождитесь подтверждения текущего запроса, затем добавьте файлы."); return; }
-    setAttachmentError("");
-    void attachmentDrafts.add(target, files).catch(error => setAttachmentError(error instanceof Error ? error.message : String(error)));
+    if (s.ui.sending) { if (scopeRef.current === target) setAttachmentError("Дождитесь подтверждения текущего запроса, затем добавьте файлы."); return; }
+    if (scopeRef.current === target) setAttachmentError("");
+    void attachmentDrafts.add(target, files).catch(error => { if (scopeRef.current === target) setAttachmentError(error instanceof Error ? error.message : String(error)); });
   };
   const addFilesRef = useRef(addFiles);
   addFilesRef.current = addFiles;
@@ -96,9 +101,10 @@ export function Composer() {
       if (event.payload.type === "enter" || event.payload.type === "over") { setDragging(true); return; }
       setDragging(false);
       if (event.payload.type !== "drop") return;
+      const target = scopeRef.current;
       void filesFromNativeDrop(event.payload.paths, stat, readFile)
-        .then(files => { if (!disposed) addFilesRef.current(files); })
-        .catch(error => { if (!disposed) setAttachmentError(error instanceof Error ? error.message : String(error)); });
+        .then(files => { if (!disposed) addFilesRef.current(files, target); })
+        .catch(error => { if (!disposed && scopeRef.current === target) setAttachmentError(error instanceof Error ? error.message : String(error)); });
     }).then(stop => { if (disposed) stop(); else unlisten = stop; })
       .catch(error => { if (!disposed) setAttachmentError(`Не удалось включить перетаскивание файлов: ${String(error)}`); });
     return () => { disposed = true; unlisten?.(); };
@@ -206,14 +212,18 @@ export function Composer() {
     // s.ui.sending also blocks a second Enter while the first request awaits acknowledgement.
     if ((!text.trim() && !attachments.length) || s.ui.sending || switching || !connected) return;
     if (running) {
-      if (attachments.length) { setAttachmentError("Вложения можно отправить после завершения текущего ответа. Они сохранены в черновике."); return; }
-      store.enqueuePrompt(text);
+      const target = scope;
+      setAttachmentError("");
+      void store.enqueueWithAttachments(text, attachments).then(accepted => {
+        if (!accepted && scopeRef.current === target && !store.state.ui.sendError)
+          setAttachmentError("Не удалось добавить запрос в очередь. Проверьте модель и лимит в 20 сообщений.");
+      }).catch(error => { if (scopeRef.current === target) setAttachmentError(String(error)); });
       return;
     }
     // The store owns the draft lifecycle: on accept it removes exactly the submitted
     // revision; on failure the draft was never touched — nothing to lose or silently resend.
     setAttachmentError("");
-    void store.sendPrompt(text, attachments, setAttachmentProgress);
+    void store.sendPrompt(text, attachments, label => { if (scopeRef.current === scope) setAttachmentProgress(label); });
   };
 
   return (
@@ -269,6 +279,8 @@ export function Composer() {
           {store.getQueue().map((item) => (
             <div className="queued-prompt" key={item.id}>
               <p>{item.text}</p>
+              {!!item.attachments?.files.length && <div className="queued-attachments" aria-label="Вложения в очереди">{item.attachments.files.map(file => <span key={file.id} title={file.name}><Icon name="file" size={14}/>{file.name}</span>)}</div>}
+              {item.error && <span role="alert">{item.error}</span>}
               <div className="queue-actions">
                 {item.state === "ready" ? (
                   <>
@@ -281,7 +293,7 @@ export function Composer() {
                     </button>
                     <button
                       disabled={!!draft.trim()}
-                      onClick={() => store.editQueued(item.id)}
+                      onClick={() => void store.editQueued(item.id)}
                     >
                       Изменить
                     </button>
@@ -296,7 +308,7 @@ export function Composer() {
                 <button
                   disabled={item.state === "sending"}
                   aria-label="Убрать из очереди"
-                  onClick={() => store.removeQueued(item.id)}
+                  onClick={() => void store.removeQueued(item.id)}
                 >
                   <Icon name="close" size={14} />
                 </button>

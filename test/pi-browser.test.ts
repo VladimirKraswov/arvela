@@ -15,7 +15,7 @@ function setup(overrides: Partial<BrowserConnection> = {}, loadOverride?: Browse
   const events: Record<string, (...args: any[]) => any> = {};
   const tools = new Map<string, any>();
   const pi = { on: vi.fn((event, handler) => { events[event] = handler; }), registerTool: vi.fn(tool => { tools.set(tool.name, tool); }) };
-  const ctx = { cwd: "/tmp/pi-browser-test", ui: { notify: vi.fn() } };
+  const ctx = { cwd: "/tmp/pi-browser-test", ui: { notify: vi.fn() }, sessionManager: { getSessionId: () => "pi_test" } };
   const connection: BrowserConnection = {
     connect: vi.fn(async () => {}),
     listTools: vi.fn(async () => ({ tools: [official] })),
@@ -64,7 +64,7 @@ it("preserves text, images and structured results and passes bounded abort optio
   const abort = new AbortController();
   const params = { url: "https://example.test" };
   const response = await tool.execute("call-1", params, abort.signal);
-  expect(fixture.connection.callTool).toHaveBeenCalledWith({ name: official.name, arguments: params }, { signal: abort.signal, timeout: 90000 });
+  expect(fixture.connection.callTool).toHaveBeenCalledWith({ name: official.name, arguments: params, _meta: { arvelaSession: { engine: "pi", sessionID: "pi_test" } } }, { signal: abort.signal, timeout: 90000 });
   expect(response.content.slice(0, 2)).toEqual(result.content);
   expect(response.content[2].text).toContain('"page":"fixture"');
   expect(response.details.mcp).toBe(result);

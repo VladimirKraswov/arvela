@@ -1,6 +1,6 @@
 import { BrowserPerformance } from "./BrowserPerformance";
 import { useEffect, useState } from "react";
-import { browserNative, browserSetupSnapshot, useBrowserSetup, type BrowserSetup, type BrowserStatus } from "../browser/integration";
+import { browserNative, openSessionBrowser, browserSetupSnapshot, useBrowserSetup, type BrowserSetup, type BrowserStatus } from "../browser/integration";
 import { browserEnabled, browserNodeProgram } from "../browser/preferences";
 import { isLocalComputer } from "../state/computer";
 import { Icon } from "./Icon";
@@ -44,15 +44,17 @@ export function BrowserSettings() {
   useEffect(() => { void refresh().catch(error => setError(message(error))); }, []);
   const action = async (command: "browser_open" | "browser_stop") => {
     setBusy(true); setError("");
+    const current = () => store.state.activeSessionId === app.activeSessionId && store.state.directory === app.directory && store.state.prefs.endpoint === app.prefs.endpoint;
     try {
       // Disable first, so a setup job cancelled by this stop is already
       // superseded and cannot report the cancellation as a setup error.
       if (command === "browser_stop") store.setBrowserSettings({ enabled: false });
-      const value = await browserNative<BrowserStatus>(command, command === "browser_open"
-        ? { url: url.trim() || null, nodeProgram } : undefined);
+      const value = command === "browser_open" ? await openSessionBrowser({directory:app.directory, engine:store.engineIdFor(), sessionId:app.activeSessionId},current,url.trim() || null,nodeProgram)
+        : await browserNative<BrowserStatus>(command);
+      if (!current()) return;
       setStatus(value);
       if (command === "browser_open") store.setUi({ browserOpen: true, settingsOpen: false });
-    } catch (error) { setError(message(error)); }
+    } catch (error) { if (current()) setError(message(error)); }
     finally { setBusy(false); }
   };
   return <>
@@ -102,13 +104,14 @@ export function BrowserButton() {
   const enabled = browserEnabled(app.prefs);
   return <button className="icon-btn browser-button" aria-label="Открыть браузер агента" title={browserButtonTitle(local, native, enabled, setup.phase)} disabled={busy || !local || !native || !enabled} onClick={() => {
     setBusy(true);
+    const current = () => store.state.activeSessionId === app.activeSessionId && store.state.directory === app.directory && store.state.prefs.endpoint === app.prefs.endpoint;
     // A failed setup is retried from scratch: clicking again after fixing
     // Node.js or the network must not replay the cached failure.
     void store.configureBrowser(browserSetupSnapshot().phase === "error").then(() => {
       const setup = browserSetupSnapshot();
       if (setup.phase === "error") throw new Error(setup.error || "Инструменты браузера не подключены.");
-      store.setUi({ browserOpen: true });
-      return browserNative("browser_open", { url: null, nodeProgram: browserNodeProgram(app.prefs) });
-    }).catch(error => store.setUi({ toast: `Браузер: ${message(error)}` })).finally(() => setBusy(false));
+      return openSessionBrowser({directory:app.directory, engine:store.engineIdFor(), sessionId:app.activeSessionId},current,null,browserNodeProgram(app.prefs));
+    }).then(() => { if (current()) store.setUi({ browserOpen: true }); })
+      .catch(error => { if (current()) store.setUi({ toast: `Браузер: ${message(error)}` }); }).finally(() => setBusy(false));
   }}><Icon name="browser" size={17}/><span>{busy ? "Открываю…" : "Браузер"}</span></button>;
 }

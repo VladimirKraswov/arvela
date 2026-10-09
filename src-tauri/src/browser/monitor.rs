@@ -25,7 +25,15 @@ pub fn visible(app: &tauri::AppHandle) -> bool {
 }
 
 fn publish(app: &tauri::AppHandle, mode: &str) -> Result<(), String> {
-    app.emit_to("main", EVENT, mode).map_err(|e| e.to_string())
+    let scope = super::gateway::health(&super::root_dir()?)
+        .ok()
+        .map(|(_, health)| health["scope"].clone());
+    app.emit_to(
+        "main",
+        EVENT,
+        serde_json::json!({"mode":mode,"scope":scope}),
+    )
+    .map_err(|e| e.to_string())
 }
 
 /// Creating a webview is asynchronous to avoid the WebView2 synchronous-command
@@ -34,10 +42,21 @@ fn publish(app: &tauri::AppHandle, mode: &str) -> Result<(), String> {
 pub async fn browser_monitor(
     app: tauri::AppHandle,
     window: tauri::Window,
+    state: tauri::State<'_, super::BrowserRuntime>,
     action: Action,
+    scope_key: Option<String>,
 ) -> Result<(), String> {
     if !authorized(window.label(), action) {
         return Err("Это окно не может управлять показом браузера.".into());
+    }
+    let epoch = state
+        .projection_epoch
+        .load(std::sync::atomic::Ordering::Acquire);
+    if let Some(key) = scope_key {
+        let (_, health) = super::gateway::health(&super::root_dir()?)?;
+        if health["scopeKey"].as_str() != Some(key.as_str()) {
+            return Err("Выбран другой чат.".into());
+        }
     }
     match action {
         Action::Detach => {
@@ -84,6 +103,14 @@ pub async fn browser_monitor(
                 });
                 monitor
             };
+            if epoch
+                != state
+                    .projection_epoch
+                    .load(std::sync::atomic::Ordering::Acquire)
+            {
+                monitor.hide().map_err(|e| e.to_string())?;
+                return Err("Выбран другой чат.".into());
+            }
             monitor.show().map_err(|e| e.to_string())?;
             publish(&app, "monitor")
         }
@@ -114,17 +141,31 @@ pub async fn browser_monitor(
 /// The viewer can read pixels, never the authenticated daemon address/key.
 /// A hidden viewer stays mounted but cannot capture screenshots in the background.
 #[tauri::command]
-pub async fn browser_monitor_frame(window: tauri::Window) -> Result<Option<Value>, String> {
+pub async fn browser_monitor_frame(
+    window: tauri::Window,
+    state: tauri::State<'_, super::BrowserRuntime>,
+) -> Result<Option<Value>, String> {
     if window.label() != LABEL {
         return Err("Наблюдение доступно только в окне браузера.".into());
     }
     if !window.is_visible().map_err(|e| e.to_string())? {
         return Ok(None);
     }
-    super::blocking(move || {
+    let epoch = state
+        .projection_epoch
+        .load(std::sync::atomic::Ordering::Acquire);
+    let frame = super::blocking(move || {
         super::gateway::request(&super::root_dir()?, super::gateway::Endpoint::View, None).map(Some)
     })
-    .await
+    .await?;
+    if epoch
+        != state
+            .projection_epoch
+            .load(std::sync::atomic::Ordering::Acquire)
+    {
+        return Ok(None);
+    }
+    Ok(frame)
 }
 
 #[cfg(test)]

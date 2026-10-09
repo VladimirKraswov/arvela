@@ -43,6 +43,7 @@ pub fn run() {
             browser::browser_open,
             browser::browser_view,
             browser::browser_presence,
+            browser::browser_session,
             browser::browser_input,
             browser::monitor::browser_monitor,
             browser::monitor::browser_monitor_frame,

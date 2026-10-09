@@ -2,8 +2,9 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const native = vi.hoisted(() => ({ invoke: vi.fn() }));
+const native = vi.hoisted(() => ({ invoke: vi.fn(), scopeChanged: undefined as undefined | (()=>void) }));
 vi.mock("../src/browser/integration", () => ({ browserNative: native.invoke }));
+vi.mock("@tauri-apps/api/event",()=>({listen:async (_name:string,handler:()=>void)=>{native.scopeChanged=handler;return()=>{native.scopeChanged=undefined;};}}));
 import { BrowserMonitor } from "../src/components/BrowserMonitor";
 let root: Root;
 const frame = { browserOpen: true, busy: true, tabs: [], title: "Agent page", image: "/9j/", width: 1280, height: 800, cursor: {x:100,y:40,owner:"agent",action:"click",at:1} };
@@ -43,4 +44,14 @@ it("does not create overlapping capture requests and stops on unmount",async()=>
 it("hides an old image when the browser reports it closed",async()=>{
   await mount();native.invoke.mockResolvedValue({browserOpen:false,busy:false,tabs:[]});await act(async()=>vi.advanceTimersByTimeAsync(300));
   expect(document.querySelector("img")).toBeNull();expect(document.body.textContent).toContain("Браузер закрыт");
+});
+
+it("clears the previous chat immediately and discards its pending capture",async()=>{
+ await mount();expect(document.querySelector('img')).not.toBeNull();
+ let finish!:(v:unknown)=>void;native.invoke.mockReturnValue(new Promise(r=>{finish=r;}));
+ await act(async()=>vi.advanceTimersByTimeAsync(300));
+ await act(async()=>native.scopeChanged!());expect(document.querySelector('img')).toBeNull();
+ await act(async()=>finish(frame));expect(document.querySelector('img')).toBeNull();
+ native.invoke.mockResolvedValue({...frame,title:'Other chat'});await act(async()=>vi.advanceTimersByTimeAsync(110));
+ expect(document.querySelector('img')?.getAttribute('alt')).toBe('Other chat');
 });

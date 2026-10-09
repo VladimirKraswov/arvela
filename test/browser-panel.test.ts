@@ -3,25 +3,25 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 const fake = vi.hoisted(() => ({ invoke: vi.fn(), native: true, host: null as object | null,
-  state: {} as any, monitorEvent: undefined as undefined | ((event: {payload:string}) => void), setUi: vi.fn(), setBrowserSettings: vi.fn() }));
+  state: {} as any, monitorEvent: undefined as undefined | ((event: {payload:any}) => void), setUi: vi.fn(), setBrowserSettings: vi.fn() }));
 vi.mock("../src/browser/integration", () => ({ browserNative: fake.invoke }));
-vi.mock("@tauri-apps/api/event", () => ({ listen: async (_name: string, handler: (event: {payload:string}) => void) => {
+vi.mock("@tauri-apps/api/event", () => ({ listen: async (_name: string, handler: (event: {payload:any}) => void) => {
   fake.monitorEvent = handler; return () => { fake.monitorEvent = undefined; };
 } }));
 vi.mock("../src/native/platform", () => ({ isNative: () => fake.native }));
 vi.mock("../src/state/store", () => ({ useAppState: () => fake.state, store: {
-  get state() { return fake.state; }, currentHost: () => fake.host, setUi: fake.setUi, setBrowserSettings: fake.setBrowserSettings,
+  get state() { return fake.state; }, engineIdFor: () => "opencode", currentHost: () => fake.host, setUi: fake.setUi, setBrowserSettings: fake.setBrowserSettings,
 } }));
 import { BrowserPanel, BrowserPresence } from "../src/components/BrowserPanel";
 import { openFileInput } from "../src/attachments/composerBridge";
 let root: Root;
-const frame = { browserOpen: true, busy: false, tabs: [{ index: 0, title: "Real page", url: "https://example.com", active: true }],
+const frame = { scope: {directory:"/test",engine:"opencode",sessionID:"ses_test"}, scopeKey: "fixture-key", browserOpen: true, busy: false, tabs: [{ index: 0, title: "Real page", url: "https://example.com", active: true }],
   width: 1280, height: 800, image: "/9j/", url: "https://example.com", cursor: { x: 100, y: 50, owner: "agent", action: "browser_click", at: 1 } };
 beforeEach(() => {
   vi.resetAllMocks(); vi.useFakeTimers(); vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fake.native = true; fake.host = null; fake.monitorEvent = undefined;
-  fake.state = { ui: {browserOpen:false,settingsOpen:false}, prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true } } };
-  fake.invoke.mockImplementation(async command => command === "browser_view" ? frame : command === "browser_presence" ? { browserOpen: true } : undefined);
+  fake.state = { activeSessionId: "ses_test", directory: "/test", ui: {browserOpen:false,settingsOpen:false}, prefs: { workspaceKey:crypto.randomUUID(), endpoint: "http://127.0.0.1:4096", browser: { enabled: true } } };
+  fake.invoke.mockImplementation(async command => command === "browser_view" ? frame : command === "browser_presence" ? { browserOpen: true, scope: frame.scope } : undefined);
   const node = document.createElement("div"); document.body.append(node); root = createRoot(node);
 });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ""; vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -36,7 +36,7 @@ it("projects only pixels and labels; close hides the panel without stopping the 
 });
 it("manual tab selection goes through the native validated gateway", async () => {
   await mount(); await act(async () => document.querySelector<HTMLButtonElement>('[role="tab"]')!.click());
-  expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "select", args: { index: 0 } });
+  expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "select", args: { index: 0, scopeKey: "fixture-key" } });
 });
 it("does not compete with an active agent tool", async () => {
   fake.invoke.mockResolvedValue({ ...frame, busy: true }); await mount();
@@ -114,7 +114,7 @@ it("changes mode through the live gateway before persisting it", async () => {
   await mount();
   const field = document.querySelector<HTMLSelectElement>('[aria-label="Режим работы браузера"]')!;
   await act(async () => { field.value = "human"; field.dispatchEvent(new Event("change", { bubbles: true })); });
-  expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "mode", args: { mode: "human" } });
+  expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "mode", args: { mode: "human", scopeKey: "fixture-key" } });
   expect(fake.setBrowserSettings).toHaveBeenCalledWith({ mode: "human" });
 });
 it("keeps the old preference when mode change fails", async () => {
@@ -134,7 +134,7 @@ it("debounces resize bursts, blocks stale input and waits for the matching viewp
     await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Новая вкладка браузера"]')!.click());
     expect(fake.invoke.mock.calls.some(([name]) => name === "browser_input")).toBe(false);
     await act(async () => vi.advanceTimersByTimeAsync(210));
-    expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "resize", args: { width: 640, height: 480 } });
+    expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "resize", args: { width: 640, height: 480, scopeKey: "fixture-key" } });
     expect(document.body.textContent).toContain("Подстраиваю");
     fake.invoke.mockImplementation(async command => command === "browser_view" ? { ...frame, width: 640, height: 480 } : undefined);
     await act(async () => vi.advanceTimersByTimeAsync(300));
@@ -158,7 +158,7 @@ it("binds a click to decoded pixels rather than a newer frame still loading", as
     fake.invoke.mockImplementation(async command => command === "browser_view" ? { ...original, revision: 2, width: 640, height: 480, image: "/9k/" } : undefined);
     await act(async () => vi.advanceTimersByTimeAsync(300));
     await act(async () => screen.dispatchEvent(new MouseEvent("click", { clientX: 100, clientY: 50, bubbles: true })));
-    expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "click", args: { x: 200, y: 100, expected: { pageId: "page", revision: 1, url: original.url, width: 1280, height: 800 } } });
+    expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "click", args: { x: 200, y: 100, scopeKey: "fixture-key", expected: { pageId: "page", revision: 1, url: original.url, width: 1280, height: 800 } } });
   } finally { delete (document as { hidden?: boolean }).hidden; }
 });
 
@@ -169,27 +169,27 @@ it.each([false,true])("uses two idle or four active visible captures per second 
 });
 
 it("a visible native monitor does not auto-reveal a competing browser panel",async()=>{
-  fake.invoke.mockResolvedValue({browserOpen:true,monitorOpen:true});
+  fake.invoke.mockResolvedValue({browserOpen:true,monitorOpen:true,scope:frame.scope});
   await mount(BrowserPresence);expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:true});
 });
 it("restoring the monitor respects unsaved settings rather than forcibly closing them",async()=>{
   fake.state.ui.settingsOpen=true;fake.invoke.mockResolvedValue({browserOpen:true,monitorOpen:true});
   await mount(BrowserPresence);expect(fake.monitorEvent).toBeTypeOf("function");
-  await act(async()=>fake.monitorEvent!({payload:"panel"}));
+  await act(async()=>fake.monitorEvent!({payload:{mode:"panel",scope:frame.scope}}));
   expect(fake.setUi).toHaveBeenCalledWith({browserOpen:true});
   expect(fake.setUi).not.toHaveBeenCalledWith(expect.objectContaining({settingsOpen:false}));
 });
 it("remote scope hides the observer and cannot be reopened by its stale restore event",async()=>{
   fake.host={};await mount(BrowserPresence);
-  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"hide"});
-  await act(async()=>fake.monitorEvent!({payload:"panel"}));
+  expect(fake.invoke).toHaveBeenCalledWith("browser_session",{directory:null,engine:null,sessionId:null});
+  await act(async()=>fake.monitorEvent!({payload:{mode:"panel",scope:frame.scope}}));
   expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:true});
   expect(fake.invoke.mock.calls.some(([name])=>name==="browser_presence"||name==="browser_view")).toBe(false);
 });
 it("detaching keeps the panel on failure and never issues browser_stop",async()=>{
   await mount();fake.invoke.mockRejectedValueOnce(new Error("fixture"));
   await act(async()=>document.querySelector<HTMLButtonElement>('[aria-label="Вынести браузер в окно наблюдения"]')!.click());
-  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"detach"});
+  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"detach",scopeKey:"fixture-key"});
   expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:false});
   expect(document.querySelector('[role=alert]')?.textContent).toContain("остаётся в панели");
   expect(fake.invoke.mock.calls.some(([name])=>name==="browser_stop")).toBe(false);
@@ -197,7 +197,7 @@ it("detaching keeps the panel on failure and never issues browser_stop",async()=
 it("allows passive detaching during agent work without attempting page input",async()=>{
   fake.invoke.mockImplementation(async name=>name==="browser_view"?{...frame,busy:true}:undefined);
   await mount();await act(async()=>document.querySelector<HTMLButtonElement>('[aria-label="Вынести браузер в окно наблюдения"]')!.click());
-  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"detach"});
+  expect(fake.invoke).toHaveBeenCalledWith("browser_monitor",{action:"detach",scopeKey:"fixture-key"});
   expect(fake.setUi).toHaveBeenCalledWith({browserOpen:false});
   expect(fake.invoke.mock.calls.some(([name])=>name==="browser_input")).toBe(false);
 });
@@ -241,4 +241,11 @@ it("unlocks after scroll at a page edge even when fresh JPEG bytes are unchanged
     await act(async()=>vi.advanceTimersByTimeAsync(600));
     expect(img.decode).toHaveBeenCalled();expect(document.body.textContent).not.toContain("Обновляю после прокрутки");
   }finally{delete(document as {hidden?:boolean}).hidden;}
+});
+
+it("foreign and legacy browser frames are never shown in the selected chat",async()=>{
+ fake.invoke.mockResolvedValue({...frame,scope:{...frame.scope,sessionID:"other"}});await mount();expect(document.querySelector("img")).toBeNull();
+ fake.state={...fake.state,activeSessionId:"other"};await mount();expect(document.querySelector("img")).not.toBeNull();
+ fake.state={...fake.state,activeSessionId:"empty"};await mount();expect(document.querySelector("img")).toBeNull();
+ fake.invoke.mockResolvedValue({...frame,scope:undefined});await act(async()=>vi.advanceTimersByTimeAsync(600));expect(document.querySelector("img")).toBeNull();
 });

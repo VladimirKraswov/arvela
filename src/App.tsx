@@ -150,7 +150,7 @@ export default function App() {
                 <ConnectionGate />
               )}
             </div>
-            {s.ui.browserOpen && <BrowserPanel />}
+            {s.ui.browserOpen && s.activeSessionId && <BrowserPanel key={JSON.stringify([s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, store.engineIdFor(), s.activeSessionId])} />}
             {!s.ui.browserOpen && layout.rightOpen && store.workspaceToolsAvailable() && (
               <>
                 <div

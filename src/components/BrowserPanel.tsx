@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { browserNative } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
-import { browserPoint, parseFrame, type BrowserFrame } from "../browser/view";
+import { browserPoint, parseFrame, frameForSession, type BrowserFrame } from "../browser/view";
 import { InputQueue, TEXT_LIMIT_BYTES, WHEEL_LIMIT, textBytes } from "../browser/inputQueue";
 import { fileChooserOpen } from "../attachments/composerBridge";
 import { isNative } from "../native/platform";
@@ -11,19 +11,34 @@ import { store, useAppState } from "../state/store";
 
 /** Auto-reveal once when an agent opens Chromium. Closing the panel only hides
  * the projection: it does not interrupt the browser or the agent's task. */
+const presentations = new Map<string, "panel" | "monitor" | "hidden">();
+const presentationKey = () => JSON.stringify([store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, store.state.directory, store.engineIdFor(), store.state.activeSessionId]);
 export function BrowserPresence() {
   const app = useAppState();
   const local = isNative() && isLocalComputer(app.prefs.endpoint, !!store.currentHost()) && browserEnabled(app.prefs);
   const activeLocal = useRef(local);
   activeLocal.current = local;
   useEffect(() => {
+    if (!local || !app.ui.browserOpen || !app.activeSessionId) return;
+    presentations.set(presentationKey(), "panel");
+    void browserNative<{scope?:{engine:string;sessionID:string};scopeKey?:string}>("browser_presence").then(presence => {
+      if (presence.scope?.engine === store.engineIdFor() && presence.scope?.sessionID === store.state.activeSessionId && store.state.ui.browserOpen)
+        return browserNative("browser_monitor", { action: "restore", scopeKey:presence.scopeKey });
+    }).catch(() => {});
+  }, [local, app.ui.browserOpen, app.activeSessionId]);
+  useEffect(() => {
     if (!isNative()) return;
     let cancelled = false;
     let stop: (() => void) | undefined;
-    void import("@tauri-apps/api/event").then(({ listen }) => listen<string>("browser-monitor://presentation", event => {
+    void import("@tauri-apps/api/event").then(({ listen }) => listen<{mode:string;scope?:{engine:string;sessionID:string}}>("browser-monitor://presentation", event => {
       if (cancelled) return;
-      if (event.payload === "monitor" || event.payload === "hidden") store.setUi({ browserOpen: false });
-      if (event.payload === "panel" && activeLocal.current) {
+      const s = store.state;
+      if (event.payload.scope?.engine !== store.engineIdFor() || event.payload.scope?.sessionID !== s.activeSessionId) return;
+      const mode = event.payload.mode;
+      const key = JSON.stringify([s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, store.engineIdFor(), s.activeSessionId]);
+      if (["panel", "monitor", "hidden"].includes(mode)) presentations.set(key, mode as "panel" | "monitor" | "hidden");
+      if (mode === "monitor" || mode === "hidden") store.setUi({ browserOpen: false });
+      if (mode === "panel" && activeLocal.current) {
         store.setUi({ browserOpen: true });
         // Do not bypass SettingsScreen's unsaved-draft exit guard.
         if (store.state.ui.settingsOpen) store.setUi({ toast: "Браузер возвращён в панель. Вернитесь из настроек для работы с ним." });
@@ -33,26 +48,35 @@ export function BrowserPresence() {
   }, []);
   useEffect(() => {
     if (!isNative()) return;
-    if (!local) { void browserNative("browser_monitor", { action: "hide" }).catch(() => {}); return; }
-    if (app.ui?.browserOpen) void browserNative("browser_monitor", { action: "restore" }).catch(() => {});
-  }, [local, app.ui?.browserOpen]);
-  useEffect(() => {
-    if (!local) return;
     let cancelled = false, wasOpen = false;
     let timer: ReturnType<typeof setTimeout>;
+    const engine = store.engineIdFor(), session = app.activeSessionId;
+    const key = JSON.stringify([app.prefs.workspaceKey ?? app.prefs.endpoint, app.directory, engine, session]);
+    if (store.state.ui.browserOpen) store.setUi({ browserOpen: false });
     const poll = async () => {
       try {
-        const s = await browserNative<{ browserOpen: boolean; monitorOpen?: boolean }>("browser_presence");
-        if (!cancelled) {
-          if (s.browserOpen && !s.monitorOpen && !wasOpen) store.setUi({ browserOpen: true });
-          wasOpen = !!s.browserOpen;
+        // Reconcile again after service startup/restart. Selection is presentation-only.
+        await browserNative("browser_session", local && app.directory && session
+          ? { directory: app.directory, engine, sessionId: session }
+          : { directory: null, engine: null, sessionId: null });
+        if (cancelled) return;
+        if (!local || !session) return;
+        const s = await browserNative<{ browserOpen: boolean; monitorOpen?: boolean; scopeKey?:string; scope?: {engine:string;sessionID:string} }>("browser_presence");
+        if (cancelled) return;
+        const ours = s.scope?.engine === engine && s.scope?.sessionID === session;
+        if (s.browserOpen && ours && !wasOpen) {
+          if (s.monitorOpen) presentations.set(key, "monitor");
+          else if (presentations.get(key) === "monitor") await browserNative("browser_monitor", { action: "detach", scopeKey:s.scopeKey });
+          else if (presentations.get(key) !== "hidden") store.setUi({ browserOpen: true });
         }
-      } catch { /* The panel's explicit connection action reports failures. */ }
+        if ((!s.browserOpen || !ours) && store.state.ui.browserOpen) store.setUi({ browserOpen: false });
+        wasOpen = !!s.browserOpen && ours;
+      } catch { /* An unavailable service does not reveal another chat's browser. */ }
       if (!cancelled) timer = setTimeout(() => void poll(), 1500);
     };
     void poll();
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [local, app.prefs.endpoint, app.prefs.browser?.nodeProgram]);
+  }, [local, app.activeSessionId, app.prefs.endpoint, app.prefs.workspaceKey, app.directory, app.prefs.browser?.nodeProgram]);
   return null;
 }
 
@@ -79,6 +103,8 @@ export function BrowserPanel() {
   const surface = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const displayed = useRef<BrowserFrame | undefined>(undefined);
+  const latestFrame = useRef(frame);
+  latestFrame.current = frame;
   const screen = useRef<HTMLDivElement>(null);
   const editingAddress = useRef(false);
   const alive = useRef(true);
@@ -114,6 +140,11 @@ export function BrowserPanel() {
       first = false;
       try {
         const next = parseFrame(await browserNative<unknown>("browser_view"));
+        if (!frameForSession(next, store.engineIdFor(), app.activeSessionId)) {
+          if (!cancelled) { setFrame(undefined); displayed.current = undefined; queue.current?.clear(); }
+          if (!cancelled) timer = setTimeout(() => void poll(), IDLE_FRAME_MS);
+          return;
+        }
         active = !!next.busy;
         if (!cancelled) { setFrame(next); setFrameError(""); failures = 0;
           if (viewport.current?.width === next.width && viewport.current?.height === next.height) setResizing(false); }
@@ -126,11 +157,11 @@ export function BrowserPanel() {
     };
     void poll();
     return () => { cancelled = true; alive.current = false; generation.current++; queue.current?.clear(); clearTimeout(timer); };
-  }, [local, app.prefs.endpoint, app.prefs.workspaceKey, app.directory, app.prefs.browser?.nodeProgram]);
+  }, [local, app.activeSessionId, app.prefs.endpoint, app.prefs.workspaceKey, app.directory, app.prefs.browser?.nodeProgram]);
   // Never overwrite an address the user is typing; show the real URL otherwise.
   useEffect(() => { if (!editingAddress.current) setAddress(frame?.url || ""); }, [frame?.url]);
   function input(action: string, args: Record<string, unknown> = {}, seen = frame) {
-    if (!local || frame?.busy || resizing || changingMode || detachPending.current || scrollPending.current) return;
+    if (!local || !seen?.scopeKey || frame?.busy || resizing || changingMode || detachPending.current || scrollPending.current) return;
     if (["click", "wheel", "text", "key"].includes(action) && (!frame?.image || frameError)) return;
     if (action === "text" && textBytes(String(args.text ?? "")) > TEXT_LIMIT_BYTES) {
       setError("Текст больше 16 КБ панель не вставляет. Поручите ввод агенту через инструменты браузера.");
@@ -139,7 +170,7 @@ export function BrowserPanel() {
     // Bound to the page the user saw: a changed page/revision rejects it instead of acting elsewhere.
     const expected = seen?.pageId ? { pageId: seen.pageId, revision: seen.revision, url: seen.url, width: seen.width, height: seen.height } : undefined;
     if (action === "wheel") queue.current?.clear();
-    if (!queue.current?.push({ action, args: { ...args, ...(expected ? { expected } : {}) } }))
+    if (!queue.current?.push({ action, args: { ...args, scopeKey: seen?.scopeKey, ...(expected ? { expected } : {}) } }))
       setError("Слишком много действий ждут выполнения. Дождитесь обновления страницы.");
     else if (action === "wheel") { scrollPending.current = {pageId:seen?.pageId,revision:seen?.revision}; setScrolling(true); }
   }
@@ -174,7 +205,7 @@ export function BrowserPanel() {
   // Reflow the actual page, not just its picture. Debounce drag/zoom bursts;
   // discard pending old input and unlock only when the matching frame arrives.
   useEffect(() => {
-    if (!local || !surface.current || typeof ResizeObserver === "undefined") return;
+    if (!local || !frame?.scopeKey || !surface.current || typeof ResizeObserver === "undefined") return;
     const epoch = generation.current;
     let timer: ReturnType<typeof setTimeout>, cancelled = false;
     const observer = new ResizeObserver(([entry]) => {
@@ -185,29 +216,32 @@ export function BrowserPanel() {
       clearTimeout(timer);
       timer = setTimeout(() => {
         if (cancelled || detachPending.current) return;
-        void browserNative("browser_input", { action: "resize", args: next }).catch(e => {
+        const scopeKey = latestFrame.current?.scopeKey;
+        if (!scopeKey) return;
+        void browserNative("browser_input", { action: "resize", args: { ...next, scopeKey } }).catch(e => {
           if (!cancelled && epoch === generation.current) { setFrameError("Не удалось изменить размер страницы. Повторите подключение браузера."); setError(String(e)); }
         });
       }, 200);
     });
     observer.observe(surface.current);
     return () => { cancelled = true; clearTimeout(timer); observer.disconnect(); viewport.current = undefined; };
-  }, [local, app.prefs.endpoint]);
+  }, [local, app.prefs.endpoint, frame?.scopeKey]);
   async function changeMode(mode: "fast" | "human") {
+    if (!frame?.scopeKey) return;
     setChangingMode(true); queue.current?.clear();
     const epoch = generation.current;
     try {
-      await browserNative("browser_input", { action: "mode", args: { mode } });
+      await browserNative("browser_input", { action: "mode", args: { mode, scopeKey: frame?.scopeKey } });
       if (alive.current && epoch === generation.current) { store.setBrowserSettings({ mode }); setError(""); }
     } catch (e) { if (epoch === generation.current) setError(e instanceof Error ? e.message : String(e)); }
     finally { if (epoch === generation.current) setChangingMode(false); }
   }
   async function detach() {
-    if (!local || detachPending.current || resizing || changingMode || working || scrollPending.current) return;
+    if (!local || !frame?.scopeKey || detachPending.current || resizing || changingMode || working || scrollPending.current) return;
     detachPending.current = true; setDetaching(true); queue.current?.clear();
     const epoch = generation.current;
     try {
-      await browserNative("browser_monitor", { action: "detach" });
+      await browserNative("browser_monitor", { action: "detach", scopeKey:frame?.scopeKey });
       if (alive.current && epoch === generation.current) store.setUi({ browserOpen: false });
     } catch {
       if (alive.current && epoch === generation.current) setError("Не удалось открыть окно наблюдения. Браузер остаётся в панели.");
@@ -216,7 +250,7 @@ export function BrowserPanel() {
       if (alive.current && epoch === generation.current) setDetaching(false);
     }
   }
-  const locked = !!frame?.busy || resizing || changingMode || detaching || scrolling;
+  const locked = !frame?.scopeKey || !!frame?.busy || resizing || changingMode || detaching || scrolling;
   const mode = frame?.mode ?? app.prefs.browser?.mode ?? "fast";
   const cursor = frame?.cursor;
   return <section className={`browser-panel${expanded ? " expanded" : ""}`} aria-label="Встроенный браузер">
@@ -225,7 +259,7 @@ export function BrowserPanel() {
         <button role="tab" aria-selected={tab.active} disabled={locked} title={tab.title || "Новая вкладка"} onClick={() => input("select", { index: tab.index })}><Icon name="browser" size={14}/><span>{tab.title || "Новая вкладка"}</span></button>
         <button aria-label={`Закрыть вкладку ${tab.title || tab.index + 1}`} disabled={locked} onClick={() => input("close", { index: tab.index })}><Icon name="close" size={12}/></button>
       </div>)}{!frame?.tabs.length && <span className="browser-empty-tab">Браузер</span>}<button className="icon-btn" aria-label="Новая вкладка браузера" disabled={!local || locked} onClick={() => input("new")}><Icon name="plus" size={16}/></button></div>
-      <div className="browser-window-actions"><button className="icon-btn" aria-label="Вынести браузер в окно наблюдения" title="Отдельное окно только для наблюдения" disabled={!local || detaching || resizing || changingMode || working || scrolling} onClick={() => void detach()}><Icon name="popout" size={16}/></button><button className="icon-btn" aria-label={expanded ? "Свернуть браузер" : "Развернуть браузер"} aria-pressed={expanded} onClick={() => setExpanded(!expanded)}><Icon name="expand" size={15}/></button><button className="icon-btn" aria-label="Закрыть панель браузера" onClick={() => store.setUi({ browserOpen: false })}><Icon name="panel" size={16}/></button></div>
+      <div className="browser-window-actions"><button className="icon-btn" aria-label="Вынести браузер в окно наблюдения" title="Отдельное окно только для наблюдения" disabled={!local || detaching || resizing || changingMode || working || scrolling} onClick={() => void detach()}><Icon name="popout" size={16}/></button><button className="icon-btn" aria-label={expanded ? "Свернуть браузер" : "Развернуть браузер"} aria-pressed={expanded} onClick={() => setExpanded(!expanded)}><Icon name="expand" size={15}/></button><button className="icon-btn" aria-label="Закрыть панель браузера" onClick={() => { presentations.set(presentationKey(), "hidden"); store.setUi({ browserOpen: false }); }}><Icon name="panel" size={16}/></button></div>
     </header>
     {!local ? <p role="status">Браузер доступен только на этом компьютере, когда управление включено.</p> : <>
       <form className="browser-address" onSubmit={e => { e.preventDefault(); editingAddress.current = false; input("navigate", { url: address }); }}>

@@ -188,11 +188,11 @@ export function loadPrefs(): Prefs {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingPrefs: Prefs | null = null;
-export function flushPrefs(): void {
+export function flushPrefs(): boolean {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
   const prefs = pendingPrefs;
-  if (!prefs) return;
+  if (!prefs) return true;
   try {
     const keys = Object.keys(prefs.drafts);
     const drafts =
@@ -201,8 +201,10 @@ export function flushPrefs(): void {
         : prefs.drafts;
     localStorage.setItem(KEY, JSON.stringify({ ...prefs, drafts }));
     pendingPrefs = null;
+    return true;
   } catch {
     /* Keep pending state available for a later retry. */
+    return false;
   }
 }
 export function savePrefs(prefs: Prefs): void {

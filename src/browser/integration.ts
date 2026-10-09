@@ -32,6 +32,17 @@ export async function browserNative<T>(command: string, args?: Record<string, un
   if (!isNative()) throw new Error("Управляемый браузер доступен в установленном приложении.");
   return (await import("@tauri-apps/api/core")).invoke<T>(command, args);
 }
+export async function openSessionBrowser(selection: { directory: string | null; engine: string; sessionId: string | null },
+  current: () => boolean, url: string | null, nodeProgram?: string | null, invoke = browserNative): Promise<BrowserStatus> {
+  if (!selection.directory || !selection.sessionId) throw new Error("Выберите чат для браузера.");
+  await invoke("browser_start", { nodeProgram });
+  if (!current()) throw new Error("Выбран другой чат; браузер не открыт.");
+  const selected = await invoke<{result:{scopeKey:string;scope:{engine:string;sessionID:string}}}>("browser_session", selection);
+  if (!current()) throw new Error("Выбран другой чат; браузер не открыт.");
+  if (selected.result.scope?.engine !== selection.engine || selected.result.scope?.sessionID !== selection.sessionId)
+    throw new Error("Браузер уже выбран для другого чата.");
+  return invoke("browser_open", { url, nodeProgram, scopeKey: selected.result.scopeKey });
+}
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 /**
@@ -73,6 +84,13 @@ export function browserConfig(source: string, status: BrowserStatus, enabled: bo
     throw new Error("Проверьте skills.paths в конфигурации OpenCode.");
   const paths = (skills?.paths ?? []) as string[];
   if (enabled && !paths.includes(status.skillPath)) content = updateConfig(content, ["skills", "paths"], [...paths, status.skillPath]);
+  if (value.plugin !== undefined && (!Array.isArray(value.plugin) || !value.plugin.every(p => typeof p === "string")))
+    throw new Error("Проверьте plugin в конфигурации OpenCode.");
+  const plugins = (value.plugin ?? []) as string[];
+  const normalized = status.runtimePath.replace(/\\/g, "/").replace(/\/$/, "");
+  const plugin = normalized.startsWith("//") ? `file:${encodeURI(normalized)}/opencode-session-plugin.mjs`
+    : `file://${normalized.startsWith("/") ? "" : "/"}${encodeURI(normalized).replace(/#/g,"%23").replace(/\?/g,"%3F")}/opencode-session-plugin.mjs`;
+  if (enabled && !plugins.includes(plugin)) content = updateConfig(content, ["plugin"], [...plugins, plugin]);
   return { content, config };
 }
 

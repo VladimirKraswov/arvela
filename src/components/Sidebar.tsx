@@ -12,8 +12,12 @@ export const pickFolder = pickProjectFolder;
 
 function ActivityMark({ id, pending = false }: { id: string; pending?: boolean }) {
   const status = store.activityStatus(id);
-  if (status?.type === "busy" || status?.type === "retry")
+  if (status?.type === "busy" || status?.type === "retry") {
+    const connection = store.state.connection;
+    if (!store.isPiSession(id) && (connection.phase !== "connected" || (connection.globalStreamState ?? connection.streamState) !== "open"))
+      return <span className="pending-dot" role="status" aria-label="Нет свежего статуса задачи" title="Нет связи: выполнение пока не подтверждено">?</span>;
     return <span className="session-spinner" role="status" aria-label="Задача выполняется" />;
+  }
   if (pending || status?.type === "waiting")
     return <span className="pending-dot" aria-label="Требуется ответ">!</span>;
   if (store.isUnread(id))
@@ -192,7 +196,9 @@ export function Sidebar() {
                 <Icon name={expanded ? "down" : "chevron"} size={12} />
                 <Icon name="folder" size={17} />
                 <span className="project-name">{name}</span>
-                {!expanded && store.hasRunningInDirectory(dir) && <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />}
+                {!expanded && store.hasRunningInDirectory(dir) && (s.prefs.projectEngine?.[dir] === "pi" || s.connection.phase === "connected" && (s.connection.globalStreamState ?? s.connection.streamState) === "open"
+                  ? <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />
+                  : <span className="pending-dot" role="status" aria-label="Нет свежего статуса проекта">?</span>)}
                 {!expanded && store.hasUnreadInDirectory(dir) && <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />}
               </button>
               <button className="project-new icon-btn" aria-label={`Новый чат в ${name}`} title="Новый чат в проекте" onClick={() => void store.setDirectory(dir)}><Icon name="plus" size={15} /></button>

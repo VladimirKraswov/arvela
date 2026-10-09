@@ -8,6 +8,11 @@ export interface QueuedPrompt {
   state: "ready" | "sending" | "uncertain";
   error?: string;
   queuedAt?: number;
+  /** Private IndexedDB copies, never blobs/base64 in preferences. */
+  attachments?: {
+    scope: string;
+    files: { id: string; name: string; mime: string; size: number }[];
+  };
 }
 /** Message IDs are increasing, as required by OpenCode's parent/last-user comparison. */
 let lastIdTime = 0;

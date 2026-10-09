@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { browserNative } from "../browser/integration";
 import { parseFrame, type BrowserFrame } from "../browser/view";
 import { Icon } from "./Icon";
@@ -11,14 +11,21 @@ export function BrowserMonitor() {
   const [stale, setStale] = useState(false);
   const [error, setError] = useState("");
   const [changing, setChanging] = useState(false);
+  const scopeRevision = useRef(0);
   useEffect(() => {
-    let cancelled = false, failures = 0;
+    let cancelled = false, failures = 0, revision = 0;
+    let stop: (() => void) | undefined;
+    void import("@tauri-apps/api/event").then(({listen}) => listen("browser-monitor://scope", () => {
+      revision++; scopeRevision.current++; setFrame(undefined); setStale(false); setError(""); setChanging(false);
+    })).then(unlisten => { if(cancelled) unlisten(); else stop = unlisten; }).catch(() => {});
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       let delay = 800;
       try {
+        const epoch = revision;
         const value = await browserNative<unknown>("browser_monitor_frame");
         if (cancelled) return;
+        if (epoch !== revision) { timer = setTimeout(() => void poll(), 100); return; }
         if (value !== null) {
           const next = parseFrame(value);
           setFrame(next); setStale(false); failures = 0;
@@ -34,15 +41,16 @@ export function BrowserMonitor() {
       if (!cancelled) timer = setTimeout(() => void poll(), delay);
     };
     void poll();
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; clearTimeout(timer); stop?.(); };
   }, []);
 
   async function present(action: "restore" | "hide") {
     if (changing) return;
+    const epoch = scopeRevision.current;
     setChanging(true);
-    try { await browserNative("browser_monitor", { action }); setError(""); }
-    catch { setError("Не удалось вернуть или скрыть окно. Повторите действие."); }
-    finally { setChanging(false); }
+    try { await browserNative("browser_monitor", { action }); if (epoch === scopeRevision.current) setError(""); }
+    catch { if (epoch === scopeRevision.current) setError("Не удалось вернуть или скрыть окно. Повторите действие."); }
+    finally { if (epoch === scopeRevision.current) setChanging(false); }
   }
   const hasImage = !!frame?.browserOpen && !!frame.image;
   const ratio = (frame?.width || 1280) / (frame?.height || 800);

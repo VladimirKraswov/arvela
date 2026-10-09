@@ -25,6 +25,8 @@ export interface ConnectionState {
     | "reconnecting"
     | "closed"
     | "error";
+  statusError?: string | null;
+  globalStreamState?: ConnectionState["streamState"];
   lastEventAt: number;
   endpoint: string;
 }

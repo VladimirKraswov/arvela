@@ -1,3 +1,4 @@
+import { executionEvidence, executionLabel, type ExecutionEvidence } from '../chat/execution';
 import { memo, useEffect, useId, useState } from "react";
 import type {
   AssistantMessage,
@@ -7,7 +8,7 @@ import type {
   Session,
   UserMessage,
 } from "../api/types";
-import { useAppState } from "../state/store";
+import { store, useAppState } from "../state/store";
 import { Markdown } from "./Markdown";
 import { CopyButton } from "./CopyButton";
 import { MessageEdit } from "./MessageEdit";
@@ -67,9 +68,9 @@ function truncate(s: string, n = 6000): string {
 }
 
 export const ToolPartView = memo(function ToolPartView({
-  part,
+  part, evidence = "active",
 }: {
-  part: MessagePart;
+  part: MessagePart; evidence?: ExecutionEvidence;
 }) {
   const st = part.state ?? { status: "pending" as const };
   const running = st.status === "running" || st.status === "pending";
@@ -82,7 +83,7 @@ export const ToolPartView = memo(function ToolPartView({
       <span className="tool-name">{part.tool ?? "tool"}</span>
       {description ? <span> {description}</span> : null}
       {st.status === "error" && <span className="tool-state-error"> — ошибка</span>}
-      {running && <span className="tool-state-run"> — выполняется</span>}
+      {running && <span className="tool-state-run"> — {executionLabel(evidence)}</span>}
     </>
   );
   const input =
@@ -95,7 +96,7 @@ export const ToolPartView = memo(function ToolPartView({
     <Fold
       label={label}
       tone="tool"
-      spinner={running}
+      spinner={running && evidence === "active"}
       right={dur ? <span className="tool-duration">{dur}</span> : undefined}
       defaultOpen={st.status === "error"}
     >
@@ -127,7 +128,7 @@ export const ToolPartView = memo(function ToolPartView({
   );
 });
 
-export function PartView({ part }: { part: MessagePart }) {
+export function PartView({ part, evidence }: { part: MessagePart; evidence?: ExecutionEvidence }) {
   switch (part.type) {
     case "text":
       if (part.ignored || part.synthetic) return null;
@@ -141,7 +142,7 @@ export function PartView({ part }: { part: MessagePart }) {
         </Fold>
       ) : null;
     case "tool":
-      return <ToolPartView part={part} />;
+      return <ToolPartView part={part} evidence={evidence} />;
     case "step-finish":
       return null;
     case "patch":
@@ -185,7 +186,12 @@ export const AssistantMessageView = memo(function AssistantMessageView({
 }) {
   const s = useAppState();
   const parts = visibleParts(messageParts(s, sessionId, message.id));
-  const running = !message.time.completed;
+  const status = store.activityStatus(sessionId);
+  const connected = store.isPiSession(sessionId) ? store.engineReady("pi")
+    : s.connection.phase === "connected" && s.connection.streamState === "open" && !s.connection.statusError;
+  const terminal = !!message.time.completed && !["tool-calls", "tool_calls"].includes(message.finish ?? "");
+  const evidence = executionEvidence(terminal, status?.type === "busy" || status?.type === "retry", connected);
+  const running = !message.time.completed && evidence === "active";
   const errText = message.error ? describeError(message.error) : null;
   const finishBad =
     message.finish &&
@@ -195,7 +201,7 @@ export const AssistantMessageView = memo(function AssistantMessageView({
   return (
     <div className="msg-assistant" data-scroll-anchor={`message:${message.id}`}>
       {parts.map((p) => (
-        <div key={p.id} data-scroll-anchor={`part:${p.id}`}><PartView part={p} /></div>
+        <div key={p.id} data-scroll-anchor={`part:${p.id}`}><PartView part={p} evidence={evidence} /></div>
       ))}
       {running && parts.length === 0 && (
         <div className="status-line">
@@ -237,7 +243,10 @@ export function AssistantTurnView({sessionId, messages, active = false, partial 
   const errors = allParts.filter(p => p.type === 'tool' && p.state?.status === 'error').length;
   const metrics = turnMetrics(messages);
   const terminal = !!last.time.completed && last.finish !== 'tool-calls' && last.finish !== 'tool_calls';
-  const label = last.summary ? 'Сжатие контекста' : active ? 'Работаю' : 'Ход работы';
+  const connected = store.isPiSession(sessionId) ? store.engineReady("pi")
+    : s.connection.phase === "connected" && s.connection.streamState === "open" && !s.connection.statusError;
+  const confirmedActive = active && connected;
+  const label = last.summary ? 'Сжатие контекста' : confirmedActive ? 'Работаю' : active ? 'Ожидаю подтверждения состояния' : 'Ход работы';
   const toggle = () => {
     // Explicit disclosure is reader navigation, not new streaming content to follow to the tail.
     document.getElementById(regionId)?.dispatchEvent(new Event('conversation-disclosure', {bubbles:true}));
@@ -246,7 +255,7 @@ export function AssistantTurnView({sessionId, messages, active = false, partial 
   return <section className="assistant-turn" aria-label="Ответ ассистента">
     {progress.length > 0 && <button className="turn-progress-toggle" data-scroll-anchor={`disclosure:${progressKey ?? messages[0].id}`} aria-expanded={expanded} aria-controls={progress.map(m => `${regionId}-${m.id}`).join(' ')} onClick={toggle}>
       <span className={`turn-chevron${expanded ? ' expanded' : ''}`} aria-hidden>›</span>
-      {active && <span className="tool-spinner" aria-hidden />}
+      {confirmedActive && <span className="tool-spinner" aria-hidden />}
       <span>{label}</span>{actions > 0 && <span className="turn-count">{actionCountLabel(actions)}</span>}
       {partial && <span className="turn-count">продолжение</span>}
       {errors > 0 && <span className="turn-tool-errors">Ошибок инструментов: {errors}</span>}

@@ -92,6 +92,19 @@ export const attachmentDrafts = {
     await write([], owned);
     cache.set(scope, (cache.get(scope) ?? empty).filter(item => !ids.includes(item.id))); emit();
   }); },
+  copy(from: string, to: string, ids: string[]) { return serialize(to, async () => {
+    await Promise.all([this.ensure(from), this.ensure(to)]);
+    const source = ids.map(id => (cache.get(from) ?? empty).find(file => file.id === id));
+    if (new Set(ids).size !== ids.length || source.some(file => !file))
+      throw new Error("Вложения не найдены. Верните запрос в черновик и приложите файлы заново.");
+    const existing = cache.get(to) ?? empty;
+    const items = source.map(file => ({ ...file!, id: crypto.randomUUID() }));
+    if (existing.length + items.length > 12 || [...existing, ...items].reduce((n, file) => n + file.size, 0) > MAX_ATTACHMENT_BYTES)
+      throw new Error("В черновике слишком много вложений: до 12 файлов и 50 МБ.");
+    await write(items.map(item => ({ ...item, scope: to })));
+    cache.set(to, [...existing, ...items]); emit();
+    return items;
+  }); },
   async move(from: string, to: string) {
     if (from === to) return;
     await Promise.all([this.ensure(from), this.ensure(to)]);

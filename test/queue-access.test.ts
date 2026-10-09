@@ -11,6 +11,8 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 beforeEach(async () => {
   vi.restoreAllMocks();
   vi.resetModules();
+  const values = new Map<string, string>();
+  vi.stubGlobal("localStorage", { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) });
   store = (await import("../src/state/store")).store;
   store.state = {
     ...store.state,

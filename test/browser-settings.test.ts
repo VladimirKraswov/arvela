@@ -10,11 +10,14 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("../src/state/store", () => ({ useAppState: () => fake.state, store: {
   currentHost: () => fake.host, configureBrowser: fake.configureBrowser,
+  get state() { return fake.state; }, engineIdFor: () => "opencode",
   setBrowserSettings: fake.setBrowserSettings, setUi: fake.setUi,
 } }));
-vi.mock("../src/browser/integration", () => ({
+vi.mock("../src/browser/integration", async importOriginal => { const actual=await importOriginal<typeof import("../src/browser/integration")>(); return {
+  ...actual,
+  openSessionBrowser: (...args: any[]) => actual.openSessionBrowser(args[0],args[1],args[2],args[3],fake.invoke),
   browserNative: fake.invoke, useBrowserSetup: () => fake.setup, browserSetupSnapshot: () => fake.setup,
-}));
+}; });
 vi.mock("../src/native/platform", () => ({ isNative: () => fake.native }));
 import { BrowserButton, BrowserSettings } from "../src/components/BrowserSettings";
 
@@ -24,13 +27,15 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fake.native = true; fake.host = null;
-  fake.state = { chat: { sessions: {} }, ui: { sending: false, workspacePreparing: false }, prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true }, pi: { nodeProgram: "/opt/homebrew/bin/node" } } };
+  fake.state = { activeSessionId:"ses_test",directory:"/test",chat: { sessions: {} }, ui: { sending: false, workspacePreparing: false }, prefs: { endpoint: "http://127.0.0.1:4096", browser: { enabled: true }, pi: { nodeProgram: "/opt/homebrew/bin/node" } } };
   status = { supported: true, installed: true, running: true, browserOpen: false,
     command: "/Applications/OpenCode Desktop.app/Contents/MacOS/app", nodeProgram: "/opt/homebrew/bin/node",
     skillPath: "/tmp/browser/skill", runtimePath: "/tmp/browser/current", profilePath: "/tmp/browser/profile", version: "0.0.83" };
   fake.setup = { phase: "ready", openCode: "Подключён", pi: "Готово", status };
   fake.invoke.mockImplementation(async (command: string) => {
     if (command === "browser_status") return status;
+    if (command === "browser_start") return status;
+    if (command === "browser_session") return {result:{scopeKey:"fixture-key",scope:{engine:"opencode",sessionID:"ses_test"}}};
     if (command === "browser_open") return { ...status, browserOpen: true };
     if (command === "browser_stop") return { ...status, running: false, browserOpen: false };
     throw new Error(`Unexpected command: ${command}`);
@@ -77,14 +82,14 @@ it.each(["remote host", "remote endpoint", "web preview", "disabled", "checking"
 it("opens the entered URL locally with the explicit browser Node path", async () => {
   fake.state.prefs.browser.nodeProgram = "/Applications/Node Runtime/node";
   await mount(); input("browser-address", "  https://example.com/project?q=code  "); await enter();
-  expect(opens()).toEqual([["browser_open", { url: "https://example.com/project?q=code", nodeProgram: "/Applications/Node Runtime/node" }]]);
+  expect(opens()).toEqual([["browser_open", { url: "https://example.com/project?q=code", nodeProgram: "/Applications/Node Runtime/node", scopeKey:"fixture-key" }]]);
   expect(document.body.textContent).toContain("Браузер открыт внутри Desktop");
   expect(fake.setBrowserSettings).not.toHaveBeenCalled();
 });
 
 it("ignores a second Enter while the first browser open is pending", async () => {
   const pending = deferred<BrowserStatus>();
-  fake.invoke.mockImplementation((command: string) => command === "browser_open" ? pending.promise : Promise.resolve(status));
+  fake.invoke.mockImplementation((command: string) => command === "browser_open" ? pending.promise : Promise.resolve(command === "browser_session" ? {result:{scopeKey:"fixture-key",scope:{engine:"opencode",sessionID:"ses_test"}}} : status));
   await mount(); await enter(); await enter();
   expect(opens()).toHaveLength(1);
   expect(button("Открыть браузер").disabled).toBe(true);
@@ -95,6 +100,7 @@ it("ignores a second Enter while the first browser open is pending", async () =>
 it("shows a failed open honestly and clears its alert after a successful refresh", async () => {
   fake.invoke.mockImplementation(async (command: string) => {
     if (command === "browser_open") throw new Error("Chromium could not start");
+    if (command === "browser_session") return {result:{scopeKey:"fixture-key",scope:{engine:"opencode",sessionID:"ses_test"}}};
     return status;
   });
   await mount(); await enter();
@@ -117,7 +123,7 @@ it("offers an emergency stop for the owned local service even when a remote host
   expect(button("Открыть браузер").disabled).toBe(true);
   expect(button("Остановить управление").disabled).toBe(false);
   await act(async () => button("Остановить управление").click());
-  expect(fake.invoke).toHaveBeenCalledWith("browser_stop", undefined);
+  expect(fake.invoke).toHaveBeenCalledWith("browser_stop");
   expect(fake.setBrowserSettings).toHaveBeenCalledWith({ enabled: false });
   expect(document.body.textContent).toContain("Остановлен");
 });
@@ -140,7 +146,7 @@ it("waits for toolbar configuration, prevents duplicate clicks, and opens a blan
   expect(control.disabled).toBe(true); expect(control.textContent).toContain("Открываю"); expect(opens()).toHaveLength(0);
   await act(async () => control.click()); expect(fake.configureBrowser).toHaveBeenCalledOnce();
   await act(async () => pending.resolve());
-  expect(opens()).toEqual([["browser_open", { url: null, nodeProgram: "/opt/homebrew/bin/node" }]]);
+  expect(opens()).toEqual([["browser_open", { url: null, nodeProgram: "/opt/homebrew/bin/node",scopeKey:"fixture-key" }]]);
   expect(control.disabled).toBe(false); expect(fake.setUi).toHaveBeenCalledWith({ browserOpen: true });
 });
 

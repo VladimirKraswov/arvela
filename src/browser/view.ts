@@ -3,6 +3,8 @@ export interface BrowserFrame {
   tabs: { index: number; url: string; title: string; active: boolean }[];
   url?: string; title?: string; image?: string; width?: number; height?: number;
   pageId?: string; revision?: number;
+  scope?: { directory: string; engine: string; sessionID: string } | null;
+  scopeKey?: string;
   cursor?: { x: number; y: number; owner: "agent" | "user"; action: string; at: number } | null;
 }
 export function parseFrame(value: unknown): BrowserFrame {
@@ -18,6 +20,9 @@ export function parseFrame(value: unknown): BrowserFrame {
   if (f.mode !== undefined && !["fast", "human"].includes(f.mode)) throw new Error("Некорректный режим браузера.");
   if (f.url !== undefined && typeof f.url !== "string") throw new Error("Некорректный адрес.");
   if (f.title !== undefined && typeof f.title !== "string") throw new Error("Некорректный заголовок.");
+  if (f.scope != null && (typeof f.scope !== "object" || !["opencode", "pi"].includes(f.scope.engine)
+      || typeof f.scope.directory !== "string" || typeof f.scope.sessionID !== "string" || !/^[A-Za-z0-9_-]{1,200}$/.test(f.scope.sessionID))) throw new Error("Некорректная сессия браузера.");
+  if (f.scopeKey !== undefined && (typeof f.scopeKey !== "string" || f.scopeKey.length > 10000)) throw new Error("Некорректная привязка браузера.");
   if (f.pageId !== undefined && (typeof f.pageId !== "string" || !Number.isSafeInteger(f.revision) || f.revision! < 0)) throw new Error("Некорректное состояние страницы.");
   if (f.cursor && (!Number.isFinite(f.cursor.x) || !Number.isFinite(f.cursor.y) || !["agent", "user"].includes(f.cursor.owner)))
     throw new Error("Некорректный курсор.");
@@ -28,4 +33,9 @@ export function browserPoint(clientX: number, clientY: number, rect: { left: num
   const x = (clientX - rect.left) * frame.width / rect.width;
   const y = (clientY - rect.top) * frame.height / rect.height;
   return x >= 0 && y >= 0 && x < frame.width && y < frame.height ? { x, y } : null;
+}
+
+/** Missing/foreign scope never renders a legacy shared browser in a chat. */
+export function frameForSession(frame: BrowserFrame, engine: string, sessionID: string | null) {
+  return !!sessionID && frame.scope?.engine === engine && frame.scope?.sessionID === sessionID;
 }

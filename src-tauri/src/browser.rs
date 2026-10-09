@@ -32,6 +32,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use tauri::Emitter;
 use tauri::Manager;
 
 const DAEMON_START: Duration = Duration::from_secs(15);
@@ -65,6 +66,9 @@ pub struct BrowserRuntime {
     /// Bumped by an explicit stop, so install/start that is queued or already
     /// running gives up instead of finishing behind the user's back.
     stop_epoch: Arc<AtomicU64>,
+    selection_epoch: Arc<AtomicU64>,
+    projection_epoch: Arc<AtomicU64>,
+    selection_context: Arc<Mutex<String>>,
 }
 
 impl BrowserRuntime {
@@ -503,6 +507,7 @@ pub async fn browser_open(
     state: tauri::State<'_, BrowserRuntime>,
     url: Option<String>,
     node_program: Option<String>,
+    scope_key: Option<String>,
 ) -> Result<BrowserStatus, String> {
     main_window(&window)?;
     let runtime = state.inner().clone();
@@ -517,10 +522,11 @@ pub async fn browser_open(
         let root = root_dir()?;
         // Without a URL only the window is revealed: the current page, form
         // values and tabs stay exactly as they are.
-        let payload = match address {
-            Some(address) => json!({"method":"tools/call","workspace":root.join("workspace"),"reveal":true,"params":{"name":"browser_navigate","arguments":{"url":address}}}),
+        let mut payload = match address {
+            Some(address) => json!({"method":"tools/call","owner":"user","reveal":true,"params":{"name":"browser_navigate","arguments":{"url":address}}}),
             None => json!({"method":"desktop/reveal"}),
         };
+        if let Some(scope_key) = scope_key { payload["scopeKey"] = json!(scope_key); }
         let result = gateway::request(&root, Endpoint::Rpc, Some(&payload))?;
         if result["result"]["isError"] == true {
             return Err("Не удалось открыть страницу. Проверьте адрес, сеть и библиотеки Chromium в Linux.".into());
@@ -545,6 +551,70 @@ pub async fn browser_stop(
         status(None)
     })
     .await
+}
+
+/// Select a projection without stopping any background browser or agent.
+#[tauri::command]
+pub async fn browser_session(
+    window: tauri::Window,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, BrowserRuntime>,
+    directory: Option<String>,
+    engine: Option<String>,
+    session_id: Option<String>,
+) -> Result<Value, String> {
+    main_window(&window)?;
+    // Remains monotonic when Desktop reconnects to an already running daemon.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_micros() as u64;
+    let revision = state
+        .selection_epoch
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |previous| {
+            Some(previous.max(now) + 1)
+        })
+        .unwrap()
+        .max(now)
+        + 1;
+    let payload = match (directory, engine, session_id) {
+        (Some(directory), Some(engine), Some(session_id)) => {
+            if !Path::new(&directory).is_absolute()
+                || !matches!(engine.as_str(), "opencode" | "pi")
+                || session_id.is_empty()
+                || session_id.len() > 200
+                || !session_id
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-')
+            {
+                return Err("Некорректная сессия браузера.".into());
+            }
+            json!({"method":"desktop/session", "workspace":directory, "session":{"engine":engine,"sessionID":session_id}, "revision":revision})
+        }
+        (None, None, None) => {
+            json!({"method":"desktop/session", "session":null,"revision":revision})
+        }
+        _ => return Err("Не указана полная сессия браузера.".into()),
+    };
+    let identity = format!("{}:{}", payload["workspace"], payload["session"]);
+    let changed = {
+        let mut previous = state
+            .selection_context
+            .lock()
+            .map_err(|_| "Не удалось выбрать браузер.")?;
+        let changed = *previous != identity;
+        *previous = identity;
+        changed
+    };
+    if changed {
+        state.projection_epoch.fetch_add(1, Ordering::AcqRel);
+        if let Some(viewer) = app.get_webview_window(monitor::LABEL) {
+            viewer.hide().map_err(|e| e.to_string())?;
+            app.emit_to(monitor::LABEL, "browser-monitor://scope", revision)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    blocking(move || gateway::request(&root_dir()?, Endpoint::Rpc, Some(&payload))).await
 }
 
 /// Read-only pixel projection; tokens remain in the native gateway. Only the
@@ -586,7 +656,14 @@ fn panel_tool(action: &str, args: &Value) -> Result<Value, String> {
                 .as_str()
                 .filter(|v| matches!(*v, "fast" | "human"))
                 .ok_or("Некорректный режим браузера.")?;
-            ("desktop/mode", json!({"mode":mode}))
+            (
+                if args.get("scopeKey").is_some() {
+                    "desktop/mode"
+                } else {
+                    "desktop/default-mode"
+                },
+                json!({"mode":mode}),
+            )
         }
         "resize" => {
             let width = args["width"]
@@ -669,6 +746,7 @@ pub async fn browser_input(
     main_window(&window)?;
     let params = panel_tool(&action, &args)?;
     let expected = args.get("expected").cloned();
+    let scope_key = args.get("scopeKey").cloned();
     blocking(move || {
         let root = root_dir()?;
         let mut payload = if params["name"].as_str().is_some_and(|name| name.starts_with("desktop/")) {
@@ -677,6 +755,7 @@ pub async fn browser_input(
             "method":"tools/call", "workspace":root.join("workspace"), "owner":"user", "params":params
         }) };
         if let Some(expected) = expected { payload["expected"] = expected; }
+        if let Some(scope_key) = scope_key { payload["scopeKey"] = scope_key; }
         let result = gateway::request(&root, Endpoint::Rpc, Some(&payload))?;
         if result["result"]["isError"] == true { return Err("Действие не выполнено. Проверьте страницу и повторите.".into()); }
         Ok(())
@@ -955,7 +1034,7 @@ mod tests {
     fn panel_mode_and_resize_are_narrow_and_bounded() {
         assert_eq!(
             panel_tool("mode", &json!({"mode":"human"})).unwrap()["name"],
-            "desktop/mode"
+            "desktop/default-mode"
         );
         for mode in ["unsafe", "", "Human"] {
             assert!(panel_tool("mode", &json!({"mode":mode})).is_err());

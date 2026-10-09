@@ -2024,6 +2024,9 @@ kbd {
   font-size: 0.928571rem;
   overflow-wrap: anywhere;
 }
+.queued-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.queued-attachments span { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow-wrap: anywhere; color: var(--text-dim); font-size: .8rem; }
+.queued-attachments svg { flex-shrink: 0; }
 .queue-actions {
   display: flex;
   gap: 12px;

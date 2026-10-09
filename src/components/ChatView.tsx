@@ -163,7 +163,10 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
         {slot?.status.type === 'retry' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />{slot.status.message ?? 'Повтор подключения…'}</div>}
         {permission && <PermissionCard req={permission} onReply={r => void store.replyPermission(permission, r)} />}
         {question && <QuestionCard key={question.id} req={question} onReply={a => void store.replyQuestion(question, a)} onReject={() => void store.rejectQuestion(question)} />}
-        {broken && s.connection.phase === 'connected' && <div className="status-line" role="status">Восстанавливаем поток событий. История сохранена.</div>}
+        {(broken || s.connection.statusError) && !store.isPiSession(sessionId ?? "") && <div className="status-line" role="alert">
+          {s.connection.statusError ? `Не удалось проверить состояние чата: ${s.connection.statusError}` : "Нет свежих событий. Выполнение не подтверждено; история сохранена."}
+          <button className="btn" onClick={() => void store.retryConnection()}>Проверить соединение</button>
+        </div>}
       </div>
     </div>
     {away && sessionId && <button className="jump-latest" title="Перейти к последнему сообщению" aria-label="К последнему сообщению" onClick={() => controller.current?.latest()}><Icon name="arrowDown" size={18} /><span>Вниз</span></button>}
