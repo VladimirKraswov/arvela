@@ -29,6 +29,29 @@ an explicit client compatibility policy, not cryptographic proof of agent identi
 protect inference endpoints with the existing private network/tunnel controls.
 The catalog's `agents` list determines visibility. No model-name matching is used.
 
+## Discovery, offline models and selection
+
+Since 0.2.35, configured models remain in the picker when their inference service
+is offline. OpenCode uses connected/configured providers, not its entire global
+model database; Pi keeps its own catalog, custom IDs and access badges. Service
+bindings supplement providers configured in the owning agent. Removing a model
+from its agent configuration or its binding removes that source of the row;
+removing a service alone does not erase an independent provider configuration.
+
+The service catalog stores only last-known public display metadata in preferences,
+scoped to its endpoint. This retains labels and Pi-only visibility across relaunch
+and temporary network failures. Cached metadata never authorizes inference; an
+unknown policy must be obtained from the service before execution. Fresh policy
+changes replace the display metadata. Keys remain in the system credential vault.
+
+“Обновить список” in the picker reads the owning agent and service catalogs without
+loading weights or prompting a model. Partial failures retain configured rows and
+show the error. Selecting a managed target waits for its exact ready state; Pi
+additionally performs its existing small real access probe. Failure opens a modal
+with retry, leaves the row and the previous selection intact, and never selects a
+substitute. A late readiness result cannot change another chat or workspace.
+Previously selected configured models also remain selected when offline.
+
 ## Version-1 control contract
 
 All control requests require `Authorization: Bearer <control-key>`.

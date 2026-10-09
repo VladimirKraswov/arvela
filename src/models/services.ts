@@ -7,6 +7,8 @@ export interface ModelService {
   providerID: string;
   endpoint: string;
   bindings: Record<string, string>;
+  /** Last-known display metadata only. Never evidence of access or readiness. */
+  catalog?: { endpoint: string; models: ServiceModel[] };
 }
 export interface ServiceModel {
   id: string;
@@ -37,6 +39,17 @@ export interface ServiceSnapshot {
   errors: Record<string, string>;
 }
 const EMPTY: ServiceSnapshot = { revision: 0, states: {}, errors: {} };
+
+function validCatalog(models: unknown): models is ServiceModel[] {
+  return Array.isArray(models) && models.every(m => m && typeof m.id === "string" && !!m.id &&
+    typeof m.label === "string" && Array.isArray(m.agents) && m.agents.every((a: unknown) => typeof a === "string")) &&
+    new Set(models.map(m => m.id)).size === models.length;
+}
+function displayMetadata(models: ServiceModel[]): ServiceModel[] {
+  // Keep only the documented public fields, even if a server adds extra data.
+  return models.map(m => ({ id: m.id, label: m.label, agents: [...m.agents],
+    ...(Number.isSafeInteger(m.context_window) && m.context_window! > 0 ? { context_window: m.context_window } : {}) }));
+}
 
 export function validateServices(services: unknown): string | null {
   if (!Array.isArray(services)) return "Список сервисов повреждён.";
@@ -146,6 +159,30 @@ export class ModelServices {
   catalogFor(id: string): readonly ServiceModel[] | undefined {
     return this.catalogs.get(id);
   }
+  configuredServices(): ModelService[] { return structuredClone(this.services); }
+  private displayCatalog(service: ModelService): readonly ServiceModel[] | undefined {
+    return this.catalogs.get(service.id) ?? service.catalog?.models;
+  }
+  /** Visibility and execution authorization intentionally have different lifetimes. */
+  visible(providerID: string, modelID: string, agent: string): boolean {
+    const service = this.route(providerID, modelID);
+    if (!service) return this.allowed(providerID, modelID, agent);
+    const model = this.displayCatalog(service)?.find(m => m.id === service.bindings[modelID]);
+    return model ? model.agents.includes(agent) : true;
+  }
+  configuredModels(agent: string): { providerID: string; modelID: string; label: string }[] {
+    return this.services.flatMap(service => Object.entries(service.bindings)
+      .filter(([id]) => this.visible(service.providerID, id, agent))
+      .map(([id, remote]) => ({ providerID: service.providerID, modelID: id,
+        label: this.displayCatalog(service)?.find(m => m.id === remote)?.label ?? id })));
+  }
+  /** A refresh reads catalogs only; it never loads a model or sends a prompt. */
+  async refreshAll(): Promise<void> {
+    const services = this.services.filter((s, i, all) => all.findIndex(a => a.endpoint === s.endpoint) === i);
+    const results = await Promise.allSettled(services.map(s => this.refresh(s.id)));
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failures.length) throw new Error(failures.map(r => r.reason instanceof Error ? r.reason.message : "Сервис недоступен.").join("\n"));
+  }
   subscribe = (fn: () => void) => {
     this.listeners.add(fn);
     return () => {
@@ -163,6 +200,8 @@ export class ModelServices {
     this.services = structuredClone(services).map((service) => ({
       ...service,
       endpoint: new URL(service.endpoint).origin,
+      catalog: service.catalog?.endpoint === new URL(service.endpoint).origin && validCatalog(service.catalog.models)
+        ? { endpoint: service.catalog.endpoint, models: displayMetadata(service.catalog.models) } : undefined,
     }));
     this.catalogs.clear();
     this.restored.clear();
@@ -171,8 +210,7 @@ export class ModelServices {
         this.keys.delete(endpoint);
     }
     this.emit({ states: {}, errors: {} });
-    for (const service of services)
-      void this.refresh(service.id).catch(() => {});
+    void this.refreshAll().catch(() => {});
   }
   setKey(id: string, key: string) {
     const service = this.services.find((s) => s.id === id);
@@ -239,35 +277,27 @@ export class ModelServices {
       }>("GET", "/v1/model-control/catalog");
       if (
         catalog.schema !== 1 ||
-        !Array.isArray(catalog.models) ||
-        catalog.models.some(
-          (m) =>
-            !m ||
-            typeof m.id !== "string" ||
-            !m.id ||
-            typeof m.label !== "string" ||
-            !Array.isArray(m.agents) ||
-            m.agents.some((a) => typeof a !== "string"),
-        )
+        !validCatalog(catalog.models)
       )
         throw new Error("Неподдерживаемый каталог сервиса.");
       if (gen !== this.generation) return [];
       for (const item of this.services.filter(
         (s) => s.endpoint === service.endpoint,
-      ))
-        this.catalogs.set(item.id, catalog.models);
+      )) {
+        this.catalogs.set(item.id, displayMetadata(catalog.models));
+        item.catalog = { endpoint: service.endpoint, models: displayMetadata(catalog.models) };
+      }
       const errors = { ...this.value.errors };
       for (const item of this.services.filter((s) => s.endpoint === service.endpoint)) delete errors[item.id];
       this.emit({ errors });
       return catalog.models;
     } catch (error) {
-      if (gen === this.generation)
-        this.emit({
-          errors: {
-            ...this.value.errors,
-            [id]: error instanceof Error ? error.message : "Сервис недоступен.",
-          },
-        });
+      if (gen === this.generation) {
+        const errors = { ...this.value.errors };
+        for (const item of this.services.filter(s => s.endpoint === service.endpoint))
+          errors[item.id] = error instanceof Error ? error.message : "Сервис недоступен.";
+        this.emit({ errors });
+      }
       throw error;
     }
   }

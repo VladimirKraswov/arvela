@@ -211,3 +211,60 @@ it("a failed vault write does not activate an unsaved credential", async () => {
   manager.configure(services);
   await expect(manager.saveKey("gpu", "secret")).rejects.toThrow("locked vault");
 });
+
+it("persists offline display policy without granting execution, recovers on refresh and removes deleted bindings", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => response(catalog)));
+  const manager = new ModelServices();
+  manager.configure(services);
+  await manager.refresh("gpu");
+  const persisted = manager.configuredServices();
+  vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+  const restarted = new ModelServices();
+  restarted.configure(persisted);
+  await expect(restarted.refreshAll()).rejects.toThrow();
+  expect(restarted.visible("volta", "base", "opencode")).toBe(true);
+  expect(restarted.visible("volta", "tuned", "opencode")).toBe(false);
+  expect(restarted.configuredModels("pi").map(m => m.modelID)).toEqual(["base", "tuned"]);
+  expect(restarted.allowed("volta", "base", "opencode")).toBe(false);
+  await expect(restarted.ensure("volta", "base", "opencode")).rejects.toThrow();
+  expect(restarted.configuredModels("pi")).toHaveLength(2);
+  vi.stubGlobal("fetch", vi.fn(async () => response(catalog)));
+  await restarted.refreshAll();
+  expect(restarted.allowed("volta", "base", "opencode")).toBe(true);
+  expect(restarted.errorFor("volta", "base")).toBeUndefined();
+  restarted.configure([{ ...persisted[0], bindings: { base: "base" } }]);
+  expect(restarted.configuredModels("pi").map(m => m.modelID)).toEqual(["base"]);
+  restarted.configure([]);
+  expect(restarted.configuredModels("pi")).toEqual([]);
+});
+
+it("does not reuse display policy after endpoint changes and accepts fresh policy changes", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => response(catalog)));
+  const manager = new ModelServices();
+  manager.configure(services);
+  await manager.refresh("gpu");
+  const persisted = manager.configuredServices();
+  vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+  manager.configure([{ ...persisted[0], endpoint: "http://127.0.0.1:18009" }]);
+  expect(manager.configuredServices()[0].catalog).toBeUndefined();
+  expect(manager.allowed("volta", "tuned", "opencode")).toBe(false);
+  manager.configure(persisted);
+  expect(manager.visible("volta", "tuned", "opencode")).toBe(false);
+  vi.stubGlobal("fetch", vi.fn(async () => response({ ...catalog, models: catalog.models.map(m => ({ ...m, agents: ["opencode"] })) })));
+  await manager.refreshAll();
+  expect(manager.visible("volta", "tuned", "opencode")).toBe(true);
+  expect(manager.visible("volta", "tuned", "pi")).toBe(false);
+});
+
+it("refresh shares alias failures and persists only documented public metadata", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => response({ schema: 1, models: catalog.models.map(m => ({ ...m, apiKey: "must-not-persist" })) })));
+  const manager = new ModelServices();
+  manager.configure([...services, { ...services[0], id: "alias", providerID: "other" }]);
+  await manager.refreshAll();
+  expect(JSON.stringify(manager.configuredServices())).not.toContain("must-not-persist");
+  vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+  await expect(manager.refreshAll()).rejects.toThrow();
+  expect(manager.errorFor("volta", "base")).toBeTruthy();
+  expect(manager.errorFor("other", "base")).toBe(manager.errorFor("volta", "base"));
+  expect(manager.configuredModels("pi")).toHaveLength(4);
+});

@@ -1,3 +1,38 @@
+# Arvela 0.2.35 — configured model discovery (2026-10-09)
+
+Configured model rows are independent of transient readiness. The picker adds
+read-only refresh, last-known public service metadata and agent policy, and an
+awaited selection with a modal warning/retry. Explicit configured choices remain
+selected offline; a late check cannot write a choice into another chat. Service
+keys remain in the native vault. Cached metadata does not authorize execution.
+
+Validation: 654 frontend tests pass, 6 pre-existing tests remain skipped;
+TypeScript/Vite and the Mac app/DMG build pass. Existing fail-closed policy and
+credential tests remain unchanged. Added regressions cover offline relaunch,
+endpoint changes, policy updates, deleted bindings, public-field-only persistence,
+provider aliases, access failures and stale selection. The Pi picker test was
+updated because the owner explicitly requires unverified configured rows to stay
+visible; real access evidence and prompt gates remain separate.
+
+An isolated real browser UI used deliberately unreachable test-only endpoints:
+refresh retained the configured row and reported the connection error; selection
+opened a native HTML modal, retry failed honestly, and closing restored the editor.
+No synthetic result is claimed as inference evidence.
+
+Installed native Mac 0.2.35: OpenCode's picker contains the uncensored 27B entry
+and excludes the Pi-only entry; Pi's picker contains both 27B entries. Native
+catalog refresh completes without inference. Selecting the already-loaded V100
+model confirmed exact service readiness and a 262144-token context. The new chat's
+original OpenCode/DeepSeek Pro choice and effort were restored; no owner prompt,
+existing chat, global agent configuration, service lifecycle or GPU assignment was
+changed. The V100 remains on the uncensored model. No Pi inference trial, GPU speed
+benchmark or Windows/Linux live test was run for this UI fix.
+
+The installed executable matches the signed build SHA256
+`712a6fe79aadb3ac69407e735722b9c14d37da4b9cfc33df2b75a0f2a3b43622`.
+DMG SHA256: `d1f8567456b2d9607d22e4f18a3d731720ce76fbee42e1cb7322afca495fd421`.
+The prior app bundle is retained privately. Publication receipt follows after push.
+
 # Arvela 0.2.34 — M43/M44/M45 and selected Mac acceptance (2026-10-08)
 
 The combined release adds passive per-request timing diagnostics, realistic miniature-project/browser evaluations and an optional shared read-only project map. No inference engine, GPU, provider defaults, existing histories or native agent permissions changed.

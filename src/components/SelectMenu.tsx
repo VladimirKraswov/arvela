@@ -8,6 +8,9 @@ export function SelectMenu({
   options,
   onChange,
   disabled = false,
+  onRefresh,
+  refreshing = false,
+  refreshError,
 }: {
   label: string;
   className?: string;
@@ -21,6 +24,9 @@ export function SelectMenu({
   }[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  refreshError?: string;
 }) {
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState("");
@@ -62,7 +68,7 @@ export function SelectMenu({
         ref={buttonRef}
         className="select-trigger"
         aria-label={label}
-        aria-haspopup="listbox"
+        aria-haspopup={onRefresh ? "dialog" : "listbox"}
         aria-expanded={open}
         title={selected ? [selected.label, selected.detail].filter(Boolean).join(" · ") : value || label}
         disabled={disabled}
@@ -78,7 +84,7 @@ export function SelectMenu({
       </button>
       {open && (
         <FloatingPopover anchor={buttonRef.current} contentRef={popupRef}
-          className="select-popover" role="listbox" label={label}
+          className="select-popover" role={onRefresh ? "dialog" : "listbox"} label={label}
           width={options.some((o) => o.detail) ? 360 : 240}
           onClose={() => setOpen(false)}>
           {options.length > 8 && (
@@ -90,7 +96,7 @@ export function SelectMenu({
               onChange={(e) => setQuery(e.target.value)}
             />
           )}
-          <div className="select-options">
+          <div className="select-options" role={onRefresh ? "listbox" : undefined} aria-label={onRefresh ? label : undefined}>
             {filtered.map((o) => (
               <button
                 role="option"
@@ -113,6 +119,13 @@ export function SelectMenu({
               </button>
             ))}
           </div>
+          {onRefresh && <div className="select-refresh">
+            <button type="button" disabled={refreshing} onClick={onRefresh}>
+              <Icon name="refresh" size={14}/>{refreshing ? "Обновление…" : "Обновить список"}
+            </button>
+            {!filtered.length && <small>Настроенных моделей пока нет.</small>}
+            {refreshError && <small role="status">{refreshError}</small>}
+          </div>}
         </FloatingPopover>
       )}
     </div>

@@ -1,5 +1,14 @@
 # Arvela roadmap
 
+## Model discovery reliability (2026-10-09)
+
+### M46 — Persistent configured models (verification in progress, 0.2.35)
+
+- [x] Separate configured model visibility from live access/readiness; retain public display metadata and Pi-only catalog policy while offline.
+- [x] Agent-owned catalogs, explicit refresh, access badges, readiness modal/retry and no substitute on failure.
+- [x] Scope asynchronous selection to the original engine/workspace/chat; remove rows through their configuration.
+- [ ] Full regression suite, Mac UI/package acceptance and main/release publication.
+
 ## Verified project experience (2026-10-08)
 
 Develop in small verified releases. Reuse OpenCode/Pi and common adapters; no second agent loop. Keep active owner work and GPU services untouched. Use DeepSeek only if a live model request is necessary while local models are occupied. History is evidence, not instructions; task acceptance is not permission to train or publish private data.

@@ -1751,7 +1751,8 @@ class Store {
    *
    * Pi's bundled catalog is *not* the list of models an account can use: it can
    * both miss accessible custom models and list models the account cannot reach.
-   * A successful short request is the gate for the chat picker and prompts:
+   * A successful short request is access evidence for defaults. Configured
+   * picker rows remain visible offline; selecting one checks readiness:
    *
    *   per-chat / per-folder choice  →  explicit custom model  →  configured
    *   default  →  first catalog entry
@@ -1762,7 +1763,7 @@ class Store {
     return choosePiModel(this.state, directory);
   }
 
-  /** Only models with a successful access check belong in the chat picker. */
+  /** Configured models remain visible; access evidence is a badge, not a filter. */
   piModelOptions(): {
     providerID: string;
     modelID: string;
@@ -1794,7 +1795,7 @@ class Store {
         source: "custom",
         verified: verified === `${custom.providerID}/${custom.modelID}` || Boolean(verifiedModels[`${custom.providerID}/${custom.modelID}`]),
       });
-    return out.filter((model) => model.verified);
+    return out;
   }
 
   setPiCustomModel(value: string): void {
@@ -1849,12 +1850,45 @@ class Store {
     variant?: string | null,
     automaticBrowser = false,
   ): void {
+    this.modelSelectionRevision++;
     const engine = this.engineIdFor();
     if (!modelServices.allowed(providerID, modelID, engine)) {
       this.patchUi({ sendError: "Эта модель недоступна выбранному агенту. Проверьте сервис моделей." });
       return;
     }
     void modelServices.ensure(providerID, modelID, engine).catch(error => this.patchUi({ sendError: errText(error) }));
+    this.commitModelChoice(providerID, modelID, variant, automaticBrowser);
+  }
+
+  private modelSelectionRevision = 0;
+  /** Do not write the choice until the selected target passes its readiness check. */
+  async selectModel(providerID: string, modelID: string, variant?: string | null): Promise<boolean> {
+    const revision = ++this.modelSelectionRevision;
+    const engine = this.engineIdFor(), directory = this.state.directory, session = this.state.activeSessionId;
+    const generation = this.directoryGeneration, backend = this.backend;
+    const current = () => revision === this.modelSelectionRevision && generation === this.directoryGeneration &&
+      engine === this.engineIdFor() && directory === this.state.directory && session === this.state.activeSessionId && backend === this.backend;
+    if (engine === PI_BACKEND_ID) {
+      const result = await this.checkPiModelAccess(`${providerID}/${modelID}`);
+      if (!current()) return false;
+      if (!result.ok) throw new Error(result.detail);
+    } else {
+      if (!this.configuredProvidersWithModels().some(p => p.id === providerID && Boolean(p.models[modelID])))
+        throw new Error("Эта модель не настроена в OpenCode. Обновите список или проверьте настройки провайдера.");
+      const health = await backend.health();
+      if (!current()) return false;
+      if (!health.healthy) throw new Error("Нет связи с OpenCode.");
+      if (!modelServices.manages(providerID, modelID) && !this.state.connectedProviderIds.includes(providerID))
+        throw new Error("Провайдер сейчас недоступен. Проверьте его настройки подключения.");
+      await modelServices.ensure(providerID, modelID, engine);
+      if (!current()) return false;
+    }
+    this.commitModelChoice(providerID, modelID, variant);
+    return true;
+  }
+
+  private commitModelChoice(providerID: string, modelID: string, variant?: string | null, automaticBrowser = false): void {
+    const engine = this.engineIdFor();
     const dir =
       engine === PI_BACKEND_ID
         ? (this.state.directory ?? "@chats")
@@ -1917,6 +1951,33 @@ class Store {
     return this.state.providers.filter((p) =>
       this.state.connectedProviderIds.includes(p.id),
     );
+  }
+
+  configuredProvidersWithModels(): ProviderInfo[] {
+    return this.state.providers.filter(p => p.source === "config" || this.state.connectedProviderIds.includes(p.id));
+  }
+
+  async refreshModelCatalog(): Promise<void> {
+    const engine = this.engineIdFor(), gen = this.directoryGeneration, backend = this.backend, directory = this.state.directory;
+    const discovery = engine === PI_BACKEND_ID
+      ? this.pi().describe(directory ?? await piBridge().probeDirectory().catch(() => "")).then(health => {
+        if (health.error) throw new Error(health.error);
+        if (gen === this.directoryGeneration && engine === this.engineIdFor()) { this.piInstalled = health.install.installed; this.mutate({ piHealth: health }); }
+      })
+      : backend.providers(undefined, directory).then(prov => {
+        if (gen === this.directoryGeneration && backend === this.backend && engine === this.engineIdFor())
+          this.mutate({ providers: prov.all ?? [], connectedProviderIds: prov.connected ?? [], providerDefaults: prov.default ?? null });
+      });
+    const results = await Promise.allSettled([discovery, modelServices.refreshAll()]);
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failures.length) throw new Error(failures.map(r => errText(r.reason)).join("\n"));
+  }
+
+  syncModelServiceCatalogs(): void {
+    const services = modelServices.configuredServices();
+    if (JSON.stringify(services) === JSON.stringify(this.state.prefs.modelServices ?? [])) return;
+    this.mutate(s => ({ prefs: { ...s.prefs, modelServices: services } }));
+    this.persistPrefs();
   }
 
   modelInfo(providerID: string, modelID: string): ModelInfo | null {
@@ -2462,7 +2523,7 @@ class Store {
   }
   setModelServices(services: ModelService[]) {
     modelServices.configure(services);
-    this.mutate(s => ({ prefs: { ...s.prefs, modelServices: services } }));
+    this.mutate(s => ({ prefs: { ...s.prefs, modelServices: modelServices.configuredServices() } }));
     this.persistPrefs();
   }
   setHelperEndpoint(endpoint: string) {
@@ -3211,6 +3272,7 @@ export function errText(e: unknown): string {
 }
 
 export const store = new Store();
+const stopCatalogPersistence = modelServices.subscribe(() => store.syncModelServiceCatalogs());
 try {
   modelServices.configure(store.state.prefs.modelServices ?? []);
 } catch (error) {
@@ -3219,7 +3281,7 @@ try {
 // Both engines live in the registry, so `listBackendDescriptors()` is the honest
 // list of what this build can drive.
 registerBackendDescriptor(piDescriptor(() => store.pi()));
-import.meta.hot?.dispose(() => store.dispose());
+import.meta.hot?.dispose(() => { stopCatalogPersistence(); store.dispose(); });
 
 export function useAppState(): AppState {
   return useSyncExternalStore(store.subscribe, store.getSnapshot);

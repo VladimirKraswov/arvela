@@ -134,23 +134,25 @@ it("keeps OpenCode as the engine for a folder that never chose one", async () =>
   expect(piPrompts).toEqual([]);
 });
 
-it("offers Pi models only after a real access check and keeps evidence per model", async () => {
+it("keeps configured Pi models visible while recording and revoking real access evidence", async () => {
   store.state.prefs.pi.verifiedModels = {};
   store.state.prefs.pi.verifiedModel = undefined;
   store.state.piHealth.models.push({
     id: "qwen-v100", provider: "local-qwen-v100", name: "Qwen V100", input: ["text", "image"],
   });
-  expect(store.piModelOptions()).toEqual([]);
+  expect(store.piModelOptions().map((m: any) => m.verified)).toEqual([false, false]);
   expect(store.getModelChoice("pi")).toBeNull();
   const check = vi.spyOn(store.pi(), "checkAccess").mockResolvedValue("Модель ответила.");
   expect((await store.checkPiModelAccess("local-qwen-v100/qwen-v100")).ok).toBe(true);
   expect(check).toHaveBeenCalled();
   expect(store.piModelOptions().map((m: any) => `${m.providerID}/${m.modelID}`))
-    .toEqual(["local-qwen-v100/qwen-v100"]);
+    .toEqual(["deepseek/deepseek-v4-flash", "local-qwen-v100/qwen-v100"]);
+  expect(store.piModelOptions().filter((m: any) => m.verified).map((m: any) => m.modelID)).toEqual(["qwen-v100"]);
   expect(store.getModelChoice("pi")?.modelID).toBe("qwen-v100");
   check.mockRejectedValueOnce(new Error("provider unavailable"));
   expect((await store.checkPiModelAccess("local-qwen-v100/qwen-v100")).ok).toBe(false);
-  expect(store.piModelOptions()).toEqual([]);
+  expect(store.piModelOptions()).toHaveLength(2);
+  expect(store.piModelOptions().every((m: any) => !m.verified)).toBe(true);
 });
 
 it("creates a projectless Pi chat without needing a live OpenCode server", async () => {
@@ -348,4 +350,53 @@ it("keeps a handed-over chat on its own engine after the folder default changes"
   expect(store.engineIdFor(piChat, "/test/A")).toBe("pi");
   store.setProjectEngine("/test/A", "opencode");
   expect(store.engineIdFor(piChat, "/test/A")).toBe("pi");
+});
+
+it("keeps a failed Pi selection in the picker without changing the previous selection", async () => {
+  store.setProjectEngine("/test/A", "pi");
+  store.state.piHealth.models.push({ id: "offline", provider: "local", name: "Offline", input: ["text"] });
+  const before = store.getModelChoice("pi");
+  vi.spyOn(store.pi(), "checkAccess").mockRejectedValue(new Error("offline provider"));
+  await expect(store.selectModel("local", "offline")).rejects.toThrow("offline provider");
+  expect(store.getModelChoice("pi")).toEqual(before);
+  expect(store.piModelOptions().some((m: any) => m.modelID === "offline")).toBe(true);
+});
+
+it("does not commit a late model check to a different chat", async () => {
+  store.setProjectEngine("/test/A", "pi");
+  let resolve!: (value: string) => void;
+  vi.spyOn(store.pi(), "checkAccess").mockImplementation(() => new Promise<string>(r => { resolve = r; }));
+  const selection = store.selectModel("deepseek", "deepseek-v4-flash");
+  await vi.waitFor(() => expect(resolve).toBeDefined());
+  store.state.activeSessionId = "other-chat";
+  resolve("ok");
+  expect(await selection).toBe(false);
+  expect(store.state.prefs.modelChoice["pi:session:other-chat"]).toBeUndefined();
+});
+
+it("keeps an explicitly selected configured provider offline instead of choosing another model", () => {
+  store.state.providers = [{ id: "local", source: "config", models: { m: { id: "m", name: "M" } } }];
+  store.setModelChoice("local", "m", null);
+  store.state.connectedProviderIds = ["unrelated"];
+  expect(store.getModelChoice()?.modelID).toBe("m");
+  expect(store.configuredProvidersWithModels().map((p: any) => p.id)).toEqual(["local"]);
+});
+
+it("checks OpenCode health before committing a selection and preserves the old model on failure", async () => {
+  store.state.providers = [{ id: "local", source: "config", models: { m: { id: "m" }, newer: { id: "newer" } } }];
+  store.setModelChoice("local", "m");
+  const health = vi.spyOn(store.client, "health").mockRejectedValueOnce(new Error("engine offline"));
+  await expect(store.selectModel("local", "newer")).rejects.toThrow("engine offline");
+  expect(store.getModelChoice()?.modelID).toBe("m");
+  health.mockResolvedValue({ healthy: true, version: "test" });
+  expect(await store.selectModel("local", "newer")).toBe(true);
+  expect(store.getModelChoice()?.modelID).toBe("newer");
+});
+
+it("retains the previous Pi catalog when a rescan fails", async () => {
+  store.setProjectEngine("/test/A", "pi");
+  const before = store.piModelOptions();
+  vi.spyOn(store.pi(), "describe").mockResolvedValue({ ...store.state.piHealth, models: [], error: "Pi RPC offline" });
+  await expect(store.refreshModelCatalog()).rejects.toThrow("Pi RPC offline");
+  expect(store.piModelOptions()).toEqual(before);
 });

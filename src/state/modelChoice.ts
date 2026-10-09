@@ -11,15 +11,18 @@ export function chooseOpenCodeModel(state: AppState, context: {
 }): ModelChoice | null {
     const dir = context.projectless ? "@chats" : (state.directory ?? "");
     const sessionId = state.activeSessionId;
+    const configured = (pid: string, mid: string) => state.connectedProviderIds.includes(pid) ||
+      state.providers.some(p => p.id === pid && p.source === "config" && Boolean(p.models[mid])) ||
+      state.prefs.modelServices?.some(s => s.providerID === pid && Boolean(s.bindings[mid]));
     const sessionChoice = sessionId
       ? state.prefs.modelChoice[`session:${sessionId}`]
       : undefined;
-    if (sessionChoice && state.connectedProviderIds.includes(sessionChoice.providerID))
+    if (sessionChoice && configured(sessionChoice.providerID, sessionChoice.modelID))
       return sessionChoice;
     const active = sessionId
       ? context.activeModel
       : undefined;
-    if (active?.id && state.connectedProviderIds.includes(active.providerID)) {
+    if (active?.id && configured(active.providerID, active.id)) {
       return {
         providerID: active.providerID,
         modelID: active.id,
@@ -28,7 +31,7 @@ export function chooseOpenCodeModel(state: AppState, context: {
     }
     const stored =
       state.prefs.modelChoice[dir] ?? state.prefs.modelChoice["*"];
-    if (stored && state.connectedProviderIds.includes(stored.providerID))
+    if (stored && configured(stored.providerID, stored.modelID))
       return stored;
     const agent = state.agents.find(
       (a) => a.name === context.agentName,
@@ -44,18 +47,18 @@ export function chooseOpenCodeModel(state: AppState, context: {
           context.defaultVariant(agent.model.providerID, agent.model.modelID),
       };
     }
-    const configured = state.configModel?.split("/");
+    const configuredDefault = state.configModel?.split("/");
     if (
-      configured &&
-      configured.length > 1 &&
-      state.connectedProviderIds.includes(configured[0])
+      configuredDefault &&
+      configuredDefault.length > 1 &&
+      state.connectedProviderIds.includes(configuredDefault[0])
     ) {
       return {
-        providerID: configured[0],
-        modelID: configured.slice(1).join("/"),
+        providerID: configuredDefault[0],
+        modelID: configuredDefault.slice(1).join("/"),
         variant: context.defaultVariant(
-          configured[0],
-          configured.slice(1).join("/"),
+          configuredDefault[0],
+          configuredDefault.slice(1).join("/"),
         ),
       };
     }
@@ -83,7 +86,7 @@ export function chooseOpenCodeModel(state: AppState, context: {
     return null;
 }
 
-/** Pi catalog entries require existing access evidence; never reuse OpenCode's provider defaults. */
+/** Keep an explicit configured selection offline; defaults still require access evidence. */
 export function choosePiModel(state: AppState, directory: string | null): ModelChoice | null {
     const models = state.piHealth?.models ?? [];
     const custom = parseModelId(state.prefs.pi?.customModel);
@@ -102,8 +105,10 @@ export function choosePiModel(state: AppState, directory: string | null): ModelC
       modelScope(PI_BACKEND_ID, "*"),
     ].filter((k): k is string => Boolean(k));
     for (const key of keys) {
-      const stored = usable(state.prefs.modelChoice[key]);
-      if (stored) return stored;
+      const stored = state.prefs.modelChoice[key];
+      if (stored && (verified(stored) || models.some(m => m.provider === stored.providerID && m.id === stored.modelID) ||
+        custom?.providerID === stored.providerID && custom.modelID === stored.modelID ||
+        state.prefs.modelServices?.some(s => s.providerID === stored.providerID && Boolean(s.bindings[stored.modelID])))) return stored;
     }
     if (custom && verified(custom))
       return { ...custom, variant: state.prefs.pi?.thinking ?? null };

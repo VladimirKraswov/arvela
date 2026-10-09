@@ -1,6 +1,7 @@
 import { modelServices } from "../models/services";
 import { compactModelName } from "../models/display";
 import { ModelSwitchStatus } from "./ModelSwitchStatus";
+import { ModelSelectionDialog } from "./ModelSelectionDialog";
 import { HostPicker } from "./WorkspacePicker";
 import { ContextMeter } from "./ContextMeter";
 import { VoiceInput } from "./VoiceInput";
@@ -52,7 +53,7 @@ export function Composer() {
   const switchState = choice ? modelServices.statusFor(choice.providerID, choice.modelID) : undefined;
   const switchError = choice ? modelServices.errorFor(choice.providerID, choice.modelID) : undefined;
   const switching = !!switchState && !switchState.ready && switchState.phase !== "failed" && switchState.phase !== "unloaded";
-  const providers = store.connectedProvidersWithModels();
+  const providers = store.configuredProvidersWithModels();
   const session = store.activeSession() ?? null;
   const status = session
     ? (s.chat.sessions[session.id]?.status ?? s.statuses[session.id])
@@ -119,6 +120,15 @@ export function Composer() {
   const engineId = store.engineIdFor();
   const engines = engineOptions(s.prefs, store.piInstalled);
   const isPi = engineId === PI_BACKEND_ID;
+  const selectionScope = `${scope}/${engineId}`;
+  const selectionScopeRef = useRef(selectionScope);
+  selectionScopeRef.current = selectionScope;
+  const selectionTicket = useRef(0), refreshTicket = useRef(0);
+  const [selection, setSelection] = useState<{ providerID: string; modelID: string; label: string; pending: boolean; error: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
+  useEffect(() => { selectionTicket.current++; refreshTicket.current++; setSelection(null); setRefreshError(""); setRefreshing(false); }, [selectionScope]);
+  useEffect(() => () => { selectionScopeRef.current = ""; selectionTicket.current++; refreshTicket.current++; }, []);
 
   const modelList = useMemo(() => {
     const out: {
@@ -129,19 +139,16 @@ export function Composer() {
     }[] = [];
     if (isPi) {
       // Pi keeps its own catalog; OpenCode providers must not leak into it.
-      // Only models which answered a real request are selectable here.
-      for (const m of store.piModelOptions().filter(m => modelServices.allowed(m.providerID, m.modelID, engineId)))
+      for (const m of store.piModelOptions().filter(m => modelServices.visible(m.providerID, m.modelID, engineId)))
         out.push({
           providerID: m.providerID,
           modelID: m.modelID,
           label: compactModelName(m.label),
-          detail: `${m.label} · ${m.providerID} · проверена`,
+          detail: `${m.label} · ${m.providerID}${m.verified ? " · проверена ранее" : " · требует проверки"}`,
         });
-      return out;
-    }
-    for (const p of providers) {
+    } else for (const p of providers) {
       for (const m of Object.values(p.models)) {
-        if (m.status === "deprecated" || !modelServices.allowed(p.id, m.id, engineId)) continue;
+        if (m.status === "deprecated" || !modelServices.visible(p.id, m.id, engineId)) continue;
         out.push({
           providerID: p.id,
           modelID: m.id,
@@ -150,8 +157,40 @@ export function Composer() {
         });
       }
     }
+    for (const m of modelServices.configuredModels(engineId)) {
+      // A service binding supplements an agent's own provider catalog; it must
+      // not import providers belonging only to the other agent.
+      if (!(isPi ? store.piModelOptions().some(o => o.providerID === m.providerID) : providers.some(p => p.id === m.providerID))) continue;
+      const existing = out.find(o => o.providerID === m.providerID && o.modelID === m.modelID);
+      const detail = `${m.label} · ${m.providerID} · ${modelServices.errorFor(m.providerID, m.modelID) ? "сервис недоступен" : "проверка при выборе"}`;
+      if (existing) existing.detail = detail;
+      else out.push({ ...m, label: compactModelName(m.label), detail });
+    }
     return out;
   }, [providers, isPi, s.piHealth, s.prefs.pi?.verifiedModels, s.prefs.pi?.verifiedModel, switches.revision]);
+
+  const refreshModels = async () => {
+    if (refreshing) return;
+    const expected = selectionScope;
+    const ticket = ++refreshTicket.current;
+    setRefreshing(true); setRefreshError("");
+    try { await store.refreshModelCatalog(); }
+    catch (error) { if (selectionScopeRef.current === expected && ticket === refreshTicket.current) setRefreshError(error instanceof Error ? error.message : String(error)); }
+    finally { if (selectionScopeRef.current === expected && ticket === refreshTicket.current) setRefreshing(false); }
+  };
+  const selectModel = async (providerID: string, modelID: string) => {
+    const expected = selectionScope;
+    const ticket = ++selectionTicket.current;
+    const label = modelList.find(m => m.providerID === providerID && m.modelID === modelID)?.label ?? modelID;
+    setSelection({ providerID, modelID, label, pending: true, error: "" });
+    try {
+      const variants = store.modelInfo(providerID, modelID)?.variants;
+      await store.selectModel(providerID, modelID, variants?.medium ? "medium" : null);
+      if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection(null);
+    } catch (error) {
+      if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection({ providerID, modelID, label, pending: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  };
 
   const variantOptions = store.effortOptions();
 
@@ -179,6 +218,9 @@ export function Composer() {
 
   return (
     <div className="composer-wrap">
+      {selection && <ModelSelectionDialog {...selection}
+        status={modelServices.statusFor(selection.providerID, selection.modelID)}
+        onClose={() => setSelection(null)} onRetry={() => void selectModel(selection.providerID, selection.modelID)}/>}
       {!connected && (
         <div className="offline-banner" role="alert">
           <span>{isPi
@@ -353,24 +395,22 @@ export function Composer() {
           <SelectMenu
             label="Модель"
             className="composer-model-picker"
-            disabled={!connected || running || s.ui.sending || switching || (isPi && modelList.length === 0)}
+            disabled={running || s.ui.sending || switching || !!selection?.pending}
             value={isPi && modelList.length === 0
-              ? "Проверьте модель в настройках Pi"
+              ? "Выберите модель в настройках Pi"
               : choice ? `${choice.providerID}/${choice.modelID}` : ""}
             options={modelList.map((m) => ({
               value: `${m.providerID}/${m.modelID}`,
               label: m.label,
               detail: m.detail ?? m.providerID,
             }))}
+            onRefresh={() => void refreshModels()}
+            refreshing={refreshing}
+            refreshError={refreshError}
             onChange={(value) => {
               const [providerID, ...rest] = value.split("/");
               const modelID = rest.join("/");
-              const variants = store.modelInfo(providerID, modelID)?.variants;
-              store.setModelChoice(
-                providerID,
-                modelID,
-                variants?.medium ? "medium" : null,
-              );
+              void selectModel(providerID, modelID);
             }}
           />
           {variantOptions.length > 0 && (
