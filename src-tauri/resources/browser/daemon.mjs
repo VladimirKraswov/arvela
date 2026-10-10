@@ -155,6 +155,10 @@ const server = http.createServer(async (req, res) => {
     const request = await body(req);
     const cancellation = new AbortController();
     res.on('close', () => { if (!res.writableEnded) cancellation.abort(); });
+    if (req.url === '/monitor-view') {
+      if (request.pageId != null && (typeof request.pageId !== 'string' || !/^[0-9]{1,20}$/.test(request.pageId))) throw new Error('Invalid observed page');
+      return reply(res, 200, await captureFrame(request.pageId || undefined));
+    }
     if (req.url === '/stop') {
       reply(res, 200, { stopped: true });
       void close(); return;
@@ -303,13 +307,20 @@ const server = http.createServer(async (req, res) => {
     reply(res, 400, { error: 'Browser request failed; check its tool arguments, workspace and browser state' });
   }
 });
-async function captureFrame() {
+async function captureFrame(observedPageId) {
   const key = selectedKey, scope = selectedScope, owned = sessions.get(key);
   if (!owned?.context) return { browserOpen: false, busy: false, tabs: [], scope };
-  if (!owned.frameFlight) owned.frameFlight = (async () => {
-    try { return await owned.view.frame(owned.context); }
-    catch (error) { if (!error.frameChanged) throw error; return owned.view.frame(owned.context); }
+  if (owned.frameFlight && owned.frameFlightPageId !== observedPageId) {
+    await owned.frameFlight.catch(() => {});
+    return captureFrame(observedPageId);
+  }
+  if (!owned.frameFlight) {
+    owned.frameFlightPageId = observedPageId;
+    owned.frameFlight = (async () => {
+    try { return await owned.view.frame(owned.context, observedPageId); }
+    catch (error) { if (!error.frameChanged) throw error; return owned.view.frame(owned.context, observedPageId); }
   })().finally(() => { owned.frameFlight = undefined; });
+  }
   const frame = await owned.frameFlight;
   if (selectedKey !== key) return { browserOpen: false, busy: false, tabs: [], scope: selectedScope };
   return { ...frame, scope, scopeKey: key };

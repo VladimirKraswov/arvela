@@ -69,7 +69,7 @@ pub async fn browser_monitor(
                     WebviewUrl::App("index.html?view=browser-monitor".into()),
                 )
                 .title("Браузер · Arvela")
-                .inner_size(420.0, 308.0)
+                .inner_size(560.0, 420.0)
                 .resizable(false)
                 .maximizable(false)
                 .minimizable(false)
@@ -143,6 +143,7 @@ pub async fn browser_monitor(
 #[tauri::command]
 pub async fn browser_monitor_frame(
     window: tauri::Window,
+    page_id: Option<String>,
     state: tauri::State<'_, super::BrowserRuntime>,
 ) -> Result<Option<Value>, String> {
     if window.label() != LABEL {
@@ -151,11 +152,23 @@ pub async fn browser_monitor_frame(
     if !window.is_visible().map_err(|e| e.to_string())? {
         return Ok(None);
     }
+    if page_id
+        .as_ref()
+        .is_some_and(|id| id.is_empty() || id.len() > 20 || !id.bytes().all(|b| b.is_ascii_digit()))
+    {
+        return Err("Некорректная страница наблюдения.".into());
+    }
     let epoch = state
         .projection_epoch
         .load(std::sync::atomic::Ordering::Acquire);
     let frame = super::blocking(move || {
-        super::gateway::request(&super::root_dir()?, super::gateway::Endpoint::View, None).map(Some)
+        let request = serde_json::json!({"pageId": page_id});
+        super::gateway::request(
+            &super::root_dir()?,
+            super::gateway::Endpoint::MonitorView,
+            Some(&request),
+        )
+        .map(Some)
     })
     .await?;
     if epoch

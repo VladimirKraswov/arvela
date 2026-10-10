@@ -55,3 +55,22 @@ it("clears the previous chat immediately and discards its pending capture",async
  native.invoke.mockResolvedValue({...frame,title:'Other chat'});await act(async()=>vi.advanceTimersByTimeAsync(110));
  expect(document.querySelector('img')?.getAttribute('alt')).toBe('Other chat');
 });
+it('groups pages and observes another card without tab selection or input commands',async()=>{
+ native.invoke.mockResolvedValue({...frame,pageId:'2',revision:1,tabs:[{id:'1',index:0,title:'First page',url:'https://example.test/a',active:false},{id:'2',index:1,title:'Agent page',url:'https://example.test/b',active:true}]});
+ await mount();expect(document.querySelectorAll('[role="tab"]')).toHaveLength(2);
+ await act(async()=>{(document.querySelector('[role="tab"]') as HTMLButtonElement).click();});
+ expect(document.querySelector('img')).toBeNull();
+ native.invoke.mockResolvedValue({...frame,pageId:'1',revision:1,title:'First page',tabs:[{id:'1',index:0,title:'First page',url:'https://example.test/a',active:false},{id:'2',index:1,title:'Agent page',url:'https://example.test/b',active:true}]});
+ await act(async()=>vi.advanceTimersByTimeAsync(300));
+ expect(native.invoke).toHaveBeenLastCalledWith('browser_monitor_frame',{pageId:'1'});
+ expect(document.querySelector('img')?.getAttribute('alt')).toBe('First page');
+ expect(native.invoke.mock.calls.every(([name])=>name==='browser_monitor_frame')).toBe(true);
+ await act(async()=>native.scopeChanged!());expect(document.querySelectorAll('[role="tab"]')).toHaveLength(0);
+});
+it('reorders cards with the keyboard without changing browser state',async()=>{
+ native.invoke.mockResolvedValue({...frame,pageId:'2',revision:1,tabs:[{id:'1',index:0,title:'First page',url:'https://example.test/a',active:false},{id:'2',index:1,title:'Agent page',url:'https://example.test/b',active:true}]});
+ await mount();
+ await act(async()=>document.querySelector('[role="tab"]')!.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',altKey:true,bubbles:true})));
+ expect(Array.from(document.querySelectorAll('[role="tab"]')).map(el=>el.textContent)).toEqual(['Agent page','First page']);
+ expect(native.invoke).toHaveBeenCalledTimes(1);
+});

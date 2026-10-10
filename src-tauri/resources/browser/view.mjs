@@ -118,23 +118,24 @@ export function createView(getContext) {
       if (params.name === 'browser_resize') { size = active.viewportSize() || size; cursor = undefined; }
     }
   }
-  async function frame(context) {
+  async function frame(context, observedPageId) {
     if (!context) return { browserOpen: false, tabs: [], busy: false, mode };
     const pages = context.pages();
     if (!active || active.isClosed()) active = pages.at(-1);
     if (!active) return { browserOpen: true, tabs: [], busy, mode };
-    const current = active;
+    const agentPage = active;
+    const current = (observedPageId && pages.find(value => pageId(value) === observedPageId)) || active;
     const viewport = current.viewportSize() || { width: 1280, height: 800 };
     const size = { width: Math.min(viewport.width, 1920), height: Math.min(viewport.height, 1200) };
     const capturedRevision = revision, capturedUrl = current.url();
     const image = await current.screenshot({ type: 'jpeg', quality: 65, timeout: 2000, scale: 'css', clip: { x: 0, y: 0, ...size } });
-    const tabs = await Promise.all(pages.map(async (value, index) => ({ index, url: value.url(), title: await value.title().catch(() => ''), active: value === current })));
+    const tabs = await Promise.all(pages.map(async (value, index) => ({ index, id: pageId(value), url: value.url(), title: await value.title().catch(() => ''), active: value === agentPage })));
     const title = await current.title().catch(() => '');
-    if (capturedRevision !== revision || capturedUrl !== current.url() || active !== current) throw Object.assign(new Error('Frame changed during capture'), { frameChanged: true });
+    if (capturedRevision !== revision || capturedUrl !== current.url() || active !== agentPage || current.isClosed()) throw Object.assign(new Error('Frame changed during capture'), { frameChanged: true });
     return { browserOpen: true, mode, tabs, url: capturedUrl, title,
       pageId: pageId(current), revision: capturedRevision,
       width: size.width, height: size.height, image: image.toString('base64'), busy,
-      cursor: cursor && Date.now() - cursor.at < 8000 ? cursor : null };
+      cursor: current === agentPage && cursor && Date.now() - cursor.at < 8000 ? cursor : null };
   }
   function assertCurrent(expected) {
     if (busy || !active || active.isClosed() || !expected || expected.pageId !== pageId(active)

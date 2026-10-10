@@ -2921,3 +2921,26 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .model-selection-name { font-weight: 600; }
 .model-selection-error { color: var(--error, #e5786f); white-space: pre-wrap; }
 .model-selection-dialog .btn-row { margin-top: 20px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* A detached group is passive: dragging cards changes presentation only. */
+.browser-monitor { border-radius: 16px; }
+.browser-monitor header { cursor: grab; border-bottom: 1px solid var(--border); }
+.browser-monitor header:active { cursor: grabbing; }
+.browser-monitor header button { cursor: pointer; }
+.browser-monitor-tabs { display: flex; gap: 5px; padding: 7px 10px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--border); scrollbar-width: thin; }
+.browser-monitor-tabs button { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; max-width: 160px; min-width: 48px; padding: 5px 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-dim); cursor: grab; }
+.browser-monitor-tabs button[aria-selected=true] { background: var(--bg); border-color: var(--border); color: var(--text); }
+.browser-monitor-tabs button span, .browser-stack-back span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-monitor-tabs svg, .browser-monitor-tabs i { flex-shrink: 0; }
+.browser-monitor-viewport { position: relative; padding: 26px 24px 12px; }
+.browser-stack-back { position: absolute; top: 7px; left: 34px; right: 34px; bottom: 16px; display: flex; align-items: flex-start; gap: 5px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-raised); color: var(--text-dim); text-align: left; box-shadow: 0 6px 16px #0002; transition: transform .18s ease; }
+.browser-stack-back.layer-1 { transform: translate(-10px, 0) rotate(-1deg); }
+.browser-stack-back.layer-2 { transform: translate(8px, 5px) rotate(1deg); }
+.browser-monitor-frame { z-index: 1; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 8px 24px #0003; transition: opacity .18s ease; }
+@media (prefers-reduced-motion: reduce) { .browser-stack-back, .browser-monitor-frame { transition: none; } }
+
+.browser-stack-back { pointer-events: none; }
+.browser-stack-back > span { pointer-events: auto; }
+
+.browser-monitor-tabs button[data-dragging] { opacity: .45; }
+.browser-monitor-tabs button[data-drop-target] { border-color: var(--text-dim); background: var(--bg); }

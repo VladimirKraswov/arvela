@@ -40,6 +40,7 @@ pub(super) enum Endpoint {
     Rpc,
     Stop,
     View,
+    MonitorView,
 }
 
 impl Endpoint {
@@ -49,6 +50,7 @@ impl Endpoint {
             Endpoint::Rpc => "rpc",
             Endpoint::Stop => "stop",
             Endpoint::View => "view",
+            Endpoint::MonitorView => "monitor-view",
         }
     }
     /// Tool calls may legitimately take a navigation timeout; lifecycle
@@ -56,7 +58,9 @@ impl Endpoint {
     fn timeout(self) -> Duration {
         match self {
             Endpoint::Rpc => Duration::from_secs(90),
-            Endpoint::Health | Endpoint::Stop | Endpoint::View => Duration::from_secs(3),
+            Endpoint::Health | Endpoint::Stop | Endpoint::View | Endpoint::MonitorView => {
+                Duration::from_secs(3)
+            }
         }
     }
 }

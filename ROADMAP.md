@@ -557,3 +557,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Composer-based Apply/Cancel with original position/model/attachment preservation and paused dispatch while editing.
 - [x] Failure, cancellation and idle-during-edit tests; isolated narrow/large-text browser layouts.
 - [ ] Install when requested; owner explicitly kept the current running application unchanged.
+
+## Detached browser group (source only)
+
+- [x] Selected-chat page cards, draggable ordering, layered previews and native group header.
+- [x] Passive page selection without changing agent tab/input/viewport; stale capture and scope isolation.
+- [x] Component drag/layout, isolated real Chromium and native checks on Mac.
+- [ ] Install at owner’s request; Windows/Linux and OS-window drag acceptance remain separate.

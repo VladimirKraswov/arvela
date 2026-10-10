@@ -17,3 +17,9 @@ it("maps the scaled viewport without accepting letterbox or out-of-image clicks"
   expect(browserPoint(650, 420, rect, valid())).toBeNull();
   expect(browserPoint(20, 30, { ...rect, width: 0 }, valid())).toBeNull();
 });
+
+it('validates stable page identifiers used only for passive grouped previews',()=>{
+ expect(parseFrame({...valid(),tabs:[{...valid().tabs[0],id:'12'}]}).tabs[0].id).toBe('12');
+ expect(()=>parseFrame({...valid(),tabs:[{...valid().tabs[0],id:'../other-chat'}]})).toThrow();
+ expect(()=>parseFrame({...valid(),tabs:[{...valid().tabs[0],id:'12'},{...valid().tabs[0],index:1,id:'12'}]})).toThrow();
+});

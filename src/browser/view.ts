@@ -1,6 +1,6 @@
 export interface BrowserFrame {
   browserOpen: boolean; busy: boolean; mode?: "fast" | "human";
-  tabs: { index: number; url: string; title: string; active: boolean }[];
+  tabs: { id?: string; index: number; url: string; title: string; active: boolean }[];
   url?: string; title?: string; image?: string; width?: number; height?: number;
   pageId?: string; revision?: number;
   scope?: { directory: string; engine: string; sessionID: string } | null;
@@ -11,9 +11,11 @@ export function parseFrame(value: unknown): BrowserFrame {
   if (!value || typeof value !== "object") throw new Error("Некорректный кадр браузера.");
   const f = value as BrowserFrame;
   if (typeof f.browserOpen !== "boolean" || typeof f.busy !== "boolean" || !Array.isArray(f.tabs)
-      || f.tabs.length > 128 || f.tabs.some(t => !t || !Number.isInteger(t.index) || t.index < 0 || t.index >= 128 || typeof t.title !== "string" || typeof t.url !== "string" || typeof t.active !== "boolean")
+      || f.tabs.length > 128 || f.tabs.some(t => !t || !Number.isInteger(t.index) || t.index < 0 || t.index >= 128 || (t.id !== undefined && (typeof t.id !== "string" || !/^[0-9]{1,20}$/.test(t.id))) || typeof t.title !== "string" || typeof t.url !== "string" || typeof t.active !== "boolean")
       || new Set(f.tabs.map(t => t.index)).size !== f.tabs.length)
     throw new Error("Некорректные вкладки браузера.");
+  const ids = f.tabs.flatMap(t => t.id ? [t.id] : []);
+  if (new Set(ids).size !== ids.length) throw new Error("Повторяющиеся страницы браузера.");
   if (f.image !== undefined && (typeof f.image !== "string" || f.image.length > 8_000_000 || !/^[A-Za-z0-9+/=]+$/.test(f.image)
       || !Number.isFinite(f.width) || !Number.isFinite(f.height) || f.width! < 1 || f.width! > 1920 || f.height! < 1 || f.height! > 1200))
     throw new Error("Некорректное изображение браузера.");
