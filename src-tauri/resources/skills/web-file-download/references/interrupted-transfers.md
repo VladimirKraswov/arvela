@@ -1,0 +1,11 @@
+# Diagnose an interrupted PDF transfer
+
+Distinguish three observations: advertised Content-Length, bytes actually saved, and command exit status (timeout, HTTP error or success). Preserve response status/Content-Range and a sanitised diagnostic; never put cookie/token values in reports. Seeing ~16 KiB repeatedly is evidence of a stalled/truncated response, not proof that the entire environment blocks downloads. Do not repeat 90-second probes once that fact is established.
+
+Use the shared download helper on one already-authorised exact URL. It reads available chunks without waiting for a full buffer, saves progress, and resumes only when a 206 range begins exactly at the saved offset and the entity/total length agree. An ignored Range (200), changed entity, encoded body or wrong type must not be appended. A `.part` file is never a completed download. Requests and wall-clock budget are bounded; do not start parallel duplicates. If a run is interrupted, the lock may remain: confirm no process still owns the transfer before removing only that transfer's lock.
+
+After one small bounded pass, use saved-byte delta and elapsed time to estimate the remaining cost. If hundreds of tiny transfers would be required, do not blindly launch them all or declare success. Consider a publisher-provided alternate PDF, permitted HTML/XML full text, or the platform's managed browser download. Different representations require separate names and honest format/coverage reporting. Do not reconstruct unauthorised endpoints or bypass challenges. Ask for a specific user action only where real login/CAPTCHA/access is required; move on to other entries meanwhile.
+
+Search candidates must stay provisional until exact title/authors/edition and legitimate availability are inspected. Third-party mirrors are not automatically authorised; when rights/access cannot be established, use an authorised repository or record an unverified lead instead of claiming a confirmed free complete book.
+
+Keep one rectangular TSV/JSON progress ledger with consistent columns and one current per-entry status; separate candidate evidence and file inventory. Update STATUS and REPORT together at an actual checkpoint. Do not rerun broad triage merely to refresh counts.

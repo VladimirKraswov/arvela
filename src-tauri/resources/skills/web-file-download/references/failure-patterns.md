@@ -14,3 +14,5 @@ These are observed failure patterns, not claims about the permanent availability
 - An archive loan restriction led to a credential request and de-DRM research. Stop that access path, record the limitation and continue publicly accessible entries; never request passwords in chat or remove protection.
 
 Evidence sources: Crossref text-and-data-mining documentation (https://www.crossref.org/documentation/retrieve-metadata/text-and-data-mining/) and Internet Archive basic downloading guide (https://archivesupport.zendesk.com/hc/en-us/articles/360016398872-Downloading-A-Basic-Guide). Access must be confirmed for the actual item.
+
+- Repeated 90-second curl probes saved only a small prefix. Suppressed exit codes and unvalidated append loops obscured the failure. Use bounded transfer diagnostics and checked range/entity resumption; a reachable mirror is still only a candidate until rights, identity and content are established.

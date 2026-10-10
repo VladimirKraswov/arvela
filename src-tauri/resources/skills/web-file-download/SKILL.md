@@ -19,6 +19,12 @@ Use direct HTTP for an available authorised file. When JavaScript navigation is 
 
 After repeated failures, inspect evidence and change the approach. Avoid guessed chapter filenames, unbounded serial fetches, repeated searches against a failing provider, and background jobs whose lifecycle is not managed. Prefer bounded foreground downloads or the platform’s managed download operation. URL-encode filenames from metadata, including non-ASCII punctuation.
 
+## Interrupted transfers
+
+For an already authorised direct PDF URL, use `python3 <skill-dir>/scripts/download.py --url <url> --output <new-path.pdf> --requests 8 --seconds 45 --timeout 5`. It writes `.part` plus a checkpoint, validates resumed Content-Range and entity validators, bounds requests/time/size and never overwrites an existing destination. Repeat the same command to resume only when measured progress justifies another bounded pass. Exit 0 means **transfer-complete**, not a verified full book; exit 2 means partial, exit 1 means failure. Run `verify.py` and inspect content afterwards. No cookies, credentials, challenge bypass or DRM handling is provided. Servers without a stable entity validator or correct range support cannot safely resume with this helper; preserve the partial file and use a legitimate alternate transfer path.
+
+Read `references/interrupted-transfers.md` when streams end early or a large transfer appears stalled. Do not silently drop curl exit codes or infer a network-wide block from one host. A working file-host link alone is not evidence of authorised access or an exact complete book.
+
 ## Verify before reporting
 
 Run `python3 <skill-dir>/scripts/verify.py <file.pdf> [...]`. This checks PDF signatures, hashes and structure/page count using an already installed `pypdf` or `pdfinfo`; it reports an explicit unverified status when neither parser exists. It never installs dependencies. Failure or incomplete verification returns nonzero. Inspect actual title/edition/contents, not just a header or page count. A valid PDF can still be an HTML error replacement, cover, contents or incomplete volume.
