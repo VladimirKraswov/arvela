@@ -611,3 +611,12 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Image zoom, bounded passive text/media and PDF canvas pages; preserve remote/file security boundaries, cleanup and scope isolation.
 - [x] Unit and isolated Chromium acceptance including real PDF, inert HTML text, narrow layout and no owner mutations.
 - [x] Final Mac signature/DMG CRC/install equality, native0.2.44 and actual historic image/gallery acceptance; source publication. Packaged WK PDF and Windows/Linux native acceptance remain separate.
+
+
+## Project and session information (0.2.45)
+
+- [x] Project/session dots menus open scoped accessible properties, including archived chats.
+- [x] Full paged project index including archived/child sessions; title filter, dates, agent/model/parent/ID and copyable project/history paths.
+- [x] Native read-only SQLite payload accounting (UTF-8 bytes/messages), exact Pi JSONL length; unknown/remote sizes stay unavailable. Project files, external attachments and shared database overhead are excluded explicitly.
+- [x] Bounded query deadline, no arbitrary database path/transcript export, cancel/stale-host guards, no Pi directory creation on listing.
+- [x] 707 frontend/100 Rust tests, real Chromium properties/search/narrow/no mutation, actual API-to-local-DB identity check, final Mac package signature/DMG CRC and source publication. Native installation deferred while owner agent works; Windows/Linux native qualification separate.

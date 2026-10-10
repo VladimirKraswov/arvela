@@ -178,3 +178,6 @@ Shared skill authoring and the reviewed document-download workflow: [SHARED-SKIL
 
 
 Вложения открываются из сообщения или раздела «Источники»: миниатюры, поиск по файлам сессии, просмотр изображений, текста и PDF по страницам. «Показать все» подгружает более ранние вложения. Недоступные исходники и неподдерживаемые форматы показывают статус вместо пустого просмотра.
+
+
+Project and chat **Сведения** are available in their dots menus. Project properties include the paged OpenCode/Pi chat index (archived and child chats included), search, dates, IDs and copyable storage paths. Local OpenCode sizes count message/part UTF-8 payloads in its shared SQLite database; Pi sizes count the JSONL file. These are chat-data accounting figures, excluding project files, external attachments and SQLite index/free-page overhead. Remote or unsupported storage sizes remain unavailable; properties never replay tasks or change the engine database.

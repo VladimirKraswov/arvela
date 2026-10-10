@@ -12,6 +12,7 @@ mod paths;
 pub mod pi;
 mod process;
 mod sound;
+mod storage_info;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -75,6 +76,7 @@ pub fn run() {
             pi::pi_post,
             pi::pi_close,
             pi::pi_sessions,
+            storage_info::session_storage,
             pi::pi_live_sessions,
             pi::pi_shared_inventory,
             pi::pi_setup_lsp,

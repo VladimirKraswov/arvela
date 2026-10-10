@@ -1,3 +1,4 @@
+import { InformationDialog } from "./InformationDialog";
 import arvelaMark from "../assets/arvela-icon.png";
 import { modKeyLabel } from "../native/platform";
 import { ProjectActions, RemovedProjects } from "./ProjectActions";
@@ -27,6 +28,7 @@ function ActivityMark({ id, directory, pending = false }: { id: string; director
 
 export function Sidebar() {
   const s = useAppState();
+  const [information,setInformation] = useState<Session|null>(null);
   const [archived, setArchived] = useState(false),
     [menu, setMenu] = useState<string | null>(null),
     [rename, setRename] = useState<Session | null>(null),
@@ -73,26 +75,7 @@ export function Sidebar() {
           <span className="title">{sess.title}{recent && <small className="session-project">{store.isProjectlessDirectory(sess.directory) ? "Без проекта" : projectName(sess.directory)}</small>}</span>
           <ActivityMark id={sess.id} directory={sess.directory} pending={pending.permissions.length + pending.questions.length > 0} />
         </button>
-        {isArchived ? (
-          <button
-            className="task-menu"
-            aria-label={`Восстановить ${sess.title}`}
-            onClick={() => void store.unarchiveSession(sess)}
-          >
-            <Icon name="refresh" size={15} />
-          </button>
-        ) : (
-          <button
-            className="task-menu"
-            aria-label={`Действия: ${sess.title}`}
-            onClick={(event) => {
-              setMenuAnchor(event.currentTarget);
-              setMenu(menu === rowKey ? null : rowKey);
-            }}
-          >
-            <Icon name="dots" size={16} />
-          </button>
-        )}
+        <button className="task-menu" aria-label={`Действия: ${sess.title}`} onClick={event=>{setMenuAnchor(event.currentTarget);setMenu(menu===rowKey?null:rowKey);}}><Icon name="dots" size={16}/></button>
         {menu === rowKey && (
           <FloatingPopover
             anchor={menuAnchor}
@@ -113,14 +96,15 @@ export function Sidebar() {
             >
               Переименовать
             </button>
+            <button onClick={() => {setMenu(null);setInformation(sess);}}>Сведения</button>
             <button onClick={() => { setMenu(null); store.setUi({ handoffSource: sess }); }}>Передать задание…</button>
             <button
               onClick={() => {
-                void store.archiveSession(sess);
+                if(isArchived)void store.unarchiveSession(sess);else void store.archiveSession(sess);
                 setMenu(null);
               }}
             >
-              В архив
+              {isArchived?"Восстановить":"В архив"}
             </button>
             <button
               className="danger-text"
@@ -144,6 +128,7 @@ export function Sidebar() {
       style={{ width: s.prefs.layout.sidebarWidth }}
       aria-label="Проекты и задачи"
     >
+      {information&&<InformationDialog directory={information.directory} session={information} onClose={()=>setInformation(null)}/>}
       <div className="sidebar-brand" data-tauri-drag-region="deep">
         <img src={arvelaMark} width={24} height={24} alt="" />
         <strong>Arvela</strong>

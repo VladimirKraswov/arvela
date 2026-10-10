@@ -1,3 +1,4 @@
+import { InformationDialog } from "./InformationDialog";
 import { useState } from "react";
 import { store, useAppState } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
@@ -6,14 +7,17 @@ import { pathBasename } from "../util/paths";
 
 export function ProjectActions({ directory }: { directory: string }) {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const [information, setInformation] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const name = pathBasename(directory);
   return <>
     <button className="project-menu icon-btn" aria-label={`Действия проекта ${name}`} title="Действия проекта" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}><Icon name="dots" size={16} /></button>
     {anchor && <FloatingPopover anchor={anchor} className="task-popover" role="menu" label="Действия проекта" width={235} placement="bottom" align="end" onClose={() => setAnchor(null)}>
       <button onClick={() => { setAnchor(null); void store.setDirectory(directory); }}>Новый чат</button>
+      <button onClick={() => { setAnchor(null); setInformation(true); }}>Сведения</button>
       <button onClick={() => { setAnchor(null); setConfirm(true); }}>Убрать проект из списка…</button>
     </FloatingPopover>}
+    {information && <InformationDialog directory={directory} onClose={() => setInformation(false)} />}
     {confirm && <div className="modal-overlay" onKeyDown={(e) => { if (e.key === "Escape") setConfirm(false); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-label="Убрать проект из списка">
         <h3>Убрать «{name}» из списка?</h3>

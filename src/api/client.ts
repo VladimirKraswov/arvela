@@ -273,12 +273,12 @@ export class OpenCodeClient {
   }
 
   /** Full index for usage accounting, including child sessions. Read only. */
-  async usageSessionsPage(archived: boolean, cursor?: number, signal?: AbortSignal): Promise<{
+  async usageSessionsPage(archived: boolean, cursor?: number, signal?: AbortSignal, directory?: string): Promise<{
     sessions: Session[]; cursor: number | null;
   }> {
     let next: number | null = null;
     const rows = await this.request<Array<Record<string, unknown>>>("GET", "/experimental/session", {
-      query: { roots: false, archived, limit: 100, cursor },
+      query: { roots: false, archived, limit: 100, cursor, directory },
       signal,
       onResponse: (res) => {
         const value = res.headers.get("x-next-cursor");

@@ -15,6 +15,7 @@ export interface PiInstall {
 }
 
 export interface PiSessionFile {
+  bytes?: number;
   id: string;
   file: string;
   cwd: string;

@@ -17,7 +17,6 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-#[cfg(unix)]
 use std::io::Read;
 use std::{
     collections::HashMap,
@@ -328,12 +327,15 @@ pub async fn pi_detect(configured_path: Option<String>, node_program: Option<Str
 /// Session storage is per project directory, so one project's Pi history can
 /// never appear inside another's listing.
 pub fn session_dir_for(directory: &str) -> Result<PathBuf, String> {
-    let digest = stable_digest(directory);
-    let dir = crate::paths::app_data_dir()?
-        .join("pi-sessions")
-        .join(digest);
+    let dir = session_storage_dir(directory)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
+}
+
+fn session_storage_dir(directory: &str) -> Result<PathBuf, String> {
+    Ok(crate::paths::app_data_dir()?
+        .join("pi-sessions")
+        .join(stable_digest(directory)))
 }
 
 /// Short, stable, filesystem-safe identifier for a directory path. FNV-1a keeps
@@ -350,6 +352,7 @@ fn stable_digest(input: &str) -> String {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PiSessionFile {
+    pub bytes: u64,
     pub id: String,
     pub file: String,
     pub cwd: String,
@@ -362,12 +365,22 @@ pub struct PiSessionFile {
 #[tauri::command]
 pub async fn pi_sessions(directory: String) -> Result<Vec<PiSessionFile>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let dir = session_dir_for(&directory)?;
+        let dir = session_storage_dir(&directory)?;
+        if !dir.exists() {
+            return Ok(Vec::new());
+        }
         let mut out = Vec::new();
         for entry in std::fs::read_dir(&dir)
             .map_err(|e| e.to_string())?
             .flatten()
         {
+            if !entry
+                .file_type()
+                .map(|kind| kind.is_file())
+                .unwrap_or(false)
+            {
+                continue;
+            }
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
                 continue;
@@ -376,7 +389,11 @@ pub async fn pi_sessions(directory: String) -> Result<Vec<PiSessionFile>, String
                 continue;
             };
             let mut first = String::new();
-            if BufReader::new(file).read_line(&mut first).is_err() {
+            if BufReader::new(file)
+                .take(65536)
+                .read_line(&mut first)
+                .is_err()
+            {
                 continue;
             }
             let Ok(header) = serde_json::from_str::<Value>(&first) else {
@@ -398,7 +415,13 @@ pub async fn pi_sessions(directory: String) -> Result<Vec<PiSessionFile>, String
             if id.starts_with("probe-") {
                 continue;
             }
+            // A deleted/unreadable file has no measured size; do not advertise
+            // zero bytes as if it were an empty, valid history.
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
             out.push(PiSessionFile {
+                bytes: metadata.len(),
                 id,
                 file: path.display().to_string(),
                 cwd: header["cwd"].as_str().unwrap_or_default().to_string(),
