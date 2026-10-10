@@ -572,3 +572,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Shared authoring recipe routes editing requests, resolves available source/revision through portable read-only catalogue, preserves concurrent edits and managed copies, and requires isolated verification.
 - [x] 688 frontend / 96 native tests; catalogue fixtures and narrow actual Composer recovery/layout checks pass.
 - [x] Mac 0.2.39 signature/DMG CRC/install binary equality, native connected/open status, GUI version and installed shared recipe bytes verified. No owner prompt or automatic old-job replay.
+
+## Compact detached browser cards (0.2.40)
+
+- [x] Fit passive window to the observed page ratio (preview capped at 420×300 logical pixels); no Chromium viewport/input changes.
+- [x] Transparent native corners, one rounded outline, compact title/controls/status and full preview area without nested frame or empty stage.
+- [x] Keep selected-session isolation, passive page selection and drag ordering; isolated actual layout checks for landscape, square and portrait pages.
+- [x] Mac 0.2.40 package signature/DMG CRC/binary equality and GUI version verified; installed after explicit owner permission to interrupt browser. Native control and external server healthy. Owner preview after restart and Windows/Linux live acceptance remain separate.

@@ -69,14 +69,15 @@ pub async fn browser_monitor(
                     WebviewUrl::App("index.html?view=browser-monitor".into()),
                 )
                 .title("Браузер · Arvela")
-                .inner_size(560.0, 420.0)
+                .inner_size(438.0, 334.0)
                 .resizable(false)
                 .maximizable(false)
                 .minimizable(false)
                 .decorations(false)
+                .transparent(true)
                 .always_on_top(true)
                 .skip_taskbar(true)
-                .shadow(true)
+                .shadow(false)
                 .visible(false)
                 .focused(false)
                 .center()
@@ -178,12 +179,73 @@ pub async fn browser_monitor_frame(
     {
         return Ok(None);
     }
+    if let Some(value) = &frame {
+        if let Some((width, height)) = projection_size(value) {
+            let current = window.inner_size().map_err(|e| e.to_string())?;
+            let scale = window.scale_factor().map_err(|e| e.to_string())?;
+            if (current.width as f64 / scale - width).abs() > 1.0
+                || (current.height as f64 / scale - height).abs() > 1.0
+            {
+                // Resize only our passive projection, never the Chromium viewport.
+                window
+                    .set_size(tauri::LogicalSize::new(width, height))
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    }
     Ok(frame)
+}
+
+fn projection_size(frame: &Value) -> Option<(f64, f64)> {
+    if frame["browserOpen"].as_bool() != Some(true) || frame["image"].as_str()?.is_empty() {
+        return None;
+    }
+    let width = frame["width"].as_f64()?;
+    let height = frame["height"].as_f64()?;
+    if !width.is_finite()
+        || !height.is_finite()
+        || !(1.0..=1920.0).contains(&width)
+        || !(1.0..=1200.0).contains(&height)
+    {
+        return None;
+    }
+    let scale = (420.0 / width).min(300.0 / height);
+    // 8px transparent shadow gutter each side, 1px card border, compact chrome.
+    let tabs = frame["tabs"]
+        .as_array()?
+        .iter()
+        .filter(|tab| tab["id"].as_str().is_some())
+        .count();
+    Some((
+        (width * scale + 18.0).ceil().max(200.0),
+        (height * scale + 18.0 + 32.0 + 24.0 + if tabs > 1 { 34.0 } else { 0.0 }).ceil(),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compact_projection_matches_page_ratio_and_chrome_without_resizing_page() {
+        let landscape = serde_json::json!({"browserOpen":true,"image":"jpeg","width":1280,"height":800,"tabs":[]});
+        assert_eq!(projection_size(&landscape), Some((438.0, 337.0)));
+        let portrait = serde_json::json!({"browserOpen":true,"image":"jpeg","width":748,"height":1024,"tabs":[{"id":"1"},{"id":"2"}]});
+        let (w, h) = projection_size(&portrait).unwrap();
+        assert!((w - 238.0).abs() < 1.0);
+        assert_eq!(h, 408.0);
+        assert_eq!(portrait["width"], 748);
+        assert_eq!(portrait["height"], 1024);
+        assert_eq!(
+            projection_size(&serde_json::json!({"browserOpen":false})),
+            None
+        );
+        assert_eq!(
+            projection_size(
+                &serde_json::json!({"browserOpen":true,"image":"x","width":0,"height":800,"tabs":[]})
+            ),
+            None
+        );
+    }
     #[test]
     fn only_main_can_create_the_viewer() {
         assert!(authorized("main", Action::Detach));

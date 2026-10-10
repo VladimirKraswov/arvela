@@ -15,7 +15,7 @@ if (import.meta.env.DEV && !observingBrowser) {
 
 // Native agents use the private control plane, never simulated pointer input.
 if (!observingBrowser) void startAgentControl();
-else applyTheme(store.state.prefs.theme);
+else { document.documentElement.classList.add("browser-monitor-document"); applyTheme(store.state.prefs.theme); }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

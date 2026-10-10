@@ -68,15 +68,13 @@ export function BrowserMonitor() {
     finally { if (epoch === scopeRevision.current) setChanging(false); }
   }
   const hasImage = !!frame?.browserOpen && !!frame.image;
-  const ratio = (frame?.width || 1280) / (frame?.height || 800);
   const cursor = frame?.cursor;
   const tabs = catalog.filter(t => t.id).sort((a,b) => order.indexOf(a.id!) - order.indexOf(b.id!));
   const selected = observed.current ?? catalog.find(t => t.active)?.id;
-  const behind = tabs.filter(t => t.id !== selected).slice(0, 2);
   return <section className="browser-monitor" aria-label="Наблюдение за браузером">
     <header data-tauri-drag-region="deep">
       <Icon name="browser" size={16}/>
-      <span className="browser-monitor-title" title={frame?.title || "Браузер"}>Браузер{tabs.length > 1 ? ` · ${tabs.length}` : ""}</span>
+      <span className="browser-monitor-title" title={frame?.title || "Браузер"}>{frame?.title || "Браузер"}</span>
       <button className="icon-btn" aria-label="Вернуть браузер в приложение" title="Вернуть в приложение для ручной работы" disabled={changing} onClick={() => void present("restore")}><Icon name="expand" size={16}/></button>
       <button className="icon-btn" aria-label="Скрыть окно наблюдения" title="Скрыть окно — браузер продолжит работать" disabled={changing} onClick={() => void present("hide")}><Icon name="close" size={16}/></button>
     </header>
@@ -92,8 +90,7 @@ export function BrowserMonitor() {
       </button>)}
     </nav>}
     <div className="browser-monitor-viewport" aria-label="Страница только для наблюдения">
-      {behind.map((tab, index) => <button key={tab.id} className={`browser-stack-back layer-${index + 1}`} type="button" onClick={() => choose(tab.id!)} title={`Показать ${tab.title}`} aria-label={`Показать ${tab.title}`}><Icon name="browser" size={12}/><span>{tab.title || "Без названия"}</span></button>)}
-      {hasImage ? <div className={`browser-monitor-frame${stale ? " stale" : ""}`} style={{width:`min(100%, ${240 * ratio}px)`,aspectRatio:String(ratio)}}>
+      {hasImage ? <div className={`browser-monitor-frame${stale ? " stale" : ""}`} >
         <img src={`data:image/jpeg;base64,${frame.image}`} alt={frame.title || "Живая страница браузера"} draggable={false}/>
         {cursor && <div className={`browser-agent-cursor ${cursor.owner}`} aria-label={cursor.owner === "agent" ? "Курсор агента" : "Курсор пользователя"} style={{left:`${cursor.x / frame.width! * 100}%`,top:`${cursor.y / frame.height! * 100}%`}}><span>➤</span></div>}
       </div> : <p>{frame?.browserOpen === false ? "Браузер закрыт" : "Жду страницу браузера…"}</p>}
