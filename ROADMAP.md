@@ -603,3 +603,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Move optional setting help to label hover; retain helper dictation as an actionable setting.
 - [x] Frontend build and 696 tests pass.
 - [x] Isolated Chromium and installed Mac GUI context/settings checks, signed package/DMG CRC/binary equality and healthy native connection verified; Windows/Linux native qualification separate.
+
+
+## Session attachment gallery (0.2.44)
+
+- [x] Shared message/source thumbnails and scoped gallery with search and navigation; compact three-source list and earlier-history loading.
+- [x] Image zoom, bounded passive text/media and PDF canvas pages; preserve remote/file security boundaries, cleanup and scope isolation.
+- [x] Unit and isolated Chromium acceptance including real PDF, inert HTML text, narrow layout and no owner mutations.
+- [x] Final Mac signature/DMG CRC/install equality, native0.2.44 and actual historic image/gallery acceptance; source publication. Packaged WK PDF and Windows/Linux native acceptance remain separate.

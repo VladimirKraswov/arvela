@@ -11,8 +11,9 @@ import type {
 import { store, useAppState } from "../state/store";
 import { Markdown } from "./Markdown";
 import { CopyButton } from "./CopyButton";
+import { sessionContext } from "../state/taskContext";
+import { AttachmentThumbnail, AttachmentViewer } from "./AttachmentViewer";
 import { MessageEdit } from "./MessageEdit";
-import { Icon } from "./Icon";
 import { actionCountLabel, answerText, finalAnswer, stepCountLabel, turnMetrics, visibleParts } from "../chat/turns";
 import { exactTime, messageTime } from "../chat/time";
 export { Markdown } from "./Markdown";
@@ -294,6 +295,7 @@ function describeError(error: unknown): string {
 
 export function UserMessageView({ message }: { message: UserMessage }) {
   const s = useAppState();
+  const [viewedFile,setViewedFile] = useState<string|null>(null);
   const allParts = messageParts(s, message.sessionID, message.id);
   const parts = allParts.filter(
     (p) => p.type === "text" && !p.synthetic && !p.ignored,
@@ -306,7 +308,8 @@ export function UserMessageView({ message }: { message: UserMessage }) {
   if (!text && !files.length) return null;
   return <div className="user-message" data-scroll-anchor={`message:${message.id}`}>
     {text && <div className="msg-user">{text}</div>}
-    {files.length > 0 && <div className="message-file-list">{files.map(file => <span className="message-file" key={file.id}><Icon name="file" size={15}/>{file.filename || "Вложение"}</span>)}</div>}
+    {files.length > 0 && <div className="message-file-list">{files.map(file => <button className="message-file" key={file.id} onClick={()=>setViewedFile(file.id)}><AttachmentThumbnail file={{key:file.id,name:file.filename||"Вложение",mime:file.mime,url:file.url}}/>{file.filename || "Вложение"}</button>)}</div>}
+    {viewedFile && <AttachmentViewer files={sessionContext(s.chat.sessions[message.sessionID]).sources} initialKey={viewedFile} onClose={()=>setViewedFile(null)}/>}
     <div className="message-footer"><MessageTimestamp value={message.time.created}/><CopyButton text={text} label="Копировать сообщение" compact/><MessageEdit message={message} text={text}/></div>
   </div>;
 }

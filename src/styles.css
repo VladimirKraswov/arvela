@@ -2945,3 +2945,32 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .browser-monitor footer { display: flex; gap: 5px; align-items: center; min-height: 24px; height: 24px; padding: 0 10px; color: var(--text-dim); font-size: 10px; }
 .browser-monitor footer [role] { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 @media (prefers-reduced-motion: reduce) { .browser-monitor-frame { transition: none; } }
+
+/* Session attachment gallery and passive file preview. */
+.attachment-thumbnail{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:none;border-radius:8px;overflow:hidden;background:var(--bg-raised);border:1px solid var(--border)}
+.attachment-thumbnail img{width:100%;height:100%;object-fit:cover}
+button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--text);cursor:pointer;text-align:left;max-width:100%;font:inherit;background:transparent}
+.attachment-viewer{width:min(1100px,94vw);height:min(780px,90vh);max-width:94vw;max-height:90vh;padding:0;border:1px solid var(--border);border-radius:18px;background:var(--bg);color:var(--text);overflow:hidden;box-shadow:0 24px 100px #0006}
+.attachment-viewer::backdrop{background:#0008;backdrop-filter:blur(6px)}
+.attachment-viewer>header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border)}
+.attachment-viewer-body{display:flex;height:calc(100% - 58px);min-height:0}
+.attachment-viewer-body>aside{width:260px;flex:none;display:flex;flex-direction:column;gap:12px;padding:14px;border-right:1px solid var(--border);overflow:auto}
+.attachment-viewer-body input{width:100%;min-width:0}
+.attachment-gallery{display:flex;flex-direction:column;gap:6px}
+.attachment-gallery-item{display:flex;align-items:center;gap:10px;text-align:left;padding:8px;border:0;border-radius:10px;color:var(--text);background:transparent;cursor:pointer;font:inherit}
+.attachment-gallery-item[aria-pressed=true]{background:var(--accent-soft)}
+.attachment-gallery-item>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.attachment-preview{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.attachment-preview-toolbar,.attachment-preview-meta,.attachment-pdf-toolbar{display:flex;align-items:center;gap:8px;padding:10px 14px;flex:none}
+.attachment-preview-toolbar>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attachment-preview-meta{color:var(--text-dim);font-size:12px}
+.attachment-preview-content{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;align-items:center;justify-content:center}
+.attachment-preview-content.image{align-items:flex-start;justify-content:flex-start}.attachment-preview-content.image img{margin:auto;object-fit:contain;border-radius:8px;flex:none}
+.attachment-preview-content.text{display:block}.attachment-preview-content pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.attachment-preview-content video{max-width:100%;max-height:100%}.attachment-preview-content audio{width:100%}
+.attachment-preview-empty{margin:auto;padding:24px;text-align:center}
+.attachment-preview-content.pdf{display:block}.attachment-pdf canvas{width:100%;height:auto;display:block}.attachment-pdf-toolbar{justify-content:center;position:sticky;top:0;background:var(--bg)}
+@media(max-width:650px){.attachment-viewer-body{flex-direction:column}.attachment-viewer-body>aside{width:auto;max-height:180px;flex:none;border-right:0;border-bottom:1px solid var(--border)}.attachment-gallery{flex-direction:row;overflow:auto}.attachment-gallery-item{min-width:140px;max-width:200px}.attachment-preview{min-height:150px}}
+.context-item>.icon-btn:has(.attachment-thumbnail){width:40px;height:40px;flex:none}
+.attachment-viewer-body input[type=search]{padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;outline-offset:3px}
+.attachment-gallery-item[aria-pressed=true]{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--border)}

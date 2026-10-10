@@ -11,11 +11,12 @@ import { OutcomeSection } from "./OutcomeSection";
 import { MemorySection } from "./MemorySection";
 import { ProjectMapSection } from "./ProjectMapSection";
 import type { Outcome } from "../outcomes/store";
+import { AttachmentThumbnail, AttachmentViewer } from "./AttachmentViewer";
 import { Icon } from "./Icon";
 import { skillAuthoringRequest } from "../capabilities/authoring";
 
 export const CONTEXT_PANEL_ID = "chat-context-panel";
-const PREVIEW = 5;
+const PREVIEW = 3;
 const CHILD_POLL_MS = 10_000;
 
 /** Everything in the panel belongs to one server/folder/chat/engine; switching any of them remounts it. */
@@ -110,7 +111,11 @@ function FileSection({ id, title, files, empty, action, icon, describe, onOpen }
   icon: "file" | "folder"; describe: (file: ContextFile) => string; onOpen: (messageID: string) => void;
 }) {
   const [all, setAll] = useState(false);
-  const shown = all ? files : files.slice(0, PREVIEW);
+  const [viewedFile,setViewedFile] = useState<string|null>(null);
+  const [loadAll,setLoadAll] = useState(false);
+  const s = useAppState(), sid=s.activeSessionId;
+  const sources=id==="sources";
+  const shown = all && !sources ? files : files.slice(0, PREVIEW);
   return <section aria-labelledby={`context-${id}-title`}>
     <div className="context-section-title">
       <h3 id={`context-${id}-title`}>{title} · {files.length}</h3>
@@ -118,13 +123,14 @@ function FileSection({ id, title, files, empty, action, icon, describe, onOpen }
     </div>
     {!files.length && <p className="context-note">{empty}</p>}
     {files.length > 0 && <ul className="context-list" id={`context-${id}-list`}>{shown.map(f => <li className="context-item" key={f.key}>
-      <Icon name={icon} size={16}/>
+      {sources ? <button className="icon-btn" aria-label={`Открыть ${f.name}`} onClick={()=>{setLoadAll(false);setViewedFile(f.key);}}><AttachmentThumbnail file={f}/></button> : <Icon name={icon} size={16}/>}
       <div>
-        <button className="context-file" title={`${f.path ? safeLabel(f.path, 600) : f.name}\nПерейти к сообщению`} onClick={() => onOpen(f.messageID)}>{f.name}</button>
+        <button className="context-file" title={`${f.path ? safeLabel(f.path, 600) : f.name}\n${sources ? "Открыть файл" : "Перейти к сообщению"}`} onClick={() => sources ? (setLoadAll(false),setViewedFile(f.key)) : onOpen(f.messageID)}>{f.name}</button>
         <small>{describe(f)}</small>
       </div>
     </li>)}</ul>}
-    {files.length > PREVIEW && <button className="btn small ghost" aria-expanded={all} aria-controls={`context-${id}-list`} onClick={() => setAll(!all)}>
+    {sources && viewedFile && <AttachmentViewer files={files} initialKey={viewedFile} loadAll={loadAll} historyCursor={sid ? s.historyCursors?.[sid] : null} onClose={()=>setViewedFile(null)} hasMore={!!sid && !!s.historyCursors?.[sid] && !s.olderExhausted?.[sid]} loading={s.ui.historyLoading} historyError={s.ui.historyError} loadMore={()=>sid && void store.loadOlderMessages(sid)}/>}
+    {(files.length > PREVIEW || sources && !!sid && !!s.historyCursors?.[sid] && !s.olderExhausted?.[sid]) && <button className="btn small ghost" aria-expanded={all} aria-controls={`context-${id}-list`} onClick={() => {if(sources){setLoadAll(true);setViewedFile(files[0]?.key??"all");}else setAll(!all);}}>
       {all ? "Свернуть" : `Показать все (${files.length})`}</button>}
   </section>;
 }

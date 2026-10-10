@@ -7,12 +7,14 @@ import { emptySessionChat } from "../src/state/chatReducer";
 import { TaskScheduler } from "../src/schedules/tasks";
 import { registerComposer } from "../src/attachments/composerBridge";
 import { attachmentScope } from "../src/attachments/drafts";
-const fake=vi.hoisted(()=>({state:{} as any,engine:"opencode",draft:"user draft",setDraft:vi.fn(),setUi:vi.fn(),children:vi.fn(),statuses:vi.fn(),openChat:vi.fn(),scheduler:null as any}));
-vi.mock("../src/state/store",()=>({useAppState:()=>fake.state,store:{engineIdFor:()=>fake.engine,getModelChoice:()=>({providerID:"p",modelID:"m",variant:"medium"}),getAgentChoice:()=>"build",getDraft:()=>fake.draft,setDraft:fake.setDraft,setUi:fake.setUi,openChat:fake.openChat,client:{sessionChildren:fake.children,sessionStatuses:fake.statuses}}}));
+const fake=vi.hoisted(()=>({state:{} as any,engine:"opencode",draft:"user draft",setDraft:vi.fn(),setUi:vi.fn(),children:vi.fn(),statuses:vi.fn(),openChat:vi.fn(),loadOlder:vi.fn(),scheduler:null as any}));
+vi.mock("../src/state/store",()=>({useAppState:()=>fake.state,store:{currentHost:()=>null,loadOlderMessages:fake.loadOlder,engineIdFor:()=>fake.engine,getModelChoice:()=>({providerID:"p",modelID:"m",variant:"medium"}),getAgentChoice:()=>"build",getDraft:()=>fake.draft,setDraft:fake.setDraft,setUi:fake.setUi,openChat:fake.openChat,client:{sessionChildren:fake.children,sessionStatuses:fake.statuses}}}));
 vi.mock("../src/schedules/tasks",async original=>({...await original<object>(),taskScheduler:()=>fake.scheduler}));
 import { ContextPanel } from "../src/components/ContextPanel";
 let root:Root;
 beforeEach(()=>{
+ HTMLDialogElement.prototype.showModal=vi.fn(function(this:HTMLDialogElement){this.open=true;});
+ HTMLDialogElement.prototype.close=vi.fn(function(this:HTMLDialogElement){this.open=false;});
  vi.resetAllMocks();vi.useFakeTimers();vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT",true);fake.engine="opencode";fake.draft="user draft";
  let raw:string|null=null;fake.scheduler=new TaskScheduler({getItem:()=>raw,setItem:(_:string,v:string)=>{raw=v;}});
  const chat=emptySessionChat();chat.messageOrder=["u"];chat.messages.u={id:"u",sessionID:"s",role:"user",time:{created:1}};chat.partsByMessage.u=["f"];chat.parts.f={id:"f",messageID:"u",sessionID:"s",type:"file",filename:"source.pdf"};
@@ -22,9 +24,11 @@ beforeEach(()=>{
 afterEach(()=>{act(()=>root.unmount());document.body.innerHTML="";vi.useRealTimers();vi.unstubAllGlobals();});
 const mount=()=>act(async()=>root.render(createElement(ContextPanel)));
 const click=async(label:string)=>act(async()=>document.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click());
-it("sources navigate to the scoped message and creating a result appends to the existing draft",async()=>{
+it("sources open a preview without jumping away and creating a result appends to the existing draft",async()=>{
  await mount();await act(async()=>Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="source.pdf")!.click());
- expect(fake.setUi).toHaveBeenCalledWith({revealMessage:{server:"local",directory:"/project",sessionID:"s",messageID:"u"},contextOpen:false});
+ expect(document.querySelector('[aria-label="Файлы сессии"]')).not.toBeNull();
+ expect(fake.setUi).not.toHaveBeenCalled();
+ await click("Закрыть просмотр файлов");
  await click("Подготовить запрос на создание результата");expect(fake.setDraft).toHaveBeenCalledWith("user draft\n\nСоздай файл с результатом: ");
 });
 it("does not request OpenCode children for Pi and cancels stale child responses after switching chat",async()=>{
@@ -102,4 +106,16 @@ it("prepares a common skill request in the selected chat without replacing its d
  expect(fake.setUi).toHaveBeenCalledWith({contextOpen:false});
  fake.engine="pi";await mount();
  expect(document.body.textContent).toContain("Подготовить создание навыка");
+});
+
+it("opens all sources in a gallery and loads each older cursor only once",async()=>{
+ const chat=fake.state.chat.sessions.s;
+ for(let n=2;n<=6;n++){const id=`f${n}`;chat.partsByMessage.u.push(id);chat.parts[id]={id,sessionID:"s",messageID:"u",type:"file",filename:`source-${n}.txt`};}
+ fake.state.historyCursors={s:"older-1"};fake.loadOlder.mockResolvedValue(undefined);
+ await mount();expect(document.querySelectorAll("#context-sources-list li")).toHaveLength(3);
+ await act(async()=>Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="Показать все (6)")!.click());
+ expect(document.querySelectorAll(".attachment-gallery-item")).toHaveLength(6);
+ expect(fake.loadOlder).toHaveBeenCalledExactlyOnceWith("s");
+ await mount();expect(fake.loadOlder).toHaveBeenCalledOnce();
+ fake.state={...fake.state,activeSessionId:"other"};await mount();expect(document.querySelector(".attachment-viewer")).toBeNull();
 });

@@ -5,7 +5,7 @@ import { normalizeLocalPath, isAbsoluteLocalPath, pathIsWithin } from "../util/p
 /** How a result path appeared in the transcript. A pointer into history, not proof the file exists. */
 export type ResultOrigin = "write" | "edit" | "patch" | "link";
 export interface ContextFile {
-  key: string; name: string; messageID: string; path?: string; mime?: string;
+  key: string; name: string; messageID: string; path?: string; mime?: string; url?: string;
   origin?: ResultOrigin; at?: number;
 }
 export interface ContextSnapshot { sources: ContextFile[]; results: ContextFile[] }
@@ -95,7 +95,7 @@ export function sessionContext(chat?: SessionChatState): ContextSnapshot {
   const sources: ContextFile[] = [], results = new Map<string, ContextFile>();
   if (!chat) return { sources, results: [] };
   eachPart(chat, (p, f, role, at) => {
-    if (f.file && role === "user") sources.push({ key: p.id, name: f.file.name, mime: f.file.mime, messageID: p.messageID, at });
+    if (f.file && role === "user") sources.push({ key: p.id, name: f.file.name, mime: f.file.mime, url: p.url, messageID: p.messageID, at });
     if (role !== "assistant") return;
     for (const { path: raw, origin } of f.outputs) {
       const path = normalizeLocalPath(raw);
