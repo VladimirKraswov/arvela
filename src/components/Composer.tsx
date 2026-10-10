@@ -277,11 +277,13 @@ export function Composer() {
                 : "Приостановлена"}
             </span>
             {!store.isQueueArmed() && (
-              <button onClick={() => store.resumeQueue()}>
+              <button disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue()}>
                 Продолжить очередь
               </button>
             )}
           </div>
+          {!store.isQueueArmed() && store.queueRecoveryReason() && <p className="queue-recovery" role="status">{store.queueRecoveryReason()}</p>}
+          {!store.isQueueArmed() && store.queueHasDifferentModel() && <button className="queue-model-recovery" disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue(true)}>Продолжить на выбранной модели</button>}
           {store.getQueue().map((item) => (
             <div className={`queued-prompt ${queueEdit?.id === item.id ? "queued-prompt-editing" : ""}`} key={item.id}>
               <p className="queued-summary" title={item.text}>{item.text.replace(/\s+/g, " ").trim()}</p>

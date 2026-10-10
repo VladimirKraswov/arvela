@@ -3,6 +3,7 @@ use super::{private, read_at, validate, Source};
 use fs2::FileExt;
 use sha2::{Digest, Sha256};
 use std::{fs, path::Path};
+const CATALOG: &str = include_str!("../../resources/skills/create-shared-skill/scripts/catalog.py");
 const ID: &str = "arvela-authoring";
 const SKILL: &str = include_str!("../../resources/skills/create-shared-skill/SKILL.md");
 
@@ -24,7 +25,10 @@ pub(super) fn ensure(root: &Path) -> Result<(), String> {
     let (mut registry, expected) = read_at(root, "global")?;
     let bundles = root.join("builtin-skills");
     private(&bundles)?;
-    let source = bundles.join(format!("{:x}", Sha256::digest(SKILL.as_bytes())));
+    let source = bundles.join(format!(
+        "{:x}",
+        Sha256::digest([SKILL.as_bytes(), CATALOG.as_bytes()].concat())
+    ));
     private(&source)?;
     let directory = source.join("create-shared-skill");
     private(&directory)?;
@@ -38,6 +42,22 @@ pub(super) fn ensure(root: &Path) -> Result<(), String> {
         }
     } else {
         crate::config::write_at(&file, "", SKILL)?;
+    }
+    let scripts = directory.join("scripts");
+    private(&scripts)?;
+    let catalog = scripts.join("catalog.py");
+    if catalog.is_symlink() {
+        return Err("Каталог навыков не должен быть ссылкой".into());
+    }
+    if catalog.exists() {
+        if fs::read_to_string(&catalog).map_err(|_| "Каталог навыков недоступен")? != CATALOG
+        {
+            return Err(
+                "Встроенный каталог навыков изменён; сохраните пользовательскую копию".into(),
+            );
+        }
+    } else {
+        crate::config::write_at(&catalog, "", CATALOG)?;
     }
     let path = source.display().to_string();
     if let Some(existing) = registry.sources.iter_mut().find(|s| s.id == ID) {
@@ -82,6 +102,10 @@ mod tests {
         assert_eq!(registry.sources.len(), 1);
         let skill = Path::new(&registry.sources[0].path).join("create-shared-skill/SKILL.md");
         assert_eq!(fs::read_to_string(&skill).unwrap(), SKILL);
+        assert_eq!(
+            fs::read_to_string(skill.parent().unwrap().join("scripts/catalog.py")).unwrap(),
+            CATALOG
+        );
         registry.sources[0].enabled = false;
         registry.sources.push(Source {
             id: "owner".into(),

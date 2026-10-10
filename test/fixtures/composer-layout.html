@@ -17,7 +17,8 @@ const models=Object.fromEntries(names.map((name,i)=>['m'+i,{id:'m'+i,name,varian
 store.getModelChoice=()=>({providerID:'local',modelID:params.has('pi')?'m2':'m0',variant:'medium'});
 store.connectedProvidersWithModels=()=>[{id:'local',models}];
 store.modelInfo=()=>models.m0;store.engineReady=()=>true;
-store.activeSession=()=>({id:'fixture'});store.getDraft=()=>'';store.getQueue=()=>params.has('queue') ? Array.from({length:5},(_,i)=>({id:'q'+i,text:('Задача '+(i+1)+' — подробное описание\n').repeat(12),state:'ready',attachments:i===0?{files:[{id:'f',name:'Документ.pdf'}]}:undefined})) : [];
+store.activeSession=()=>({id:'fixture'});store.getDraft=()=>'';store.getQueue=()=>params.has('queue') ? Array.from({length:5},(_,i)=>({id:'q'+i,text:('Задача '+(i+1)+' — подробное описание\n').repeat(12),state:'ready',model:{providerID:'local',modelID:params.has('recovery')?'m1':'m0',variant:'medium'},attachments:i===0?{files:[{id:'f',name:'Документ.pdf'}]}:undefined})) : [];
+if(params.has('recovery')) s.chat.sessions.fixture={lastError:'Insufficient Balance',status:{type:'idle'}};
 store.primaryAgentNames=()=>['qwen-build'];store.getAgentChoice=()=> 'qwen-build';
 store.contextInfo=()=>({used:16000,limit:262144,percent:6,threshold:200000,remaining:184000,auto:true});
 store.hostLabel=()=> 'Этот компьютер';store.currentHost=()=>null;

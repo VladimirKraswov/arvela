@@ -169,3 +169,36 @@ it("returning to an endpoint makes interrupted sends reviewable, never stranded 
   const back = switchEndpointPrefs(other, original.endpoint);
   expect(back.queues?.ses_a[0].state).toBe("uncertain");
 });
+
+it("explicit recovery clears the old error and drains both items without a busy event", async () => {
+  store.enqueuePrompt("first"); store.enqueuePrompt("second");
+  store.handleEvent({type:"session.error",properties:{sessionID:"ses_a",error:{data:{message:"Insufficient Balance"}}}});
+  expect(store.queueRecoveryReason()).toContain("Недостаточно средств");
+  status("idle"); await flush(); expect(store.client.prompt).not.toHaveBeenCalled();
+  store.setModelChoice("p","other","medium"); expect(store.queueHasDifferentModel()).toBe(true);
+  store.resumeQueue(true); await flush();
+  expect(store.client.prompt.mock.calls[0][2].model.modelID).toBe("other");
+  status("idle"); await flush();
+  expect(store.client.prompt).toHaveBeenCalledTimes(2);
+  expect(store.client.prompt.mock.calls[1][2].model.modelID).toBe("other");
+  expect(store.getQueue()).toHaveLength(0);
+});
+it("a new provider error pauses again after explicit recovery", async () => {
+  store.enqueuePrompt("first"); store.enqueuePrompt("second");
+  store.handleEvent({type:"session.error",properties:{sessionID:"ses_a",error:{data:{message:"Insufficient Balance"}}}});
+  store.resumeQueue(); await flush();
+  store.handleEvent({type:"session.error",properties:{sessionID:"ses_a",error:{data:{message:"Insufficient Balance"}}}});
+  status("idle"); await flush();
+  expect(store.client.prompt).toHaveBeenCalledTimes(1); expect(store.getQueue()).toHaveLength(1);
+  expect(store.isQueueArmed()).toBe(false);
+});
+
+it("an error arriving before POST acceptance is not replaced by a synthetic busy status", async () => {
+  let accepted!: () => void;
+  vi.mocked(store.client.prompt).mockImplementation(() => new Promise<void>(resolve => { accepted = resolve; }));
+  store.enqueuePrompt("first"); store.enqueuePrompt("second"); status("idle"); await flush();
+  store.handleEvent({type:"session.error",properties:{sessionID:"ses_a",error:{data:{message:"Insufficient Balance"}}}});
+  accepted(); await flush();
+  expect(store.isRunning()).toBe(false); expect(store.isQueueArmed()).toBe(false);
+  expect(store.getQueue()).toHaveLength(1); expect(store.client.prompt).toHaveBeenCalledTimes(1);
+});

@@ -551,16 +551,24 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Reviewed document-download skill with partial/edition/access evidence and portable helper failure checks.
 - [ ] Qualify usefulness and automatic skill selection on future owner tasks; no unmeasured performance claim.
 
-## Compact prompt queue (source only)
+## Compact prompt queue (installed in 0.2.39)
 
 - [x] Single-line summaries, bounded queue scrolling and attachment counts.
 - [x] Composer-based Apply/Cancel with original position/model/attachment preservation and paused dispatch while editing.
 - [x] Failure, cancellation and idle-during-edit tests; isolated narrow/large-text browser layouts.
-- [ ] Install when requested; owner explicitly kept the current running application unchanged.
+- [x] Included in the owner-authorised 0.2.39 Mac installation.
 
-## Detached browser group (source only)
+## Detached browser group (installed in 0.2.39)
 
 - [x] Selected-chat page cards, draggable ordering, layered previews and native group header.
 - [x] Passive page selection without changing agent tab/input/viewport; stale capture and scope isolation.
 - [x] Component drag/layout, isolated real Chromium and native checks on Mac.
-- [ ] Install at owner’s request; Windows/Linux and OS-window drag acceptance remain separate.
+- [x] Included in 0.2.39 Mac installation; Windows/Linux and OS-window drag acceptance remain separate.
+
+## Queue recovery and shared skill improvement (0.2.39)
+
+- [x] Explicit recovery acknowledges prior terminal error, preserves queue order/files, and allows deliberate rebinding of ready entries to the selected model.
+- [x] Balance failure explains pause; new errors pause again and ambiguous POSTs never replay automatically. Pending dispatch updates authoritative local activity to busy.
+- [x] Shared authoring recipe routes editing requests, resolves available source/revision through portable read-only catalogue, preserves concurrent edits and managed copies, and requires isolated verification.
+- [x] 688 frontend / 96 native tests; catalogue fixtures and narrow actual Composer recovery/layout checks pass.
+- [x] Mac 0.2.39 signature/DMG CRC/install binary equality, native connected/open status, GUI version and installed shared recipe bytes verified. No owner prompt or automatic old-job replay.

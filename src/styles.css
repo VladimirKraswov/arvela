@@ -2944,3 +2944,6 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 
 .browser-monitor-tabs button[data-dragging] { opacity: .45; }
 .browser-monitor-tabs button[data-drop-target] { border-color: var(--text-dim); background: var(--bg); }
+
+.queue-recovery { margin: 0 8px 6px; font-size: .785714rem; color: var(--text-dim); }
+.queue-model-recovery { margin: 0 8px 6px; font-size: .785714rem; }

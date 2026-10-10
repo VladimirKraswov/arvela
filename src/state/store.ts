@@ -2776,12 +2776,42 @@ class Store {
       } else if (this.engineStillActive(backend)) this.patchUi({ sending: false });
     }
   }
-  resumeQueue() {
+  /** Explicit recovery acknowledges the old failure; future error events still pause. */
+  resumeQueue(useSelectedModel = false) {
     const sid = this.state.activeSessionId;
-    if (!sid) return;
+    const queue = this.getQueue();
+    if (!sid || !queue.length || queue[0].state !== "ready" || this.queueLocks.has(sid)) return;
+    const previous = queue;
+    if (useSelectedModel) {
+      const model = this.getModelChoice();
+      if (!model) return;
+      this.writeQueue(sid, queue.map(item => item.state === "ready"
+        ? { ...item, model: { ...model }, error: undefined } : item));
+      if (!flushPrefs()) {
+        this.writeQueue(sid, previous);
+        this.patchUi({ sendError: "Не удалось сохранить выбор модели. Очередь не запущена." });
+        return;
+      }
+    }
+    const chat = this.state.chat.sessions[sid];
+    if (chat) chat.lastError = null;
     this.queueArmed.add(sid);
     this.patchUi({ sendError: null });
-    void this.drainQueue(true);
+    void this.drainQueue();
+  }
+  queueRecoveryReason(): string | null {
+    if (this.isQueueArmed() || !this.getQueue().length) return null;
+    const sid = this.state.activeSessionId;
+    const error = (sid ? this.state.chat.sessions[sid]?.lastError : null) || this.getQueue()[0]?.error;
+    if (!error) return null;
+    if (/insufficient.?balance|insufficient.?credits|payment required/i.test(error))
+      return "Недостаточно средств у провайдера. Пополните баланс или выберите другую модель и продолжите очередь. Задания сохранены.";
+    return "Очередь остановлена после ошибки. Устраните причину и продолжите; задания сохранены.";
+  }
+  queueHasDifferentModel(): boolean {
+    const model = this.getModelChoice();
+    return !!model && this.getQueue().some(item => item.state === "ready" &&
+      (item.model.providerID !== model.providerID || item.model.modelID !== model.modelID || item.model.variant !== model.variant));
   }
   private async drainQueue(explicit = false) {
     const sid = this.state.activeSessionId;
@@ -2905,6 +2935,7 @@ class Store {
       if (flushPrefs() && item.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
       if (!current()) return;
       if ((this.statusVersions.get(sid) ?? 0) <= seq) {
+        this.observeSessionStatus(sid, { type: "busy" }, item.directory);
         const prev = this.state.chat.sessions[sid] ?? emptySessionChat();
         this.mutate((s) => ({
           chat: {
@@ -3132,7 +3163,7 @@ class Store {
       );
     }
     if (
-      event.type === "session.status" &&
+      (event.type === "session.status" || event.type === "session.error" || event.type === "session.idle") &&
       typeof event.properties?.sessionID === "string"
     )
       this.statusVersions.set(
