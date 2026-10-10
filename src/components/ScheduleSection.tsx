@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore } from "react";
 import { store } from "../state/store";
-import { MAX_MINUTES, STORAGE_FAILED, TASK_LIMIT, type ScheduledTask, type TaskScheduler } from "../schedules/tasks";
+import { MAX_MINUTES, STORAGE_FAILED, type ScheduledTask, type TaskScheduler } from "../schedules/tasks";
 import { PI_BACKEND_ID } from "../agent/pi/backend";
 import { Icon } from "./Icon";
 
@@ -89,9 +89,7 @@ export function ScheduleSection({ scheduler, server, directory, sessionID }: {
         <label>Единица<select value={unit} onChange={e => setUnit(e.target.value as typeof unit)}>{UNITS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
       </div>
       <p className="context-note">
-        Модель: {model ? modelLabel({ model, agent }) : "не выбрана"}. Сохраняется вместе с заданием; выбор в композере позже её не меняет.
-        Работает, пока Desktop открыт и подключён к этому серверу; обычные разрешения действуют. Занятый чат ждёт; пропущенные запуски не накапливаются. До {TASK_LIMIT} заданий.
-      </p>
+        Модель: {model ? modelLabel({ model, agent }) : "не выбрана"}. Выполняется, пока приложение открыто.</p>
       <button className="btn small" type="submit" disabled={!model || !intervalValid}>Сохранить расписание</button>
     </form>}
     {error && <p className="context-error" role="alert">{error}</p>}

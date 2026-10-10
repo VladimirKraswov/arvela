@@ -24,8 +24,7 @@ function Row({
   return (
     <div className="setting-row">
       <div className="setting-label">
-        <span>{title}</span>
-        {description && <small>{description}</small>}
+        <span title={description}>{title}</span>
       </div>
       <div className="setting-control">{children}</div>
     </div>
@@ -103,12 +102,7 @@ export function PiSettings({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
 
   return (
     <section className="pi-settings" aria-label="Pi">
-      <p className="settings-intro">
-        Pi — локальный агент с независимыми настройками. Он выполняется на этом
-        компьютере через собственный режим RPC, со своей историей чатов, своим
-        каталогом моделей и своими расширениями. Настройки OpenCode на Pi не
-        распространяются.
-      </p>
+
 
       <nav className="settings-agent-tabs" aria-label="Настройки Pi">{[
         ["connection","Подключение"],["models","Модели"],["extensions","Расширения и LSP"],["capabilities","Возможности"],
@@ -220,11 +214,7 @@ export function PiSettings({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
             onBlur={() => store.setPiCustomModel(custom)}
           />
         </Row>
-        <p className="handoff-note">
-          Встроенный каталог Pi — это не список доступных вашему аккаунту
-          моделей: он может и не знать вашу модель, и перечислять те, к которым
-          нет доступа. В выборе чата появятся только модели, ответившие на проверку.
-        </p>
+
         {custom.trim() && <div className="btn-row">
           <button className="btn" disabled={busy || !install?.installed || !/^[^/]+\/.+/.test(custom.trim())}
             onClick={() => { store.setPiCustomModel(custom); void checkModel(custom.trim()); }}>
@@ -451,15 +441,7 @@ export function PiSettings({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
       </Group>
 
       <Group title="Возможности" hidden={tab !== "capabilities"}>
-        <p className="handoff-note">
-          Pi предоставляет потоковый текст и рассуждения, инструменты, остановку,
-          сжатие контекста и ветвление сообщений. Изображения передаются напрямую;
-          текстовые файлы и обработанные PDF, аудио и видео — через общий сервис вложений.
-          Браузер и расписания работают для обоих агентов. Терминал и просмотр Git
-          предоставляет подключённый сервер рабочего пространства независимо от агента чата.
-          Подтверждения инструментов и вопросы Pi отображаются через расширение-шлюз,
-          которое приложение загружает в каждую сессию.
-        </p>
+
         <div className="kv">
           <span>Вложения</span>
           <b>{PI_CAPABILITIES.attachments ? "Изображения и подготовленные файлы" : "Нет"}</b>

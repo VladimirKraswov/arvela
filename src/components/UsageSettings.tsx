@@ -51,7 +51,7 @@ export function UsageSettings() {
   }) : [];
   const max = Math.max(1, ...bars.map(day => day.total));
   return <div className="usage-settings">
-    <p className="settings-intro">Расход берётся из фактических ответов: OpenCode на текущем подключённом сервере и чатов Pi, созданных в Desktop. Модель определяется для каждого ответа отдельно. Лимиты провайдеров здесь не показываются.</p>
+    <p className="settings-intro">Статистика по ответам OpenCode и Pi.</p>
     <div className="usage-toolbar">
       <div className="usage-periods" role="group" aria-label="Период использования">
         {([ ["7d", "7 дней"], ["30d", "30 дней"], ["all", "Всё время"] ] as const).map(([key, title]) => <button key={key} className="btn" aria-pressed={period === key} onClick={() => setPeriod(key)}>{title}</button>)}

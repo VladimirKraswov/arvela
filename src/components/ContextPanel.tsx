@@ -75,26 +75,26 @@ function ContextContents({ server, sid, directory, engine }: { server: string; s
       <h2 id="context-panel-title">Контекст задачи</h2>
       <button className="icon-btn" aria-label="Закрыть контекст задачи" onClick={close}><Icon name="close" size={16}/></button>
     </div>
-    {!sid && <p className="context-note">Создайте или откройте чат, чтобы увидеть его контекст и добавить расписание.</p>}
+    {!sid && <p className="context-note">Откройте чат.</p>}
     {sid && <TaskDiagnostics chat={chat}/>}
     {sid && (engine === "opencode" || engine === "pi") && <OutcomeSection scope={{server,directory:directory??"",sessionID:sid,engine}} requests={(chat?.messageOrder??[]).filter(id=>chat?.messages[id]?.role==="user").map(id=>({id,label:safeLabel((chat?.partsByMessage[id]??[]).map(p=>chat?.parts[p]).filter(p=>p?.type==="text"&&!p.synthetic).map(p=>p?.text??"").join(" "),100)}))} onOpen={jump} onPropose={card=>setProposed({...card})}/>}
     <MemorySection server={server} directory={directory} proposed={proposed}/>
     <ProjectMapSection server={server} directory={directory}/>
     {sid && <section aria-labelledby="context-skill-title">
       <div className="context-section-title"><h3 id="context-skill-title">Навык по опыту чата</h3></div>
-      <p className="context-note">Разобрать удачные действия и ошибки, создать общий навык для OpenCode и Pi. Запрос появится в черновике; отправка остаётся за вами.</p>
+
       <button className="btn small ghost" onClick={draftSkill}>Подготовить создание навыка</button>
     </section>}
     <ScheduleSection scheduler={scheduler} server={server} directory={directory} sessionID={sid} />
-    <FileSection id="results" title="Результаты" files={context.results} empty="Здесь появятся файлы из выполненных изменений и явные ссылки на файлы в ответах."
+    <FileSection id="results" title="Результаты" files={context.results} empty="Результатов пока нет."
       action={{ label: "Подготовить запрос на создание результата", disabled: !sid, run: draftResult }}
       icon="file" describe={resultOrigin} onOpen={jump} />
     <ChildrenSection opencode={engine === "opencode"} sid={sid} directory={directory} connected={s.connection.phase === "connected"} runs={runs} />
-    <FileSection id="sources" title="Источники" files={context.sources} empty="Файлы, приложенные к сообщениям этого чата."
+    <FileSection id="sources" title="Источники" files={context.sources} empty="Источников пока нет."
       action={{ label: "Добавить источник в черновик", disabled: !sid || !!s.ui.sending, run: addSource }}
       icon="folder" describe={f => f.mime ? `Вложение · ${safeLabel(f.mime, 60)}` : "Вложение"} onOpen={jump} />
     {notice && <p className="context-error" role="alert">{notice}</p>}
-    {sid && <p className="context-note">Списки построены по загруженной истории.{" "}
+    {sid && moreHistory && <p className="context-note">
       {moreHistory && <button className="btn small ghost" disabled={s.ui.historyLoading} onClick={() => void store.loadOlderMessages(sid)}>
         {s.ui.historyLoading ? "Загрузка…" : "Загрузить более раннюю историю"}</button>}</p>}
   </aside>;

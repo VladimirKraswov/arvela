@@ -65,10 +65,6 @@ export function ContextMeter() {
             <b>{n(c.threshold)}</b>
           </div>
         </>}
-        <p>{isPi
-          ? "Последние данные Pi. Во время генерации счётчик обновляется после отчёта движка."
-          : "Последние данные OpenCode. Во время генерации счётчик обновляется после отчёта движка. История сохраняется, рабочий контекст сжимается автоматически."}
-        </p>
         {store.conversation().capabilities.compaction && <button
           className="btn small"
           disabled={!s.activeSessionId || store.isRunning() || c.compacting}

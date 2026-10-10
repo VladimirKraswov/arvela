@@ -51,7 +51,7 @@ export function ComputerSettings(){
   const p=status?.permissions, os=platform(), windows=os==="windows";
   return <section className="computer-settings" aria-label="Управление компьютером">
     <h4>Отдельный курсор агента</h4>
-    <p>OpenCode читает интерфейс выбранного окна, видит его снимок, нажимает и вводит текст через Cua Driver. Ваш указатель остаётся свободным. Снимки и текст окон получает выбранная модель.</p>
+    <p>Снимки и текст выбранного окна получает модель.</p>
     {!["macos","windows"].includes(os)?<p role="status">Управление окнами Cua Driver на этой платформе недоступно. Управляемый браузер доступен в отдельном разделе настроек.</p>
       :!native?<p>Откройте установленное приложение Desktop.</p>:<>
       <div className="kv"><span>Драйвер</span><b>{status?status.installed?status.version:"Не установлен":"Проверка…"}</b></div>
@@ -61,7 +61,7 @@ export function ComputerSettings(){
       <div className="kv"><span>Запись экрана</span><b>{p?.screen_recording===true?"Разрешена":p?.screen_recording===false?"Нужен доступ":"Не проверена"}</b></div></>}
       {windows&&<><div className="kv"><span>Интерактивный сеанс Windows</span><b>{p?.interactive_session===true?"Доступен":"Не подтверждён"}</b></div><div className="kv"><span>UI Automation</span><b>{p?.uia===true&&p?.windows_visible===true?"Готово":"Не подтверждено"}</b></div></>}
       {p?.status==="refused"&&status&&<p role="status">{computerReadinessError(status)}</p>}
-      <p className="handoff-note">Окно должно быть доступно в текущем интерактивном сеансе. Фоновые действия поддерживаются не всеми приложениями: если окно требует переднего плана, агент сообщит об этом. Захват вашей мыши, управление всем рабочим столом и скрытая выдача разрешений отключены.</p>
+      <p className="handoff-note">Некоторые приложения требуют активного окна.</p>
       {!local&&<p role="status">Эта интеграция управляет компьютером, на котором открыт Desktop. Для настройки выберите «Этот компьютер» и локальный сервер OpenCode.</p>}
       {running&&<p role="status">Подключение можно менять после завершения агента. Экстренная остановка доступна сейчас.</p>}
       <div className="btn-row computer-actions">

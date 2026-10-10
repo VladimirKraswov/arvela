@@ -21,14 +21,14 @@ export function OutcomeSection({scope,requests,onOpen,onPropose}:{scope:OutcomeS
  const anchors=[...requests];for(const c of cards)if(!anchors.some(x=>x.id===c.messageID))anchors.push({id:c.messageID,label:'Сохранённая карточка · '+c.goal.slice(0,80)});
  const updateCheck=(i:number,patch:Partial<ReportedCheck>)=>edit({checks:value!.checks.map((c,n)=>n===i?{...c,...patch}:c)});
  return <section className="outcome-section" aria-labelledby="outcome-title"><details><summary id="outcome-title">Результат задачи{base?' · '+labels[base.verdict]:''}</summary>
- <p className="context-note">Ваша оценка результата. Ответ агента и успешный вызов инструмента не означают, что задача проверена.</p>
+
  {!anchors.length?<p className="context-note">Карточку можно добавить после отправки запроса в этом чате.</p>:<>
  <label>Запрос задачи<select aria-label="Запрос задачи" value={selected} disabled={!ready||busy} onChange={e=>choose(e.target.value)}>{anchors.map(x=><option key={x.id} value={x.id}>{x.label||'Запрос'}</option>)}</select></label>
  {selected&&<button className="btn small ghost" onClick={()=>onOpen(selected)}>Перейти к запросу</button>}
  {!value?<button className="btn small" disabled={!ready||busy||!selected} onClick={create}>Добавить карточку</button>:<>
  <label>Цель<textarea aria-label="Цель задачи" maxLength={4000} value={value.goal} disabled={busy} onChange={e=>edit({goal:e.target.value})}/></label>
  <label>Критерии приёмки<textarea aria-label="Критерии приёмки" maxLength={4000} value={value.criteria} disabled={busy} onChange={e=>edit({criteria:e.target.value})}/></label>
- <p className="context-note">Проверки ниже указаны вами; приложение не запускает команды и не подтверждает их исход самостоятельно.</p>
+
  {value.checks.map((c,i)=><fieldset key={i} disabled={busy}><legend>Проверка {i+1}</legend>
  <label>Название<input aria-label={`Название проверки ${i+1}`} maxLength={160} value={c.name} onChange={e=>updateCheck(i,{name:e.target.value})}/></label>
  <label>Указанный результат<select aria-label={`Результат проверки ${i+1}`} value={c.status} onChange={e=>updateCheck(i,{status:e.target.value as ReportedCheck['status']})}><option value="not_run">Не выполнена</option><option value="passed">Прошла</option><option value="failed">Не прошла</option></select></label>
@@ -37,11 +37,11 @@ export function OutcomeSection({scope,requests,onOpen,onPropose}:{scope:OutcomeS
  <button className="btn small" disabled={busy||value.checks.length>=8} onClick={()=>edit({checks:[...value.checks,{name:'',status:'not_run',evidence:''}]})}>Добавить проверку</button>
  <label>Итог / замечания<textarea aria-label="Замечания к результату" maxLength={2000} value={value.notes} disabled={busy} onChange={e=>edit({notes:e.target.value})}/></label>
  <label className="outcome-share"><input type="checkbox" checked={value.share} disabled={busy} onChange={e=>edit({share:e.target.checked})}/>Передавать эту карточку в Hub</label>
- <p className="context-note">Передача требует включённой библиотеки и передачи текстов; секреты фильтруются. Уже переданная оценка остаётся до срока хранения. Сохранённые карточки остаются на этом устройстве.</p>
+ <p className="context-note">Для отправки включите библиотеку и передачу текстов.</p>
  <div className="outcome-actions"><button className="btn small primary" disabled={!dirty||busy||!ready} onClick={()=>void save()}>Сохранить карточку</button><button className="btn small" disabled={busy} onClick={()=>void reset()}>Перечитать сохранённую</button></div>
  <div className="outcome-actions" aria-label="Оценка результата"><button className="btn small" disabled={!base||dirty||busy} onClick={()=>void save('accepted')}>Принять результат</button><button className="btn small" disabled={!base||dirty||busy} onClick={()=>void save('needs_work')}>Нужна доработка</button><button className="btn small ghost" disabled={!base||dirty||busy||base.verdict==='unreviewed'} onClick={()=>void save('unreviewed')}>Снять оценку</button></div>
  {onPropose&&base?.verdict==='accepted'&&<button className="btn small" disabled={dirty||busy} onClick={()=>onPropose(base)}>Предложить в память проекта</button>}
- {dirty&&<p className="context-note">Есть несохранённые изменения. Черновик сохраняется при закрытии панели до выхода из приложения; прежняя оценка изменённых сведений будет сброшена.</p>}
+ {dirty&&<p className="context-note">Есть несохранённые изменения.</p>}
  </>}
  </>}
  {notice&&<p className="context-note" role="status">{notice}</p>}{error&&<p className="context-error" role="alert">{error}</p>}

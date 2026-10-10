@@ -129,7 +129,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
     <div className="engine-content">
       {hasBusySession && <p role="status">Пока агент выполняет задачу, запись конфигурации отключена. Настройки можно просматривать.</p>}
       {section === "tools" && <>
-        <p>Разрешения OpenCode для текущей области. Наследуемое значение зависит от других файлов конфигурации и настроек агента; сложные правила сохраняются без изменений.</p>
+
         {[...new Set([...tools, ...Object.keys(permissions)])].filter((x) => x !== "*").map((id) => {
           const value = permissionValue(config, id);
           return <div className="engine-row" key={id}>
@@ -174,7 +174,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
         }}>Добавить пакет</button></div>
       </>}
       {section === "mcp" && <>
-        <p>Удалённые MCP-серверы подключаются через конфигурацию OpenCode. URL сохраняется без секретов; используйте HTTPS или loopback HTTP.</p>
+
         {Object.entries(mcp).map(([name, value]) => <div className="engine-row" key={name}><span><b>{name}</b><small> · {mcpStatus[name]?.status ?? "после перезапуска"}</small></span><button className="btn small" disabled={!canEdit} onClick={() => { const next = {...mcp}; delete next[name]; void save(["mcp"], next); }}>Убрать</button><code>{asRecord(value).type === "remote" ? String(asRecord(value).url ?? "") : "Локальный MCP"}</code></div>)}
         <div className="engine-add"><input aria-label="Имя MCP" value={mcpName} onChange={(e) => setMcpName(e.target.value)} placeholder="имя-сервера" /><input aria-label="Адрес MCP" value={mcpUrl} onChange={(e) => setMcpUrl(e.target.value)} placeholder="https://server.example/mcp" /><button className="btn" disabled={!canEdit || !mcpName.trim() || !mcpUrl.trim()} onClick={() => {
           const name = mcpName.trim(), url = mcpUrl.trim();

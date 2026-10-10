@@ -47,7 +47,7 @@ export function searchSettings(query: string) {
 }
 const isEngine = (id: Section): id is EngineSection => ["tools", "skills", "plugins", "mcp", "agents"].includes(id);
 function Row({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
-  return <div className="setting-row"><div className="setting-label"><span>{title}</span>{description && <small>{description}</small>}</div><div className="setting-control">{children}</div></div>;
+  return <div className="setting-row"><div className="setting-label"><span title={description}>{title}</span></div><div className="setting-control">{children}</div></div>;
 }
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return <section className="setting-group" aria-label={title}><h2>{title}</h2><div className="setting-card">{children}</div></section>;
@@ -62,7 +62,7 @@ function AppearanceSettings() {
     store.setAppearance({ accent: custom }); setColorError(false);
   };
   return <>
-    <p className="settings-intro">Изменения сразу видны во всём приложении и сохраняются на этом компьютере.</p>
+
     <Group title="Оформление">
       <Row title="Тема" description="Системная тема следует настройкам операционной системы."><select aria-label="Тема" value={prefs.theme} onChange={e => store.setTheme(e.target.value as typeof prefs.theme)}><option value="system">Системная</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></Row>
       <Row title="Основной цвет" description="Кнопки, ссылки и выделения."><div className="accent-swatches" role="group" aria-label="Основной цвет">{ACCENTS.map(([value, title]) => <button key={value} aria-label={title} title={title} aria-pressed={a.accent === value} onClick={() => store.setAppearance({ accent: value })} style={{ background: value === "neutral" ? "var(--text)" : value, color: "#111" }}>{a.accent === value && <Icon name="check" size={15} />}</button>)}</div></Row>
@@ -138,7 +138,7 @@ export function SettingsScreen() {
       <span className="settings-sidebar-version">Arvela {appVersion}</span>
     </aside>
     <div className="settings-main" ref={content}><div className="settings-window-drag" data-tauri-drag-region/><div className="settings-page">
-      <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1><p>{query.trim() ? `Результаты для «${query.trim()}»` : selected.description}</p></header>
+      <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1>{query.trim() && <p>Результаты для «{query.trim()}»</p>}</header>
       {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения настроек. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
         {section === "general" && <Group title="Рабочее пространство"><Row title="Текущий компьютер"><span>{store.hostLabel()}</span></Row><Row title="Удалённые компьютеры" description="Подключения к серверам рабочих пространств."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>}
@@ -173,7 +173,7 @@ export function SettingsScreen() {
         {section === "voice" && <>
           <p className="settings-intro">Диктовка распознаёт речь и добавляет текст в черновик сообщения.</p>
           <Group title="Распознавание речи"><Row title="URL распознавания" description="Полный адрес ASR API, совместимого с OpenAI."><input aria-label="URL распознавания" spellCheck={false} value={asr.endpoint} onChange={e => { setAsr({ ...asr, endpoint: e.target.value }); setKey(getAsrKey(e.target.value)); }}/></Row><Row title="Модель"><input aria-label="Модель ASR" value={asr.model} onChange={e => setAsr({ ...asr, model: e.target.value })}/></Row><Row title="Язык" description="Например, ru. Пустое значение — автоматический выбор."><input aria-label="Язык ASR" value={asr.language} onChange={e => setAsr({ ...asr, language: e.target.value })}/></Row><Row title="API-ключ" description="Только если сервис требует авторизацию. Хранится до закрытия приложения."><input aria-label="API-ключ ASR" type="password" autoComplete="off" placeholder="Необязательно" value={key} onChange={e => setKey(e.target.value)}/></Row></Group>
-          <p className="settings-muted">Запись — до 2 минут. Аудио не сохраняется на диск. Для удалённого сервиса используйте HTTPS.</p>
+
           <div className="settings-actions"><button className="btn" disabled={!voiceDirty} onClick={() => { setAsr(s.prefs.asr ?? defaultAsr); const original = getAsrKey(s.prefs.asr?.endpoint ?? ""); setKey(original); setSavedKey(original); setError(""); }}>Отменить изменения</button><button className="btn primary" disabled={!voiceDirty} onClick={() => { const problem = asr.endpoint.trim() ? validateAsr(asr) : null; if (problem) { setError(problem); return; } const next = { ...asr, endpoint: asr.endpoint.trim(), model: asr.model.trim() }; store.setAsr(next); setAsr(next); setAsrKey(next.endpoint, key); setSavedKey(key); setError(""); setNotice("Настройки диктовки сохранены."); }}>Сохранить диктовку</button></div>
         </>}
         {capabilitiesVisited && <div hidden={section !== "capabilities"}><CapabilitiesSettings onDirtyChange={setCapabilitiesDirty} onNavigate={navigate}/></div>}
@@ -183,20 +183,18 @@ export function SettingsScreen() {
         {section === "agentControl" && <AgentControlSettings/>}
 
         {section === "engines" && <>
-        <p className="settings-intro">У каждого чата свой агент и модель. Для новых проектов по умолчанию выбран OpenCode; Pi можно выбрать при создании проекта или чата. Существующий диалог переносится через «Продолжить в…», сохраняя исходную историю.</p>
+
         <Group title="Агенты">
           <Row title="OpenCode" description="Сессии и исполнение на подключённом локальном или удалённом сервере. Свои модели, профили, плагины и разрешения."><span>{s.connection.phase === "connected" ? `Подключён · ${s.connection.version ?? ""}` : "Не подключён"}</span><button className="btn" onClick={() => navigate("opencode")}>Настроить OpenCode</button></Row>
           <Row title="Pi" description="Локальный агент с отдельными моделями, расширениями, LSP и подтверждениями инструментов."><span>{store.piInstalled ? "Установлен" : "Не найден"}</span><button className="btn" onClick={() => navigate("pi")}>Настроить Pi</button></Row>
         </Group>
-        <Group title="Общие функции">
-          <p className="handoff-note">Чат, рассуждения, остановка, ветвление, сжатие, диктовка, вложения, браузер, источники, результаты, расписания и статистика доступны для обоих агентов. Терминал и просмотр файлов и Git используют сервер рабочего пространства; они доступны в чате Pi, когда этот сервер подключён. Удалённое исполнение Pi через SSH пока не реализовано.</p>
-        </Group>
       </>}
       {section === "modelServices" && <ModelServicesSettings/>}
         {section === "helper" && <>
-          <p className="settings-intro">CPU-помощник в контейнере Proxmox подготавливает вложения для выбранной модели. Если модель поддерживает формат, файл идёт напрямую. Иначе помощник извлекает текст, кадры и звук. Аудио распознаёт отдельный GigaAM ASR из раздела «Диктовка».</p>
+
+          <Group title="Диктовка"><Row title="Распознавание речи"><span>GigaAM ASR</span><button className="btn" onClick={() => navigate("voice")}>Настроить диктовку</button></Row></Group>
           <Group title="Подключение"><Row title="Локальный адрес помощника" description="SSH-туннель на этом компьютере; удалённый адрес контейнера сюда не вводится."><input aria-label="Адрес помощника" spellCheck={false} value={helper} onChange={event => { setHelper(event.target.value); setHelperStatus(null); }}/></Row><Row title="Состояние"><span>{helperStatus?.ok ? `Работает · версия ${helperStatus.version}` : "Проверка не выполнялась"}</span></Row><Row title="Доступные сервисы"><span>{helperStatus?.services.join(", ") || "—"}</span></Row></Group>
-          <p className="settings-muted">Общие MCP-подключения находятся в разделе «Навыки и инструменты»; настройки конкретного агента — в его разделе. Файлы не хранятся в контейнере после обработки.</p>
+
           <div className="settings-actions"><button className="btn" disabled={testingHelper} onClick={async () => { setError(""); setNotice(""); setTestingHelper(true); try { setHelperStatus(await helperHealth(helper.trim())); setNotice("Помощник доступен."); } catch (problem) { setHelperStatus(null); setError(problem instanceof Error ? problem.message : String(problem)); } finally { setTestingHelper(false); } }}>{testingHelper ? "Проверка…" : "Проверить подключение"}</button><button className="btn primary" disabled={!helperDirty} onClick={() => { const next = helper.trim().replace(/\/$/, ""); if (!validHelperEndpoint(next)) { setError("Укажите локальный HTTP-адрес без пути и учётных данных."); return; } store.setHelperEndpoint(next); setHelper(next); setError(""); setNotice("Адрес помощника сохранён."); }}>Сохранить</button></div>
         </>}
         {section === "about" && <Group title="Состояние приложения"><Row title="Arvela"><span>{appVersion}</span></Row><Row title="OpenCode"><span>{s.connection.phase === "connected" ? `Подключён · ${s.connection.version ?? ""}` : "Не подключён"}</span></Row><Row title="Pi"><span>{s.piHealth?.install?.installed ? `Установлен · ${s.piHealth.install.version ?? ""}` : "Не проверен"}</span></Row></Group>}

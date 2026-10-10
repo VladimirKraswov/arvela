@@ -42,12 +42,7 @@ export function ModelServicesSettings() {
   };
   return (
     <>
-      <p className="settings-intro">
-        Сервис управляет загрузкой моделей в память. Привязка к агентам приходит
-        из его каталога. Провайдер и модели настраиваются отдельно в OpenCode
-        или Pi; здесь укажите их соответствие. Удалённый API подключается через
-        локальный SSH-туннель.
-      </p>
+
       {services.map((service) => (
         <section
           key={service.id}
@@ -80,7 +75,7 @@ export function ModelServicesSettings() {
                 htmlFor={`service-key-${service.id}`}
               >
                 Ключ управления
-                <small>Сохраняется в системном хранилище учётных данных.</small>
+
               </label>
               <div className="setting-control">
                 <input
@@ -164,11 +159,12 @@ export function ModelServicesSettings() {
           <div className="setting-row">
             <label className="setting-label" htmlFor="model-bindings">
               Соответствие моделей
-              <small>По одной строке: ID в агенте = ID в сервисе.</small>
+
             </label>
             <div className="setting-control">
               <textarea
                 id="model-bindings"
+                placeholder="ID в агенте = ID в сервисе"
                 rows={3}
                 value={mapping}
                 onChange={(e) => setMapping(e.target.value)}

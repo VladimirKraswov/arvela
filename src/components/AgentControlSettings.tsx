@@ -76,13 +76,7 @@ export function AgentControlSettings() {
           <div className="kv"><span>Локальный шлюз</span><b>{status?.supported === false ? "Недоступен на этой платформе" : status?.ready ? "Готов" : "Запускается"}</b></div>
           <div className="kv"><span>OpenCode · текущий проект</span><b>{connection === "connected" ? "Подключён" : connection === "not_configured" ? "Не подключён" : connection || "—"}</b></div>
           <div className="kv"><span>Протокол</span><b>{status?.protocol ?? "—"}</b></div>
-          {status?.supported === false ? <p className="handoff-note">
-            Agent Control/Factory пока не портированы на эту платформу. Это не мешает локальным чатам OpenCode.
-          </p> : <p className="handoff-note">
-            Сокет и токен доступны только текущему пользователю. Команды выполняются
-            через тот же store, что и интерфейс. Запросы разрешений не подтверждаются
-            автоматически и остаются видимыми пользователю.
-          </p>}
+          {status?.supported === false ? <p className="handoff-note">Agent Control недоступен на этой платформе.</p> : null}
           {!local && <p role="status">Для регистрации локальной команды выберите «Этот компьютер».</p>}
           {running && <p role="status">Дождитесь завершения работающего агента перед изменением конфигурации.</p>}
           <div className="btn-row computer-actions">

@@ -293,11 +293,7 @@ export function CapabilitiesSettings({
   const editable = !!catalog && !busy && !running;
   return (
     <div className="capabilities-settings">
-      <p className="settings-intro">
-        Один каталог для OpenCode и Pi. Навыки используют SKILL.md; инструменты
-        подключаются через общий MCP-мост. Разрешения, встроенные инструменты и
-        плагины каждого агента сохраняются.
-      </p>
+
       {!local && (
         <p role="status">
           Общий каталог настраивается на этом компьютере. Для SSH используйте
@@ -344,10 +340,7 @@ export function CapabilitiesSettings({
               <div className="setting-row">
                 <div className="setting-label">
                   <span>MCP SDK</span>
-                  <small>
-                    Закреплённый общий мост без установки второго браузера. Для
-                    навыков без MCP не требуется.
-                  </small>
+
                 </div>
                 <div className="setting-control">
                   <span>
@@ -379,12 +372,7 @@ export function CapabilitiesSettings({
           <section className="setting-group">
             <h2>Источники навыков</h2>
             <div className="setting-card">
-              <p className="handoff-note">
-                Общие стандартные каталоги: ~/.agents/skills и .agents/skills
-                проекта. Они обнаруживаются агентами самостоятельно.
-                Подключённые ниже каталоги добавляются через настройки OpenCode
-                и --skill у Pi; файлы не копируются и не переписываются.
-              </p>
+
               {sources.map((s) => (
                 <div className="capability-item" key={`${s.inherited}:${s.id}`}>
                   <div>
@@ -485,13 +473,7 @@ export function CapabilitiesSettings({
                   каталоги навыков.
                 </p>
               )}
-              <p className="handoff-note">
-                «Обнаружен агентом» означает наличие в его каталоге, а не
-                выполнение. Автоматически найденные источники управляются самим
-                агентом. Коллизии имён и необходимые программы проверяйте перед
-                использованием; весь текст навыка заранее в контекст не
-                загружается.
-              </p>
+
               {!skills.length && (
                 <p className="handoff-note">
                   Навыки в проверенных каталогах не найдены.
@@ -538,18 +520,8 @@ export function CapabilitiesSettings({
           <section className="setting-group">
             <h2>Общие MCP-инструменты</h2>
             <div className="setting-card">
-              <p className="handoff-note">
-                Один сервис, одинаковые имена инструментов у обоих агентов.
-                Проверка подключается к сервису и читает список, не вызывает его
-                инструменты. HTTP: Streamable HTTP; OAuth-подключения остаются в
-                настройках OpenCode, пока общий мост не поддерживает их.
-              </p>
-              {!servers.length && (
-                <p className="handoff-note">
-                  Общие MCP пока не подключены. Браузер и существующие MCP
-                  OpenCode сохранены в своих разделах.
-                </p>
-              )}
+
+              {!servers.length && <p className="handoff-note">MCP не подключены.</p>}
               {servers.map((s) => (
                 <article
                   className="capability-skill"
@@ -884,22 +856,14 @@ export function CapabilitiesSettings({
             <div className="setting-card">
               <article className="capability-skill">
                 <b>Встроенный браузер · общий</b>
-                <p>
-                  Один управляемый браузер для OpenCode и Pi, быстрый режим и
-                  эмуляция. Его инструменты, профиль и разрешения настраиваются
-                  в отдельном разделе.
-                </p>
+
                 <button className="btn" onClick={() => onNavigate?.("browser")}>
                   Настроить браузер
                 </button>
               </article>
               <article className="capability-skill">
                 <b>Инструменты OpenCode</b>
-                <p>
-                  Встроенные инструменты и подключённые плагины остаются у
-                  OpenCode. Этот список получен от API текущего проекта;
-                  разрешения проверяются отдельно.
-                </p>
+
                 {openTools === null ? (
                   <span>Не проверено</span>
                 ) : (
@@ -925,12 +889,7 @@ export function CapabilitiesSettings({
               </article>
               <article className="capability-skill">
                 <b>Инструменты Pi</b>
-                <p>
-                  Чтение, запись, редактирование файлов и команды предоставляет
-                  сам Pi. Общие MCP добавляет мост; их подтверждённый список
-                  отображается выше. Собственные расширения Pi настраиваются
-                  отдельно и автоматически в плагины OpenCode не превращаются.
-                </p>
+
                 <button className="btn" onClick={() => onNavigate?.("pi")}>
                   Настроить Pi
                 </button>

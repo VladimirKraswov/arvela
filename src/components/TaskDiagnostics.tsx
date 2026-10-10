@@ -9,7 +9,7 @@ export function TaskDiagnostics({chat}:{chat?: SessionChatState}) {
   const id = requests.includes(selected) ? selected : requests[requests.length-1];
   const d = taskDiagnostics(chat,id);
   return <section className="task-diagnostics"><details><summary>Время и выполнение задачи</summary>
-    <p className="context-note">По загруженным сообщениям и событиям этого устройства. Завершение ответа ещё не означает, что результат проверен.</p>
+
     {!d ? <p className="context-note">Появится после запроса в этом чате.</p> : <>
       <label>Запрос<select aria-label="Запрос для диагностики" value={id} onChange={e=>setSelected(e.target.value)}>{requests.map((id,i)=><option key={id} value={id}>Запрос {i+1}</option>)}</select></label>
       <p>{states[d.state]} · {d.source==='observed'?'есть живые наблюдения':'история агента'}</p>
@@ -24,7 +24,7 @@ export function TaskDiagnostics({chat}:{chat?: SessionChatState}) {
         const url=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
         const link=document.createElement('a');link.href=url;link.download='arvela-task-diagnostics.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
       }}>Экспортировать числовую сводку</button>
-      <p className="context-note">Фазы могут пересекаться; первый ответ включает видимые рассуждения. Очередь сервера и prefill отдельно не измерены. Повторный вызов того же инструмента не обязательно ошибка. Токены: {d.usageComplete?'данные всех ответов':'неполные данные'}. Проверки результата учитываются в карточке отдельно.</p>
+      {!d.usageComplete && <p className="context-note">Неполные данные о токенах.</p>}
     </>}
   </details></section>;
 }

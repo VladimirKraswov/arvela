@@ -595,3 +595,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Independent per-session queues, cancellable bounded preparation, controlled 45s deadline and retained mutation ordering/no replay; numeric timeout failure accounting.
 - [x] Unit and real isolated MCP/Chromium regression checks, including a slow backend and independent second session.
 - [x] Final Mac package signature/DMG CRC, installed binary and four runtime resource equality, GUI0.2.42 and connected native API verified; owner inference and Windows/Linux acceptance remain separate.
+
+
+## Concise interface copy (0.2.43)
+
+- [x] Remove redundant context-meter and application explanatory paragraphs; retain labels, counters, actions, errors, empty states and concise data-sharing facts.
+- [x] Move optional setting help to label hover; retain helper dictation as an actionable setting.
+- [x] Frontend build and 696 tests pass.
+- [x] Isolated Chromium and installed Mac GUI context/settings checks, signed package/DMG CRC/binary equality and healthy native connection verified; Windows/Linux native qualification separate.
