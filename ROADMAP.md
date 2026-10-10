@@ -587,3 +587,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Defer page resize until drag release, clear stale input, ignore disconnected observer callbacks.
 - [x] Component regressions and actual isolated Chromium pointer drag, durable settings/reload, keyboard and narrow viewport checks.
 - [x] Final Mac 0.2.41 app signature/DMG CRC/install binary equality and GUI version verified; native connection healthy. Owner live splitter after restart and Windows/Linux native checks remain separate.
+
+## Session-guided browser reliability (0.2.42)
+
+- [x] Privately review the selected session history; classify parameter refusals, timeouts, state guards and agent/file-root issues without publishing private transcripts.
+- [x] Bounded short observations, typed value-free argument recovery, partial-action guidance and retained underlying failure text for OpenCode/Pi.
+- [x] Independent per-session queues, cancellable bounded preparation, controlled 45s deadline and retained mutation ordering/no replay; numeric timeout failure accounting.
+- [x] Unit and real isolated MCP/Chromium regression checks, including a slow backend and independent second session.
+- [x] Final Mac package signature/DMG CRC, installed binary and four runtime resource equality, GUI0.2.42 and connected native API verified; owner inference and Windows/Linux acceptance remain separate.

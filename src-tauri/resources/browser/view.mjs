@@ -67,8 +67,10 @@ export function createView(getContext) {
     if (JSON.stringify(active.viewportSize()) !== JSON.stringify(size)) { revision++; cursor = undefined; await active.setViewportSize(size); }
     return active;
   }
-  async function before(client, params, owner = 'agent') {
+  async function before(client, params, owner = 'agent', signal) {
+    signal?.throwIfAborted();
     const current = await page();
+    signal?.throwIfAborted();
     guard(client, params, owner);
     if (!reads.has(params.name) && !['browser_mouse_move_xy', 'browser_mouse_down', 'browser_wait_for'].includes(params.name) && !(params.name === 'browser_tabs' && params.arguments?.action === 'list')) {
       if (owner === 'agent') revision++;
@@ -84,12 +86,14 @@ export function createView(getContext) {
       // The official backend's tab list is initially empty until its first
       // context-using call. A read-only snapshot attaches it to our context.
       if (!selected.has(client)) {
-        const initialized = await client.callTool({ name: 'browser_snapshot', arguments: {} });
+        const initialized = await client.callTool({ name: 'browser_snapshot', arguments: {} }, undefined, { signal, timeout: 10000 });
         if (initialized.isError) throw new Error('Could not attach browser context');
       }
+      signal?.throwIfAborted();
       const index = current.context().pages().indexOf(current);
-      const result = await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index } });
+      const result = await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index } }, undefined, { signal, timeout: 10000 });
       if (result.isError) throw new Error('Could not synchronize browser tab');
+      signal?.throwIfAborted();
       selected.set(client, current);
     }
     if (params.name === 'browser_take_screenshot') screenshotStarts.set(client, geometry(current));

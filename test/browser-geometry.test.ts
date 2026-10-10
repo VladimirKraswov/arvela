@@ -80,3 +80,11 @@ it("continuous manual keyboard entry retains the panel revision", async () => {
   await f.view.before(f.client,{name:"browser_keyboard_type",arguments:{text:"a"}},"user");f.view.failed();
   expect(()=>f.view.assertCurrent(old)).not.toThrow();
 });
+
+it("propagates cancellation into initial context/tab attachment and does not synchronize after abort", async () => {
+  const f=fixture(), stop=new AbortController();
+  f.client.callTool.mockImplementationOnce(async()=>{stop.abort();return {content:[]};});
+  await expect(f.view.before(f.client,{name:"browser_snapshot",arguments:{}},"agent",stop.signal)).rejects.toBeDefined();
+  expect(f.client.callTool).toHaveBeenCalledOnce();
+  expect(f.client.callTool.mock.calls[0][2]).toMatchObject({signal:stop.signal,timeout:10000});
+});

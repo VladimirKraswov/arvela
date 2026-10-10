@@ -180,3 +180,12 @@ it("passes trusted recovery screenshot and mode guidance to Pi without replaying
   expect(result.content).toContainEqual({ type: "image", data: "test-pixels", mimeType: "image/png" });
   expect(fixture.connection.callTool).toHaveBeenCalledOnce();
 });
+
+it("passes argument/preparation recovery details to Pi without hiding them behind a generic exception", async () => {
+  for (const reason of ["arguments", "preparation"]) {
+    const fixture=setup({callTool:vi.fn(async()=>({isError:true,structuredContent:{desktopBrowserRecovery:true,reason,completed:0,noReplay:true},content:[{type:"text",text:"No requested input sent. Correct arguments or reconnect."}]}))});
+    const tool=await fixture.ready();const result=await tool.execute("recover",{});
+    expect(result.content).toContainEqual({type:"text",text:"No requested input sent. Correct arguments or reconnect."});
+    await fixture.events.session_shutdown();
+  }
+});

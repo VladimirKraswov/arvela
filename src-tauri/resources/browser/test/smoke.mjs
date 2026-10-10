@@ -96,7 +96,7 @@ try {
   const nameRef = target(text(await call('browser_snapshot')), 'Name');
   const combined = await call('browser_action', {step: {tool: 'browser_type', arguments: {target: nameRef, text: 'COMBINED_OK'}}, observation:{maxChars:1000}});
   assert.equal(combined.structuredContent.completed, 1); assert(text(combined).includes('COMBINED_OK'));
-  await assert.rejects(client.callTool({name:'browser_sequence', arguments:{steps:[{tool:'browser_keyboard_type',arguments:{text:'MUST_NOT_APPEAR'}},{tool:'browser_mouse_click_xy',arguments:{x:'invalid',y:18}}]}}), /Browser request failed/); assert(!text(await call('browser_snapshot')).includes('MUST_NOT_APPEAR'), 'Every step must validate before input');
+  const invalidSequence = await client.callTool({name:'browser_sequence', arguments:{steps:[{tool:'browser_keyboard_type',arguments:{text:'MUST_NOT_APPEAR'}},{tool:'browser_mouse_click_xy',arguments:{x:'invalid',y:18}}]}}); assert.equal(invalidSequence.isError,true); assert.equal(invalidSequence.structuredContent.reason,'arguments'); assert.equal(invalidSequence.structuredContent.completed,0); assert(!text(await call('browser_snapshot')).includes('MUST_NOT_APPEAR'), 'Every step must validate before input');
   let projected = await frame();
   assert.equal(projected.url, fixtureUrl + '/');
   assert.equal(projected.width, 1280); assert.equal(projected.height, 800);

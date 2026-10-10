@@ -15,7 +15,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createView } from './view.mjs';
-import { actionTools, createActions, createMetrics } from './actions.mjs';
+import { actionTools, createActions, createMetrics, validateComposition, createToolQueue } from './actions.mjs';
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 
 const root = process.argv[2];
@@ -36,7 +36,7 @@ try { const mode = JSON.parse(await fs.readFile(path.join(root, 'interaction.jso
 function ownedSession(key, scope = null) {
   if (!sessions.has(key)) {
     if (sessions.size >= 32) throw new Error('Restart browser service to release older sessions');
-    const owned = { key, scope, context: undefined, connections: new Map(), frameFlight: undefined, composition: undefined };
+    const owned = { key, scope, context: undefined, connections: new Map(), frameFlight: undefined, composition: undefined, serial: createToolQueue() };
     owned.view = createView(() => getContext(owned));
     owned.view.setMode(defaultMode);
     sessions.set(key, owned);
@@ -48,13 +48,8 @@ const metrics = createMetrics();
 const validator = new AjvJsonSchemaValidator();
 const validators = new WeakMap();
 let closing = false;
-let queue = Promise.resolve();
-
-const serial = action => {
-  const result = queue.then(action);
-  queue = result.catch(() => {});
-  return result;
-};
+const lifecycleQueue = createToolQueue();
+const serial = (action, signal) => (currentSession()?.serial || lifecycleQueue)(action, signal);
 async function getContext(owned = currentSession()) {
   if (!owned.context) {
     const profile = owned.key === 'legacy' ? path.join(root, 'profile')
@@ -86,7 +81,7 @@ async function connection(candidate = workspace) {
   // Each official backend captures its workspace at initialization. Do not
   // mutate roots on an initialized backend: that would leak file permissions
   // between projects. Backends within a session share its browser; tool calls
-  // across sessions still use one serialized queue.
+  // within each session use its own serialized queue. Other contexts stay independent.
   if (owned.connections.size >= 32) throw new Error('Restart the browser service to release older workspace connections');
   const outputDir = path.join(workspace, crypto.createHash('sha256').update(owned.key + candidate).digest('hex').slice(0, 24));
   await fs.mkdir(outputDir, { recursive: true, mode: 0o700 });
@@ -105,7 +100,11 @@ async function connection(candidate = workspace) {
 async function invokeTool(client, params, signal, owner = 'agent') {
   try {
     if (signal?.aborted) throw new Error('Cancelled before browser input');
-    await currentSession().view.before(client, params, owner);
+    try { await currentSession().view.before(client, params, owner, signal); }
+    catch (error) {
+      if (error && typeof error === 'object') { error.recovery ||= 'preparation'; throw error; }
+      throw Object.assign(new Error('Browser preparation cancelled'), {recovery:'preparation'});
+    }
     if (signal?.aborted) throw new Error('Cancelled before browser input');
     let result;
     if (params.name === 'browser_keyboard_type') {
@@ -116,7 +115,14 @@ async function invokeTool(client, params, signal, owner = 'agent') {
       await page.keyboard.insertText(args.text);
       if (args.submit) { if (signal?.aborted) throw new Error('Cancelled before submit'); await page.keyboard.press('Enter'); }
       result = { content: [{ type: 'text', text: 'Keyboard input sent to the focused field. Inspect the result before another action.' }] };
-    } else result = await client.callTool(params, undefined, { signal });
+    } else {
+      // Cancelling an SDK request cannot undo input already delivered to the
+      // browser. Keep this session's barrier until its backend call settles;
+      // the outer deadline can report uncertainty without replaying/reordering.
+      const read = ['browser_snapshot','browser_take_screenshot','browser_console_messages','browser_network_requests','browser_network_request','browser_wait_for'].includes(params.name)
+        || (params.name === 'browser_tabs' && params.arguments?.action === 'list');
+      result = await client.callTool(params, undefined, { ...(read ? { signal } : {}), timeout: 65000 });
+    }
     if (params.name !== 'browser_close') await currentSession().view.after(client, params, result);
     return result;
   } finally { currentSession().view.failed(); }
@@ -155,6 +161,10 @@ const server = http.createServer(async (req, res) => {
     const request = await body(req);
     const cancellation = new AbortController();
     res.on('close', () => { if (!res.writableEnded) cancellation.abort(); });
+    // Return before the engine's standard 60s MCP deadline, including queue and
+    // context setup. No input is ever retried after cancellation.
+    const requestSignal = request.method === 'tools/call'
+      ? AbortSignal.any([cancellation.signal, AbortSignal.timeout(45000)]) : cancellation.signal;
     if (req.url === '/monitor-view') {
       if (request.pageId != null && (typeof request.pageId !== 'string' || !/^[0-9]{1,20}$/.test(request.pageId))) throw new Error('Invalid observed page');
       return reply(res, 200, await captureFrame(request.pageId || undefined));
@@ -166,11 +176,12 @@ const server = http.createServer(async (req, res) => {
     if (req.url !== '/rpc') return reply(res, 404, { error: 'Unknown endpoint' });
     if (request.method === 'desktop/default-mode') {
       if (!['fast', 'human'].includes(request.mode)) throw new Error('Invalid browser mode');
-      await serial(async () => {
+      const target = sessions.get(selectedKey);
+      await lifecycleQueue(async () => {
         await fs.writeFile(path.join(root, 'interaction.json'), JSON.stringify({ mode: request.mode }), { mode: 0o600 });
         defaultMode = request.mode;
-        sessions.get(selectedKey)?.view.setMode(defaultMode);
       });
+      if (target) await target.serial(() => target.view.setMode(request.mode));
       return reply(res, 200, { result: { mode: defaultMode } });
     }
     if (request.method === 'desktop/session') {
@@ -205,9 +216,11 @@ const server = http.createServer(async (req, res) => {
     else if (request.method === 'tools/call') currentSession().view.interrupt(false);
     if (request.method === 'tools/call' || request.owner === 'user' || request.method.startsWith('desktop/') && request.method !== 'desktop/reveal') currentSession().composition?.abort('interrupted');
     const queuedAt = performance.now();
+    let beganExecution = false, reportedDeadline = false;
     const result = await serial(async () => {
+      beganExecution = true;
       const queueMs = performance.now() - queuedAt;
-      if (cancellation.signal.aborted) throw new Error('Cancelled');
+      if (requestSignal.aborted) throw new Error('Cancelled');
       if (manual && key !== selectedKey) throw new Error('Selected chat changed; no input sent');
       if (request.expected) currentSession().view.assertCurrent(request.expected);
       if (request.method === 'desktop/mode') {
@@ -244,7 +257,7 @@ const server = http.createServer(async (req, res) => {
         const custom = actionTools(base);
         validators.set(client, new Map([...base, ...custom].map(tool => [tool.name, validator.getValidator(tool.inputSchema)])));
         return { ...inventory, tools: [...base, ...custom].map(tool => ({ ...tool,
-          description: `${tool.description || ''}${/^browser_mouse_/.test(tool.name) ? ' XY input requires a fresh CSS viewport screenshot; resize/scroll/shared input invalidates old coordinates. A rejected action returns a fresh image and never replays.' : ['browser_click', 'browser_fill_form', 'browser_type', 'browser_select_option', 'browser_evaluate', 'browser_run_code'].includes(tool.name) ? ' Fast mode only; human mode requires mouse XY and browser_keyboard_type.' : tool.name === 'browser_take_screenshot' ? ' For XY input use scale=css, fullPage=false and no element target. Desktop mode and viewport are reported with results.' : ''}` })) };
+          description: `${tool.description || ''}${/^browser_mouse_/.test(tool.name) ? ' XY input requires a fresh CSS viewport screenshot; resize/scroll/shared input invalidates old coordinates. A rejected action returns a fresh image and never replays.' : ['browser_click', 'browser_fill_form', 'browser_type', 'browser_select_option', 'browser_evaluate', 'browser_run_code'].includes(tool.name) ? ' Fast mode only; human mode requires mouse XY and browser_keyboard_type.' : tool.name === 'browser_take_screenshot' ? ' For XY input use scale=css, fullPage=false and no element target. Desktop mode and viewport are reported with results.' : ['browser_network_requests', 'browser_console_messages'].includes(tool.name) ? ' Optional filename must stay inside approved workspace/output roots; omit it to return text. Arbitrary /tmp paths are not approved.' : tool.name === 'browser_network_request' ? ' Use a current index from browser_network_requests. Relist after the browser context restarts; old indexes are not portable.' : ''}` })) };
       }
       if (request.method === 'tools/call' && ['browser_observe', 'browser_action', 'browser_sequence'].includes(request.params?.name)) {
         if (!validators.has(client)) {
@@ -255,13 +268,7 @@ const server = http.createServer(async (req, res) => {
         }
         let actionMs = 0, observeMs = 0;
         const actions = createActions({ identity: currentSession().view.identity, validate: (name, args) => {
-          if (!validators.get(client).get(name)?.(args).valid) throw new Error('Invalid browser composition');
-          if (Buffer.byteLength(JSON.stringify(args)) > 32768) throw new Error('Composition too large');
-          // Keyboard limits are bytes, not just the schema's character count.
-          for (const step of args.steps || (args.step ? [args.step] : [])) {
-            if (!validators.get(client).get(step.tool)?.(step.arguments).valid) throw new Error('Invalid nested browser arguments');
-            if (step.tool === 'browser_keyboard_type' && Buffer.byteLength(step.arguments.text) > 16384) throw new Error('Keyboard input too large');
-          }
+          validateComposition(name, args, validators.get(client));
         }, call: async (params, signal) => {
           const began = performance.now();
           try { return await invokeTool(client, params, signal);
@@ -272,8 +279,8 @@ const server = http.createServer(async (req, res) => {
         } });
         let value;
         const owned = new AbortController(); currentSession().composition = owned;
-        try { value = await actions.run(request.params.name, request.params.arguments || {}, AbortSignal.any([cancellation.signal, owned.signal])); return { ...value, content: [...value.content, { type: 'text', text: `Desktop browser state: ${JSON.stringify(currentSession().view.state())}` }] }; }
-        finally { if (currentSession().composition === owned) currentSession().composition = undefined; metrics.record({ failed: !value || value.isError, queueMs, actionMs, observeMs, completedSteps: value?.structuredContent?.completed }); }
+        try { value = await actions.run(request.params.name, request.params.arguments || {}, AbortSignal.any([requestSignal, owned.signal])); return { ...value, content: [...value.content, { type: 'text', text: `Desktop browser state: ${JSON.stringify(currentSession().view.state())}` }] }; }
+        finally { if (currentSession().composition === owned) currentSession().composition = undefined; metrics.record({ failed: !value || value.isError || reportedDeadline, queueMs, actionMs, observeMs, completedSteps: value?.structuredContent?.completed }); }
       }
       if (request.method === 'tools/call') {
         const began = performance.now();
@@ -281,10 +288,14 @@ const server = http.createServer(async (req, res) => {
         try {
           // Listing stays lazy; only actual actions create the browser.
           let result;
-          try { result = await invokeTool(client, request.params, cancellation.signal, request.owner === 'user' ? 'user' : 'agent'); }
+          try { result = await invokeTool(client, request.params, requestSignal, request.owner === 'user' ? 'user' : 'agent'); }
           catch (error) {
+            if (error.recovery === 'preparation') return {
+              isError:true,content:[{type:'text',text:'Browser context preparation did not finish. No requested input was sent. Reinspect the browser; reconnect the integration if preparation keeps failing.'}],
+              structuredContent:{desktopBrowserRecovery:true,reason:'preparation',completed:0,uncertainLastAction:false,noReplay:true},
+            };
             if (!['mode', 'geometry'].includes(error.recovery)) throw error;
-            const fresh = await invokeTool(client, { name: 'browser_take_screenshot', arguments: { scale: 'css', type: 'png' } }, cancellation.signal);
+            const fresh = await invokeTool(client, { name: 'browser_take_screenshot', arguments: { scale: 'css', type: 'png' } }, requestSignal);
             return { isError: true, content: [{ type: 'text', text: `${error.message}\nDesktop browser state: ${JSON.stringify(currentSession().view.state())}` }, ...(fresh?.content || [])],
               structuredContent: { desktopBrowserRecovery: true, reason: error.recovery, ...currentSession().view.state() } };
           }
@@ -295,9 +306,14 @@ const server = http.createServer(async (req, res) => {
         }
         failed = !!result.isError;
         return { ...result, content: [...(result.content || []), { type: 'text', text: `Desktop browser state: ${JSON.stringify(currentSession().view.state())}` }] };
-        } finally { const elapsed = performance.now() - began; const read = ['browser_snapshot', 'browser_take_screenshot', 'browser_console_messages', 'browser_network_requests'].includes(request.params?.name); metrics.record({ failed, queueMs, actionMs: read ? 0 : elapsed, observeMs: read ? elapsed : 0 }); }
+        } finally { const elapsed = performance.now() - began; const read = ['browser_snapshot', 'browser_take_screenshot', 'browser_console_messages', 'browser_network_requests'].includes(request.params?.name); metrics.record({ failed: failed || reportedDeadline, queueMs, actionMs: read ? 0 : elapsed, observeMs: read ? elapsed : 0 }); }
       }
       throw new Error('Only official browser tool methods are supported');
+    }, requestSignal).catch(error => {
+      if (!requestSignal.aborted || request.method !== 'tools/call') throw error;
+      reportedDeadline = true;
+      if (!beganExecution) metrics.record({failed:true,queueMs:performance.now()-queuedAt,completedSteps:0});
+      return {isError:true,content:[{type:'text',text:beganExecution ? 'Browser call cancelled or timed out (including setup). Input may have been delivered. Inspect the current page before continuing; never replay it blindly.' : 'Browser call timed out or was cancelled while queued. This request sent no input. Inspect the current page before continuing.'}],structuredContent:{desktopBrowserRecovery:true,reason:'deadline',uncertainLastAction:beganExecution,noReplay:true}};
     });
     reply(res, 200, { result });
     });

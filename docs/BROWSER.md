@@ -34,7 +34,7 @@ Each engine/session/project identity owns a persistent browser profile. The sele
 
 Remote HTML never enters the privileged Tauri WebView: it receives only pixels and plain-text metadata, not page scripts. Chromium's sandbox stays enabled. There is no publicly exposed CDP or LAN listener. A private authenticated loopback gateway and stdio MCP proxy connect engines to Microsoft's unmodified Playwright implementation. Native browser commands accept only Desktop's main window; panel input uses a bounded action allowlist, not arbitrary JavaScript. Frames use the same bearer/Host/Origin checks as tools. Gateway credentials are not put into URLs, React state or logs. Frame captures are coalesced and do not queue behind long agent actions. Hidden panels do not capture screenshots; an open panel also stops fetching frames while the Desktop window is hidden or a native file chooser is open, and backs off (up to 2 s) while the service fails. Lightweight presence polling does not spawn Node probes. Manual input runs strictly in order and is never replayed; typing or scrolling that has not started yet is merged into one action for the same page state, the waiting backlog is bounded, and text over the native 16 KB limit is refused with an explanation. Queued manual input with an old page identity/URL/agent revision is rejected, not replayed. The address field is not overwritten while the user edits it (Escape restores the real URL). Shift+Tab leaves the page projection so keyboard focus is never trapped; IME composition keys are not forwarded. The first native local prompt waits for directory-scoped MCP attachment; remote prompts never attach local tools.
 
-Calls are serialized. Each session has its own context, and each project connection keeps its own official MCP file roots. Uploads outside that connection's project roots are rejected by Playwright MCP. Snapshots, clicks, forms, tabs, uploads, downloads, screenshots and PDF capabilities come from official tools. Default outputs go into a private per-session/project subdirectory of the managed browser workspace. Official MCP also permits that connection's own output directory for file operations. The bounded cache supports 32 session identities and 32 workspace connections per identity per service lifetime; restart the browser to release older connections. The OpenCode before-tool plugin and Pi extension pass the invoking session identity independently of the selected UI chat. Already loaded OpenCode instances need reload/restart to activate a newly installed plugin; no owner task is replayed. Unscoped legacy calls remain in the old profile and are not projected into a chat. Manual input includes the viewed session key and is refused if selection changed. Agents still reinspect after user input or interruption.
+Calls are serialized within each session. Independent session contexts have separate queues, so a long tool in one chat does not block another chat. Each session has its own context, and each project connection keeps its own official MCP file roots. Uploads outside that connection's project roots are rejected by Playwright MCP. Snapshots, clicks, forms, tabs, uploads, downloads, screenshots and PDF capabilities come from official tools. Default outputs go into a private per-session/project subdirectory of the managed browser workspace. Official MCP also permits that connection's own output directory for file operations. The bounded cache supports 32 session identities and 32 workspace connections per identity per service lifetime; restart the browser to release older connections. The OpenCode before-tool plugin and Pi extension pass the invoking session identity independently of the selected UI chat. Already loaded OpenCode instances need reload/restart to activate a newly installed plugin; no owner task is replayed. Unscoped legacy calls remain in the old profile and are not projected into a chat. Manual input includes the viewed session key and is refused if selection changed. Agents still reinspect after user input or interruption.
 
 Stopping browser control disables automatic setup and stops the owned service; the checkbox can reenable it. Stop also cancels an installation or start that is queued or already running: native install/start no longer hold the owner lock while they wait, and they check a stop generation at every polling step and terminate only their own child tree. Exiting Desktop cancels them the same way, waits a bounded time for them to clean up, then closes its own browser tree but leaves an externally managed OpenCode server alive. Unix uses owned process groups; Windows uses a kill-on-close Job Object for the daemon/browser and installer. The daemon additionally watches a private owner pipe (opt-in through `OCDESKTOP_BROWSER_OWNER_PIPE`, so manual smoke runs are unaffected): if Desktop crashes, the pipe closes and the daemon shuts the browser down instead of becoming an unowned orphan. A start counts as ready only when a daemon started after that point answers (a new instance identifier), never because an older readiness record is still present. Browser profiles and downloaded runtime survive shutdown. Disabling tools doesn't delete the profile.
 
@@ -62,7 +62,7 @@ Settings shows the actual installation, service, OpenCode and Pi state. The prox
 ## Interaction modes and responsive coordinates
 
 Select **Быстрый / Эмуляция** in the compact browser toolbar, or **Режим работы**
-in Settings → Browser. One browser and one mode are shared by OpenCode and Pi.
+in Settings → Browser. OpenCode and Pi share the managed runtime and mode policy; each agent session has an independent browser context.
 The mode is persisted and applied before startup tool attachment. A live mode
 change is serialized with other actions and does not restart a healthy MCP.
 
@@ -147,11 +147,12 @@ Turning a profile off restores its former effort only if model and auto-applied
 effort still match, preserving a later manual choice.
 
 All 32 official tools remain available. Prefer `browser_observe` for a compact
-6000-character snapshot; truncated output is marked, and maxChars can be raised
-to 20000. CSS viewport screenshots remain required for coordinate input.
+6000-character snapshot; maxChars accepts integers 256–20000 and truncation is marked. CSS viewport screenshots remain required for coordinate input.
 `browser_action` joins an approved action, optional text/textGone wait and a fresh
 observation into one agent tool call. `browser_sequence` joins at most six known
-steps. Arguments for every step are validated against the official schemas before
+steps. `step` and each `arguments` value must be objects; `steps` must be an
+array, not a string containing code/JSON. Invalid compositions return a safe
+`reason: arguments` result before any input, with a field and expected shape. Arguments for every step are validated against the official schemas before
 the first input; schemas are not duplicated in the model's tool inventory. Allowed
 steps are semantic click/type/fill/select in fast mode, or mouse/keyboard/wheel
 input. Arbitrary code, navigation, uploads and dialog approval are excluded from
@@ -160,12 +161,34 @@ blocks semantic/code actions. Between XY clicks a fresh screenshot is necessary;
 a sequence cannot grant itself permission to use stale coordinates.
 
 A sequence stops before further input on tab/navigation (including same-URL
-reload), viewport/mode change, another queued caller or manual intervention. The
-shared queue serializes browser writes. A 1–30 second deadline and caller abort
+reload), viewport/mode change, another caller in the same session or manual intervention. Each session queue
+serializes its own browser writes; a different chat cannot interrupt it. A 1–30 second deadline and caller abort
 bound compositions; waits are cancelled on intervention. Partial results include
 completed/total steps, stop reason and uncertainty for the last action. A failed
 or cancelled mutation is never automatically replayed. Guard rejection returns a
 fresh CSS screenshot; after a deadline/interruption explicitly observe again.
+The whole gateway tool call, including queue/setup, has a 45-second deadline
+so a controlled result can arrive before the engine's standard 60s MCP timeout.
+Initial snapshot/tab synchronization receives cancellation and a 10-second SDK
+limit. A queued cancelled request sends no input. When a backend mutation is
+already delivered, cancellation cannot undo it: the gateway retains that
+session's execution barrier until the call settles, reports uncertainty and
+never replays it. Other sessions remain independent. Error results preserve a
+bounded underlying tool diagnostic instead of only returning a new snapshot.
+Numeric failure metrics retain outer timeout failures even if the backend later
+finishes successfully.
+
+Use current network request indexes after a context restart. Optional output
+filenames stay within approved workspace/output roots; omit the filename to
+return text. These restrictions are not broadened to work around errors.
+
+`test/recovery.mjs` in the browser resources exercises real SDK + test-owned
+Chromium contexts: small observations, value-free invalid-argument results,
+independent queues, a 50-second backend call/45-second controlled deadline,
+retained same-session barrier and no input replay. Run it with a prepared
+temporary runtime and the read-only managed Chromium binary directory; never
+against owner profiles. Mac was exercised; Windows/Linux acceptance is separate.
+
 Action success alone is not proof that the user's full task succeeded.
 
 Diagnostics show numeric queue/action+wait/observation totals for the current

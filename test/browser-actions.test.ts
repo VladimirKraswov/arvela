@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { actionTools, compactResult, createActions, createMetrics } from "../src-tauri/resources/browser/actions.mjs";
+import { actionTools, compactResult, createActions, createMetrics, validateComposition, createToolQueue } from "../src-tauri/resources/browser/actions.mjs";
 function fixture() {
   let identity = "page1";
   const call = vi.fn(async () => ({ content: [{ type: "text", text: "snapshot" }] }));
@@ -54,6 +54,8 @@ it("records numeric telemetry only, bounded regardless of request count", () => 
 it("composition schemas stay compact instead of duplicating all official schemas", () => {
   const tools = actionTools([{name:"browser_click",inputSchema:{description:"x".repeat(100000)}}]);
   expect(JSON.stringify(tools).length).toBeLessThan(6000);
+  expect(tools.find(t => t.name === "browser_action").inputSchema.properties.timeoutMs.minimum).toBe(1000);
+  expect(tools.find(t => t.name === "browser_observe").inputSchema.properties.maxChars.minimum).toBe(256);
 });
 
 it("does not report successful verification when aborted just after the last input", async () => {
@@ -66,4 +68,28 @@ it("does not report successful verification when aborted just after the last inp
 it("compact observations do not retain a duplicate unbounded structured snapshot", () => {
   const result=compactResult({content:[{type:"text",text:"snapshot"}],structuredContent:{snapshot:"x".repeat(100000)}});
   expect(JSON.stringify(result).length).toBeLessThan(1000);
+});
+
+it("rejects a string sequence with actionable value-free diagnostics before any input", async () => {
+  const f=fixture(); f.validate.mockImplementation((name,args)=>validateComposition(name,args,new Map()));
+  const result=await f.runtime.run("browser_sequence",{steps:"SECRET_PARAMETER_VALUE"});
+  expect(result.structuredContent).toMatchObject({reason:"arguments",field:"steps",completed:0,uncertainLastAction:false,noReplay:true});
+  expect(JSON.stringify(result)).not.toContain("SECRET_PARAMETER_VALUE"); expect(f.call).not.toHaveBeenCalled();
+});
+it("accepts small bounded observations and reports the actual underlying action failure", async () => {
+  const f=fixture();f.validate.mockImplementation((name,args)=>validateComposition(name,args,new Map([[name,()=>({valid:true})],[keyboard.tool,()=>({valid:true})]])));
+  await f.runtime.run("browser_observe",{maxChars:600});
+  f.call.mockResolvedValueOnce({isError:true,content:[{type:"text",text:"Target no longer present. Observe again."}]} as any);
+  const result=await f.runtime.run("browser_action",{step:keyboard,observation:{maxChars:900}});
+  expect(result.isError).toBe(true); expect(JSON.stringify(result.content)).toContain("Target no longer present");
+  expect(result.structuredContent.uncertainLastAction).toBe(true);
+});
+it("keeps a cancelled in-flight call as an execution barrier, skipping undelivered cancelled calls", async () => {
+  const queue=createToolQueue(), other=createToolQueue(), first=new AbortController(), second=new AbortController();
+  let release!:()=>void;const entered=vi.fn(), later=vi.fn();
+  const running=queue(async()=>{entered();await new Promise<void>(r=>{release=r;});},first.signal);
+  await Promise.resolve(); const skipped=queue(later,second.signal);const third=queue(later);
+  first.abort();second.abort();await expect(running).rejects.toBeDefined();await expect(skipped).rejects.toBeDefined();
+  expect(later).not.toHaveBeenCalled();await expect(other(async()=>"independent")).resolves.toBe("independent");
+  release();await third;expect(entered).toHaveBeenCalledOnce();expect(later).toHaveBeenCalledOnce();
 });
