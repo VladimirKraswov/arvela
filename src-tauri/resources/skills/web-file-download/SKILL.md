@@ -34,6 +34,8 @@ Record source, byte count, SHA256, structural result, observed title/edition, vo
 
 Keep a per-entry checkpoint and source evidence so interrupted batches can resume without repeating successful downloads or treating search candidates as saved files.
 
+For a batch report, every requested entry has exactly one primary status; keep extra alternative files in a separate file inventory. A wrong or restricted search candidate does not establish that the requested work is unavailable. Record search coverage and say "not found in checked sources" when broader availability is unknown. Before finalising, audit candidate titles/authors (including restricted candidates), reconcile all manifest IDs and totals, and check remaining actionable entries. An authorised book published chapter-by-chapter remains actionable: enumerate chapters from the publisher's real contents page, verify order and coverage, and keep a chapter manifest rather than guessing filenames or claiming front matter is complete. Do not claim this verifier establishes identity or completeness: its structure-checked result leaves complete unknown until separate content evidence is recorded.
+
 Do not count substitutes or samples as completed requested books. State totals by status and preserve failures. Only use “all downloaded” when every manifest entry is actually complete in the requested edition. Do not delete owner files or execute downloaded content.
 
 Read `references/failure-patterns.md` when troubleshooting multi-volume/edition ambiguity or browser export errors.
