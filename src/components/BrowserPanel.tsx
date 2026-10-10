@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon } from "./Icon";
 import { browserNative } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
@@ -93,6 +93,15 @@ export function BrowserPanel() {
   const [frameError, setFrameError] = useState("");
   const [working, setWorking] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const savedWidth = app.prefs.layout?.browserWidth;
+  const preferredWidth = Number.isFinite(savedWidth) ? Math.max(280, Math.min(1100, savedWidth)) : 420;
+  const [dragWidth, setDragWidth] = useState<number>();
+  const panel = useRef<HTMLElement>(null);
+  const widthDrag = useRef<{ x: number; initial: number; max: number; width: number } | undefined>(undefined);
+  const widthLimit = () => Math.max(280, Math.min(1100,
+    (panel.current?.parentElement?.getBoundingClientRect().width || window.innerWidth) - (window.innerWidth > 1100 ? 280 : 48)));
+  const resizeWidth = (width: number) => Math.round(Math.max(280, Math.min(widthLimit(), width)));
+  const commitWidth = (width: number) => { store.setLayout({ browserWidth: resizeWidth(width) }); setDragWidth(undefined); };
   const [resizing, setResizing] = useState(false);
   const [changingMode, setChangingMode] = useState(false);
   const [detaching, setDetaching] = useState(false);
@@ -161,7 +170,7 @@ export function BrowserPanel() {
   // Never overwrite an address the user is typing; show the real URL otherwise.
   useEffect(() => { if (!editingAddress.current) setAddress(frame?.url || ""); }, [frame?.url]);
   function input(action: string, args: Record<string, unknown> = {}, seen = frame) {
-    if (!local || !seen?.scopeKey || frame?.busy || resizing || changingMode || detachPending.current || scrollPending.current) return;
+    if (!local || !seen?.scopeKey || frame?.busy || widthDrag.current || resizing || changingMode || detachPending.current || scrollPending.current) return;
     if (["click", "wheel", "text", "key"].includes(action) && (!frame?.image || frameError)) return;
     if (action === "text" && textBytes(String(args.text ?? "")) > TEXT_LIMIT_BYTES) {
       setError("Текст больше 16 КБ панель не вставляет. Поручите ввод агенту через инструменты браузера.");
@@ -205,11 +214,11 @@ export function BrowserPanel() {
   // Reflow the actual page, not just its picture. Debounce drag/zoom bursts;
   // discard pending old input and unlock only when the matching frame arrives.
   useEffect(() => {
-    if (!local || !frame?.scopeKey || !surface.current || typeof ResizeObserver === "undefined") return;
+    if (!local || !frame?.scopeKey || !surface.current || dragWidth !== undefined || typeof ResizeObserver === "undefined") return;
     const epoch = generation.current;
     let timer: ReturnType<typeof setTimeout>, cancelled = false;
     const observer = new ResizeObserver(([entry]) => {
-      if (detachPending.current || !entry || entry.contentRect.width < 1 || entry.contentRect.height < 1) return;
+      if (cancelled || detachPending.current || !entry || entry.contentRect.width < 1 || entry.contentRect.height < 1) return;
       const next = { width: Math.max(320, Math.min(1920, Math.round(entry.contentRect.width))), height: Math.max(240, Math.min(1200, Math.round(entry.contentRect.height))) };
       if (viewport.current?.width === next.width && viewport.current?.height === next.height) return;
       viewport.current = next; queue.current?.clear(); setResizing(true);
@@ -225,7 +234,7 @@ export function BrowserPanel() {
     });
     observer.observe(surface.current);
     return () => { cancelled = true; clearTimeout(timer); observer.disconnect(); viewport.current = undefined; };
-  }, [local, app.prefs.endpoint, frame?.scopeKey]);
+  }, [local, app.prefs.endpoint, frame?.scopeKey, dragWidth !== undefined]);
   async function changeMode(mode: "fast" | "human") {
     if (!frame?.scopeKey) return;
     setChangingMode(true); queue.current?.clear();
@@ -250,10 +259,44 @@ export function BrowserPanel() {
       if (alive.current && epoch === generation.current) setDetaching(false);
     }
   }
-  const locked = !frame?.scopeKey || !!frame?.busy || resizing || changingMode || detaching || scrolling;
+  const locked = !frame?.scopeKey || !!frame?.busy || dragWidth !== undefined || resizing || changingMode || detaching || scrolling;
   const mode = frame?.mode ?? app.prefs.browser?.mode ?? "fast";
   const cursor = frame?.cursor;
-  return <section className={`browser-panel${expanded ? " expanded" : ""}`} aria-label="Встроенный браузер">
+  return <section ref={panel} className={`browser-panel${expanded ? " expanded" : ""}${dragWidth !== undefined ? " resizing-width" : ""}`} style={{ "--browser-panel-width": `${dragWidth ?? preferredWidth}px` } as CSSProperties} aria-label="Встроенный браузер">
+    {!expanded && <div className="browser-panel-resizer" role="separator" tabIndex={0}
+      aria-label="Ширина браузерной панели" aria-orientation="vertical" aria-valuemin={280} aria-valuemax={widthLimit()} aria-valuenow={dragWidth ?? preferredWidth}
+      title="Перетащите, чтобы изменить ширину; стрелки ← → для точной настройки"
+      onPointerDown={e => {
+        if (e.button !== 0) return;
+        e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);
+        const initial = panel.current?.getBoundingClientRect().width || preferredWidth;
+        widthDrag.current = { x: e.clientX, initial, max: widthLimit(), width: initial };
+        queue.current?.clear();
+        if (local && frame?.scopeKey) setResizing(true);
+        setDragWidth(initial);
+      }}
+      onPointerMove={e => {
+        const drag = widthDrag.current; if (!drag) return;
+        drag.width = Math.round(Math.max(280, Math.min(drag.max, drag.initial + drag.x - e.clientX)));
+        setDragWidth(drag.width);
+      }}
+      onPointerUp={e => {
+        const drag = widthDrag.current; if (!drag) return;
+        widthDrag.current = undefined; commitWidth(drag.width);
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
+      onPointerCancel={() => { widthDrag.current = undefined; setDragWidth(undefined); }}
+      onLostPointerCapture={() => { widthDrag.current = undefined; setDragWidth(undefined); }}
+      onKeyDown={e => {
+        const width = panel.current?.getBoundingClientRect().width || preferredWidth;
+        const step = e.shiftKey ? 40 : 10;
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault(); commitWidth(width + (e.key === "ArrowLeft" ? step : -step));
+        } else if (e.key === "Home" || e.key === "End") {
+          e.preventDefault(); commitWidth(e.key === "Home" ? 280 : widthLimit());
+        }
+      }} />}
+
     <header className="browser-chrome">
       <div className="browser-tabs" role="tablist" aria-label="Вкладки браузера">{frame?.tabs.map(tab => <div className={`browser-tab${tab.active ? " active" : ""}`} key={tab.index}>
         <button role="tab" aria-selected={tab.active} disabled={locked} title={tab.title || "Новая вкладка"} onClick={() => input("select", { index: tab.index })}><Icon name="browser" size={14}/><span>{tab.title || "Новая вкладка"}</span></button>

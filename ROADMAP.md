@@ -579,3 +579,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Transparent native corners, one rounded outline, compact title/controls/status and full preview area without nested frame or empty stage.
 - [x] Keep selected-session isolation, passive page selection and drag ordering; isolated actual layout checks for landscape, square and portrait pages.
 - [x] Mac 0.2.40 package signature/DMG CRC/binary equality and GUI version verified; installed after explicit owner permission to interrupt browser. Native control and external server healthy. Owner preview after restart and Windows/Linux live acceptance remain separate.
+
+## Resizable browser panel (0.2.41)
+
+- [x] Pointer-captured left border and keyboard width controls; 280px minimum, preserve room for chat.
+- [x] Save chosen width through existing layout preferences; cancelled drag retains the prior choice, overlay/fullscreen behave independently.
+- [x] Defer page resize until drag release, clear stale input, ignore disconnected observer callbacks.
+- [x] Component regressions and actual isolated Chromium pointer drag, durable settings/reload, keyboard and narrow viewport checks.
+- [x] Final Mac 0.2.41 app signature/DMG CRC/install binary equality and GUI version verified; native connection healthy. Owner live splitter after restart and Windows/Linux native checks remain separate.

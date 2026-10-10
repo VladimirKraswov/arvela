@@ -109,11 +109,16 @@ select {
   min-height: 0;
 }
 .browser-panel {
-  display: flex; flex-direction: column; min-width: 320px;
-  width: clamp(380px, 52vw, 1100px); flex-shrink: 0;
+  position: relative; display: flex; flex-direction: column; min-width: 280px;
+  width: min(var(--browser-panel-width, 420px), max(280px, calc(100% - 280px))); flex-shrink: 0;
   border-left: 1px solid var(--border); background: var(--bg); min-height: 0;
 }
 .browser-panel { container: browser / inline-size; }
+.browser-panel-resizer { position: absolute; top: 0; bottom: 0; left: -4px; width: 8px; z-index: 6; cursor: col-resize; touch-action: none; outline: none; }
+.browser-panel-resizer::after { content: ""; position: absolute; inset: 0 3px; background: transparent; transition: background .15s; }
+.browser-panel-resizer:hover::after, .browser-panel-resizer:focus-visible::after, .resizing-width .browser-panel-resizer::after { background: var(--accent); }
+.resizing-width { user-select: none; }
+.resizing-width .browser-screen { pointer-events: none; }
 .browser-panel.expanded { position: fixed; inset: 48px 8px 8px; width: auto; min-width: 0; z-index: 45; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
 .browser-chrome { display: flex; align-items: center; gap: 4px; min-height: 42px; padding: 4px 6px; background: var(--bg-raised); border-bottom: 1px solid var(--border); }
 .browser-tabs { display: flex; flex: 1; min-width: 0; align-items: center; overflow-x: auto; gap: 4px; scrollbar-width: thin; }
@@ -156,7 +161,7 @@ select {
 .browser-viewport { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .browser-error { color: var(--text); background: var(--accent-soft); padding: 8px; margin: 0; font-size: 12px; }
 @media (max-width: 1100px) {
-  .browser-panel { position: absolute; right: 0; top: 0; bottom: 0; width: min(700px, 82vw); min-width: 0; z-index: 25; box-shadow: var(--shadow); }
+  .browser-panel { position: absolute; right: 0; top: 0; bottom: 0; width: min(var(--browser-panel-width, 420px), calc(100% - 48px)); min-width: 0; z-index: 25; box-shadow: var(--shadow); }
 }
 .center-col {
   display: flex;

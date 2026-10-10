@@ -116,6 +116,7 @@ export interface Prefs {
     sidebarOpen: boolean;
     sidebarWidth: number;
     rightWidth: number;
+    browserWidth: number;
     bottomHeight: number;
     rightOpen: boolean;
     bottomOpen: boolean;
@@ -142,6 +143,7 @@ export const DEFAULT_PREFS: Prefs = {
     sidebarOpen: true,
     sidebarWidth: 252,
     rightWidth: 380,
+    browserWidth: 420,
     bottomHeight: 260,
     rightOpen: false,
     bottomOpen: false,

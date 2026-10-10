@@ -3,14 +3,14 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 const fake = vi.hoisted(() => ({ invoke: vi.fn(), native: true, host: null as object | null,
-  state: {} as any, monitorEvent: undefined as undefined | ((event: {payload:any}) => void), setUi: vi.fn(), setBrowserSettings: vi.fn() }));
+  state: {} as any, monitorEvent: undefined as undefined | ((event: {payload:any}) => void), setUi: vi.fn(), setBrowserSettings: vi.fn(), setLayout: vi.fn() }));
 vi.mock("../src/browser/integration", () => ({ browserNative: fake.invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: async (_name: string, handler: (event: {payload:any}) => void) => {
   fake.monitorEvent = handler; return () => { fake.monitorEvent = undefined; };
 } }));
 vi.mock("../src/native/platform", () => ({ isNative: () => fake.native }));
 vi.mock("../src/state/store", () => ({ useAppState: () => fake.state, store: {
-  get state() { return fake.state; }, engineIdFor: () => "opencode", currentHost: () => fake.host, setUi: fake.setUi, setBrowserSettings: fake.setBrowserSettings,
+  get state() { return fake.state; }, engineIdFor: () => "opencode", currentHost: () => fake.host, setUi: fake.setUi, setBrowserSettings: fake.setBrowserSettings, setLayout: fake.setLayout,
 } }));
 import { BrowserPanel, BrowserPresence } from "../src/components/BrowserPanel";
 import { openFileInput } from "../src/attachments/composerBridge";
@@ -248,4 +248,54 @@ it("foreign and legacy browser frames are never shown in the selected chat",asyn
  fake.state={...fake.state,activeSessionId:"other"};await mount();expect(document.querySelector("img")).not.toBeNull();
  fake.state={...fake.state,activeSessionId:"empty"};await mount();expect(document.querySelector("img")).toBeNull();
  fake.invoke.mockResolvedValue({...frame,scope:undefined});await act(async()=>vi.advanceTimersByTimeAsync(600));expect(document.querySelector("img")).toBeNull();
+});
+
+it("allows narrowing with pointer capture and persists once, restoring width on remount", async () => {
+  fake.state.prefs.layout = { browserWidth: 600 };
+  fake.setLayout.mockImplementation(patch => Object.assign(fake.state.prefs.layout, patch));
+  await mount();
+  const pane = document.querySelector<HTMLElement>(".browser-panel")!;
+  vi.spyOn(pane, "getBoundingClientRect").mockReturnValue({ width: 600 } as DOMRect);
+  const handle = document.querySelector<HTMLElement>('[aria-label="Ширина браузерной панели"]')!;
+  handle.setPointerCapture = vi.fn(); handle.hasPointerCapture = () => true; handle.releasePointerCapture = vi.fn();
+  const pointer = (name: string, x: number) => handle.dispatchEvent(new MouseEvent(name, {bubbles:true,clientX:x,button:0}));
+  act(() => { pointer("pointerdown", 400); pointer("pointermove", 700); });
+  expect(pane.style.getPropertyValue("--browser-panel-width")).toBe("300px");
+  expect(fake.setLayout).not.toHaveBeenCalled();
+  act(() => pointer("pointerup", 700));
+  expect(fake.setLayout).toHaveBeenCalledExactlyOnceWith({browserWidth:300});
+  act(() => root.unmount()); root = createRoot(document.querySelector("#test-root") || document.body.appendChild(document.createElement("div")));
+  await act(async () => root.render(createElement(BrowserPanel)));
+  expect(document.querySelector<HTMLElement>(".browser-panel")!.style.getPropertyValue("--browser-panel-width")).toBe("300px");
+});
+it("cancels width drag without changing saved preference and supports keyboard narrowing", async () => {
+  fake.state.prefs.layout = { browserWidth: 420 };
+  await mount();
+  const pane = document.querySelector<HTMLElement>(".browser-panel")!;
+  const handle = document.querySelector<HTMLElement>('[aria-label="Ширина браузерной панели"]')!;
+  handle.setPointerCapture = vi.fn();
+  act(() => {
+    handle.dispatchEvent(new MouseEvent("pointerdown", {bubbles:true,clientX:400,button:0}));
+    handle.dispatchEvent(new MouseEvent("pointermove", {bubbles:true,clientX:900}));
+    handle.dispatchEvent(new Event("pointercancel", {bubbles:true}));
+  });
+  expect(fake.setLayout).not.toHaveBeenCalled();
+  expect(pane.style.getPropertyValue("--browser-panel-width")).toBe("420px");
+  act(() => handle.dispatchEvent(new KeyboardEvent("keydown", {bubbles:true,key:"Home"})));
+  expect(fake.setLayout).toHaveBeenCalledWith({browserWidth:280});
+});
+
+it("defers page reflow until pointer release and ignores callbacks from the disconnected observer", async () => {
+  const callbacks: ResizeObserverCallback[] = [];
+  vi.stubGlobal("ResizeObserver", class { constructor(fn: ResizeObserverCallback) { callbacks.push(fn); } observe() {} disconnect() {} });
+  await mount();
+  const handle = document.querySelector<HTMLElement>('[aria-label="Ширина браузерной панели"]')!;
+  handle.setPointerCapture = vi.fn(); handle.hasPointerCapture = () => false;
+  const notify = (callback: ResizeObserverCallback, width: number) => callback([{contentRect:{width,height:500}} as ResizeObserverEntry], {} as ResizeObserver);
+  act(() => handle.dispatchEvent(new MouseEvent("pointerdown", {bubbles:true,clientX:400,button:0})));
+  await act(async () => { notify(callbacks[0], 700); await vi.advanceTimersByTimeAsync(500); });
+  expect(fake.invoke.mock.calls.filter(([name,payload]) => name === "browser_input" && payload.action === "resize")).toHaveLength(0);
+  act(() => handle.dispatchEvent(new MouseEvent("pointerup", {bubbles:true,clientX:400,button:0})));
+  await act(async () => { notify(callbacks.at(-1)!, 320); await vi.advanceTimersByTimeAsync(200); });
+  expect(fake.invoke).toHaveBeenCalledWith("browser_input", {action:"resize",args:{width:320,height:500,scopeKey:"fixture-key"}});
 });
