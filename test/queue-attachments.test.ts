@@ -87,10 +87,37 @@ it('queued attachment data survives a module reload and interrupted sends stay u
  const reloaded=(await import('../src/state/prefs')).loadPrefs();expect(reloaded.queues.ses_a[0].attachments.files[0].name).toBe('fixture.txt');
  expect(reloaded.queues.ses_a[0].directory).toBe(directory);
 });
-it('edit persistence failure leaves the queue copy recoverable',async()=>{
+it('apply persistence failure leaves the original queue and edited draft recoverable',async()=>{
  await store.enqueueWithAttachments('keep queue',drafts.snapshot(scope));const queued=store.getQueue()[0];
+ await store.editQueued(queued.id);store.setDraft('changed text');
  vi.mocked(localStorage.setItem).mockImplementation(()=>{throw new Error('quota');});
- await store.editQueued(queued.id);
- expect(store.getQueue()[0].id).toBe(queued.id);expect(drafts.snapshot(scope)).toHaveLength(0);
- expect(drafts.snapshot(queued.attachments.scope)).toHaveLength(1);expect(store.getDraft()).toBe('');
+ expect(await store.applyQueueEdit('changed text',drafts.snapshot(scope))).toBe(false);
+ expect(store.getQueue()[0].id).toBe(queued.id);expect(store.getQueue()[0].text).toBe('keep queue');expect(drafts.snapshot(scope)).toHaveLength(1);
+ expect(drafts.snapshot(queued.attachments.scope)).toHaveLength(1);expect(store.getDraft()).toBe('changed text');expect(store.getQueueEdit().id).toBe(queued.id);
+});
+
+it('editing holds dispatch, applies in the original position and preserves model and files',async()=>{
+ await store.enqueueWithAttachments('first',drafts.snapshot(scope));
+ store.enqueuePrompt('second');const [first,second]=store.getQueue();
+ await store.editQueued(first.id);idle();await settle();
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.getQueue().map((q:any)=>q.id)).toEqual([first.id,second.id]);
+ store.setModelChoice('p','different');store.setDraft('updated first');
+ expect(await store.applyQueueEdit('updated first',drafts.snapshot(scope))).toBe(true);await settle();
+ expect(store.client.prompt).toHaveBeenCalledTimes(1);
+ expect(store.client.prompt.mock.calls[0][2].parts[0].text).toBe('updated first');
+ expect(store.client.prompt.mock.calls[0][2].model.modelID).toBe('m');
+ expect(store.getQueue()[0].id).toBe(second.id);
+});
+it('cancel restores the original queue and retains original files',async()=>{
+ await store.enqueueWithAttachments('original',drafts.snapshot(scope));const first=store.getQueue()[0];
+ await store.editQueued(first.id);store.setDraft('discard this change');
+ await store.cancelQueueEdit();
+ expect(store.getDraft()).toBe('');expect(store.getQueueEdit()).toBeUndefined();
+ expect(store.getQueue()[0].text).toBe('original');expect(drafts.snapshot(first.attachments.scope)).toHaveLength(1);expect(drafts.snapshot(scope)).toHaveLength(0);
+});
+it('does not overwrite an existing attachment-only draft when editing',async()=>{
+ await store.enqueueWithAttachments('queued',drafts.snapshot(scope));const first=store.getQueue()[0];
+ await drafts.add(scope,[new File(['owner'],'owner.txt',{type:'text/plain'})]);
+ expect(await store.editQueued(first.id)).toBe(false);
+ expect(drafts.snapshot(scope).map(f=>f.name)).toEqual(['owner.txt']);expect(store.getQueue()[0].id).toBe(first.id);
 });

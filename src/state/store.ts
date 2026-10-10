@@ -616,6 +616,7 @@ class Store {
   private workspacePromise: Promise<boolean> | null = null;
   private queueArmed = new Set<string>();
   private queueLocks = new Set<string>();
+  private queueEdits = new Map<string, { id: string; scope: string; directory: string }>();
   private accessChanging = false;
   private compactLocks = new Set<string>();
   private historyJournals = new Set<ServerEvent[]>();
@@ -2646,6 +2647,7 @@ class Store {
     return true;
   }
   async enqueueWithAttachments(text: string, files: DraftAttachment[]): Promise<boolean> {
+    if (this.getQueueEdit()) return this.applyQueueEdit(text, files);
     if (!files.length) return this.enqueuePrompt(text);
     const sid = this.state.activeSessionId, directory = this.state.directory;
     if (!sid || !directory || this.state.ui.sending || this.getQueue(sid).length >= 20) return false;
@@ -2697,32 +2699,82 @@ class Store {
     if (!flushPrefs()) { this.writeQueue(sid, previous); this.patchUi({ sendError: "Не удалось сохранить очередь." }); return; }
     if (item?.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
   }
+  getQueueEdit() {
+    const edit = this.state.activeSessionId ? this.queueEdits.get(this.state.activeSessionId) : undefined;
+    return edit?.directory === this.state.directory ? edit : undefined;
+  }
   async editQueued(id: string) {
     const item = this.getQueue().find(x => x.id === id);
-    if (!item || item.state !== "ready" || this.getDraft().trim() || this.queueLocks.has(item.sessionID)) return;
+    if (!item || item.state !== "ready" || this.getDraft().trim() || this.state.ui.sending || this.queueLocks.has(item.sessionID)) return false;
     const sid = item.sessionID, directory = item.directory, gen = this.directoryGeneration;
     const scope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, sid);
     const current = () => gen === this.directoryGeneration && sid === this.state.activeSessionId && directory === this.state.directory;
     this.queueLocks.add(sid);
-    let copies: DraftAttachment[] = [];
+    let copies: DraftAttachment[] = [], editing = false;
     try {
+      await attachmentDrafts.ensure(scope);
+      if (!current() || this.getDraft().trim() || attachmentDrafts.snapshot(scope).length) return false;
       if (item.attachments) copies = await attachmentDrafts.copy(item.attachments.scope, scope, item.attachments.files.map(file => file.id));
-      if (!current() || this.getDraft().trim()) {
-        if (copies.length) await attachmentDrafts.remove(scope, copies.map(file => file.id));
-        return;
-      }
-      const previous = this.getQueue(sid);
+      if (!current() || this.getDraft().trim()) return false;
+      // Keep the original persisted entry and its position until Apply succeeds.
+      this.queueEdits.set(sid, { id, scope, directory });
+      editing = true;
       this.setDraft(item.text);
-      this.writeQueue(sid, this.getQueue(sid).filter(x => x.id !== id));
+      return true;
+    } catch (error) { if (current()) this.patchUi({ sendError: errText(error) }); return false; }
+    finally {
+      if (!editing) {
+        this.queueLocks.delete(sid);
+        if (copies.length) await attachmentDrafts.remove(scope, copies.map(file => file.id)).catch(() => {});
+      }
+    }
+  }
+  async cancelQueueEdit() {
+    const edit = this.getQueueEdit(), sid = this.state.activeSessionId;
+    if (!edit || !sid || this.state.ui.sending) return;
+    const files = attachmentDrafts.snapshot(edit.scope);
+    this.queueEdits.delete(sid);
+    this.queueLocks.delete(sid);
+    this.setDraft("");
+    await attachmentDrafts.remove(edit.scope, files.map(file => file.id)).catch(() => {});
+    void this.drainQueue();
+  }
+  async applyQueueEdit(text: string, files: DraftAttachment[]): Promise<boolean> {
+    const edit = this.getQueueEdit(), sid = this.state.activeSessionId;
+    if (!edit || !sid || this.state.ui.sending || (!text.trim() && !files.length)) return false;
+    const item = this.getQueue(sid).find(q => q.id === edit.id);
+    if (!item || item.state !== "ready") return false;
+    const gen = this.directoryGeneration, backend = this.conversation();
+    const current = () => gen === this.directoryGeneration && sid === this.state.activeSessionId && this.getQueueEdit() === edit;
+    const target = `${edit.scope}:queue:${newMessageId()}`;
+    let copies: DraftAttachment[] = [], saved = false;
+    this.patchUi({ sending: true, sendError: null });
+    try {
+      if (files.length) copies = await attachmentDrafts.copy(edit.scope, target, files.map(file => file.id));
+      if (!current()) return false;
+      const previous = this.getQueue(sid);
+      const attachments = copies.length ? { scope: target, files: copies.map(({ blob: _blob, ...file }) => file) } : undefined;
+      this.writeQueue(sid, previous.map(q => q.id === item.id ? { ...q, text: text.trim() || "Проанализируй приложенные файлы.", attachments, error: undefined } : q));
       savePrefs(this.state.prefs);
       if (!flushPrefs()) {
-        this.writeQueue(sid, previous); this.setDraft("");
-        if (copies.length) await attachmentDrafts.remove(scope, copies.map(file => file.id));
-        throw new Error("Не удалось сохранить очередь. Запрос сохранён в очереди.");
+        this.writeQueue(sid, previous);
+        throw new Error("Не удалось сохранить изменения. Исходный запрос остался в очереди.");
       }
-      if (item.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id));
-    } catch (error) { if (current()) this.patchUi({ sendError: errText(error) }); }
-    finally { this.queueLocks.delete(sid); }
+      saved = true;
+      this.queueEdits.delete(sid);
+      this.queueLocks.delete(sid);
+      if (this.getDraft() === text) this.setDraft("");
+      await attachmentDrafts.remove(edit.scope, files.map(file => file.id)).catch(() => {});
+      if (item.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
+      return true;
+    } catch (error) { if (current()) this.patchUi({ sendError: errText(error) }); return false; }
+    finally {
+      if (!saved && copies.length) await attachmentDrafts.remove(target, copies.map(file => file.id)).catch(() => {});
+      if (gen === this.directoryGeneration && sid === this.state.activeSessionId) {
+        this.patchUi({ sending: false });
+        if (saved) void this.drainQueue();
+      } else if (this.engineStillActive(backend)) this.patchUi({ sending: false });
+    }
   }
   resumeQueue() {
     const sid = this.state.activeSessionId;

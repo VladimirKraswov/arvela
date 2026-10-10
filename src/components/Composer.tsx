@@ -49,6 +49,7 @@ export function Composer() {
   const scope = attachmentScope(s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId);
   const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
+  const queueEdit = store.getQueueEdit();
   const choice = store.getModelChoice();
   const switchState = choice ? modelServices.statusFor(choice.providerID, choice.modelID) : undefined;
   const switchError = choice ? modelServices.errorFor(choice.providerID, choice.modelID) : undefined;
@@ -210,6 +211,11 @@ export function Composer() {
   const send = () => {
     const text = store.getDraft();
     // s.ui.sending also blocks a second Enter while the first request awaits acknowledgement.
+    if (queueEdit) {
+      if ((!text.trim() && !attachments.length) || s.ui.sending) return;
+      void store.applyQueueEdit(text, attachments);
+      return;
+    }
     if ((!text.trim() && !attachments.length) || s.ui.sending || switching || !connected) return;
     if (running) {
       const target = scope;
@@ -277,23 +283,24 @@ export function Composer() {
             )}
           </div>
           {store.getQueue().map((item) => (
-            <div className="queued-prompt" key={item.id}>
-              <p>{item.text}</p>
-              {!!item.attachments?.files.length && <div className="queued-attachments" aria-label="Вложения в очереди">{item.attachments.files.map(file => <span key={file.id} title={file.name}><Icon name="file" size={14}/>{file.name}</span>)}</div>}
-              {item.error && <span role="alert">{item.error}</span>}
+            <div className={`queued-prompt ${queueEdit?.id === item.id ? "queued-prompt-editing" : ""}`} key={item.id}>
+              <p className="queued-summary" title={item.text}>{item.text.replace(/\s+/g, " ").trim()}</p>
+              {!!item.attachments?.files.length && <span className="queued-file-count" aria-label="Вложения в очереди" title={item.attachments.files.map(file => file.name).join("\n")}><Icon name="file" size={14}/>{item.attachments.files.length}</span>}
+              {item.error && <span className="queued-error" role="alert" title={item.error}><span aria-hidden="true">!</span><span>{item.error}</span></span>}
               <div className="queue-actions">
                 {item.state === "ready" ? (
                   <>
                     <button
-                      disabled={!connected || switching || s.ui.sending}
+                      disabled={!!queueEdit || !connected || switching || s.ui.sending}
                       title="Передать уточнение на следующий шаг агента без остановки инструмента"
                       onClick={() => void store.steerQueued(item.id)}
                     >
-                      Скорректировать сейчас
+                      Сейчас
                     </button>
                     <button
-                      disabled={!!draft.trim()}
-                      onClick={() => void store.editQueued(item.id)}
+                      disabled={!!queueEdit || !!draft.trim() || attachments.length > 0 || s.ui.sending}
+                      title={draft.trim() || attachments.length ? "Сначала отправьте или очистите черновик" : "Редактировать в поле ввода"}
+                      onClick={() => void store.editQueued(item.id).then(opened => { if (opened) textareaRef.current?.focus(); })}
                     >
                       Изменить
                     </button>
@@ -306,7 +313,7 @@ export function Composer() {
                   </span>
                 )}
                 <button
-                  disabled={item.state === "sending"}
+                  disabled={!!queueEdit || item.state === "sending"}
                   aria-label="Убрать из очереди"
                   onClick={() => void store.removeQueued(item.id)}
                 >
@@ -322,6 +329,10 @@ export function Composer() {
           Подготовка рабочего места чата…
         </div>
       )}
+      {queueEdit && <div className="queue-edit-heading" role="status">
+        <span>Редактирование запроса в очереди</span>
+        <button type="button" disabled={s.ui.sending} onClick={() => void store.cancelQueueEdit()}>Отмена</button>
+      </div>}
       <div className={`composer ${dragging ? "composer-drop-target" : ""} ${voiceActive ? "composer-voice-active" : ""}`}>
         {dragging && <div className="composer-drop-label">Перетащите файлы сюда</div>}
         {attachments.length > 0 && <div className="attachment-list" aria-label="Вложения">{attachments.map(file => <AttachmentChip key={file.id} file={file} disabled={s.ui.sending} onRemove={() => void attachmentDrafts.remove(scope, [file.id])}/>)}</div>}
@@ -471,20 +482,21 @@ export function Composer() {
               <Icon name="stop" size={14} />
             </button>
           )}
-          {(!running || !!draft.trim() || attachments.length > 0) && <button
+          {(!!queueEdit || !running || !!draft.trim() || attachments.length > 0) && <button
             className="send-btn"
-            aria-label={running ? "Добавить в очередь" : "Send prompt"}
+            aria-label={queueEdit ? "Применить изменения" : running ? "Добавить в очередь" : "Send prompt"}
+            title={queueEdit ? "Применить изменения к запросу в очереди" : undefined}
             disabled={
-              !connected ||
+              (!queueEdit && !connected) ||
               (!draft.trim() && !attachments.length) ||
               s.ui.sending ||
-              switching ||
+              (!queueEdit && switching) ||
               s.ui.workspacePreparing ||
               s.ui.runtimeLoading
             }
             onClick={send}
           >
-            <Icon name={running ? "plus" : "arrow"} size={19} />
+            <Icon name={queueEdit ? "check" : running ? "plus" : "arrow"} size={19} />
           </button>}
           </div>
         </div>

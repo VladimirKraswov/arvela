@@ -550,3 +550,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Selected-chat draft action: analysis, reuse/migration, portable package and verification; no automatic send or old-job replay.
 - [x] Reviewed document-download skill with partial/edition/access evidence and portable helper failure checks.
 - [ ] Qualify usefulness and automatic skill selection on future owner tasks; no unmeasured performance claim.
+
+## Compact prompt queue (source only)
+
+- [x] Single-line summaries, bounded queue scrolling and attachment counts.
+- [x] Composer-based Apply/Cancel with original position/model/attachment preservation and paused dispatch while editing.
+- [x] Failure, cancellation and idle-during-edit tests; isolated narrow/large-text browser layouts.
+- [ ] Install when requested; owner explicitly kept the current running application unchanged.
