@@ -651,5 +651,5 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Configuration/chat guards; checking an unloaded or agent-restricted model does not mark other chats' working model unavailable.
 - [x] Optional Mac SSH supervisor: strict keys, loopback forwards, owned child, bounded health probes and reconnect/backoff for stalled forwards.
 - [x] Regression tests, isolated real HTTP stalled-listener recovery, launchd restart and real Chromium offline/recovery/narrow UI.
-- [ ] Final Mac package/install and reviewed main publication.
+- [x] Final Mac signature/DMG CRC, staged install/binary equality, actual native model-check UI and reviewed main/release publication; downloaded release artifact verified.
 - [ ] Live Windows/Linux qualification of the common UI; supervisor is a Mac deployment helper.
