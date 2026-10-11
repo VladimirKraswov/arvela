@@ -34,7 +34,23 @@ describe('shared resilient search',()=>{
    if(url.includes('exa')) return new Response('{"result":{"isError":true,"content":[]}}');
    return new Response(rss);
   }});
-  const result=await s.search({query:'test'});expect(result.provider).toBe('bing');expect(result.failures.map((f:{reason:string})=>f.reason)).toEqual(['timeout','provider_error']);
+  const result=await s.search({query:'Node.js documentation'});expect(result.provider).toBe('bing');expect(result.failures.map((f:{reason:string})=>f.reason)).toEqual(['timeout','provider_error']);
+ });
+ it('rejects irrelevant RSS rather than claiming success',async()=>{
+  const s=createSearch({providers:['bing'],fetcher:async()=>new Response(rss)});
+  const result=await s.search({query:'curl-impersonate official documentation'});expect(result.isError).toBe(true);expect(result.failures[0].reason).toBe('irrelevant_results');
+ });
+ it('uses explicitly limited GitHub repository fallback after bad RSS',async()=>{
+  const calls:string[]=[];const s=createSearch({providers:['bing','github'],fetcher:async(url:string)=>{calls.push(url);return url.includes('bing')?new Response(rss):Response.json({items:[{full_name:'lwthiker/curl-impersonate',html_url:'https://github.com/lwthiker/curl-impersonate',description:'curl-impersonate'}]});}});
+  const result=await s.search({query:'curl-impersonate official github documentation'});expect(result.provider).toBe('github');expect(result.scope).toBe('github-repositories');expect(result.queryUsed).toBe('curl-impersonate');expect(calls[1]).toContain('q=curl-impersonate');
+ });
+ it('tries repository fallback on valid empty RSS for an explicit GitHub query',async()=>{
+  const s=createSearch({providers:['bing','github'],fetcher:async(url:string)=>url.includes('bing')?new Response('<rss><channel></channel></rss>'):Response.json({items:[{full_name:'lwthiker/curl-impersonate',html_url:'https://github.com/lwthiker/curl-impersonate'}]})});
+  const r=await s.search({query:'curl-impersonate github'});expect(r.provider).toBe('github');expect(r.failures[0].reason).toBe('no_results');expect(s.status()[0].state).toBe('available');
+ });
+ it('does not silently narrow an unrelated web query to GitHub',async()=>{
+  const calls:string[]=[];const s=createSearch({providers:['bing','github'],fetcher:async(url:string)=>{calls.push(url);return new Response(rss);}});
+  expect((await s.search({query:'concert tickets'})).isError).toBe(true);expect(calls).toHaveLength(1);
  });
  it('bounds responses and validates before making requests',async()=>{
   let count=0;const s=createSearch({providers:['bing'],fetcher:async()=>{count++;return new Response('x'.repeat(262145));}});

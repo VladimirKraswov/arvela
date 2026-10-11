@@ -629,10 +629,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] System-browser action for sites that reject automated login. Separate cookies; no automation identity masking or Google login bypass.
 - [x] Isolated Chromium input/selection/copy plus daemon guard/smoke checks. Installed Mac WK pointer input/drag/Cmd+C paste confirmed on test-owned fixture; owner-site responsiveness remains a separate check.
 
-## Shared web search reliability (0.2.47)
+## Shared web search reliability (0.2.48)
 
 - [x] Read-only shared MCP search for OpenCode/Pi, independent provider fallback, bounded deadlines and cancellation.
 - [x] HTTP403/401 cooldown, bounded Retry-After, explicit provider errors/status, bounded output and untrusted result contract.
 - [x] Portable recovery skill and non-destructive registration; disabled/user-edited service preserved.
+- [x] Reject RSS results with no query anchor match; GitHub-only repository scope/fallback via official API, empty responses distinguished from outages.
 - [x] Regression coverage and real isolated SDK discovery/search/status with Bing sources after two actual403 responses.
 - [ ] Live Windows/Linux qualification. Public providers do not guarantee availability or target-site access.
