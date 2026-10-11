@@ -4,6 +4,7 @@ use fs2::FileExt;
 use sha2::{Digest, Sha256};
 use std::{fs, path::Path};
 const CATALOG: &str = include_str!("../../resources/skills/create-shared-skill/scripts/catalog.py");
+const SEARCH: &str = include_str!("../../resources/skills/reliable-web-search/SKILL.md");
 const ID: &str = "arvela-authoring";
 const SKILL: &str = include_str!("../../resources/skills/create-shared-skill/SKILL.md");
 
@@ -27,7 +28,7 @@ pub(super) fn ensure(root: &Path) -> Result<(), String> {
     private(&bundles)?;
     let source = bundles.join(format!(
         "{:x}",
-        Sha256::digest([SKILL.as_bytes(), CATALOG.as_bytes()].concat())
+        Sha256::digest([SKILL.as_bytes(), CATALOG.as_bytes(), SEARCH.as_bytes()].concat())
     ));
     private(&source)?;
     let directory = source.join("create-shared-skill");
@@ -58,6 +59,19 @@ pub(super) fn ensure(root: &Path) -> Result<(), String> {
         }
     } else {
         crate::config::write_at(&catalog, "", CATALOG)?;
+    }
+    let search_dir = source.join("reliable-web-search");
+    private(&search_dir)?;
+    let search_file = search_dir.join("SKILL.md");
+    if search_file.is_symlink() {
+        return Err("Навык поиска не должен быть ссылкой".into());
+    }
+    let current = fs::read_to_string(&search_file).unwrap_or_default();
+    if !current.is_empty() && current != SEARCH {
+        return Err("Встроенный навык поиска изменён; сохраните пользовательскую копию".into());
+    }
+    if current.is_empty() {
+        crate::config::write_at(&search_file, "", SEARCH)?;
     }
     let path = source.display().to_string();
     if let Some(existing) = registry.sources.iter_mut().find(|s| s.id == ID) {

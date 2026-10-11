@@ -2,6 +2,7 @@
 //! rewritten. Engine approvals remain authoritative; metadata never executes a tool.
 mod authoring;
 pub mod project_map;
+mod web_search;
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -46,6 +47,14 @@ const FILES: &[(&str, &str)] = &[
     ),
     ("client.mjs", include_str!("../resources/shared/client.mjs")),
     ("proxy.mjs", include_str!("../resources/shared/proxy.mjs")),
+    (
+        "web-search-core.mjs",
+        include_str!("../resources/shared/web-search-core.mjs"),
+    ),
+    (
+        "web-search.mjs",
+        include_str!("../resources/shared/web-search.mjs"),
+    ),
     (
         "project-map-core.mjs",
         include_str!("../resources/shared/project-map-core.mjs"),
@@ -549,13 +558,28 @@ fn document(scope: &str, directory: Option<&str>) -> Result<Document, String> {
 }
 #[tauri::command]
 pub async fn shared_catalog(
+    state: tauri::State<'_, SharedRuntime>,
     window: tauri::WebviewWindow,
     scope: String,
     directory: Option<String>,
 ) -> Result<Document, String> {
     main_window(&window)?;
+    let runtime = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let path = root()?.join("runtime");
+        // Refresh only an already installed pinned runtime. First installation remains explicit.
+        let sdk =
+            fs::read_to_string(path.join("node_modules/@modelcontextprotocol/sdk/package.json"))
+                .ok()
+                .and_then(|s| serde_json::from_str::<Value>(&s).ok());
+        if !runtime_ready_at(&path)
+            && sdk.is_some_and(|v| v["version"] == "1.32.0")
+            && recorded_node(&path)?.is_some()
+        {
+            install(None, &runtime)?;
+        }
         authoring::ensure(&root()?)?;
+        web_search::ensure(&root()?)?;
         document(&scope, directory.as_deref())
     })
     .await
@@ -759,6 +783,7 @@ pub fn pi_support(directory: &Path) -> Result<(String, Vec<String>, Option<PathB
     let (key, _) = key_for("project", directory.to_str())?;
     let root = root()?;
     authoring::ensure(&root)?;
+    web_search::ensure(&root)?;
     let registry = effective(&root, &key)?;
     let skills = registry
         .sources
