@@ -644,3 +644,12 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Explicit external-directory grant and scoped plugin inheritance for delegated OpenCode work; legacy full representation and append-only engine permission updates recognized. Role prompts remain intact.
 - [x] Browser adapter derives full file access from invoking chat; official backend connections separate full/project policies. Other session identities and interaction guards remain independent.
 - [x] Isolated actual OpenCode SDK/API inheritance and idempotency; frontend/native checks. Package/live-browser acceptance recorded separately.
+## Model API connection recovery (0.2.50)
+
+- [x] Distinguish model transport errors from engine, HTTP authentication and balance failures; display the latest message error once.
+- [x] Read-only check of the failed message's exact managed model, fresh policy and readiness; no select, inference or prompt replay.
+- [x] Configuration/chat guards; checking an unloaded or agent-restricted model does not mark other chats' working model unavailable.
+- [x] Optional Mac SSH supervisor: strict keys, loopback forwards, owned child, bounded health probes and reconnect/backoff for stalled forwards.
+- [x] Regression tests, isolated real HTTP stalled-listener recovery, launchd restart and real Chromium offline/recovery/narrow UI.
+- [ ] Final Mac package/install and reviewed main publication.
+- [ ] Live Windows/Linux qualification of the common UI; supervisor is a Mac deployment helper.

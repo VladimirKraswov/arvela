@@ -52,6 +52,78 @@ with retry, leaves the row and the previous selection intact, and never selects 
 substitute. A late readiness result cannot change another chat or workspace.
 Previously selected configured models also remain selected when offline.
 
+## Model connection failures
+
+Since 0.2.50, an assistant model transport error is displayed once, separately
+from the OpenCode event-stream connection. “Проверить модель” on a managed model's
+failed message reads a fresh catalog and status for that message's exact model.
+It never calls select, changes weights or sends a prompt. A reachable service
+with a different active model, a loading operation or failed engine is not
+reported ready. Configuration changes invalidate in-flight checks; their result
+does not appear in another chat. HTTP authentication/balance errors retain their
+own meaning rather than being classified as a tunnel outage.
+
+After a transport failure, completed tools are retained. Continue the agent or
+its paused queue explicitly after verifying readiness; do not replay an entire
+turn automatically, because commands may already have changed files or websites.
+
+For an external inference tunnel, use the service VM's SSH host directly when
+reachable, avoiding an unnecessary dependency on the hypervisor's SSH server.
+On macOS a LaunchAgent can supervise `ssh -N` with:
+
+```text
+BatchMode=yes
+ExitOnForwardFailure=yes
+ConnectTimeout=10
+ConnectionAttempts=1
+ServerAliveInterval=10
+ServerAliveCountMax=3
+TCPKeepAlive=yes
+StrictHostKeyChecking=yes
+ControlMaster=no
+ControlPath=none
+ForkAfterAuthentication=no
+PermitLocalCommand=no
+```
+
+Bind every local forward explicitly to `127.0.0.1`; retain the service's actual
+remote bind address. Set `RunAtLoad=true`, `KeepAlive=true` and
+`ThrottleInterval=10` in the LaunchAgent, with private stdout/stderr log files.
+This bounds failed connection attempts, detects an unresponsive SSH peer and
+restarts exited SSH processes, including successful exits. It cannot guarantee
+service availability during network loss or prevent interruption of a request
+already streaming when the network fails. After recovery verify `/v1/models`
+and the authenticated control status, not merely that the local port listens.
+Do not disable host-key verification, expose a LAN listener or restart the
+externally managed agent/inference server as a recovery shortcut.
+
+For a listening but stalled forward, `scripts/model-tunnel-supervisor.py` also
+checks the actual HTTP endpoint every 15 seconds with a 5-second timeout. Three
+consecutive transport failures stop only the SSH child it owns and reconnect
+with 10–60-second backoff. Any HTTP response, including 401/503, proves transport
+and does not cause an SSH restart. It ignores environment proxies and does not
+follow redirects. It never makes inference requests or retries user work.
+
+Run this optional macOS helper from a private stable local directory using a
+LaunchAgent and an installed Python 3 interpreter. Pass a private JSON file:
+
+```json
+{
+  "ssh_host": "service-vm",
+  "forwards": [{"local_port": 18021, "remote_host": "10.0.0.5", "remote_port": 8080}],
+  "health_port": 18021,
+  "health_path": "/health"
+}
+```
+
+The alias uses existing SSH keys/known hosts. Health must be a cheap endpoint on
+the same gateway, independent of model generation. Keep this file and logs
+private; no credentials belong in it. A timeout can interrupt a streaming request
+if a gateway also stalls its health endpoint, so that endpoint must remain
+responsive under load. The helper supervises only its child, never searches for
+or terminates external SSH/agent/model processes. Offline unit/HTTP tests are in
+`scripts/test-model-tunnel-supervisor.py`; live qualification here is macOS only.
+
 ## Version-1 control contract
 
 All control requests require `Authorization: Bearer <control-key>`.

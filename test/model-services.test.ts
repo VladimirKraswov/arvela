@@ -40,6 +40,50 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+it("checks the exact failed model with GET only, refreshing access policy and clearing alias errors", async () => {
+  let online = false;
+  const fetch = vi.fn(async (url: string, options?: RequestInit) => {
+    expect(options?.method).toBe("GET");
+    if (!online) throw new TypeError("fetch failed");
+    return response(url.endsWith("catalog") ? catalog : ready());
+  });
+  vi.stubGlobal("fetch", fetch);
+  const manager = new ModelServices();
+  manager.configure([...services, { ...services[0], id: "alias", providerID: "other" }]);
+  await expect(manager.check("volta", "base", "opencode")).rejects.toThrow("SSH-туннель");
+  expect(manager.snapshot().errors.alias).toContain("SSH-туннель");
+  online = true;
+  await manager.check("volta", "base", "opencode");
+  expect(manager.snapshot().errors).toEqual({});
+  expect(manager.snapshot().states.alias.active_model).toBe("base");
+  await expect(manager.check("volta", "tuned", "opencode")).rejects.toThrow("недоступна выбранному агенту");
+  expect(manager.snapshot().errors).toEqual({});
+  await expect(manager.check("volta", "tuned", "pi")).rejects.toThrow("эта модель сейчас не готова");
+  expect(manager.snapshot().errors).toEqual({});
+  expect(manager.snapshot().states.alias.active_model).toBe("base");
+  expect(fetch.mock.calls.every(([url]) => url.endsWith("catalog") || url.endsWith("status"))).toBe(true);
+});
+it("rejects malformed readiness and a stale check after reconfiguration", async () => {
+  let resolveStatus: ((value: Response) => void) | undefined;
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => url.endsWith("catalog") ? response(catalog)
+    : new Promise<Response>(resolve => { resolveStatus = resolve; })));
+  const manager = new ModelServices(); manager.configure(services);
+  const checking = manager.check("volta", "base", "opencode");
+  await vi.waitFor(() => expect(resolveStatus).toBeTypeOf("function"));
+  manager.configure([]);
+  resolveStatus!(response(ready()));
+  await expect(checking).rejects.toThrow("Настройки сервиса изменились");
+  expect(manager.snapshot().states).toEqual({}); expect(manager.snapshot().errors).toEqual({});
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => response(url.endsWith("catalog") ? catalog : { ready: true })));
+  manager.configure(services);
+  await expect(manager.check("volta", "base", "opencode")).rejects.toThrow("Неподдерживаемое состояние");
+});
+it("reports control authentication separately without exposing a server error body", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => response({ message: "private-url?secret=hidden" }, 403)));
+  const manager = new ModelServices(); manager.configure(services);
+  await expect(manager.check("volta", "base", "opencode")).rejects.toThrow("Проверьте ключ в настройках");
+  expect(manager.snapshot().errors.gpu).not.toMatch(/secret|hidden|SSH/);
+});
 it("uses registry agent policy, fails closed before discovery, leaves unmanaged models alone", async () => {
   vi.stubGlobal(
     "fetch",

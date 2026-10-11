@@ -12,6 +12,8 @@ import type {
 } from "../api/types";
 
 import { observeTask, type DispatchTiming, type TaskObservation } from '../diagnostics/tasks';
+import { describeMessageError } from '../chat/errors';
+export { describeMessageError } from '../chat/errors';
 
 export interface SessionChatState {
   pendingTiming?: DispatchTiming;
@@ -313,22 +315,6 @@ export function sessionPatchFiles(
     }
   }
   return [...out];
-}
-
-export function describeMessageError(error: unknown): string {
-  if (!error) return "";
-  const e = error as {
-    name?: string;
-    data?: { message?: string; statusCode?: number };
-    message?: string;
-  };
-  if (e.name === "MessageOutputLengthError")
-    return "Output budget exhausted for this step (output length limit).";
-  if (e.name === "MessageAbortedError") return "The response was aborted.";
-  if (e.name === "ContextOverflowError")
-    return "Context window overflowed — consider compaction or a new session.";
-  if (e.data?.message) return String(e.data.message);
-  return e.message ?? String(error);
 }
 
 /** Replace one session's history from authoritative server data (initial load + resync). */

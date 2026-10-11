@@ -1,5 +1,5 @@
 import { systemCredentials, type CredentialStore } from "./credentials";
-import { isAllowedBaseUrl, OpenCodeClient } from "../api/client";
+import { ApiError, ConnectionError, isAllowedBaseUrl, OpenCodeClient } from "../api/client";
 
 /** Persisted routing contains no credential and no model-name heuristics. */
 export interface ModelService {
@@ -299,6 +299,47 @@ export class ModelServices {
         this.emit({ errors });
       }
       throw error;
+    }
+  }
+  /** Observe readiness only: no select, load, inference or retry of a user prompt. */
+  async check(providerID: string, modelID: string, agent: string): Promise<void> {
+    const service = this.route(providerID, modelID);
+    if (!service) throw new Error("Сервис модели не настроен.");
+    const gen = this.generation;
+    let serviceFailure = true;
+    const current = () => {
+      if (gen !== this.generation) throw new Error("Настройки сервиса изменились; повторите проверку.");
+    };
+    try {
+      // Fresh catalog verifies policy after a reconnect; cached labels cannot grant access.
+      await this.refresh(service.id); current();
+      if (!this.allowed(providerID, modelID, agent)) {
+        serviceFailure = false;
+        throw new Error("Эта модель недоступна выбранному агенту.");
+      }
+      const state = await this.client(service).request<SwitchStatus>("GET", "/v1/model-control/status");
+      current();
+      if (!validStatus(state)) throw new Error("Неподдерживаемое состояние сервиса.");
+      this.emit({ states: { ...this.value.states, ...Object.fromEntries(this.services
+        .filter(s => s.endpoint === service.endpoint).map(s => [s.id, state])) } });
+      if (state.error || state.phase === "failed") throw new Error("Сервис сообщил об ошибке загрузки модели.");
+      if (!state.ready || state.phase !== "ready" || state.active_model !== service.bindings[modelID]) {
+        serviceFailure = false;
+        throw new Error("Сервис доступен, но эта модель сейчас не готова.");
+      }
+    } catch (error) {
+      const failure = error instanceof ConnectionError
+        ? new Error("Нет соединения с сервисом модели. Проверьте SSH-туннель.")
+        : error instanceof ApiError ? new Error(error.status === 401 || error.status === 403
+          ? "Нет доступа к сервису модели. Проверьте ключ в настройках."
+          : `Сервис модели вернул HTTP ${error.status}.`) : error;
+      if (gen === this.generation && serviceFailure) {
+        const errors = { ...this.value.errors };
+        for (const item of this.services.filter(s => s.endpoint === service.endpoint))
+          errors[item.id] = failure instanceof Error ? failure.message : "Проверка не удалась.";
+        this.emit({ errors });
+      }
+      throw failure;
     }
   }
   async ensure(

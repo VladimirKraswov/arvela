@@ -16,6 +16,8 @@ import { AttachmentThumbnail, AttachmentViewer } from "./AttachmentViewer";
 import { MessageEdit } from "./MessageEdit";
 import { actionCountLabel, answerText, finalAnswer, stepCountLabel, turnMetrics, visibleParts } from "../chat/turns";
 import { exactTime, messageTime } from "../chat/time";
+import { describeMessageError, isModelConnectionError } from "../chat/errors";
+import { ModelConnectionCheck } from "./ModelConnectionCheck";
 export { Markdown } from "./Markdown";
 
 function MessageTimestamp({value}:{value:number}) {
@@ -193,7 +195,7 @@ export const AssistantMessageView = memo(function AssistantMessageView({
   const terminal = !!message.time.completed && !["tool-calls", "tool_calls"].includes(message.finish ?? "");
   const evidence = executionEvidence(terminal, status?.type === "busy" || status?.type === "retry", connected);
   const running = !message.time.completed && evidence === "active";
-  const errText = message.error ? describeError(message.error) : null;
+  const errText = message.error ? describeMessageError(message.error) : null;
   const finishBad =
     message.finish &&
     !["stop", "end_turn", "stop_sequence", "tool-calls", "tool_calls"].includes(
@@ -212,6 +214,8 @@ export const AssistantMessageView = memo(function AssistantMessageView({
       {errText && (
         <div className="msg-error" role="alert">
           {errText}
+          {isModelConnectionError(message.error) && message.providerID && message.modelID &&
+            <ModelConnectionCheck providerID={message.providerID} modelID={message.modelID} agent={store.isPiSession(sessionId) ? "pi" : "opencode"} />}
         </div>
       )}
       {(finishBad || message.finish === "length") && (
@@ -282,15 +286,6 @@ export function AssistantTurnView({sessionId, messages, active = false, partial 
       </div></details>
     </div>}
   </section>;
-}
-
-function describeError(error: unknown): string {
-  const e = error as { name?: string; data?: { message?: string } };
-  if (e?.name === "MessageAbortedError") return "Response was aborted.";
-  if (e?.name === "MessageOutputLengthError")
-    return "Output budget exhausted for this step.";
-  if (e?.data?.message) return String(e.data.message);
-  return "The assistant message failed.";
 }
 
 export function UserMessageView({ message }: { message: UserMessage }) {

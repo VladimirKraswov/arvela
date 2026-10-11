@@ -7,6 +7,7 @@ import { groupConversation } from '../chat/turns';
 import { dayKey, dayLabel } from '../chat/time';
 import { Icon } from './Icon';
 import { platform } from '../native/platform';
+import { sessionBannerError } from '../chat/errors';
 
 const positions = new Map<string, { position: ReadingPosition; first?: string; progress?: Record<string, boolean> }>();
 export function ChatView() {
@@ -31,6 +32,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   if (reveal && order.includes(reveal.messageID) && order.indexOf(reveal.messageID) < order.indexOf(first.current ?? "")) first.current = reveal.messageID;
   const start = Math.max(0, order.indexOf(first.current ?? ''));
   const messages = order.slice(start).map(id => slot!.messages[id]).filter(Boolean);
+  const bannerError = sessionBannerError(slot?.lastError, messages);
   const rows = groupConversation(order.map(id => slot!.messages[id]).filter(Boolean));
   const visibleIds = new Set(messages.map(m => m.id));
   const visibleRows = rows.filter(row => row.kind === 'user' ? visibleIds.has(row.message.id) : row.messages.some(m=>visibleIds.has(m.id)));
@@ -159,7 +161,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
               active={index === visibleRows.length - 1 && !!slot && ['busy', 'retry'].includes(slot.status.type)} />}
           </div>;
         })}
-        {slot?.lastError && <div className="msg-error" role="alert">{slot.lastError}</div>}
+        {bannerError && <div className="msg-error" role="alert">{bannerError}</div>}
         {slot?.status.type === 'busy' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />Агент работает…</div>}
         {slot?.status.type === 'retry' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />{slot.status.message ?? 'Повтор подключения…'}</div>}
         {permission && <PermissionCard req={permission} onReply={r => void store.replyPermission(permission, r)} />}
