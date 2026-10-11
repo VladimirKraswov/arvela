@@ -21,3 +21,13 @@ it("keeps engines, projects and chats independent and rejects invalid identity",
  expect(new Set(keys).size).toBe(4);
  for(const identity of [null,[],{}, {engine:"remote",sessionID:"a"},{engine:"pi",sessionID:"../a"},{engine:"pi",sessionID:""}]) expect(()=>browserSession(identity)).toThrow();
 });
+it("derives browser full access from the invoking chat, replacing forged metadata", async()=>{
+ const client={session:{get:async()=>({data:{id:'ses_a',directory:'/project',permission:[{permission:'*',pattern:'*',action:'allow'},{permission:'external_directory',pattern:'*',action:'allow'}]}})}};
+ const hook=(await plugin({client,directory:'/project'}))["tool.execute.before"];
+ const args={__arvelaAccess:'project'};
+ await hook({tool:'desktop_browser_browser_file_upload',sessionID:'ses_a'},{args});
+ expect(stripSession({name:'browser_file_upload',arguments:args})).toMatchObject({access:'full',params:{arguments:{}}});
+ const restricted=(await plugin())["tool.execute.before"], denied={__arvelaAccess:'full'};
+ await restricted({tool:'desktop_browser_browser_file_upload',sessionID:'ses_a'},{args:denied});
+ expect(stripSession({name:'browser_file_upload',arguments:denied})).not.toHaveProperty('access');
+});

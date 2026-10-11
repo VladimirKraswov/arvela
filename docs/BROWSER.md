@@ -1,3 +1,21 @@
+## Chat access policy (0.2.49)
+
+Desktop uses one per-chat selector for OpenCode and Pi. Full access allows agent
+tools without approval, including file paths outside the project. OpenCode's
+shared plugin propagates the actual root-chat policy to delegated sessions;
+review roles and prompts remain intact. Pi persists the choice and starts its
+own session process with the chosen policy; idle processes are replaced after a
+change. Read-only and confirmation modes remain available.
+
+Browser adapters derive file policy from the invoking session rather than model
+arguments. Full and restricted official MCP connections are distinct; returning
+to a restricted policy does not reuse a full-access connection. Session ownership,
+viewport freshness and browser interaction mode guards remain in effect.
+Filesystem access still depends on the operating-system account's permissions.
+The shared plugin is registered independently of browser installation. An already
+cached OpenCode project is refreshed only while its scoped sessions are idle;
+other projects and the external engine process are not restarted.
+
 # In-app browser in Arvela 0.2.25
 
 Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus four bounded Desktop adapters (keyboard input, observe, action and sequence); there is no second agent loop or copied browser implementation.

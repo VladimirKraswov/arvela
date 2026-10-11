@@ -42,6 +42,10 @@ const FILES: &[(&str, &str)] = &[
         include_str!("../resources/shared/package-lock.json"),
     ),
     (
+        "access-policy.mjs",
+        include_str!("../resources/browser/access-policy.mjs"),
+    ),
+    (
         "registry.mjs",
         include_str!("../resources/shared/registry.mjs"),
     ),
@@ -126,6 +130,7 @@ pub struct Document {
     pub skills: Vec<Skill>,
     pub runtime_ready: bool,
     pub command: String,
+    pub access_plugin_path: String,
     pub scope_directory: Option<String>,
     pub source_health: BTreeMap<String, bool>,
     pub scan_limited: bool,
@@ -542,6 +547,7 @@ fn document(scope: &str, directory: Option<&str>) -> Result<Document, String> {
             .map_err(|_| "Путь приложения недоступен")?
             .display()
             .to_string(),
+        access_plugin_path: root.join("access-policy.mjs").display().to_string(),
         scope_directory,
         source_health: effective
             .sources
@@ -556,6 +562,43 @@ fn document(scope: &str, directory: Option<&str>) -> Result<Document, String> {
         scan_limited: budget == 0,
     })
 }
+fn ensure_access_policy(root: &Path) -> Result<(), String> {
+    private(root)?;
+    let lock = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(root.join("install.lock"))
+        .map_err(|_| "Блокировка недоступна")?;
+    lock.try_lock_exclusive()
+        .map_err(|_| "Обновление инструментов уже выполняется")?;
+    let target = root.join("access-policy.mjs");
+    if let Ok(meta) = fs::symlink_metadata(&target) {
+        if !meta.is_file() || meta.file_type().is_symlink() {
+            return Err("Политика доступа повреждена".into());
+        }
+    }
+    let content = include_str!("../resources/browser/access-policy.mjs");
+    if fs::read_to_string(&target).ok().as_deref() != Some(content) {
+        let temp = root.join(format!(
+            "access-policy-{}.tmp",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| "Часы недоступны")?
+                .as_nanos()
+        ));
+        use std::io::Write;
+        fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&temp)
+            .and_then(|mut file| file.write_all(content.as_bytes()))
+            .map_err(|_| "Политика доступа не сохранена")?;
+        fs::rename(&temp, &target).map_err(|_| "Политика доступа не обновлена")?;
+    }
+    Ok(())
+}
 #[tauri::command]
 pub async fn shared_catalog(
     state: tauri::State<'_, SharedRuntime>,
@@ -566,6 +609,7 @@ pub async fn shared_catalog(
     main_window(&window)?;
     let runtime = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        ensure_access_policy(&root()?)?;
         let path = root()?.join("runtime");
         // Refresh only an already installed pinned runtime. First installation remains explicit.
         let sdk =

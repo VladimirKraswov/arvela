@@ -35,6 +35,8 @@ import type {
   VcsInfo,
 } from "../../api/types";
 import { piBridge, type PiInstall, type PiSessionFile } from "./native";
+import type { PermissionRule } from "../../api/types";
+import { accessMode } from "../../state/access";
 import {
   isDialogMethod,
   type PiCommand,
@@ -76,6 +78,7 @@ export interface PiSessionMeta {
   archived?: number;
   /** Set when the conversation was carried over from another engine. */
   handoffFrom?: string;
+  permission?: PermissionRule[];
 }
 
 /** App-owned session metadata, supplied by the store from preferences. */
@@ -94,7 +97,7 @@ export interface PiRuntimeChoice {
   browserEnabled?: boolean;
   extensions?: string[];
   /** Approval policy for Pi's built-in tools; "ask" when unset. */
-  toolPolicy?: "ask" | "full";
+  toolPolicy?: "ask" | "read" | "full";
 }
 
 /** Everything the settings screen needs to describe the Pi engine honestly. */
@@ -133,6 +136,7 @@ function sessionOf(meta: PiSessionMeta): Session {
     directory: meta.directory,
     title: meta.title,
     projectID: "pi",
+    permission: meta.permission,
     time: {
       created: meta.created,
       updated: meta.updated,
@@ -381,6 +385,7 @@ export class PiBackend implements AgentBackend {
       id,
       directory: input.directory,
       title: input.title?.trim() || "Новый чат Pi",
+      permission: input.permission,
       created: Date.now(),
       updated: Date.now(),
     };
@@ -395,17 +400,21 @@ export class PiBackend implements AgentBackend {
     patch: SessionPatch,
     directory: string | null,
   ): Promise<Session> {
+    if (patch.permission !== undefined && this.statuses.get(sessionID)?.type === "busy")
+      throw new Error("Сначала остановите ответ Pi.");
     const current =
       this.host.meta.all()[sessionID] ??
       (await this.getSession(sessionID, directory).then(toMeta));
     const next: PiSessionMeta = {
       ...current,
+      ...(patch.permission !== undefined ? { permission: patch.permission } : {}),
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.time?.archived !== undefined
         ? { archived: patch.time.archived ?? undefined }
         : {}),
       updated: Date.now(),
     };
+    if (patch.permission !== undefined) await this.closeSession(sessionID);
     this.host.meta.save(next);
     if (patch.title) {
       const key = this.keys.get(sessionID);
@@ -437,7 +446,7 @@ export class PiBackend implements AgentBackend {
       throw new Error("Pi не подтвердил новую сессию. Исходный чат сохранён.");
     if (this.host.meta.all()[forked.sessionId]) throw new Error("Новая сессия Pi уже зарегистрирована.");
     const now = Date.now();
-    const meta: PiSessionMeta = { id: forked.sessionId, directory, title: `${original.title} · ветка`, created: now, updated: now };
+    const meta: PiSessionMeta = { id: forked.sessionId, directory, title: `${original.title} · ветка`, created: now, updated: now, permission: original.permission };
     this.host.meta.save(meta);
     return sessionOf(meta);
   }
@@ -759,7 +768,11 @@ export class PiBackend implements AgentBackend {
       nodeProgram: choice.nodeProgram,
       extensions: choice.extensions,
       browserEnabled: choice.browserEnabled,
-      toolPolicy: choice.toolPolicy,
+      toolPolicy: (() => {
+        const mode = accessMode(this.host.meta.all()[sessionID]?.permission);
+        return mode === "full" ? "full" : mode === "read" ? "read"
+          : mode === "inherit" ? choice.toolPolicy : "ask";
+      })(),
     });
     this.closedKeys.delete(opened.key);
     this.keys.set(sessionID, opened.key);
@@ -841,6 +854,7 @@ function toMeta(session: Session): PiSessionMeta {
     created: session.time.created,
     updated: session.time.updated,
     archived: session.time.archived ?? undefined,
+    permission: session.permission,
   };
 }
 

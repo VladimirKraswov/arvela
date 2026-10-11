@@ -3,7 +3,7 @@ export type AccessMode = "inherit" | "ask" | "read" | "full";
 export const accessOptions = [
   {
     value: "inherit",
-    label: "Как в OpenCode",
+    label: "Настройки агента",
     detail: "Разрешения выбранного агента и проекта",
   },
   {
@@ -27,7 +27,9 @@ export function accessRules(mode: AccessMode): PermissionRule[] {
   if (mode === "full")
     return [
       { permission: "*", pattern: "*", action: "allow" },
-      { permission: "doom_loop", pattern: "*", action: "ask" },
+      // OpenCode propagates explicit external_directory rules to subagents,
+      // but discards wildcard allow rules when creating a child session.
+      { permission: "external_directory", pattern: "*", action: "allow" },
     ];
   return [
     { permission: "*", pattern: "*", action: mode === "read" ? "deny" : "ask" },
@@ -40,9 +42,14 @@ export function accessMode(
   rules: PermissionRule[] | undefined,
 ): AccessMode | "custom" {
   if (!rules?.length) return "inherit";
+  // Existing chats used the original full-access representation.
+  if (JSON.stringify(rules.slice(-2)) === JSON.stringify([
+    { permission: "*", pattern: "*", action: "allow" },
+    { permission: "doom_loop", pattern: "*", action: "ask" },
+  ])) return "full";
   return (
     (["ask", "read", "full"] as const).find(
-      (mode) => JSON.stringify(accessRules(mode)) === JSON.stringify(rules),
+      (mode) => JSON.stringify(accessRules(mode)) === JSON.stringify(rules.slice(-accessRules(mode).length)),
     ) ?? "custom"
   );
 }

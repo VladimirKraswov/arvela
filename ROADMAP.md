@@ -637,3 +637,10 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Reject RSS results with no query anchor match; GitHub-only repository scope/fallback via official API, empty responses distinguished from outages.
 - [x] Regression coverage and real isolated SDK discovery/search/status with Bing sources after two actual403 responses.
 - [ ] Live Windows/Linux qualification. Public providers do not guarantee availability or target-site access.
+
+## Full access consistency (0.2.49)
+
+- [x] One chat access selector for OpenCode/Pi; Pi persists permissions, applies per-process full/ask/read, preserves forks and replaces idle processes on policy changes.
+- [x] Explicit external-directory grant and scoped plugin inheritance for delegated OpenCode work; legacy full representation and append-only engine permission updates recognized. Role prompts remain intact.
+- [x] Browser adapter derives full file access from invoking chat; official backend connections separate full/project policies. Other session identities and interaction guards remain independent.
+- [x] Isolated actual OpenCode SDK/API inheritance and idempotency; frontend/native checks. Package/live-browser acceptance recorded separately.

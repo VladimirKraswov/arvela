@@ -377,31 +377,16 @@ export function Composer() {
               chooserScope.current = null; event.currentTarget.value = "";
             }}/>
             <button className="composer-plus" type="button" disabled={s.ui.sending} aria-label="Приложить файлы" title="Приложить файлы" onClick={openChooser}><Icon name="file" size={18}/></button>
-            {isPi ? (
-              // OpenCode's permission rules do not govern Pi. Pi chats get their
-              // own approval policy instead of a control that would lie.
-              <SelectMenu
-                label="Доступ Pi"
-                disabled={running || s.ui.sending}
-                value={s.prefs.pi?.toolPolicy === "full" ? "full" : "ask"}
-                options={[
-                  { value: "ask", label: "Спрашивать", detail: "Подтверждение на запись, правку и команды" },
-                  { value: "full", label: "Полный доступ", detail: "Pi выполняет инструменты без запроса" },
-                ]}
-                onChange={(value) => store.setPiSettings({ toolPolicy: value === "full" ? "full" : "ask" })}
-              />
-            ) : (
-              <SelectMenu
-                label="Режим доступа"
-                disabled={running || s.ui.sending || !connected}
-                value={store.getAccessMode()}
-                options={[
-                  ...accessOptions,
-                  ...(store.getAccessMode() === "custom" ? [{value: "custom", label: "Свои разрешения", detail: "Правила этой сессии OpenCode"}] : []),
-                ]}
-                onChange={(mode) => mode !== "custom" && void store.setAccessMode(mode as AccessMode)}
-              />
-            )}
+            <SelectMenu
+              label="Режим доступа"
+              disabled={running || s.ui.sending || !connected}
+              value={store.getAccessMode()}
+              options={[
+                ...accessOptions,
+                ...(store.getAccessMode() === "custom" ? [{value: "custom", label: "Свои разрешения", detail: "Правила этой сессии"}] : []),
+              ]}
+              onChange={(mode) => mode !== "custom" && void store.setAccessMode(mode as AccessMode)}
+            />
           </div>
           <div className="composer-controls-right">
           <SelectMenu

@@ -280,3 +280,29 @@ it("rotating authentication invalidates a loaded Pi service without exposing its
     ),
   ).toContain("Переоткройте");
 });
+it("installs session access inheritance independently of browser and preserves foreign config",()=>{
+ const c={...catalog(),accessPluginPath:'/shared/runtime/access-policy.mjs'};
+ const before='{"plugin":["owner-plugin"],"permission":{"edit":"ask"}}';
+ const next=sharedOpenCodeConfig(before,c).content, parsed=JSON.parse(next);
+ expect(parsed.plugin).toEqual(['owner-plugin','file:///shared/runtime/access-policy.mjs']);
+ expect(parsed.permission).toEqual({edit:'ask'});
+ expect(sharedOpenCodeConfig(next,c).content).toBe(next);
+ expect(JSON.parse(sharedOpenCodeConfig(before,{...c,key:'project-123'}).content).plugin).toEqual(parsed.plugin);
+});
+it('refreshes only an idle project to load access policy and never interrupts busy work', async () => {
+  for (const busy of [false, true]) {
+    const c = {...catalog(), accessPluginPath:'/shared/access-policy.mjs', registry:emptyRegistry()};
+    let refreshed = false;
+    const invoke = vi.fn(async (name:string) => name === 'read_opencode_config' ? {content:'{}'} : c);
+    const request = vi.fn(async (_method:string, path:string, opts:any) => {
+      expect(opts.query.directory).toBe('/policy-test');
+      if (path === '/config') return {plugin:refreshed ? ['file:///shared/access-policy.mjs'] : []};
+      if (path === '/session/status') return busy ? {child:{type:'busy'}} : {};
+      if (path === '/instance/dispose') {refreshed = true;return {};}
+      throw new Error(`Unexpected ${path}`);
+    });
+    const pending = configureShared({endpoint:'policy-test',directory:'/policy-test',current:()=>true,request:request as any},invoke as any);
+    if (busy) await expect(pending).rejects.toThrow(/завершения/); else await pending;
+    expect(request.mock.calls.filter(c=>c[1]==='/instance/dispose')).toHaveLength(busy ? 0 : 1);
+  }
+});

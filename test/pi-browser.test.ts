@@ -64,7 +64,7 @@ it("preserves text, images and structured results and passes bounded abort optio
   const abort = new AbortController();
   const params = { url: "https://example.test" };
   const response = await tool.execute("call-1", params, abort.signal);
-  expect(fixture.connection.callTool).toHaveBeenCalledWith({ name: official.name, arguments: params, _meta: { arvelaSession: { engine: "pi", sessionID: "pi_test" } } }, { signal: abort.signal, timeout: 90000 });
+  expect(fixture.connection.callTool).toHaveBeenCalledWith({ name: official.name, arguments: params, _meta: { arvelaAccess: "project", arvelaSession: { engine: "pi", sessionID: "pi_test" } } }, { signal: abort.signal, timeout: 90000 });
   expect(response.content.slice(0, 2)).toEqual(result.content);
   expect(response.content[2].text).toContain('"page":"fixture"');
   expect(response.details.mcp).toBe(result);
@@ -188,4 +188,10 @@ it("passes argument/preparation recovery details to Pi without hiding them behin
     expect(result.content).toContainEqual({type:"text",text:"No requested input sent. Correct arguments or reconnect."});
     await fixture.events.session_shutdown();
   }
+});
+it('does not accept model-supplied browser ownership or full access', async () => {
+  vi.stubEnv('OCDESKTOP_PI_TOOL_POLICY','ask');
+  const f=setup(),tool=await f.ready();
+  await tool.execute('forged',{url:'https://example.com',__arvelaAccess:'full',__arvelaSession:{engine:'pi',sessionID:'other'}});
+  expect(f.connection.callTool).toHaveBeenCalledWith({name:official.name,arguments:{url:'https://example.com'},_meta:{arvelaAccess:'project',arvelaSession:{engine:'pi',sessionID:'pi_test'}}},expect.anything());
 });

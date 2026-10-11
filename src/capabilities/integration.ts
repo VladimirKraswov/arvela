@@ -1,5 +1,5 @@
 import { isNative } from "../native/platform";
-import { sharedOpenCodeConfig, type Catalog, type Scope } from "./registry";
+import { accessPluginUri, sharedOpenCodeConfig, type Catalog, type Scope } from "./registry";
 export async function capabilityNative<T>(
   command: string,
   args?: Record<string, unknown>,
@@ -63,7 +63,8 @@ export async function configureShared(
   const key = JSON.stringify([o.endpoint, o.directory]);
   if (flights.has(key)) return flights.get(key);
   const work = (async () => {
-    for (const scope of ["global", "project"] as const) {
+    // Refresh the scoped policy before attaching any global MCP connections.
+    for (const scope of ["project", "global"] as const) {
       if (!o.current()) throw new Error("Рабочее пространство изменилось.");
       let catalog = await invoke<Catalog>("shared_catalog", {
         scope,
@@ -72,7 +73,8 @@ export async function configureShared(
       if (
         !catalog.registry.sources.length &&
         !catalog.registry.servers.length &&
-        !catalog.registry.appliedPaths.length
+        !catalog.registry.appliedPaths.length &&
+        !catalog.accessPluginPath
       )
         continue;
       const next = await synchronizeSources(
@@ -82,6 +84,23 @@ export async function configureShared(
         invoke,
       );
       catalog = next.catalog;
+      if (scope === "project" && catalog.accessPluginPath) {
+        const plugin = accessPluginUri(catalog.accessPluginPath);
+        const loaded = async () => {
+          const config = await o.request("GET", "/config", { query: { directory: o.directory }, timeoutMs: 10000 });
+          return Array.isArray(config.plugin) && config.plugin.includes(plugin);
+        };
+        if (!(await loaded())) {
+          const statuses = await o.request("GET", "/session/status", { query: { directory: o.directory }, timeoutMs: 10000 });
+          if (Object.values(statuses).some(s => s.status !== "idle" && (s as { type?: string }).type !== "idle"))
+            throw new Error("Политика доступа обновится после завершения задач в этом проекте.");
+          if (!o.current()) throw new Error("Рабочее пространство изменилось.");
+          await o.request("POST", "/instance/dispose", { query: { directory: o.directory }, body: {}, timeoutMs: 10000 });
+          // Disposed instances lose live MCP connections; reconnect only this scope.
+          for (const cache of connected.keys()) if (cache.startsWith(`${key}/`)) connected.delete(cache);
+          if (!(await loaded())) throw new Error("OpenCode не загрузил политику доступа проекта.");
+        }
+      }
       for (const s of catalog.registry.servers) {
         if (!o.current()) throw new Error("Рабочее пространство изменилось.");
         const name = `mesh_${s.id.replace(/-/g, "_")}`,

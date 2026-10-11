@@ -55,10 +55,11 @@ const READ_ONLY = new Set([
   "lsp_definition",
 ]);
 
-type Policy = "ask" | "full";
+type Policy = "ask" | "read" | "full";
 
 function policy(): Policy {
-  return process.env.OCDESKTOP_PI_TOOL_POLICY === "full" ? "full" : "ask";
+  const value = process.env.OCDESKTOP_PI_TOOL_POLICY;
+  return value === "full" || value === "read" ? value : "ask";
 }
 
 /**
@@ -93,6 +94,7 @@ export default function (pi: ExtensionAPI) {
     if (policy() === "full") return;
     const toolName = String(event.toolName ?? "");
     if (!needsApproval(toolName)) return;
+    if (policy() === "read") return { block: true, reason: "В этом чате выбран режим «Только чтение»." };
 
     let approved = false;
     try {

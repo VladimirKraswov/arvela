@@ -36,7 +36,7 @@ export interface PiOpenRequest {
   /** Probe only: `--no-session`, so it leaves no transcript behind. */
   ephemeral?: boolean;
   /** "ask" (default) or "full"; anything else is treated as "ask". */
-  toolPolicy?: "ask" | "full";
+  toolPolicy?: "ask" | "read" | "full";
 }
 
 export interface PiOpened {

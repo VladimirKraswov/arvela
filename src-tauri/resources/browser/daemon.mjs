@@ -72,11 +72,12 @@ const config = {
   outputDir: workspace, outputMaxSize: 100 * 1024 * 1024,
   console: { level: 'error' }, timeouts: { action: 10000, navigation: 60000, idle: 0 },
 };
-async function connection(candidate = workspace) {
+async function connection(candidate = workspace, access = 'project') {
   if (!path.isAbsolute(candidate) || !(await fs.stat(candidate)).isDirectory()) throw new Error('Workspace must be an existing absolute directory');
   candidate = await fs.realpath(candidate);
   const owned = currentSession();
-  const existing = owned.connections.get(candidate);
+  const connectionKey = JSON.stringify([candidate, access === 'full']);
+  const existing = owned.connections.get(connectionKey);
   if (existing) return existing.client;
   // Each official backend captures its workspace at initialization. Do not
   // mutate roots on an initialized backend: that would leak file permissions
@@ -85,13 +86,13 @@ async function connection(candidate = workspace) {
   if (owned.connections.size >= 32) throw new Error('Restart the browser service to release older workspace connections');
   const outputDir = path.join(workspace, crypto.createHash('sha256').update(owned.key + candidate).digest('hex').slice(0, 24));
   await fs.mkdir(outputDir, { recursive: true, mode: 0o700 });
-  const official = await createConnection({ ...config, outputDir }, () => getContext(owned));
+  const official = await createConnection({ ...config, outputDir, allowUnrestrictedFileAccess: access === 'full' }, () => getContext(owned));
   const client = new Client({ name: 'arvela-browser-owner', version: '1.0.0' }, { capabilities: { roots: {} } });
   client.setRequestHandler(ListRootsRequestSchema, async () => ({ roots: [{ uri: pathToFileURL(candidate).href, name: 'Approved current workspace' }] }));
   const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
   await official.connect(serverTransport);
   await client.connect(clientTransport);
-  owned.connections.set(candidate, { client, official });
+  owned.connections.set(connectionKey, { client, official });
   return client;
 }
 
@@ -253,7 +254,7 @@ const server = http.createServer(async (req, res) => {
         else await page.goForward({ timeout: 60000 });
         return { navigated: true };
       }
-      const client = await connection(request.workspace);
+      const client = await connection(request.workspace, request.access);
       if (request.method === 'tools/list') {
         const inventory = await client.listTools();
         const base = [...inventory.tools, { name: 'browser_keyboard_type', description: 'Type or paste text with the keyboard into the currently focused field. Click the field with the mouse first. No DOM selectors or implicit focus changes.',

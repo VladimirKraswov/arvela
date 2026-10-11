@@ -113,3 +113,14 @@ it("shows the user what is actually about to happen", async () => {
   expect(title).toContain("изменить файлы или выполнить команду");
   expect(message).toContain("rm -rf build");
 });
+
+it("full allows every tool; read blocks mutations without showing approval dialogs", async () => {
+  const { call } = install(), confirm = vi.fn().mockResolvedValue(true);
+  process.env.OCDESKTOP_PI_TOOL_POLICY = "full";
+  for (const toolName of ["bash", "edit", "mesh_custom_tool", "browser_file_upload"])
+    expect(await call({toolName,input:{}},ui(confirm))).toBeUndefined();
+  process.env.OCDESKTOP_PI_TOOL_POLICY = "read";
+  expect((await call({toolName:"bash",input:{}},ui(confirm)))?.block).toBe(true);
+  expect(await call({toolName:"read",input:{}},ui(confirm))).toBeUndefined();
+  expect(confirm).not.toHaveBeenCalled();
+});

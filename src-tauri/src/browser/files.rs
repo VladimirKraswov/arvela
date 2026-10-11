@@ -28,6 +28,10 @@ pub(super) const DEPENDENCIES: &[(&str, &str)] = &[
 /// script-only change never downloads packages or Chromium again.
 pub(super) const SCRIPTS: &[(&str, &str)] = &[
     (
+        "access-policy.mjs",
+        include_str!("../../resources/browser/access-policy.mjs"),
+    ),
+    (
         "session.mjs",
         include_str!("../../resources/browser/session.mjs"),
     ),

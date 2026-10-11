@@ -137,9 +137,13 @@ export function attachBrowser(pi: ExtensionAPI, load: BrowserLoader = loadBrowse
           async execute(_id, params, abort, _update, executionContext) {
             if (!current() || connection !== active) throw new Error(CLOSED);
             if (abort?.aborted) throw new Error("Действие браузера отменено.");
+            const arguments_ = { ...params as Record<string, unknown> };
+            // Reserved context comes from Desktop, never model tool arguments.
+            delete arguments_.__arvelaAccess;
+            delete arguments_.__arvelaSession;
             let result: BrowserResult;
             try {
-              result = await active.callTool({ name: tool.name, arguments: params as Record<string, unknown>, _meta: { arvelaSession: { engine: "pi", sessionID: (executionContext ?? ctx).sessionManager.getSessionId() } } }, { signal: abort, timeout: 90000 });
+              result = await active.callTool({ name: tool.name, arguments: arguments_, _meta: { arvelaSession: { engine: "pi", sessionID: (executionContext ?? ctx).sessionManager.getSessionId() }, arvelaAccess: process.env.OCDESKTOP_PI_TOOL_POLICY === "full" ? "full" : "project" } }, { signal: abort, timeout: 90000 });
             } catch {
               throw new Error(abort?.aborted ? "Действие браузера отменено." : UNAVAILABLE);
             }

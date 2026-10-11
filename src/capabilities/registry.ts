@@ -42,6 +42,7 @@ export interface Catalog {
   inherited: Registry;
   skills: Skill[];
   runtimeReady: boolean;
+  accessPluginPath?: string;
   command: string;
   scopeDirectory: string | null;
   sourceHealth?: Record<string, boolean>;
@@ -127,6 +128,11 @@ function owned(value: unknown, key: string, id: string, executable: string) {
     pathBasename(executable).toLowerCase()
   );
 }
+export function accessPluginUri(path: string) {
+  const normalized = path.replace(/\\/g, "/");
+  const encoded = encodeURI(normalized).replace(/#/g, "%23").replace(/\?/g, "%3F");
+  return normalized.startsWith("//") ? `file:${encoded}` : `file://${normalized.startsWith("/") ? "" : "/"}${encoded}`;
+}
 /** Reserved entries only. Foreign MCPs, comments, plugins and permissions survive. */
 export function sharedOpenCodeConfig(source: string, catalog: Catalog) {
   const config = parseConfig(source),
@@ -150,6 +156,15 @@ export function sharedOpenCodeConfig(source: string, catalog: Catalog) {
   )
     throw new Error("Проверьте skills.paths в OpenCode.");
   let content = source;
+  if (catalog.accessPluginPath) {
+    if (!isAbsoluteLocalPath(catalog.accessPluginPath)) throw new Error("Путь политики доступа должен быть абсолютным.");
+    const plugins = config.plugin;
+    if (plugins !== undefined && (!Array.isArray(plugins) || plugins.some(p => typeof p !== "string")))
+      throw new Error("Проверьте plugin в OpenCode.");
+    const plugin = accessPluginUri(catalog.accessPluginPath);
+    if (!((plugins ?? []) as string[]).includes(plugin))
+      content = updateConfig(content, ["plugin"], [...((plugins ?? []) as string[]), plugin]);
+  }
   const entries: Record<string, unknown> = {};
   for (const s of registry.servers) {
     const name = serverName(s.id),

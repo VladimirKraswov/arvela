@@ -1,7 +1,7 @@
 import type { BrowserPreferences } from "../browser/integration";
 import { DEFAULT_APPEARANCE, normalizeAppearance, type Appearance } from "./appearance";
 import type { RemoteHost } from "../native/hosts";
-import type { Session } from "../api/types";
+import type { Session, PermissionRule } from "../api/types";
 import type { QueuedPrompt } from "./queue";
 import type { AccessMode } from "./access";
 import { defaultAsr, type AsrSettings } from "../voice/asr";
@@ -19,6 +19,7 @@ export interface PiSessionMeta {
   archived?: number;
   /** Set when this chat was carried over from another engine. */
   handoffFrom?: string;
+  permission?: PermissionRule[];
 }
 
 /** Pi runtime configuration. Never holds a credential: Pi owns its own auth. */

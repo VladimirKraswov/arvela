@@ -488,3 +488,18 @@ it("does not report intentional close or late closed-session events as an agent 
   expect(meta[chat.id]).toBeDefined();
   ctrl.abort();
 });
+
+it("persists chat access and gives each Pi process its own policy", async () => {
+  const {accessRules} = await import('../src/state/access');
+  const opens:any[]=[];
+  setPiBridge({...bridge,open:async request=>{
+    opens.push(request);return {key:request.sessionId,sessionId:request.sessionId,sessionDir:'/s',program:'/p',reused:false};
+  }});
+  const pi=new PiBackend({...host(),choice:()=>({toolPolicy:'full'})});
+  const full=await pi.createSession({directory:'/work',permission:accessRules('full')});
+  const asking=await pi.createSession({directory:'/work',permission:accessRules('ask')});
+  const reading=await pi.createSession({directory:'/work',permission:accessRules('read')});
+  expect((await pi.getSession(full.id,'/work')).permission).toEqual(accessRules('full'));
+  for(const chat of [full,asking,reading]) await pi.prompt(chat.id,'/work',{parts:[{type:'text',text:'test'}]} as any);
+  expect(opens.map(o=>o.toolPolicy)).toEqual(['full','ask','read']);
+});

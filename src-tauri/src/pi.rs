@@ -907,6 +907,7 @@ pub async fn pi_open(
             "OCDESKTOP_PI_TOOL_POLICY",
             match request.tool_policy.as_deref() {
                 Some("full") => "full",
+                Some("read") => "read",
                 _ => "ask",
             },
         );

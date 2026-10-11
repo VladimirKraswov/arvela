@@ -1,3 +1,36 @@
+# Full access consistency — 0.2.49 (2026-10-11)
+
+User explicitly requested Full access across both agents, delegated sessions and
+shared tools. Per-chat selection now applies to OpenCode/Pi, persists through Pi
+forks, and replaces an idle Pi process after policy changes. The independent
+shared OpenCode plugin propagates root-chat permissions without altering role
+prompts or answering approval requests. Browser policy is obtained from the real
+invoking session; model-supplied Pi context is stripped. Restricted and full
+Playwright MCP connections are separate.
+
+Validation: 732 frontend tests passed, 6 existing opt-in skips; 101 Rust tests
+passed, 1 existing vault ignore; locked all-target check, TypeScript/Vite build,
+focused browser/registry 28 tests, skill validator and diff check passed.
+Actual isolated OpenCode 1.18.18 loaded the project plugin, inherited full rules,
+revoked inherited full rules after the parent became read-only, and reloaded an
+idle scope without restarting the external server. No inference was performed.
+Actual isolated Chromium denied an external screenshot path in restricted mode,
+allowed it in Full access and denied it again after switching back. Pi policy
+persistence/process selection and tool gating have automated regression coverage;
+no new live Pi inference or Windows/Linux qualification is claimed.
+
+Final Mac app signature and DMG checksum passed. Installed/reopened 0.2.49;
+installed binary equals the final package:
+`965e18322b9455534dddede6e0670b0f0e54d49dc20d2aa2ca57f6e91cbeb9f0`.
+Actual selected-project policy is loaded and the installed common/browser policy,
+Pi extension, browser adapter, daemon and session transport match source bytes.
+Native control is connected with no error; external OpenCode 1.18.18 retained its
+original PID. No owner prompts, inference tests or GPU changes were submitted.
+CUA image capture initially failed on the nearly full system disk; verified old
+0.2.46/0.2.47 app backups were moved to the external workspace before update.
+The preceding installed 0.2.48 app was preserved as an installation backup.
+Private engine config, session history, tokens and test receipts are excluded.
+
 # Local session repair — 0.2.36 (2026-10-09)
 
 672 frontend / 94 Rust / 2 Node checks, final Mac package and isolated real
