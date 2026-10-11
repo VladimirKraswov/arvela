@@ -181,3 +181,5 @@ Shared skill authoring and the reviewed document-download workflow: [SHARED-SKIL
 
 
 Project and chat **Сведения** are available in their dots menus. Project properties include the paged OpenCode/Pi chat index (archived and child chats included), search, dates, IDs and copyable storage paths. Local OpenCode sizes count message/part UTF-8 payloads in its shared SQLite database; Pi sizes count the JSONL file. These are chat-data accounting figures, excluding project files, external attachments and SQLite index/free-page overhead. Remote or unsupported storage sizes remain unavailable; properties never replay tasks or change the engine database.
+
+Ручной ввод во встроенном браузере обрабатывается отдельно от инструментов агента: клики, прокрутка и клавиши не требуют снимка структуры страницы. Текст выделяется перетягиванием и копируется Cmd/Ctrl+C. Для сайтов, запрещающих автоматизированный вход, есть кнопка открытия в системном браузере; его cookies и авторизация отдельные. Вход Google из автоматизированного Chromium не гарантируется.

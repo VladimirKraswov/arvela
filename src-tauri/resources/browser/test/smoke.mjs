@@ -102,6 +102,12 @@ try {
   assert.equal(projected.width, 1280); assert.equal(projected.height, 800);
   assert.equal(Buffer.from(projected.image, 'base64').subarray(0, 2).toString('hex'), 'ffd8');
   assert(projected.tabs.some(tab => tab.active && tab.url === projected.url));
+  const manual = body => fetch(`${endpoint}/rpc`, {method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  assert.equal((await manual({method:'desktop/click',x:1200,y:120})).status,400,'Manual pointer requires displayed frame');
+  assert.equal((await manual({method:'desktop/drag',x:10,y:10,endX:2000,endY:10,expected:projected})).status,400,'Drag outside viewport is rejected');
+  assert((await manual({method:'desktop/click',x:1200,y:120,expected:projected})).ok);
+  assert(text(await call('browser_snapshot')).includes('RESPONSIVE_CLICK_OK'),'Manual click must reach the actual page');
+  projected = await frame();
   const staleFrame = { pageId: projected.pageId, revision: projected.revision, url: projected.url };
   await call('browser_press_key', { key: 'Escape' });
   const staleInput = await fetch(`${endpoint}/rpc`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },

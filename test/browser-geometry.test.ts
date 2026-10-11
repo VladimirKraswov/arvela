@@ -88,3 +88,18 @@ it("propagates cancellation into initial context/tab attachment and does not syn
   expect(f.client.callTool).toHaveBeenCalledOnce();
   expect(f.client.callTool.mock.calls[0][2]).toMatchObject({signal:stop.signal,timeout:10000});
 });
+
+it("manual drag releases the mouse even if movement fails, and invalidates agent observations", async()=>{
+  const f=fixture();
+  f.page.mouse={move:vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("movement failed")),down:vi.fn(),up:vi.fn()};
+  await f.observe();
+  await expect(f.view.manual("desktop/drag",{x:10,y:10,endX:100,endY:10})).rejects.toThrow("movement failed");
+  expect(f.page.mouse.up).toHaveBeenCalledOnce();
+  await expect(f.view.before(f.client,click)).rejects.toMatchObject({recovery:"geometry"});
+});
+it("manual input refuses coordinates outside the actual viewport without moving the mouse",async()=>{
+  const f=fixture();f.page.mouse={click:vi.fn(),move:vi.fn()};
+  await expect(f.view.manual("desktop/click",{x:1280,y:10})).rejects.toThrow("Invalid pointer");
+  await expect(f.view.manual("desktop/drag",{x:10,y:10,endX:-1,endY:10})).rejects.toThrow("Invalid pointer");
+  expect(f.page.mouse.click).not.toHaveBeenCalled();expect(f.page.mouse.move).not.toHaveBeenCalled();
+});

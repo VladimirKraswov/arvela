@@ -25,6 +25,10 @@ beforeEach(() => {
   const node = document.createElement("div"); document.body.append(node); root = createRoot(node);
 });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ""; vi.useRealTimers(); vi.unstubAllGlobals(); });
+const pointerClick = (node:HTMLElement, x:number, y:number) => {
+  node.dispatchEvent(new MouseEvent("pointerdown", {clientX:x,clientY:y,button:0,bubbles:true,cancelable:true}));
+  node.dispatchEvent(new MouseEvent("pointerup", {clientX:x,clientY:y,button:0,bubbles:true,cancelable:true}));
+};
 const mount = async (component = BrowserPanel) => { await act(async () => root.render(createElement(component))); };
 it("projects only pixels and labels; close hides the panel without stopping the browser", async () => {
   await mount(); expect(document.querySelector("img")?.src).toBe("data:image/jpeg;base64,/9j/");
@@ -152,19 +156,19 @@ it("binds a click to decoded pixels rather than a newer frame still loading", as
     const img = document.querySelector<HTMLImageElement>("img")!;
     vi.spyOn(img, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, width: 640, height: 400 } as DOMRect);
     const screen = document.querySelector<HTMLElement>('[role="application"]')!;
-    await act(async () => screen.dispatchEvent(new MouseEvent("click", { clientX: 100, clientY: 50, bubbles: true })));
+    await act(async () => pointerClick(screen,100,50));
     expect(fake.invoke.mock.calls.some(([name]) => name === "browser_input")).toBe(false);
     await act(async () => img.dispatchEvent(new Event("load")));
     fake.invoke.mockImplementation(async command => command === "browser_view" ? { ...original, revision: 2, width: 640, height: 480, image: "/9k/" } : undefined);
     await act(async () => vi.advanceTimersByTimeAsync(300));
-    await act(async () => screen.dispatchEvent(new MouseEvent("click", { clientX: 100, clientY: 50, bubbles: true })));
+    await act(async () => pointerClick(screen,100,50));
     expect(fake.invoke).toHaveBeenCalledWith("browser_input", { action: "click", args: { x: 200, y: 100, scopeKey: "fixture-key", expected: { pageId: "page", revision: 1, url: original.url, width: 1280, height: 800 } } });
   } finally { delete (document as { hidden?: boolean }).hidden; }
 });
 
-it.each([false,true])("uses two idle or four active visible captures per second (busy=%s)", async busy => {
+it.each([false,true])("uses bounded four idle or six active visible captures per second (busy=%s)", async busy => {
   visible(); fake.invoke.mockImplementation(async command => command === "browser_view" ? {...frame,busy} : undefined);
-  try { await mount(); await act(async () => vi.advanceTimersByTimeAsync(1000)); expect(views()).toBe(busy ? 5 : 3); }
+  try { await mount(); await act(async () => vi.advanceTimersByTimeAsync(1000)); expect(views()).toBe(busy ? 7 : 5); }
   finally { delete (document as {hidden?:boolean}).hidden; }
 });
 
@@ -214,15 +218,15 @@ it("blocks stale manual clicks immediately after wheel until a newer frame is de
     await act(async()=>img.dispatchEvent(new Event("load")));
     await act(async()=>screen.dispatchEvent(new WheelEvent("wheel",{deltaY:200,bubbles:true,cancelable:true})));
     expect(document.body.textContent).toContain("Обновляю после прокрутки");
-    await act(async()=>screen.dispatchEvent(new MouseEvent("click",{clientX:100,clientY:100,bubbles:true})));
+    await act(async()=>pointerClick(screen,100,100));
     expect(fake.invoke.mock.calls.filter(c=>c[0]==="browser_input").map(c=>c[1].action)).toEqual(["wheel"]);
     revision=11;
     await act(async()=>vi.advanceTimersByTimeAsync(600));
     // New pixels must be decoded, not merely received.
-    await act(async()=>screen.dispatchEvent(new MouseEvent("click",{clientX:100,clientY:100,bubbles:true})));
+    await act(async()=>pointerClick(screen,100,100));
     expect(fake.invoke.mock.calls.filter(c=>c[0]==="browser_input")).toHaveLength(1);
     await act(async()=>img.dispatchEvent(new Event("load")));
-    await act(async()=>screen.dispatchEvent(new MouseEvent("click",{clientX:100,clientY:100,bubbles:true})));
+    await act(async()=>pointerClick(screen,100,100));
     expect(fake.invoke.mock.calls.filter(c=>c[0]==="browser_input").map(c=>c[1].action)).toEqual(["wheel","click"]);
   } finally { delete (document as {hidden?:boolean}).hidden; }
 });
@@ -298,4 +302,41 @@ it("defers page reflow until pointer release and ignores callbacks from the disc
   act(() => handle.dispatchEvent(new MouseEvent("pointerup", {bubbles:true,clientX:400,button:0})));
   await act(async () => { notify(callbacks.at(-1)!, 320); await vi.advanceTimersByTimeAsync(200); });
   expect(fake.invoke).toHaveBeenCalledWith("browser_input", {action:"resize",args:{width:320,height:500,scopeKey:"fixture-key"}});
+});
+
+it("projects one atomic selection gesture and refreshes immediately after input", async () => {
+  visible();
+  try {
+    fake.invoke.mockImplementation(async command => command === "browser_view" ? {...frame,pageId:"p",revision:1} : undefined);
+    await mount();
+    const img=document.querySelector<HTMLImageElement>("img")!, screen=document.querySelector<HTMLElement>('[role="application"]')!;
+    img.getBoundingClientRect=()=>({left:0,top:0,width:640,height:400} as DOMRect);
+    await act(async()=>img.dispatchEvent(new Event("load")));
+    const before=views();
+    await act(async()=>{
+      screen.dispatchEvent(new MouseEvent("pointerdown",{clientX:10,clientY:20,button:0,bubbles:true}));
+      screen.dispatchEvent(new MouseEvent("pointerup",{clientX:100,clientY:20,button:0,bubbles:true}));
+    });
+    expect(fake.invoke).toHaveBeenCalledWith("browser_input", expect.objectContaining({action:"drag",args:expect.objectContaining({x:20,y:40,endX:200,endY:40,expected:expect.objectContaining({pageId:"p"})})}));
+    expect(views()).toBeGreaterThan(before);
+    fake.invoke.mockClear();
+    await act(async()=>{
+      screen.dispatchEvent(new MouseEvent("pointerdown",{clientX:10,clientY:20,button:0,bubbles:true}));
+      screen.dispatchEvent(new Event("pointercancel",{bubbles:true}));
+      screen.dispatchEvent(new MouseEvent("pointerup",{clientX:100,clientY:20,button:0,bubbles:true}));
+    });
+    expect(fake.invoke).not.toHaveBeenCalled();
+  } finally { delete (document as {hidden?:boolean}).hidden; }
+});
+
+it("copies selected page text with Cmd+C through the scoped gateway", async()=>{
+  const writeText=vi.fn(async()=>{});
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText}});
+  fake.invoke.mockImplementation(async(command,payload)=>command==='browser_view'?{...frame,pageId:'p',revision:1}:payload?.action==='copy'?{text:'Selected fixture'}:undefined);
+  await mount();
+  const screen=document.querySelector<HTMLElement>('[role="application"]')!;
+  await act(async()=>screen.dispatchEvent(new KeyboardEvent('keydown',{key:'c',metaKey:true,bubbles:true,cancelable:true})));
+  expect(fake.invoke).toHaveBeenCalledWith('browser_input',expect.objectContaining({action:'copy',args:expect.objectContaining({scopeKey:'fixture-key',expected:expect.objectContaining({pageId:'p'})})}));
+  expect(writeText).toHaveBeenCalledWith('Selected fixture');
+  delete (navigator as {clipboard?:Clipboard}).clipboard;
 });

@@ -33,5 +33,22 @@ try {
   const result = await client.callTool(params); assert(!result.isError);
   await view.after(client, params, result);
   const frame = await view.frame(context); assert(frame.image.length > 100);
-  console.log('DIRECT_VIEW_OK');
+  const page = await view.page();
+  await page.setContent('<button style="width:300px;height:100px" onclick="this.textContent=++window.n">click</button><p>Selectable test text</p><script>window.n=0</script>');
+  const oldInput = {name:'browser_mouse_click_xy',arguments:{x:100,y:50}};
+  const oldStart=performance.now();
+  await view.before(client,oldInput,'user');const oldResult=await client.callTool(oldInput);assert(!oldResult.isError);await view.after(client,oldInput,oldResult);
+  const officialMs=performance.now()-oldStart;
+  const seen=await view.frame(context);view.assertCurrent(seen);
+  const start=performance.now();await view.manual('desktop/click',{x:100,y:50});const manualMs=performance.now()-start;
+  assert.equal(await page.evaluate(()=>window.n),2);
+  const box=await page.locator('p').boundingBox();
+  await view.manual('desktop/drag',{x:box.x+1,y:box.y+box.height/2,endX:box.x+200,endY:box.y+box.height/2});
+  assert.match((await view.manual('desktop/copy',{})).text,/Selectable test text/);
+  await view.manual('desktop/wheel',{dy:200});assert.throws(()=>view.assertCurrent(seen),/Page changed/);
+  await page.setContent('<input type="password" value="test-secret">');
+  await page.locator('input').focus();await page.locator('input').selectText();
+  assert.equal((await view.manual('desktop/copy',{})).text,'');
+  console.log(JSON.stringify({officialMs:Math.round(officialMs),manualMs:Math.round(manualMs)}));
+  console.log('DIRECT_VIEW_MANUAL_SELECTION_OK');
 } finally { await client?.close(); await official?.close(); await context?.close(); }

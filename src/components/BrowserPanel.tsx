@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon } from "./Icon";
+import { safeExternalUrl } from "../util/markdown";
 import { browserNative } from "../browser/integration";
 import { browserEnabled } from "../browser/preferences";
 import { browserPoint, parseFrame, frameForSession, type BrowserFrame } from "../browser/view";
@@ -80,7 +81,7 @@ export function BrowserPresence() {
   return null;
 }
 
-const FRAME_MS = 250, IDLE_FRAME_MS = 500, MAX_BACKOFF_MS = 2000, SUSPENDED_MS = 400;
+const FRAME_MS = 150, IDLE_FRAME_MS = 250, MAX_BACKOFF_MS = 2000, SUSPENDED_MS = 400;
 const NAV_KEYS = ["Enter", "Tab", "Backspace", "Delete", "Escape", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
 /** Frames nobody can see are not fetched: hidden window or a native file chooser in front. */
 const suspended = () => document.hidden || fileChooserOpen();
@@ -112,6 +113,8 @@ export function BrowserPanel() {
   const surface = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const displayed = useRef<BrowserFrame | undefined>(undefined);
+  const gesture = useRef<{x:number;y:number;clientX:number;clientY:number;seen:BrowserFrame} | undefined>(undefined);
+  const refreshFrame = useRef<(() => void) | undefined>(undefined);
   const latestFrame = useRef(frame);
   latestFrame.current = frame;
   const screen = useRef<HTMLDivElement>(null);
@@ -126,12 +129,18 @@ export function BrowserPanel() {
     const epoch = generation.current;
     const current = () => alive.current && epoch === generation.current;
     setWorking(true);
-    try { await browserNative("browser_input", { action, args }); if (current()) setError(""); }
+    try {
+      const result = await browserNative<{text?:string}>("browser_input", { action, args });
+      if (current()) {
+        if (action === "copy" && result?.text) await navigator.clipboard.writeText(result.text);
+        setError("");
+      }
+    }
     catch (e) { if (current()) {
       setError(e instanceof Error ? e.message : String(e));
       if (action === "wheel") { scrollPending.current = null; setScrolling(false); setFrameError("Не удалось прокрутить страницу. Жду свежий кадр."); }
     } }
-    finally { if (current()) setWorking(false); }
+    finally { if (current()) { setWorking(false); refreshFrame.current?.(); } }
   });
   useEffect(() => {
     generation.current++;
@@ -139,18 +148,19 @@ export function BrowserPanel() {
     displayed.current = undefined; setFrame(undefined); setWorking(false); setError(""); setFrameError("");
     editingAddress.current = false; scrollPending.current = null; setScrolling(false);
     if (!local) return;
-    let cancelled = false, failures = 0, first = true, active = true;
+    let cancelled = false, failures = 0, first = true, active = true, inFlight = false, refreshPending = false;
     const nextFrameDelay = () => active ? FRAME_MS : IDLE_FRAME_MS;
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       if (cancelled) return;
       // The first frame always loads; afterwards nothing is captured while nobody can see it.
       if (!first && suspended()) { timer = setTimeout(() => void poll(), SUSPENDED_MS); return; }
-      first = false;
+      first = false; inFlight = true;
       try {
         const next = parseFrame(await browserNative<unknown>("browser_view"));
         if (!frameForSession(next, store.engineIdFor(), app.activeSessionId)) {
           if (!cancelled) { setFrame(undefined); displayed.current = undefined; queue.current?.clear(); }
+          inFlight = false; refreshPending = false;
           if (!cancelled) timer = setTimeout(() => void poll(), IDLE_FRAME_MS);
           return;
         }
@@ -161,17 +171,24 @@ export function BrowserPanel() {
         failures++;
         if (!cancelled) setFrameError("Нет свежего кадра. Проверьте подключение браузера.");
       }
-      // A failing service is not hammered four times a second.
-      if (!cancelled) timer = setTimeout(() => void poll(), failures ? Math.min(MAX_BACKOFF_MS, FRAME_MS * 2 ** failures) : nextFrameDelay());
+      inFlight = false;
+      const urgent = refreshPending; refreshPending = false;
+      // A failing service is not hammered continuously.
+      if (!cancelled) timer = setTimeout(() => void poll(), failures ? Math.min(MAX_BACKOFF_MS, FRAME_MS * 2 ** failures) : urgent ? 0 : nextFrameDelay());
+    };
+    refreshFrame.current = () => {
+      if (cancelled) return;
+      if (inFlight) { refreshPending = true; return; }
+      clearTimeout(timer); void poll();
     };
     void poll();
-    return () => { cancelled = true; alive.current = false; generation.current++; queue.current?.clear(); clearTimeout(timer); };
+    return () => { refreshFrame.current = undefined; gesture.current = undefined; cancelled = true; alive.current = false; generation.current++; queue.current?.clear(); clearTimeout(timer); };
   }, [local, app.activeSessionId, app.prefs.endpoint, app.prefs.workspaceKey, app.directory, app.prefs.browser?.nodeProgram]);
   // Never overwrite an address the user is typing; show the real URL otherwise.
   useEffect(() => { if (!editingAddress.current) setAddress(frame?.url || ""); }, [frame?.url]);
   function input(action: string, args: Record<string, unknown> = {}, seen = frame) {
     if (!local || !seen?.scopeKey || frame?.busy || widthDrag.current || resizing || changingMode || detachPending.current || scrollPending.current) return;
-    if (["click", "wheel", "text", "key"].includes(action) && (!frame?.image || frameError)) return;
+    if (["click", "drag", "wheel", "text", "key", "copy"].includes(action) && (!frame?.image || frameError)) return;
     if (action === "text" && textBytes(String(args.text ?? "")) > TEXT_LIMIT_BYTES) {
       setError("Текст больше 16 КБ панель не вставляет. Поручите ввод агенту через инструменты браузера.");
       return;
@@ -314,17 +331,41 @@ export function BrowserPanel() {
           onBlur={() => { editingAddress.current = false; }}
           onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); editingAddress.current = false; setAddress(frame?.url || ""); } }}/>
         <button className="browser-go" aria-label="Перейти по адресу" disabled={locked}><Icon name="forward" size={15}/></button>
+        <button type="button" aria-label="Открыть в системном браузере" title="Открыть в обычном браузере; вход и cookies отдельные" disabled={!frame?.url || !/^https?:/.test(frame.url) || !safeExternalUrl(frame.url)} onClick={() => {
+          const url = safeExternalUrl(frame?.url ?? null);
+          if (url && /^https?:/.test(url)) void import("@tauri-apps/plugin-opener").then(({openUrl}) => openUrl(url)).catch(() => setError("Не удалось открыть системный браузер."));
+        }}><Icon name="popout" size={15}/></button>
         <select className="browser-mode" aria-label="Режим работы браузера" title={mode === "human" ? "Полная эмуляция: клики мышью, ввод клавиатурой" : "Быстрый: структура страницы и точные действия"} value={mode} disabled={changingMode || frame?.busy} onChange={e => void changeMode(e.target.value as "fast" | "human")}><option value="fast">Быстрый</option><option value="human">Эмуляция</option></select>
       </form>
       {(error || frameError) && <p className="browser-error" role="alert">{error || frameError}</p>}
       <div ref={surface} className="browser-scroll"><div ref={screen} className={`browser-screen${(frameError || resizing || scrolling) ? " stale" : ""}`} tabIndex={0} role="application"
         aria-label="Страница браузера: клик, ввод и прокрутка. Shift+Tab — выйти из страницы." style={{ aspectRatio: `${frame?.width || 1280}/${frame?.height || 800}` }}
-        onClick={e => { e.currentTarget.focus(); const seen = displayed.current; if (image.current && seen) { const p = browserPoint(e.clientX, e.clientY, image.current.getBoundingClientRect(), seen); if (p) input("click", p, seen); } }}
+        onPointerDown={e => {
+          if (e.button !== 0 || !image.current || frame?.busy || resizing || scrolling || frameError) return;
+          const seen = displayed.current;
+          const p = seen && browserPoint(e.clientX, e.clientY, image.current.getBoundingClientRect(), seen);
+          if (!seen || !p) return;
+          e.preventDefault(); e.currentTarget.focus();
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+          gesture.current = {...p, clientX:e.clientX, clientY:e.clientY, seen};
+        }}
+        onPointerUp={e => {
+          const start = gesture.current; gesture.current = undefined;
+          if (!start || !image.current) return;
+          e.preventDefault();
+          const p = browserPoint(e.clientX, e.clientY, image.current.getBoundingClientRect(), start.seen);
+          if (!p) return;
+          if (Math.hypot(e.clientX-start.clientX,e.clientY-start.clientY) > 3)
+            input("drag", {x:start.x,y:start.y,endX:p.x,endY:p.y}, start.seen);
+          else input("click", {x:start.x,y:start.y}, start.seen);
+        }}
+        onPointerCancel={() => { gesture.current = undefined; }}
+        onLostPointerCapture={() => { gesture.current = undefined; }}
         onPaste={e => { e.preventDefault(); input("text", { text: e.clipboardData.getData("text/plain") }); }}
         onKeyDown={e => {
           // IME composition is not projected; half-composed keys must not reach the page.
           if (e.nativeEvent.isComposing) return;
-          if (e.ctrlKey || e.metaKey) { if (e.key.toLowerCase() === "a") { e.preventDefault(); input("key", { key: "ControlOrMeta+a" }); } return; }
+          if (e.ctrlKey || e.metaKey) { if (e.key.toLowerCase() === "c") { e.preventDefault(); input("copy"); } else if (e.key.toLowerCase() === "a") { e.preventDefault(); input("key", { key: "ControlOrMeta+a" }); } return; }
           // Shift+Tab leaves the projection (no keyboard trap); a plain Tab moves focus inside the page.
           if (e.key === "Tab" && e.shiftKey) return;
           if (e.key.length === 1 && !e.altKey) { e.preventDefault(); input("text", { text: e.key }); }

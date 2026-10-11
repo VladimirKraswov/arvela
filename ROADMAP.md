@@ -620,3 +620,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Native read-only SQLite payload accounting (UTF-8 bytes/messages), exact Pi JSONL length; unknown/remote sizes stay unavailable. Project files, external attachments and shared database overhead are excluded explicitly.
 - [x] Bounded query deadline, no arbitrary database path/transcript export, cancel/stale-host guards, no Pi directory creation on listing.
 - [x] 707 frontend/100 Rust tests, real Chromium properties/search/narrow/no mutation, actual API-to-local-DB identity check, final Mac package signature/DMG CRC and source publication. Native installation deferred while owner agent works; Windows/Linux native qualification separate.
+
+## Manual browser responsiveness (0.2.46)
+
+- [x] Trusted pointer/wheel/key input avoids agent snapshots, while retaining authenticated native gateway, session queue, displayed-frame validation and agent observation invalidation.
+- [x] Atomic pointer drag for text selection, Cmd/Ctrl+C copies selected text; password inputs excluded, cancelled gestures send no input.
+- [x] Immediate single-flight capture after input and bounded visible polling; hidden-window/file-picker suspension retained.
+- [x] System-browser action for sites that reject automated login. Separate cookies; no automation identity masking or Google login bypass.
+- [x] Isolated Chromium input/selection/copy plus daemon guard/smoke checks. Installed Mac WK pointer input/drag/Cmd+C paste confirmed on test-owned fixture; owner-site responsiveness remains a separate check.

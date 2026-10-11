@@ -212,7 +212,7 @@ const server = http.createServer(async (req, res) => {
     const owned = ownedSession(key, scope);
     return await sessionContext.run(owned, async () => {
     // Signal interruption immediately, even if the manual request waits in the queue.
-    if (request.owner === 'user' || ['desktop/mode', 'desktop/resize', 'desktop/type', 'desktop/reload', 'desktop/forward'].includes(request.method)) currentSession().view.interrupt(false);
+    if (request.owner === 'user' || ['desktop/mode', 'desktop/resize', 'desktop/type', 'desktop/reload', 'desktop/forward', 'desktop/click', 'desktop/drag', 'desktop/wheel', 'desktop/key', 'desktop/copy'].includes(request.method)) currentSession().view.interrupt(false);
     else if (request.method === 'tools/call') currentSession().view.interrupt(false);
     if (request.method === 'tools/call' || request.owner === 'user' || request.method.startsWith('desktop/') && request.method !== 'desktop/reveal') currentSession().composition?.abort('interrupted');
     const queuedAt = performance.now();
@@ -235,6 +235,10 @@ const server = http.createServer(async (req, res) => {
       if (request.method === 'desktop/reveal') {
         await currentSession().view.page();
         return { revealed: true };
+      }
+      if (['desktop/click', 'desktop/drag', 'desktop/wheel', 'desktop/key', 'desktop/copy'].includes(request.method)) {
+        if (!request.expected) throw new Error('A displayed frame is required');
+        return currentSession().view.manual(request.method, request);
       }
       if (request.method === 'desktop/type') {
         if (typeof request.text !== 'string' || Buffer.byteLength(request.text) > 16384) throw new Error('Invalid text');

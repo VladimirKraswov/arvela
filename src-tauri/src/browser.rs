@@ -681,16 +681,21 @@ fn panel_tool(action: &str, args: &Value) -> Result<Value, String> {
             json!({"url": validated_url(Some(args["url"].as_str().ok_or("Нужен адрес страницы.")?))?}),
         ),
         "click" => (
-            "browser_mouse_click_xy",
+            "desktop/click",
             json!({"x":coord("x",1920.0)?,"y":coord("y",1200.0)?}),
+        ),
+        "drag" => (
+            "desktop/drag",
+            json!({"x":coord("x",1920.0)?,"y":coord("y",1200.0)?,"endX":coord("endX",1920.0)?,"endY":coord("endY",1200.0)?}),
         ),
         "wheel" => {
             let dy = args["dy"]
                 .as_f64()
                 .filter(|n| n.is_finite() && n.abs() <= 2000.0)
                 .ok_or("Некорректная прокрутка.")?;
-            ("browser_mouse_wheel", json!({"deltaY":dy,"deltaX":0}))
+            ("desktop/wheel", json!({"dy":dy}))
         }
+        "copy" => ("desktop/copy", json!({})),
         "text" => {
             let text = args["text"]
                 .as_str()
@@ -719,7 +724,7 @@ fn panel_tool(action: &str, args: &Value) -> Result<Value, String> {
             ) {
                 return Err("Эта клавиша не поддерживается браузером.".into());
             }
-            ("browser_press_key", json!({"key":key}))
+            ("desktop/key", json!({"key":key}))
         }
         "back" => ("browser_navigate_back", json!({})),
         "reload" => ("desktop/reload", json!({})),
@@ -742,7 +747,7 @@ pub async fn browser_input(
     window: tauri::Window,
     action: String,
     args: Value,
-) -> Result<(), String> {
+) -> Result<Value, String> {
     main_window(&window)?;
     let params = panel_tool(&action, &args)?;
     let expected = args.get("expected").cloned();
@@ -750,7 +755,7 @@ pub async fn browser_input(
     blocking(move || {
         let root = root_dir()?;
         let mut payload = if params["name"].as_str().is_some_and(|name| name.starts_with("desktop/")) {
-            json!({"method":params["name"], "text":params["arguments"]["text"], "mode":params["arguments"]["mode"], "width":params["arguments"]["width"], "height":params["arguments"]["height"]})
+            { let mut payload = params["arguments"].clone(); payload["method"] = params["name"].clone(); payload }
         } else { json!({
             "method":"tools/call", "workspace":root.join("workspace"), "owner":"user", "params":params
         }) };
@@ -758,7 +763,7 @@ pub async fn browser_input(
         if let Some(scope_key) = scope_key { payload["scopeKey"] = scope_key; }
         let result = gateway::request(&root, Endpoint::Rpc, Some(&payload))?;
         if result["result"]["isError"] == true { return Err("Действие не выполнено. Проверьте страницу и повторите.".into()); }
-        Ok(())
+        Ok(result["result"].clone())
     }).await
 }
 
@@ -876,7 +881,7 @@ mod tests {
         }
         assert_eq!(
             panel_tool("click", &json!({"x":12,"y":34})).unwrap()["name"],
-            "browser_mouse_click_xy"
+            "desktop/click"
         );
         assert_eq!(
             panel_tool("new", &json!({})).unwrap()["arguments"]["action"],

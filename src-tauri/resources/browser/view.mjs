@@ -147,6 +147,48 @@ export function createView(getContext) {
         || (expected.width !== undefined && (expected.width !== active.viewportSize()?.width || expected.height !== active.viewportSize()?.height)))
       throw new Error('Page changed; inspect a fresh frame before manual input');
   }
+  // Trusted desktop input does not need the agent's accessibility snapshot.
+  // The daemon still validates chat/frame and serializes this with agent actions.
+  async function manual(method, args) {
+    const current = await page();
+    const point = (x, y) => {
+      const size = current.viewportSize();
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x >= size.width || y >= size.height) throw new Error('Invalid pointer coordinates');
+    };
+    if (method === 'desktop/click' || method === 'desktop/drag') {
+      point(args.x, args.y);
+      if (method === 'desktop/drag') point(args.endX, args.endY);
+      observationEpoch++;
+      cursor = { x: args.x, y: args.y, owner: 'user', action: method, at: Date.now() };
+      if (method === 'desktop/click') await current.mouse.click(args.x, args.y);
+      else {
+        await current.mouse.move(args.x, args.y);
+        await current.mouse.down();
+        try { await current.mouse.move(args.endX, args.endY, { steps: 12 }); }
+        finally { await current.mouse.up(); }
+        cursor = { ...cursor, x: args.endX, y: args.endY };
+      }
+    } else if (method === 'desktop/wheel') {
+      if (!Number.isFinite(args.dy) || Math.abs(args.dy) > 2000) throw new Error('Invalid wheel');
+      observationEpoch++; revision++; cursor = undefined;
+      await current.mouse.wheel(0, args.dy);
+    } else if (method === 'desktop/key') {
+      if (!['Enter','Tab','Backspace','Delete','Escape','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown','ControlOrMeta+a'].includes(args.key)) throw new Error('Invalid key');
+      observationEpoch++;
+      await current.keyboard.press(args.key);
+    } else if (method === 'desktop/copy') {
+      const text = await current.evaluate(() => {
+        const element = document.activeElement;
+        if (element instanceof HTMLInputElement && element.type === 'password') return '';
+        if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
+          return element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0).slice(0, 1048576);
+        }
+        return (window.getSelection()?.toString() || '').slice(0, 1048576);
+      });
+      return { text };
+    } else throw new Error('Invalid desktop input');
+    return { applied: true };
+  }
   async function identity() { const current = await page(); return JSON.stringify([pageId(current), current.url(), current.viewportSize(), mode, interruptionEpoch, observationEpoch, navigationEpoch]); }
-  return { identity, interrupt: (invalidate = true) => { interruptionEpoch++; if (invalidate) observationEpoch++; }, page, before, after, frame, assertCurrent, resize, setMode, state, policy, changed: () => { observationEpoch++; }, failed: () => { busy = false; } };
+  return { manual, identity, interrupt: (invalidate = true) => { interruptionEpoch++; if (invalidate) observationEpoch++; }, page, before, after, frame, assertCurrent, resize, setMode, state, policy, changed: () => { observationEpoch++; }, failed: () => { busy = false; } };
 }
