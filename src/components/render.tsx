@@ -1,5 +1,6 @@
 import { executionEvidence, executionLabel, type ExecutionEvidence } from '../chat/execution';
 import { memo, useEffect, useId, useState } from "react";
+import { attachmentParts } from '../attachments/archive';
 import type {
   AssistantMessage,
   MessagePart,
@@ -295,7 +296,7 @@ export function UserMessageView({ message }: { message: UserMessage }) {
   const parts = allParts.filter(
     (p) => p.type === "text" && !p.synthetic && !p.ignored,
   );
-  const files = allParts.filter(p => p.type === "file" && !p.ignored);
+  const files = attachmentParts(allParts);
   const text = parts
     .map((p) => p.text ?? "")
     .join("\n")

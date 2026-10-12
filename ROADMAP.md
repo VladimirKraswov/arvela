@@ -653,3 +653,11 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Regression tests, isolated real HTTP stalled-listener recovery, launchd restart and real Chromium offline/recovery/narrow UI.
 - [x] Final Mac signature/DMG CRC, staged install/binary equality, actual native model-check UI and reviewed main/release publication; downloaded release artifact verified.
 - [ ] Live Windows/Linux qualification of the common UI; supervisor is a Mac deployment helper.
+
+## ZIP attachments and queued corrections (0.2.51)
+
+- [x] Preserve original ZIP bytes in private local/connected-SSH storage; shared file references for OpenCode/Pi and the source gallery.
+- [x] Remove individual queued files; await pending draft mutations and use current attachment IDs.
+- [x] Apply edited text/files before Now, explicit Pi steer, visible guard failures and cancellation before POST after Stop.
+- [ ] Final regression/native/isolated UI checks, verified Mac package/install and main publication.
+- [ ] Native Windows/Linux and live SSH qualification.

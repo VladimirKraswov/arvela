@@ -3,6 +3,7 @@ import type { AsrSettings } from "../voice/asr";
 import { transcribeAudio } from "../voice/asr";
 import { convertFile, type Conversion, type HelperAsset } from "./helper";
 import type { DraftAttachment } from "./drafts";
+import { archivePart, type ArchiveStager } from './archive';
 
 export type PreparedPart = PromptPartInput | TextPartInput;
 const textExtensions = /\.(txt|md|markdown|json|jsonc|csv|tsv|log|yml|yaml|xml|html|css|js|jsx|ts|tsx|py|rs|go|sh|sql|svg)$/i;
@@ -11,8 +12,9 @@ const pdfExtensions = /\.pdf$/i;
 const audioExtensions = /\.(mp3|m4a|aac|wav|ogg|opus|flac|webm)$/i;
 const videoExtensions = /\.(mp4|mov|m4v|mkv|avi|webm)$/i;
 
-export function fileKind(file: Pick<DraftAttachment, "name" | "mime">): "text" | "image" | "pdf" | "audio" | "video" | "unsupported" {
+export function fileKind(file: Pick<DraftAttachment, "name" | "mime">): "text" | "image" | "pdf" | "audio" | "video" | "archive" | "unsupported" {
   const mime = file.mime.toLowerCase().split(";")[0];
+  if (/\.zip$/i.test(file.name)) return 'archive';
   if (mime === "application/pdf" || pdfExtensions.test(file.name)) return "pdf";
   if (mime.startsWith("image/") || imageExtensions.test(file.name)) return "image";
   if (mime.startsWith("video/") || videoExtensions.test(file.name)) return "video";
@@ -68,6 +70,7 @@ async function transcribe(chunks: HelperAsset[], asr: AsrSettings, signal: Abort
 export async function prepareAttachments(
   files: DraftAttachment[], model: ModelInfo, helperEndpoint: string, asr: AsrSettings, signal: AbortSignal,
   onProgress: (label: string) => void = () => {},
+  stage?: ArchiveStager,
 ): Promise<PreparedPart[]> {
   const input = model.capabilities?.input;
   const parts: PreparedPart[] = [];
@@ -75,7 +78,12 @@ export async function prepareAttachments(
     if (signal.aborted) throw signal.reason;
     const kind = fileKind(file);
     onProgress(`Подготовка: ${file.name}`);
-    if (kind === "unsupported") throw new Error(`Формат файла «${file.name}» не поддерживается. Выберите изображение, PDF, аудио, видео или текстовый файл.`);
+    if (kind === "unsupported") throw new Error(`Формат файла «${file.name}» не поддерживается. Выберите ZIP, изображение, PDF, аудио, видео или текстовый файл.`);
+    if (kind === 'archive') {
+      if (!stage) throw Error('Для передачи ZIP откройте установленное приложение.');
+      parts.push(archivePart(await stage(file)));
+      continue;
+    }
     if (kind === "text") {
       // Text is decoded by OpenCode's text/plain file-part handler. Guard model context rather than silently truncate.
       const value = await file.blob.text();

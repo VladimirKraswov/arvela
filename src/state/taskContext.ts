@@ -1,4 +1,5 @@
 import type { MessagePart } from "../api/types";
+import { archiveReference } from '../attachments/archive';
 import type { SessionChatState } from "./chatReducer";
 import { normalizeLocalPath, isAbsoluteLocalPath, pathIsWithin } from "../util/paths";
 
@@ -96,6 +97,8 @@ export function sessionContext(chat?: SessionChatState): ContextSnapshot {
   if (!chat) return { sources, results: [] };
   eachPart(chat, (p, f, role, at) => {
     if (f.file && role === "user") sources.push({ key: p.id, name: f.file.name, mime: f.file.mime, url: p.url, messageID: p.messageID, at });
+    const archive = !p.ignored && role === 'user' ? archiveReference(p.metadata?.arvelaAttachment) : undefined;
+    if (archive) sources.push({key: p.id, name: safeLabel(archive.name), mime: 'application/zip', url: archive.url, messageID: p.messageID, at});
     if (role !== "assistant") return;
     for (const { path: raw, origin } of f.outputs) {
       const path = normalizeLocalPath(raw);

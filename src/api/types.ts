@@ -123,6 +123,8 @@ export interface MessagePart {
 export interface TextPartInput {
   type: "text";
   text: string;
+  synthetic?: boolean;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PromptPartInput {

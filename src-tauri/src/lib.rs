@@ -1,4 +1,5 @@
 mod asr;
+mod attachments;
 pub mod browser;
 pub mod capabilities;
 pub mod computer;
@@ -32,6 +33,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
+            attachments::stage_archive,
             hub::hub_config,
             hub::hub_request,
             hub::retrieval::memory_retrieval,

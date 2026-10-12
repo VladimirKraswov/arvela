@@ -70,6 +70,13 @@ export const attachmentDrafts = {
     }).finally(() => loading.delete(scope)));
     await loading.get(scope);
   },
+  async selected(scope: string, ids: string[]) {
+    // A remove click may precede Send in the same paint. Wait for that mutation,
+    // then use current IDs, never blobs captured by an older React render.
+    await pending.get(scope);
+    await this.ensure(scope);
+    return this.snapshot(scope).filter(file => ids.includes(file.id));
+  },
   add(scope: string, files: File[]) { return serialize(scope, async () => {
     await this.ensure(scope);
     const existing = cache.get(scope) ?? empty;
@@ -88,11 +95,14 @@ export const attachmentDrafts = {
   }); },
   remove(scope: string, ids: string[]) { return serialize(scope, async () => {
     await this.ensure(scope);
-    const owned = (cache.get(scope) ?? empty).filter(item => ids.includes(item.id)).map(item => item.id);
-    await write([], owned);
-    cache.set(scope, (cache.get(scope) ?? empty).filter(item => !ids.includes(item.id))); emit();
+    const before = cache.get(scope) ?? empty;
+    const owned = before.filter(item => ids.includes(item.id)).map(item => item.id);
+    cache.set(scope, before.filter(item => !ids.includes(item.id))); emit();
+    try { await write([], owned); }
+    catch (error) { cache.set(scope, before); emit(); throw error; }
   }); },
   copy(from: string, to: string, ids: string[]) { return serialize(to, async () => {
+    if (from !== to) await pending.get(from);
     await Promise.all([this.ensure(from), this.ensure(to)]);
     const source = ids.map(id => (cache.get(from) ?? empty).find(file => file.id === id));
     if (new Set(ids).size !== ids.length || source.some(file => !file))

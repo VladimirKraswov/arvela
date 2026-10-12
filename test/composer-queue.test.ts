@@ -8,7 +8,48 @@ vi.mock('../src/components/ContextMeter',()=>({ContextMeter:()=>null}));
 vi.mock('../src/components/WorkspacePicker',()=>({HostPicker:()=>null}));
 vi.mock('../src/components/VoiceInput',()=>({VoiceInput:()=>null}));
 let root:Root|undefined;
+async function archiveComposer() {
+ vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener:()=>{},removeEventListener:()=>{}}));vi.stubGlobal('File',NodeFile);vi.stubGlobal('Blob',NodeBlob);
+ const {store}=await import('../src/state/store');const {Composer}=await import('../src/components/Composer');
+ const {attachmentDrafts,attachmentScope}=await import('../src/attachments/drafts');
+ const sid='ses_archive_'+crypto.randomUUID(),directory='/archive-ui-'+crypto.randomUUID();
+ store.state={...store.state,directory,activeSessionId:sid,connection:{...store.state.connection,phase:'connected',streamState:'open'},statuses:{[sid]:{type:'busy'}},connectedProviderIds:['p']};
+ vi.spyOn(store,'activeSession').mockReturnValue({id:sid} as any);vi.spyOn(store,'engineReady').mockReturnValue(true);vi.spyOn(store,'modelInfo').mockReturnValue({id:'m',capabilities:{input:{text:true}}} as any);
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ store.setModelChoice('p','m','medium');store.setDraft('');
+ const scope=attachmentScope(store.state.prefs.workspaceKey??store.state.prefs.endpoint,directory,sid);
+ await attachmentDrafts.add(scope,[new NodeFile(['PK\x03\x04zip'],'project.zip',{type:'application/zip'}) as unknown as File]);
+ await store.enqueueWithAttachments('read project',attachmentDrafts.snapshot(scope));
+ const node=document.createElement('div');document.body.append(node);root=createRoot(node);await act(async()=>root!.render(createElement(Composer)));
+ return {store,attachmentDrafts,scope,prompt};
+}
 afterEach(()=>{if(root)act(()=>root!.unmount());root=undefined;vi.restoreAllMocks();vi.unstubAllGlobals();document.body.innerHTML='';});
+it('queued file controls remove ZIP before Now and re-enable the send control',async()=>{
+ const {store,prompt}=await archiveComposer();
+ await act(async()=>{(document.querySelector('[aria-label="Вложения в очереди"]') as HTMLButtonElement).click();});
+ const remove=document.querySelector('[aria-label="Убрать из запроса project.zip"]') as HTMLButtonElement;
+ expect(remove).not.toBeNull();
+ await act(async()=>{remove.click();await vi.waitFor(()=>expect(store.isQueueLocked()).toBe(false));});
+ expect(store.getQueue()[0].attachments).toBeUndefined();
+ const now=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Сейчас')!;
+ expect(now.disabled).toBe(false);
+ await act(async()=>{now.click();await vi.waitFor(()=>expect(prompt).toHaveBeenCalledTimes(1));});
+ expect(prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'read project'}]);
+});
+it('Now from the queue editor uses immediate removal and the latest text',async()=>{
+ const {store,prompt}=await archiveComposer();
+ const edit=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Изменить')!;
+ await act(async()=>{edit.click();await vi.waitFor(()=>expect(store.getQueueEdit()).toBeDefined());});
+ await act(async()=>store.setDraft('updated correction'));
+ await act(async()=>{
+   (document.querySelector('[aria-label="Убрать project.zip"]') as HTMLButtonElement).click();
+   const now=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Сейчас')!;
+   expect(now.disabled).toBe(false);now.click();
+   await vi.waitFor(()=>expect(prompt).toHaveBeenCalledTimes(1));
+ });
+ expect(prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'updated correction'}]);
+ expect(store.getQueueEdit()).toBeUndefined();
+});
 it('the actual running composer accepts files into the queue instead of blocking them',async()=>{
  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener:()=>{},removeEventListener:()=>{}}));vi.stubGlobal('File',NodeFile);vi.stubGlobal('Blob',NodeBlob);
  const {store}=await import('../src/state/store');const {Composer}=await import('../src/components/Composer');

@@ -17,6 +17,43 @@ beforeEach(async () => {
   await drafts.add(scope,[new File(['hello'],'fixture.txt',{type:'text/plain'})]);
 });
 const idle = () => store.handleEvent({type:'session.status',properties:{sessionID:'ses_a',status:{type:'idle'}}});
+it('Stop during attachment preparation does not restart the agent with a late correction',async()=>{
+ await store.enqueueWithAttachments('do not restart',drafts.snapshot(scope));
+ const {modelServices}=await import('../src/models/services');
+ let release!:()=>void;vi.spyOn(modelServices,'ensure').mockImplementation(()=>new Promise<void>(r=>{release=r;}));
+ vi.spyOn(store.client,'abort').mockResolvedValue(undefined);
+ const operation=store.steerQueued(store.getQueue()[0].id);
+ await vi.waitFor(()=>expect(release).toBeTypeOf('function'));
+ await store.stopSession('ses_a');release();await operation;
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.getQueue()[0].state).toBe('ready');
+ expect(store.getQueue()[0].error).toContain('Стоп');
+});
+it('removing a queued attachment sends only the remaining text when steering now',async()=>{
+  await store.enqueueWithAttachments('correction',drafts.snapshot(scope));
+  const queued=store.getQueue()[0],file=queued.attachments.files[0];
+  await store.removeQueuedAttachment(queued.id,file.id);
+  await store.steerQueued(queued.id);
+  expect(store.client.prompt).toHaveBeenCalledTimes(1);
+  expect(store.client.prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'correction'}]);
+  expect(drafts.snapshot(queued.attachments.scope)).toHaveLength(0);
+});
+it('steering an edited entry applies removed files and edited text before sending, once',async()=>{
+  await store.enqueueWithAttachments('old text',drafts.snapshot(scope));
+  const queued=store.getQueue()[0];await store.editQueued(queued.id);
+  const staleFiles=drafts.snapshot(scope);
+  await drafts.remove(scope,staleFiles.map(file=>file.id));store.setDraft('new text');
+  await Promise.all([store.steerQueued(queued.id),store.steerQueued(queued.id)]);
+  expect(store.client.prompt).toHaveBeenCalledTimes(1);
+  expect(store.client.prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'new text'}]);
+  expect(store.getQueueEdit()).toBeUndefined();expect(store.getQueue()).toHaveLength(0);
+});
+it('does not queue a removed file from a stale composer snapshot',async()=>{
+  const staleFiles=drafts.snapshot(scope);
+  const removal=drafts.remove(scope,staleFiles.map(file=>file.id));
+  expect(await store.enqueueWithAttachments('text only',staleFiles)).toBe(true);
+  await removal;
+  expect(store.getQueue()[0].attachments).toBeUndefined();
+});
 it('queues independent persisted files, sends them once after idle and keeps later draft files',async()=>{
   store.setDraft('first');
   expect(await store.enqueueWithAttachments('first',drafts.snapshot(scope))).toBe(true);
@@ -74,6 +111,7 @@ it('late draft-copy failure cannot appear in another chat',async()=>{
   let reject!: (e:Error)=>void;
   vi.spyOn(drafts,'copy').mockImplementation(()=>new Promise((_,r)=>{reject=r;}));
   const operation=store.enqueueWithAttachments('first',drafts.snapshot(scope));
+  await vi.waitFor(()=>expect(reject).toBeTypeOf('function'));
   store.state.activeSessionId='ses_b'; reject(new Error('old attachment error')); await operation;
   expect(store.state.ui.sendError).toBeNull(); expect(drafts.snapshot(scope)).toHaveLength(1);
 });

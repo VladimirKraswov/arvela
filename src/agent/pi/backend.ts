@@ -500,6 +500,12 @@ export class PiBackend implements AgentBackend {
     directory: string,
     body: PromptRequest,
   ): Promise<void> {
+    return this.submitPrompt(sessionID, directory, body, 'followUp');
+  }
+  async steer(sessionID: string, directory: string, body: PromptRequest): Promise<void> {
+    return this.submitPrompt(sessionID, directory, body, 'steer');
+  }
+  private async submitPrompt(sessionID: string, directory: string, body: PromptRequest, streamingBehavior: 'followUp' | 'steer'): Promise<void> {
     const key = await this.ensureSession(directory, sessionID, body);
     await this.synchronizeSelection(key, sessionID, directory, body.model, body.variant);
     let text = body.parts
@@ -542,7 +548,7 @@ export class PiBackend implements AgentBackend {
       message: text,
       ...(images.length ? { images } : {}),
       // Never silently drop a prompt sent while the agent is mid-run.
-      ...(running ? { streamingBehavior: "followUp" } : {}),
+      ...(running ? { streamingBehavior } : {}),
     };
     const response = await this.raw(key, command, 60_000);
     if (response && response.success === false)

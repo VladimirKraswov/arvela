@@ -71,6 +71,12 @@ it("stop/error pause queued execution and never auto-retry uncertain POST outcom
   await flush();
   expect(store.client.prompt).toHaveBeenCalledTimes(1);
 });
+it('explains a blocked Now operation and keeps the request instead of silently doing nothing',async()=>{
+ store.enqueuePrompt('correction');store.state.connection.statusError='status probe failed';
+ await store.steerQueued(store.getQueue()[0].id);
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.getQueue()[0].state).toBe('ready');
+ expect(store.state.ui.toast).toContain('Восстановите подключение');
+});
 it("session error does not trigger the remaining queue on idle", async () => {
   store.enqueuePrompt("later");
   store.handleEvent({

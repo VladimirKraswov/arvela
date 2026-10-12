@@ -194,6 +194,18 @@ it("forwards an image attachment in Pi's own format", async () => {
   ]);
 });
 
+it("uses explicit steering for Now while regular busy prompts remain follow-ups", async () => {
+  const sent: any[] = [];
+  respond = command => {sent.push(command); return {type:'response',success:true};};
+  const pi = new PiBackend(host());
+  const session = await pi.createSession({ directory: "/work" });
+  await pi.prompt(session.id, "/work", {parts:[{type:'text',text:'first'}]} as any);
+  await pi.steer(session.id, "/work", {parts:[{type:'text',text:'correct now'}]} as any);
+  await pi.prompt(session.id, "/work", {parts:[{type:'text',text:'later'}]} as any);
+  const prompts = sent.filter(command=>command.type==='prompt');
+  expect(prompts.map(command=>command.streamingBehavior)).toEqual([undefined,'steer','followUp']);
+});
+
 it("reports a rejected prompt as an error rather than a sent message", async () => {
   respond = () => ({ type: "response", success: false, error: "no model configured" });
   const pi = new PiBackend(host());

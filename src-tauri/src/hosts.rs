@@ -113,6 +113,56 @@ fn ssh_probe(target: &str) -> Result<Command, String> {
     Ok(command)
 }
 
+pub(crate) fn upload_archive(
+    hosts: &Hosts,
+    target: &str,
+    endpoint: &str,
+    id: &str,
+    bytes: &[u8],
+) -> Result<String, String> {
+    if !crate::attachments::validate_id(id) {
+        return Err("Некорректное вложение.".into());
+    }
+    {
+        let mut tunnels = hosts.0.lock().map_err(|e| e.to_string())?;
+        if !tunnels.iter_mut().any(|(key, tunnel)| {
+            key.starts_with(&format!("{target}:"))
+                && tunnel.endpoint == endpoint
+                && matches!(tunnel.child.try_wait(), Ok(None))
+        }) {
+            return Err("SSH-подключение изменилось. Архив не передан.".into());
+        }
+    }
+    let mut command = ssh_probe(target)?;
+    // Only validated UUID and numeric byte count are interpolated; original names never reach a shell.
+    let script = format!("umask 077; root=\"$HOME/.local/share/opencode-desktop/attachments\"; test ! -L \"$root\" && mkdir -p -- \"$root\" && d=\"$root/{id}\" && mkdir -- \"$d\" && cat > \"$d/archive.zip.part\" && test \"$(wc -c < \"$d/archive.zip.part\")\" -eq {} && mv -- \"$d/archive.zip.part\" \"$d/archive.zip\" && printf '%s\\n' \"$d/archive.zip\"", bytes.len());
+    command.arg(target).arg(script);
+    let output = crate::process::output_with_input_timeout(
+        &mut command,
+        Duration::from_secs(60),
+        8192,
+        Some(bytes.to_vec()),
+    )
+    .map_err(|_| {
+        "Не удалось передать архив через SSH. Повторите после проверки подключения.".to_string()
+    })?;
+    if !output.status.success() {
+        return Err("SSH не подтвердил сохранение архива.".into());
+    }
+    let path = String::from_utf8(output.stdout)
+        .map_err(|_| "SSH вернул некорректный путь.")?
+        .trim()
+        .to_string();
+    if !path.starts_with('/')
+        || path.contains(['\r', '\n'])
+        || path.len() > 4096
+        || !path.ends_with(&format!("/attachments/{id}/archive.zip"))
+    {
+        return Err("SSH вернул некорректный путь архива.".into());
+    }
+    Ok(path)
+}
+
 #[tauri::command]
 pub fn ssh_aliases() -> Vec<String> {
     let text = crate::paths::user_home()

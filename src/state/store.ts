@@ -1,4 +1,5 @@
 import { projectErrorText } from "../api/projectError";
+import type { MessagePart } from '../api/types';
 import { initialState } from './initial';
 import type { AppState, UiState } from './types';
 export type { AppState, UiState, ConnectionState, ConnectionPhase } from './types';
@@ -13,6 +14,7 @@ import { browserTaskKey, browserEfforts, browserDefaultEffort } from "../browser
 import { browserEnabled, browserNodeProgram } from "../browser/preferences";
 import { isLocalComputer } from "./computer";
 import { isNative } from "../native/platform";
+import { attachmentParts, stageArchive, type ArchiveStager } from '../attachments/archive';
 import { applyAppearance, normalizeAppearance, type Appearance } from "./appearance";
 import {
   connectSsh,
@@ -616,6 +618,7 @@ class Store {
   private workspacePromise: Promise<boolean> | null = null;
   private queueArmed = new Set<string>();
   private queueLocks = new Set<string>();
+  private queueStops = new Map<string, number>();
   private queueEdits = new Map<string, { id: string; scope: string; directory: string }>();
   private accessChanging = false;
   private compactLocks = new Set<string>();
@@ -2045,6 +2048,21 @@ class Store {
     this.persistPrefs();
   }
 
+  async removeDraftAttachment(id: string): Promise<void> {
+    if (this.state.ui.sending) return;
+    const scope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.state.directory, this.state.activeSessionId);
+    await attachmentDrafts.remove(scope, [id]);
+    if (scope === attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, this.state.directory, this.state.activeSessionId))
+      this.patchUi({sendError: null});
+  }
+
+  private archiveStager(backend: AgentBackend): ArchiveStager {
+    const host = backend.id === PI_BACKEND_ID ? undefined : this.currentHost(), endpoint = backend.endpoint;
+    let paths: ReturnType<AgentBackend['paths']> | undefined;
+    return async file => stageArchive(file, {serverHome: (await (paths ??= backend.paths())).home,
+      sshTarget: host?.target, endpoint});
+  }
+
   /** Editing preserves the original conversation and never starts inference implicitly. */
   async prepareEditedBranch(messageID: string, text: string): Promise<void> {
     if (this.editBranchBusy) throw new Error("Ветка уже создаётся.");
@@ -2056,7 +2074,7 @@ class Store {
     if (!id || !directory || !text.trim() || message?.role !== "user" || !this.engineReady(engine))
       throw new Error("Откройте исходное сообщение и проверьте подключение.");
     const parts = this.state.chat.sessions[id]?.partsByMessage[messageID] ?? [];
-    if (parts.some(p => this.state.chat.sessions[id].parts[p]?.type === "file"))
+    if (attachmentParts(parts.map(p => this.state.chat.sessions[id].parts[p]).filter((p): p is MessagePart => !!p)).length)
       throw new Error("Сообщение содержит вложения. Отправьте уточнение новым сообщением, чтобы сохранить их.");
     const model = this.getModelChoice(), agent = this.getAgentChoice();
     const current = () => backend === this.engine(engine) && generation === this.connectionGeneration &&
@@ -2278,6 +2296,8 @@ class Store {
     this.patchUi({ sending: true, sendError: null });
     let sessionId = this.state.activeSessionId;
     try {
+      if (attachments.length) attachments = await attachmentDrafts.selected(scope, attachments.map(file => file.id));
+      if (!text.trim() && !attachments.length) return false;
       if (modelServices.manages(model.providerID, model.modelID)) await modelServices.ensure(model.providerID, model.modelID, engineId);
       if (!sameContext() || this.state.activeSessionId !== selected) return false;
       if (attachments.length && scope !== initialScope) await attachmentDrafts.move(initialScope, scope);
@@ -2292,7 +2312,7 @@ class Store {
       if (engineId !== PI_BACKEND_ID) await this.configureSharedTools(directory);
       if (!sameContext() || this.state.activeSessionId !== selected) return false;
       const parts = attachments.length && modelInfo
-        ? await prepareAttachments(attachments, engineId === PI_BACKEND_ID ? { ...modelInfo, capabilities: { ...modelInfo.capabilities, input: { ...modelInfo.capabilities?.input, pdf: false, audio: false, video: false } } } : modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress)
+        ? await prepareAttachments(attachments, engineId === PI_BACKEND_ID ? { ...modelInfo, capabilities: { ...modelInfo.capabilities, input: { ...modelInfo.capabilities?.input, pdf: false, audio: false, video: false } } } : modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress, this.archiveStager(backend))
         : [];
       if (!sameContext() || this.state.activeSessionId !== selected)
         throw new Error("Чат изменился во время подготовки вложений. Вложения остались в черновике.");
@@ -2453,6 +2473,7 @@ class Store {
   }
 
   async stopSession(sessionId: string): Promise<void> {
+    this.queueStops.set(sessionId, (this.queueStops.get(sessionId) ?? 0) + 1);
     this.queueArmed.delete(sessionId);
     // Abort is directory-scoped: a session started in another project must be
     // stopped with *its* directory, not whichever project is open right now.
@@ -2663,9 +2684,11 @@ class Store {
     this.patchUi({ sending: true, sendError: null });
     let copies: DraftAttachment[] = [], queued: string | undefined;
     try {
-      copies = await attachmentDrafts.copy(from, target, files.map(file => file.id));
+      files = await attachmentDrafts.selected(from, files.map(file => file.id));
+      if (!current() || (!text.trim() && !files.length)) return false;
+      if (files.length) copies = await attachmentDrafts.copy(from, target, files.map(file => file.id));
       if (!current()) return false;
-      const metadata = { scope: target, files: copies.map(({blob: _blob, ...file}) => file) };
+      const metadata = copies.length ? { scope: target, files: copies.map(({blob: _blob, ...file}) => file) } : undefined;
       // Block automatic dispatch until both IndexedDB and preferences are durable.
       if (!this.enqueuePrompt(text, metadata, captured)) return false;
       queued = this.getQueue(sid)[this.getQueue(sid).length - 1].id;
@@ -2699,6 +2722,30 @@ class Store {
     if (!flushPrefs()) { this.writeQueue(sid, previous); this.patchUi({ sendError: "Не удалось сохранить очередь." }); return; }
     if (item?.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
   }
+  isQueueLocked() { return !!this.state.activeSessionId && this.queueLocks.has(this.state.activeSessionId); }
+  private releaseQueueLock(sid: string) {
+    this.queueLocks.delete(sid);
+    this.mutate(() => ({})); // Operation completion must re-enable the visible controls.
+  }
+  async removeQueuedAttachment(id: string, fileID: string) {
+    const sid = this.state.activeSessionId;
+    if (!sid || this.queueLocks.has(sid) || this.state.ui.sending) return;
+    const item = this.getQueue(sid).find(q => q.id === id);
+    if (!item || item.state !== 'ready' || !item.attachments?.files.some(f => f.id === fileID)) return;
+    const directory = this.state.directory, gen = this.directoryGeneration;
+    this.queueLocks.add(sid);
+    try {
+      const previous = this.getQueue(sid), files = item.attachments.files.filter(f => f.id !== fileID);
+      this.writeQueue(sid, previous.map(q => q.id === id ? {...q, attachments: files.length ? {...item.attachments!, files} : undefined, error: undefined} : q));
+      savePrefs(this.state.prefs);
+      if (!flushPrefs()) { this.writeQueue(sid, previous); throw Error('Не удалось сохранить удаление вложения.'); }
+      await attachmentDrafts.remove(item.attachments.scope, [fileID]);
+      if (gen === this.directoryGeneration && directory === this.state.directory && sid === this.state.activeSessionId)
+        this.patchUi({sendError: null});
+    } catch (error) {
+      if (gen === this.directoryGeneration && sid === this.state.activeSessionId) this.patchUi({sendError: errText(error)});
+    } finally { this.releaseQueueLock(sid); }
+  }
   getQueueEdit() {
     const edit = this.state.activeSessionId ? this.queueEdits.get(this.state.activeSessionId) : undefined;
     return edit?.directory === this.state.directory ? edit : undefined;
@@ -2724,7 +2771,7 @@ class Store {
     } catch (error) { if (current()) this.patchUi({ sendError: errText(error) }); return false; }
     finally {
       if (!editing) {
-        this.queueLocks.delete(sid);
+        this.releaseQueueLock(sid);
         if (copies.length) await attachmentDrafts.remove(scope, copies.map(file => file.id)).catch(() => {});
       }
     }
@@ -2734,12 +2781,12 @@ class Store {
     if (!edit || !sid || this.state.ui.sending) return;
     const files = attachmentDrafts.snapshot(edit.scope);
     this.queueEdits.delete(sid);
-    this.queueLocks.delete(sid);
+    this.releaseQueueLock(sid);
     this.setDraft("");
     await attachmentDrafts.remove(edit.scope, files.map(file => file.id)).catch(() => {});
     void this.drainQueue();
   }
-  async applyQueueEdit(text: string, files: DraftAttachment[]): Promise<boolean> {
+  async applyQueueEdit(text: string, files: DraftAttachment[], drain = true): Promise<boolean> {
     const edit = this.getQueueEdit(), sid = this.state.activeSessionId;
     if (!edit || !sid || this.state.ui.sending || (!text.trim() && !files.length)) return false;
     const item = this.getQueue(sid).find(q => q.id === edit.id);
@@ -2750,6 +2797,8 @@ class Store {
     let copies: DraftAttachment[] = [], saved = false;
     this.patchUi({ sending: true, sendError: null });
     try {
+      files = await attachmentDrafts.selected(edit.scope, files.map(file => file.id));
+      if (!text.trim() && !files.length) return false;
       if (files.length) copies = await attachmentDrafts.copy(edit.scope, target, files.map(file => file.id));
       if (!current()) return false;
       const previous = this.getQueue(sid);
@@ -2762,7 +2811,7 @@ class Store {
       }
       saved = true;
       this.queueEdits.delete(sid);
-      this.queueLocks.delete(sid);
+      this.releaseQueueLock(sid);
       if (this.getDraft() === text) this.setDraft("");
       await attachmentDrafts.remove(edit.scope, files.map(file => file.id)).catch(() => {});
       if (item.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
@@ -2772,7 +2821,7 @@ class Store {
       if (!saved && copies.length) await attachmentDrafts.remove(target, copies.map(file => file.id)).catch(() => {});
       if (gen === this.directoryGeneration && sid === this.state.activeSessionId) {
         this.patchUi({ sending: false });
-        if (saved) void this.drainQueue();
+        if (saved && drain) void this.drainQueue();
       } else if (this.engineStillActive(backend)) this.patchUi({ sending: false });
     }
   }
@@ -2847,6 +2896,14 @@ class Store {
     await this.dispatchQueued(item, false);
   }
   async steerQueued(id: string) {
+    if (this.state.ui.sending) return;
+    const edit = this.getQueueEdit(), sid = this.state.activeSessionId, gen = this.directoryGeneration;
+    const stopped = sid ? this.queueStops.get(sid) ?? 0 : 0;
+    if (edit) {
+      if (edit.id !== id) { this.patchUi({toast: 'Завершите редактирование текущего запроса.'}); return; }
+      if (!await this.applyQueueEdit(this.getDraft(), attachmentDrafts.snapshot(edit.scope), false)) return;
+      if (gen !== this.directoryGeneration || sid !== this.state.activeSessionId || (sid && (this.queueStops.get(sid) ?? 0) !== stopped)) return;
+    }
     const item = this.getQueue().find((x) => x.id === id);
     if (!item || item.state !== "ready") return;
     await this.dispatchQueued(item, true);
@@ -2861,14 +2918,20 @@ class Store {
     if (
       this.queueLocks.has(sid) ||
       this.scheduledLocks.has(sid) ||
+      this.compactLocks.has(sid) ||
       this.state.ui.sending ||
       this.accessChanging ||
       sid !== this.state.activeSessionId ||
       this.state.directory !== item.directory ||
       !this.engineReady(engineId) ||
       (engineId !== PI_BACKEND_ID && !!this.state.connection.statusError)
-    )
+    ) {
+      if (sid === this.state.activeSessionId && item.directory === this.state.directory)
+        this.patchUi({toast: this.state.connection.statusError
+          ? 'Не удалось проверить состояние чата. Восстановите подключение; запрос сохранён.'
+          : 'В этом чате идёт другая операция. Запрос сохранён в очереди.'});
       return;
+    }
     if (!steer && this.isRunning(sid)) return;
     const pending = this.pendingInteraction(sid);
     if (pending.permissions.length || pending.questions.length) {
@@ -2876,6 +2939,7 @@ class Store {
       return;
     }
     this.queueLocks.add(sid);
+    this.patchUi({sendError: null});
     this.writeQueue(
       sid,
       this.getQueue(sid).map((x) =>
@@ -2885,6 +2949,7 @@ class Store {
     savePrefs(this.state.prefs);
     const preparationStarted = Date.now();
     const seq = this.statusSequence;
+    const stopped = this.queueStops.get(sid) ?? 0;
     let posted = false;
     try {
       if (!flushPrefs()) throw new Error("Не удалось сохранить состояние очереди. Запрос не отправлен.");
@@ -2903,10 +2968,11 @@ class Store {
         if (files.some(file => !file)) throw new Error("Вложения очереди не найдены. Верните запрос в черновик и приложите файлы заново.");
         parts.push(...await prepareAttachments(files as DraftAttachment[], engineId === PI_BACKEND_ID
           ? { ...info, capabilities: { ...info.capabilities, input: { ...info.capabilities?.input, pdf: false, audio: false, video: false } } } : info,
-          this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal));
+          this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, undefined, this.archiveStager(backend)));
       }
       if (!current()) throw new Error("Чат изменился; запрос не отправлен.");
       if (!steer && this.isRunning(sid)) throw new Error("Агент снова занят. Возобновите очередь после текущего ответа.");
+      if ((this.queueStops.get(sid) ?? 0) !== stopped) throw Error('Отправка отменена кнопкой «Стоп». Запрос остался в очереди.');
       const pending = this.pendingInteraction(sid);
       if (pending.permissions.length || pending.questions.length) throw new Error("Сначала ответьте на запрос агента.");
       const messageID = newMessageId(), dispatchAt = Date.now();
@@ -2916,7 +2982,8 @@ class Store {
         queueMs: typeof item.queuedAt === 'number' && preparationStarted >= item.queuedAt ? preparationStarted - item.queuedAt : null,
       };
       posted = true;
-      await backend.prompt(sid, item.directory, {
+      const submit = steer && backend.steer ? backend.steer.bind(backend) : backend.prompt.bind(backend);
+      await submit(sid, item.directory, {
         messageID,
         model: {
           providerID: item.model.providerID,
@@ -2965,7 +3032,7 @@ class Store {
           ),
         );
     } finally {
-      this.queueLocks.delete(sid);
+      this.releaseQueueLock(sid);
       if (current()) void this.drainQueue();
     }
   }

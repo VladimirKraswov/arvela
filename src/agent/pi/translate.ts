@@ -19,6 +19,7 @@ import type {
   ServerEvent,
   ToolState,
 } from "../../api/types";
+import { archivePart, splitArchiveText } from '../../attachments/archive';
 import type {
   PiAssistantMessage,
   PiContent,
@@ -140,13 +141,15 @@ export function entriesToHistory(
       const parts: MessagePart[] = [];
       blocks.forEach((block, index) => {
         if (block.type === "text" && typeof block.text === "string") {
+          const split = splitArchiveText(String(block.text));
           parts.push({
             id: partId(id, index),
             sessionID,
             messageID: id,
             type: "text",
-            text: String(block.text),
+            text: split.text,
           });
+          split.references.forEach((ref, n) => parts.push({...archivePart(ref), id: `${partId(id, index)}-archive-${n}`, sessionID, messageID: id}));
         } else if (block.type === "image") {
           parts.push({
             id: partId(id, index),
@@ -382,6 +385,7 @@ export class PiStreamTranslator {
       // composer can clear without waiting for the run to settle.
       const id = this.nextMessageId("user");
       const blocks = contentBlocks(message);
+      const split = splitArchiveText(textOf(blocks));
       const info: Message = {
         id,
         sessionID: this.sessionID,
@@ -393,17 +397,18 @@ export class PiStreamTranslator {
       return {
         events: [
           { type: "message.updated", properties: { info } },
-          ...(textOf(blocks)
+          ...(split.text
             ? [
                 this.partUpdated({
                   id: partId(id, 0),
                   sessionID: this.sessionID,
                   messageID: id,
                   type: "text",
-                  text: textOf(blocks),
+                  text: split.text,
                 }),
               ]
             : []),
+          ...split.references.map((ref, n) => this.partUpdated({...archivePart(ref), id: `${partId(id, 0)}-archive-${n}`, sessionID: this.sessionID, messageID: id})),
         ],
       };
     }

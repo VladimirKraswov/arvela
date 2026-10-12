@@ -3,6 +3,7 @@ import { MAX_ATTACHMENT_BYTES } from "./drafts";
 type FileDetails = { isFile: boolean; isSymlink: boolean; size: number };
 
 const types: Record<string, string> = {
+  zip: "application/zip",
   pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
   gif: "image/gif", webp: "image/webp", heic: "image/heic", heif: "image/heif",
   txt: "text/plain", md: "text/markdown", json: "application/json", csv: "text/csv",

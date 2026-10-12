@@ -17,10 +17,21 @@ it("classifies supported files and turns long pasted text into a real text file"
   expect(fileKind({ name: "manual.pdf", mime: "" })).toBe("pdf");
   expect(fileKind({ name: "clip.mov", mime: "" })).toBe("video");
   expect(fileKind({ name: "notes.md", mime: "" })).toBe("text");
-  expect(fileKind({ name: "bundle.zip", mime: "application/zip" })).toBe("unsupported");
+  expect(fileKind({ name: "bundle.zip", mime: "application/zip" })).toBe("archive");
   const pasted = pastedTextFile("x".repeat(LARGE_PASTE_THRESHOLD));
   expect(pasted.type).toBe("text/plain");
   expect(pasted.size).toBe(LARGE_PASTE_THRESHOLD);
+});
+
+it('stages original ZIP bytes and sends a small reusable file reference, not a model binary part', async () => {
+  const file = attachment('source.zip', 'application/zip', 'PK\x03\x04original zip');
+  const reference = {version:1 as const, name:file.name, path:'/home/test/.local/share/opencode-desktop/attachments/12345678-1234-1234-1234-123456789abc/archive.zip', url:'file:///home/test/.local/share/opencode-desktop/attachments/12345678-1234-1234-1234-123456789abc/archive.zip', size:file.size, sha256:'a'.repeat(64), remote:false};
+  const stage = vi.fn(async input => {expect(await input.blob.text()).toBe('PK\x03\x04original zip');return reference;});
+  const parts = await prepareAttachments([file], vision, '', asr, new AbortController().signal, undefined, stage);
+  expect(stage).toHaveBeenCalledOnce();
+  expect(parts).toEqual([expect.objectContaining({type:'text', synthetic:true, metadata:{arvelaAttachment:reference}})]);
+  expect(parts[0]).not.toHaveProperty('mime');
+  expect(parts[0]).toHaveProperty('text',expect.stringContaining(reference.path));
 });
 
 it("requires a loopback tunnel for the helper", async () => {

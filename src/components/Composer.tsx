@@ -46,6 +46,7 @@ export function Composer() {
   const [attachmentProgress, setAttachmentProgress] = useState("");
   const [dragging, setDragging] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
+  const [queueFiles, setQueueFiles] = useState<string | null>(null);
   const scope = attachmentScope(s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId);
   const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
@@ -68,6 +69,7 @@ export function Composer() {
   useEffect(() => {
     let cancelled = false;
     setAttachmentError(""); setAttachmentProgress("");
+    setQueueFiles(null);
     void attachmentDrafts.ensure(scope).catch(error => { if (!cancelled) setAttachmentError(String(error)); });
     return () => { cancelled = true; };
   }, [scope]);
@@ -84,6 +86,13 @@ export function Composer() {
   addFilesRef.current = addFiles;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  const removeFile = (id: string) => {
+    const target = scope;
+    setAttachmentError('');
+    void store.removeDraftAttachment(id).catch(error => {
+      if (scopeRef.current === target) setAttachmentError(error instanceof Error ? error.message : String(error));
+    });
+  };
   const openChooser = () => {
     if (store.state.ui.sending) return false;
     chooserScope.current = scopeRef.current;
@@ -284,23 +293,25 @@ export function Composer() {
           </div>
           {!store.isQueueArmed() && store.queueRecoveryReason() && <p className="queue-recovery" role="status">{store.queueRecoveryReason()}</p>}
           {!store.isQueueArmed() && store.queueHasDifferentModel() && <button className="queue-model-recovery" disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue(true)}>Продолжить на выбранной модели</button>}
-          {store.getQueue().map((item) => (
+          {store.getQueue().map((item) => {
+            const itemFiles = queueEdit?.id === item.id ? attachments : item.attachments?.files ?? [];
+            return (
             <div className={`queued-prompt ${queueEdit?.id === item.id ? "queued-prompt-editing" : ""}`} key={item.id}>
               <p className="queued-summary" title={item.text}>{item.text.replace(/\s+/g, " ").trim()}</p>
-              {!!item.attachments?.files.length && <span className="queued-file-count" aria-label="Вложения в очереди" title={item.attachments.files.map(file => file.name).join("\n")}><Icon name="file" size={14}/>{item.attachments.files.length}</span>}
+              {!!itemFiles.length && <button type="button" className="queued-file-count" aria-label="Вложения в очереди" aria-expanded={queueFiles === item.id} title={itemFiles.map(file => file.name).join("\n")} onClick={() => setQueueFiles(queueFiles === item.id ? null : item.id)}><Icon name="file" size={14}/>{itemFiles.length}</button>}
               {item.error && <span className="queued-error" role="alert" title={item.error}><span aria-hidden="true">!</span><span>{item.error}</span></span>}
               <div className="queue-actions">
                 {item.state === "ready" ? (
                   <>
                     <button
-                      disabled={!!queueEdit || !connected || switching || s.ui.sending}
-                      title="Передать уточнение на следующий шаг агента без остановки инструмента"
+                      disabled={(!!queueEdit && queueEdit.id !== item.id) || (!queueEdit && store.isQueueLocked()) || !connected || switching || s.ui.sending}
+                      title={queueEdit?.id === item.id ? "Применить изменения и передать уточнение" : "Передать уточнение на следующий шаг агента без остановки инструмента"}
                       onClick={() => void store.steerQueued(item.id)}
                     >
                       Сейчас
                     </button>
                     <button
-                      disabled={!!queueEdit || !!draft.trim() || attachments.length > 0 || s.ui.sending}
+                      disabled={!!queueEdit || store.isQueueLocked() || !!draft.trim() || attachments.length > 0 || s.ui.sending}
                       title={draft.trim() || attachments.length ? "Сначала отправьте или очистите черновик" : "Редактировать в поле ввода"}
                       onClick={() => void store.editQueued(item.id).then(opened => { if (opened) textareaRef.current?.focus(); })}
                     >
@@ -315,15 +326,22 @@ export function Composer() {
                   </span>
                 )}
                 <button
-                  disabled={!!queueEdit || item.state === "sending"}
+                  disabled={!!queueEdit || store.isQueueLocked() || item.state === "sending"}
                   aria-label="Убрать из очереди"
                   onClick={() => void store.removeQueued(item.id)}
                 >
                   <Icon name="close" size={14} />
                 </button>
               </div>
+              {queueFiles === item.id && <div className="queued-attachments" aria-label="Файлы запроса в очереди">
+                {itemFiles.map(file => <div className="queued-attachment" key={file.id}>
+                  <Icon name="file" size={14}/><span title={file.name}>{file.name}</span>
+                  <button type="button" aria-label={`Убрать из запроса ${file.name}`} disabled={item.state !== 'ready' || s.ui.sending || (store.isQueueLocked() && queueEdit?.id !== item.id)}
+                    onClick={() => { if (queueEdit?.id === item.id) removeFile(file.id); else void store.removeQueuedAttachment(item.id, file.id); }}><Icon name="close" size={14}/></button>
+                </div>)}
+              </div>}
             </div>
-          ))}
+          ); })}
         </div>
       )}
       {s.ui.workspacePreparing && (
@@ -337,7 +355,7 @@ export function Composer() {
       </div>}
       <div className={`composer ${dragging ? "composer-drop-target" : ""} ${voiceActive ? "composer-voice-active" : ""}`}>
         {dragging && <div className="composer-drop-label">Перетащите файлы сюда</div>}
-        {attachments.length > 0 && <div className="attachment-list" aria-label="Вложения">{attachments.map(file => <AttachmentChip key={file.id} file={file} disabled={s.ui.sending} onRemove={() => void attachmentDrafts.remove(scope, [file.id])}/>)}</div>}
+        {attachments.length > 0 && <div className="attachment-list" aria-label="Вложения">{attachments.map(file => <AttachmentChip key={file.id} file={file} disabled={s.ui.sending} onRemove={() => removeFile(file.id)}/>)}</div>}
         <textarea
           ref={textareaRef}
           aria-label="Message"

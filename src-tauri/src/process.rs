@@ -9,7 +9,7 @@
 //! Nothing here discovers or signals a process Desktop did not start itself.
 
 use std::{
-    io::Read,
+    io::{Read, Write},
     process::{Child, Command, ExitStatus, Output, Stdio},
     sync::{mpsc, Arc, Mutex},
     thread,
@@ -94,20 +94,48 @@ pub fn output_with_timeout(
     limit: Duration,
     max_bytes: u64,
 ) -> Result<Output, RunError> {
+    output_with_input_timeout(command, limit, max_bytes, None)
+}
+
+/// Upload bytes through stdin rather than command arguments, with the same owned-child deadline.
+pub fn output_with_input_timeout(
+    command: &mut Command,
+    limit: Duration,
+    max_bytes: u64,
+    input: Option<Vec<u8>>,
+) -> Result<Output, RunError> {
     own_process_group(command);
     hide_console(command);
     let mut child = command
-        .stdin(Stdio::null())
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(RunError::Spawn)?;
+    let writer = input.map(|bytes| {
+        let mut pipe = child.stdin.take().expect("piped stdin");
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            let _ = sender.send(pipe.write_all(&bytes));
+        });
+        receiver
+    });
     let stdout = child.stdout.take().map(|pipe| drain(pipe, max_bytes));
     let stderr = child.stderr.take().map(|pipe| drain(pipe, max_bytes));
     let Some(status) = wait_until(&mut child, limit) else {
         terminate_group(&mut child, Duration::from_millis(500));
         return Err(RunError::TimedOut);
     };
+    if let Some(writer) = writer {
+        writer
+            .recv_timeout(Duration::from_secs(1))
+            .map_err(|_| RunError::TimedOut)?
+            .map_err(RunError::Spawn)?;
+    }
     // A descendant may still hold a pipe open; never wait for it unbounded.
     let collect = |pipe: Option<mpsc::Receiver<Vec<u8>>>| {
         pipe.and_then(|receiver| receiver.recv_timeout(Duration::from_secs(1)).ok())
@@ -346,6 +374,36 @@ mod tests {
         assert_eq!(output.status.code(), Some(3));
         assert_eq!(output.stdout, b"out");
         assert_eq!(output.stderr, b"err");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn input_upload_is_complete_and_stalled_input_has_a_deadline() {
+        let data = vec![42; 256 * 1024];
+        let mut cat = Command::new("/bin/cat");
+        let output = output_with_input_timeout(
+            &mut cat,
+            Duration::from_secs(5),
+            data.len() as u64,
+            Some(data.clone()),
+        )
+        .unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, data);
+        let mut unrelated = Command::new("/bin/sleep").arg("10").spawn().unwrap();
+        let mut stalled = Command::new("/bin/sleep");
+        stalled.arg("30");
+        let result = output_with_input_timeout(
+            &mut stalled,
+            Duration::from_millis(200),
+            1024,
+            Some(vec![0; 1024 * 1024]),
+        );
+        let unrelated_alive = unrelated.try_wait().unwrap().is_none();
+        unrelated.kill().unwrap();
+        unrelated.wait().unwrap();
+        assert!(matches!(result, Err(RunError::TimedOut)));
+        assert!(unrelated_alive);
     }
 
     #[test]

@@ -170,6 +170,8 @@ export interface AgentBackend {
     body: PromptRequest,
     signal?: AbortSignal,
   ): Promise<void>;
+  /** Explicit correction for the next boundary of an existing run. */
+  steer?(sessionID: string, directory: string, body: PromptRequest): Promise<void>;
   abort(sessionID: string, directory: string): Promise<void>;
   summarize(
     sessionID: string,
