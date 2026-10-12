@@ -659,5 +659,5 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Preserve original ZIP bytes in private local/connected-SSH storage; shared file references for OpenCode/Pi and the source gallery.
 - [x] Remove individual queued files; await pending draft mutations and use current attachment IDs.
 - [x] Apply edited text/files before Now, explicit Pi steer, visible guard failures and cancellation before POST after Stop.
-- [ ] Final regression/native/isolated UI checks, verified Mac package/install and main publication.
+- [x] Frontend/native/isolated UI checks, verified Mac package/install, real native queued-file/gallery acceptance and main/release publication; downloaded artifact verified.
 - [ ] Native Windows/Linux and live SSH qualification.
