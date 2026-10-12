@@ -4,6 +4,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{fs, io::Write, path::Path};
 use tauri::State;
+use tauri_plugin_fs::FsExt;
 
 const MAX_BYTES: usize = 50 * 1024 * 1024;
 
@@ -77,6 +78,54 @@ fn save_local(root: &Path, id: &str, bytes: &[u8]) -> Result<String, String> {
         .into_owned())
 }
 
+fn owned_archive(root: &Path, id: &str, expected_url: &str) -> Result<std::path::PathBuf, String> {
+    if !validate_id(id) {
+        return Err("Некорректный идентификатор вложения.".into());
+    }
+    let directory = root.join(id);
+    let file = directory.join("archive.zip");
+    for path in [root, directory.as_path(), file.as_path()] {
+        if fs::symlink_metadata(path)
+            .map_err(|e| e.to_string())?
+            .file_type()
+            .is_symlink()
+        {
+            return Err("Архив не должен быть ссылкой.".into());
+        }
+    }
+    let metadata = fs::metadata(&file).map_err(|e| e.to_string())?;
+    if !metadata.is_file() || metadata.len() > MAX_BYTES as u64 {
+        return Err("Архив недоступен.".into());
+    }
+    let file = fs::canonicalize(file).map_err(|e| e.to_string())?;
+    if url::Url::from_file_path(&file)
+        .map_err(|_| "Некорректный путь.")?
+        .as_str()
+        != expected_url
+    {
+        return Err("Архив находится на другом устройстве.".into());
+    }
+    Ok(file)
+}
+
+/// Authorize only the recorded app-owned ZIP for a gallery click, including after restart.
+#[tauri::command]
+pub fn archive_access(
+    app: tauri::AppHandle,
+    id: String,
+    expected_url: String,
+) -> Result<String, String> {
+    let file = owned_archive(
+        &crate::paths::app_data_dir()?.join("attachments"),
+        &id,
+        &expected_url,
+    )?;
+    app.fs_scope()
+        .allow_file(&file)
+        .map_err(|e| e.to_string())?;
+    Ok(file.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub async fn stage_archive(
     id: String,
@@ -131,6 +180,9 @@ mod tests {
         let path = save_local(&root, id, bytes).unwrap();
         assert_eq!(fs::read(&path).unwrap(), bytes);
         assert!(!root.join(id).join("src/example.ts").exists());
+        let url = url::Url::from_file_path(&path).unwrap().to_string();
+        assert_eq!(owned_archive(&root, id, &url).unwrap(), Path::new(&path));
+        assert!(owned_archive(&root, id, "file:///etc/passwd").is_err());
         assert!(save_local(&root, id, b"other bytes").is_err());
         assert!(save_local(&root, "../../outside", bytes).is_err());
         #[cfg(unix)]

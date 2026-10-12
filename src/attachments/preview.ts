@@ -24,6 +24,11 @@ export async function attachmentBlob(file: AttachmentSource, remote: boolean): P
   if(url.startsWith('file:') && isNative() && !remote){
     const parsed=new URL(url);if(parsed.host && parsed.host!=='localhost')throw Error('Сетевой путь недоступен.');
     let path=decodeURIComponent(parsed.pathname);if(/^\/[A-Za-z]:\//.test(path))path=path.slice(1);
+    const archive = /\/attachments\/([a-f0-9-]{36})\/archive\.zip$/i.exec(parsed.pathname);
+    if (file.mime === 'application/zip' && archive) {
+      const {invoke} = await import('@tauri-apps/api/core');
+      path = await invoke<string>('archive_access', {id:archive[1],expectedUrl:url});
+    }
     const {stat,readFile}=await import('@tauri-apps/plugin-fs');const info=await stat(path);
     if(!info.isFile||info.isSymlink||info.size>MAX_ATTACHMENT_BYTES)throw Error('Файл недоступен или больше 50 МБ.');
     const bytes=await readFile(path);if(bytes.byteLength>MAX_ATTACHMENT_BYTES)throw Error('Файл больше 50 МБ.');

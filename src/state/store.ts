@@ -2296,7 +2296,7 @@ class Store {
     this.patchUi({ sending: true, sendError: null });
     let sessionId = this.state.activeSessionId;
     try {
-      if (attachments.length) attachments = await attachmentDrafts.selected(scope, attachments.map(file => file.id));
+      if (attachments.length) attachments = await attachmentDrafts.selected(initialScope, attachments.map(file => file.id));
       if (!text.trim() && !attachments.length) return false;
       if (modelServices.manages(model.providerID, model.modelID)) await modelServices.ensure(model.providerID, model.modelID, engineId);
       if (!sameContext() || this.state.activeSessionId !== selected) return false;

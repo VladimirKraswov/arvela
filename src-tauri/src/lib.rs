@@ -34,6 +34,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
             attachments::stage_archive,
+            attachments::archive_access,
             hub::hub_config,
             hub::hub_request,
             hub::retrieval::memory_retrieval,

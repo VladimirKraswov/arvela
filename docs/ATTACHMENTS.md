@@ -22,7 +22,7 @@ CPU-сервис работает в отдельном непривилегир
 
 ## ZIP attachments and queued corrections
 
-ZIP files retain their original bytes. Desktop saves a private, immutable copy under its attachment directory, then gives the selected agent a small file reference (path, filename, byte count and SHA-256). Archives are not sent as unsupported model binary parts or unpacked automatically. Both OpenCode and Pi inspect them through their own file/archive tools, subject to the chat's access policy.
+ZIP files retain their original bytes. Desktop saves a private, independent copy under its attachment directory, then gives the selected agent a small file reference (path, filename, byte count and SHA-256). Archives are not sent as unsupported model binary parts or unpacked automatically. Both OpenCode and Pi inspect them through their own file/archive tools, subject to the chat's access policy.
 
 Local staging checks the engine's reported home against the current computer. SSH staging uses the already connected host and its exact tunnel endpoint, strict host keys, stdin streaming and a 60-second deadline. A failed remote transfer never falls back to a local path. Archives belong to the recorded history and survive draft/queue cleanup. Arbitrary HTTP servers need a configured SSH connection for binary staging.
 
@@ -33,3 +33,5 @@ Queued prompts own independent IndexedDB copies. The file-count button opens a r
 **Now** applies an entry's active edit first, including removed attachments, then sends exactly one correction. OpenCode joins the existing loop; Pi uses its native `steer` mode. Ordinary Pi submissions during a run remain `followUp`. Stop during preparation prevents a late correction from restarting the agent. Preparation failures retain editable files; ambiguous POST outcomes are never retried automatically. Blocked operations explain the reason and retain the queued request.
 
 Validation covers queued removal/edit/Now in the actual Composer and isolated Chromium, ZIP byte preservation and bounded stdin transfer, Pi live/durable references, and actual OpenCode metadata persistence with `noReply` (no model invocation). Native Windows/Linux and live SSH qualification are separate from the Mac checks.
+
+Local archive previews re-authorize only the exact recorded app-owned file on each click, including after restart; unrelated paths and symlinks are rejected.

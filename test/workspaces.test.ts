@@ -127,6 +127,18 @@ it("sends a file part with the prompt and removes only accepted attachments", as
   expect(attachmentDrafts.snapshot(scope)).toEqual([]);
   expect(store.getDraft()).toBe("");
 });
+it('preserves first-send attachments while creating the projectless working directory',async()=>{
+ const {attachmentDrafts,attachmentScope}=await import('../src/attachments/drafts');
+ store.state.directory=null;store.state.activeSessionId=null;
+ store.setDraft('new chat with a file');
+ vi.mocked(store.client.providers).mockResolvedValue({connected:['p'],all:[{id:'p',models:{m:{id:'m',providerID:'p',capabilities:{input:{text:true}}}}}]} as any);
+ vi.spyOn(store.client,'createSession').mockImplementation(async({directory}:any)=>session('ses_first_file',directory));
+ const scope=attachmentScope(store.state.prefs.workspaceKey??store.state.prefs.endpoint,null,null);
+ const [file]=await attachmentDrafts.add(scope,[new File(['hello'],'first.txt',{type:'text/plain'})]);
+ expect(await store.sendPrompt('new chat with a file',[file])).toBe(true);
+ expect(store.client.prompt).toHaveBeenCalledWith('ses_first_file','/home/test/chats/one',expect.objectContaining({parts:[{type:'text',text:'new chat with a file'},expect.objectContaining({type:'file',filename:'first.txt'})]}));
+ expect(attachmentDrafts.snapshot(scope)).toHaveLength(0);
+});
 it("keeps an attachment and text draft after a failed send", async () => {
   const { attachmentDrafts, attachmentScope } = await import("../src/attachments/drafts");
   store.state.directory = "/project";
