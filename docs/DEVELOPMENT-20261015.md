@@ -125,3 +125,10 @@ now reports this within the startup deadline and cleans up the failed new proces
 model discovery works independently. macOS folder access requires owner confirmation
 on this ad-hoc-signed installation. This is not a successful live project Pi test,
 and neither a permission bypass nor a model/provider change was attempted.
+
+Both public stable/preview feeds match the reviewed manifests. The installed native
+updater reported “Установлена актуальная версия” through the stable feed. All 266
+frozen runtime source hashes remained unchanged after packaging and publication.
+Test-only Vite servers were stopped; the installed app and external engine remain
+running. No claim is made that a self-update or data restore was exercised against
+owner data; those mutation paths were verified in isolated fault tests.
