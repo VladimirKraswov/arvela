@@ -34,7 +34,7 @@ confirmations; pending follow-up text was recovered; abort completed in 3 ms.
 This does not call a cloud or local inference model. Real isolated Chromium proved
 Full picker, Stop after OpenCode reconnect, journal-to-draft recovery, candidate
 creation and the update UI. Ten thousand reducer text deltas took 4.9 ms and one
-subscriber notification on this machine. Initial JS is 1,347,277 bytes before
+subscriber notification on this machine. Initial JS is 1,347,359 bytes before
 compression (earlier baseline about 1,433 KB); settings load separately. This is
 synthetic receipt/render evidence, not a model-speed claim.
 
@@ -100,3 +100,28 @@ ID identity; the Mac app is ad-hoc signed, so macOS may ask again for protected-
 access. Catalog probes now use managed app data and disable extensions; real project
 startup is bounded and reports folder/extension failure instead of hanging forever.
 Windows/Linux live qualification was skipped at the owner's request.
+
+## Installed macOS release acceptance
+
+Runtime commit `23cc1ee` is published as [v0.2.53](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.53).
+The installed executable matches the packaged binary (SHA-256
+`82cff092bec4fe5513117aa26f24cf9b758436379a3ecd2bd907ef5c16440c36`).
+The public updater archive was downloaded afresh and matched the local artifact
+(SHA-256 `de30070fec4022cc6124df3f519417b1cd8491c49675c35c83962a07c1206bc2`);
+its pinned-key signature and signed version passed native verification.
+Final native suite: 113 pass, two opt-in skips; the artifact verification test was
+then run separately and passed. Final focused frontend suite: 39 pass, including
+bounded Pi startup cleanup for new processes without closing a reused process.
+
+Installed GUI acceptance confirmed version, working model discovery, unchanged
+native process across interface Restart, restored chat/model, native backup creation,
+shared skill discovery and a working delivery journal. The SQLite journal passed
+integrity checking and uses owner-only permissions. The existing external OpenCode
+server was preserved. Previous application and app data were retained privately.
+
+One owner-project acceptance remains blocked: Pi startup inside the protected
+Documents folder stalls in Node's current-directory lookup. The native application
+now reports this within the startup deadline and cleans up the failed new process;
+model discovery works independently. macOS folder access requires owner confirmation
+on this ad-hoc-signed installation. This is not a successful live project Pi test,
+and neither a permission bypass nor a model/provider change was attempted.
