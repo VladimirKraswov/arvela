@@ -1,5 +1,6 @@
 //! App-owned, scoped shared capability registry. No user histories or skills are
 //! rewritten. Engine approvals remain authoritative; metadata never executes a tool.
+pub mod quality;
 mod skills;
 use skills::{scan, SkillSource};
 mod authoring;

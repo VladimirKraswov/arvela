@@ -1,3 +1,5 @@
+import { SkillQualitySettings } from "./SkillQualitySettings";
+import { UpdateSettings } from "./UpdateSettings";
 import { HubSettings } from "./HubSettings";
 import { CapabilitiesSettings } from "./CapabilitiesSettings";
 import { ModelServicesSettings } from "./ModelServicesSettings";
@@ -19,6 +21,8 @@ import { DEFAULT_HELPER_ENDPOINT, helperHealth, validHelperEndpoint, type Helper
 import { detectLocalOpenCode } from "../native/localServer";
 
 export const SETTINGS_SECTIONS = [
+  { id: "updates", title: "Обновления", group: "Приложение", icon: "settings", description: "Версии и резервные копии", keywords: "stable preview резервные восстановление обновление" },
+  { id: "skillQuality", title: "Качество навыков", group: "Общие возможности", icon: "file", description: "Сравнение версий и откат навыков", keywords: "skill тест испытания baseline candidate" },
   { id: "general", title: "Общее", group: "Приложение", icon: "settings", description: "Рабочее пространство и удалённые компьютеры", keywords: "сервер адрес endpoint ssh хост" },
   { id: "engines", title: "Обзор агентов", group: "Агенты", icon: "chat", description: "OpenCode и Pi: возможности и отдельные настройки", keywords: "engine движок агент Pi OpenCode модель" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
@@ -89,6 +93,8 @@ export function SettingsScreen() {
   const s = useAppState();
   const [section, setSection] = useState<Section>("general"), [query, setQuery] = useState("");
   const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
+  const [qualityDirty,setQualityDirty]=useState(false),[qualityVisited,setQualityVisited]=useState(false);
+  useEffect(()=>{if(section === "skillQuality")setQualityVisited(true);},[section]);
   const [capabilitiesDirty,setCapabilitiesDirty] = useState(false), [capabilitiesVisited,setCapabilitiesVisited] = useState(false);
   const [hubVisited, setHubVisited] = useState(false), [hubDirty, setHubDirty] = useState(false);
   const [piVisited, setPiVisited] = useState(false), [piDirty, setPiDirty] = useState(false);
@@ -108,7 +114,7 @@ export function SettingsScreen() {
   const localDirty = endpointDirty || programDirty;
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
   const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
-  const dirty = hubDirty || capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
+  const dirty = qualityDirty || hubDirty || capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
   const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
   const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
   const navigate = (id: Section) => { if (id === "hub") setHubVisited(true); if (id === "pi") setPiVisited(true); if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
@@ -141,6 +147,8 @@ export function SettingsScreen() {
       <header><h1>{query.trim() ? "Поиск настроек" : selected.title}</h1>{query.trim() && <p>Результаты для «{query.trim()}»</p>}</header>
       {leave && <div className="settings-review" role="alert"><span>Есть несохранённые изменения настроек. Оформление уже сохранено.</span><button ref={stay} className="btn" onClick={() => setLeave(null)}>Остаться</button><button className="btn" onClick={() => exit(leave)}>Не сохранять и выйти</button></div>}
       {query.trim() ? <div className="settings-results">{matches.length ? matches.map(item => <button key={item.id} onClick={() => navigate(item.id)}><Icon name={item.icon}/><span><b>{item.title}</b><small>{item.description}</small></span><Icon name="chevron" size={16}/></button>) : <p>Ничего не найдено. Попробуйте «шрифт», «диктовка» или «MCP».</p>}</div> : <>
+        {section === "updates" && <UpdateSettings/>}
+        {qualityVisited && <div hidden={section !== "skillQuality"}><SkillQualitySettings onDirtyChange={setQualityDirty}/></div>}
         {section === "general" && <Group title="Рабочее пространство"><Row title="Перезапуск интерфейса" description="Агенты продолжают работать; чат и браузер восстановятся."><button className="btn" onClick={() => store.restartInterface()}>Перезапустить</button></Row><Row title="Текущий компьютер"><span>{store.hostLabel()}</span></Row><Row title="Удалённые компьютеры" description="Подключения к серверам рабочих пространств."><button className="btn" onClick={() => requestExit("hosts")}>Управлять…</button></Row></Group>}
         {(section === "opencode" || isEngine(section)) && <nav className="settings-agent-tabs" aria-label="Настройки OpenCode">{([
           ["opencode", "Подключение"], ["tools", "Разрешения"], ["agents", "Профили"], ["plugins", "Плагины"], ["skills", "Навыки"], ["mcp", "MCP"],

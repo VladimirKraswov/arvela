@@ -69,6 +69,26 @@ function checkCapacity(files: readonly DraftAttachment[]) {
     throw new Error('В черновике слишком много вложений: до 12 файлов и 50 МБ.');
 }
 export const attachmentDrafts = {
+  async exportBackup() {
+    const db=await open();
+    const entries=await new Promise<StoredAttachment[]>((resolve,reject)=>{const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+    if(entries.length>5000||entries.reduce((n,f)=>n+f.size,0)>128*1024*1024)throw Error('Вложения превышают лимит резервной копии 128 МБ.');
+    return Promise.all(entries.map(async({blob,...meta})=>{
+      const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+      for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      return {...meta,data:btoa(binary)};
+    }));
+  },
+  async importBackup(entries:{id:string;scope:string;name:string;mime:string;size:number;data:string}[]) {
+    if(entries.length>5000||entries.reduce((n,f)=>n+(typeof f.size==='number'?f.size:Infinity),0)>128*1024*1024)throw Error('Недопустимый размер резервной копии.');
+    const restored=entries.map(({data,...meta})=>{
+      if(!meta.id||!meta.scope||typeof data!=='string'||data.length>MAX_ATTACHMENT_BYTES*2)throw Error('Повреждено вложение резервной копии.');
+      const bytes=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
+      if(bytes.length!==meta.size)throw Error('Размер вложения не совпадает.');
+      return {...meta,blob:new Blob([bytes],{type:meta.mime})};
+    });
+    await write(restored);cache.clear();emit();
+  },
   snapshot(scope: string) { return cache.get(scope) ?? empty; },
   subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
   async ensure(scope: string) {

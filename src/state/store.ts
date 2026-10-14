@@ -1,4 +1,7 @@
+import { ownWork } from "../operations/ownership";
+import { StreamNotifications, selectedSnapshot, shallowEqual } from "./notifications";
 import { DEFAULT_BASE_URL } from "../api/client";
+import { NotDispatched, operationJournal, type Operation } from "../operations/journal";
 import { PromptQueueController } from "./promptQueue";
 import { errText } from "./errors";
 import { SubmissionLifecycle, type Submission } from "./submission";
@@ -40,7 +43,7 @@ import { DEFAULT_HELPER_ENDPOINT } from "../attachments/helper";
 // chat state driven by the pure stream reducer, and command actions.
 // Designed to be testable: Tauri is only touched through theme/window niceties.
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { ApiError, ConnectionError, type OpenCodeClient } from "../api/client";
 import type { AgentBackend } from "../agent/backend";
 import { asOpenCodeClient } from "../agent/opencode";
@@ -590,13 +593,8 @@ class Store {
    * opening the Pi settings section — never on a timer.
    */
   async refreshPiHealth(): Promise<void> {
-    // Without an open project, probe in a managed empty folder rather than
-    // borrowing one of the user's: the catalog must be visible either way.
-    const directory =
-      this.state.directory ??
-      this.projectDirectories()[0] ??
-      this.state.prefs.projectlessRoot ??
-      (await piBridge().probeDirectory().catch(() => ""));
+    // Global metadata never depends on project access or project extensions.
+    const directory = await piBridge().probeDirectory().catch(() => "");
     const health = await this.pi().describe(directory);
     this.piInstalled = health.install.installed;
     this.mutate({ piHealth: health });
@@ -655,6 +653,7 @@ class Store {
   }
 
   private listeners = new Set<() => void>();
+  private notifications = new StreamNotifications(() => {for(const listener of this.listeners)listener();});
   private streamAbort: AbortController | null = null;
   private piStreamAbort: AbortController | null = null;
   private globalAbort: AbortController | null = null;
@@ -722,6 +721,7 @@ class Store {
   }
 
   dispose(): void {
+    this.notifications.cancel();
     this.invalidateSelection();
     this.connectionGeneration++;
     this.directoryGeneration++;
@@ -757,7 +757,7 @@ class Store {
       };
       this.persistPrefs();
     }
-    for (const l of this.listeners) l();
+    this.notifications.notify();
   }
 
   private patchUi(patch: Partial<UiState>): void {
@@ -2103,7 +2103,7 @@ class Store {
   async refreshModelCatalog(): Promise<void> {
     const engine = this.engineIdFor(), gen = this.directoryGeneration, backend = this.backend, directory = this.state.directory;
     const discovery = engine === PI_BACKEND_ID
-      ? this.pi().describe(directory ?? await piBridge().probeDirectory().catch(() => "")).then(health => {
+      ? this.pi().describe(await piBridge().probeDirectory().catch(() => "")).then(health => {
         if (health.error) throw new Error(health.error);
         if (gen === this.directoryGeneration && engine === this.engineIdFor()) { this.piInstalled = health.install.installed; this.mutate({ piHealth: health }); }
       })
@@ -2302,10 +2302,15 @@ class Store {
         (this.state.chat.sessions[task.sessionID] ??= emptySessionChat()).pendingTiming = {
           ...(pi ? {} : {messageID}), dispatchAt, preparationMs: dispatchAt - preparationStarted, queueMs: null,
         };
+        await operationJournal.dispatch({ id: messageID, workspace: server, engine: task.engine, sessionId: task.sessionID, directory: task.directory, source: "schedule", sourceId: task.id, text: task.prompt, model: `${task.model.providerID}/${task.model.modelID}`, attachments: null },
+          () => current() && !signal.aborted && (this.queueStops.get(task.sessionID) ?? 0) === stopped, async () => {
+        if (!pi) await ownWork(backend.endpoint, task.directory, task.sessionID, messageID, this.client.headers.Authorization);
+        if (!current() || signal.aborted || (this.queueStops.get(task.sessionID) ?? 0) !== stopped) throw new NotDispatched("Отправка отменена.");
         sending = true;
         await backend.prompt(task.sessionID, task.directory, {
           messageID, model: { providerID: task.model.providerID, modelID: task.model.modelID },
           variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
+        });
         });
       } catch (error) {
         // The server answered with a refusal, so it accepted nothing. Its body is not kept.
@@ -2467,6 +2472,10 @@ class Store {
         ...(engineId === PI_BACKEND_ID ? {} : {messageID}), dispatchAt,
         preparationMs: dispatchAt - preparationStarted, queueMs: 0,
       };
+      await operationJournal.dispatch({ id: messageID, workspace: this.state.prefs.workspaceKey ?? endpoint, engine: engineId, sessionId: target, directory, source: "manual", sourceId: null, text: trimmed, model: `${model.providerID}/${model.modelID}`, attachments: attachments.length ? { scope, files: attachments.map(({id,name,mime,size}) => ({id,name,mime,size})) } : null },
+        () => sameContext() && this.state.activeSessionId === target && !operation.signal.aborted, async () => {
+      if (engineId !== PI_BACKEND_ID) await ownWork(backend.endpoint, directory, target, messageID, this.client.headers.Authorization);
+      if (!sameContext() || operation.signal.aborted) throw new NotDispatched("Отправка отменена.");
       this.submissions.dispatched(operation);
       await backend.prompt(target, directory, {
         messageID,
@@ -2474,6 +2483,7 @@ class Store {
         agent: agent ?? undefined,
         variant: model.variant ?? undefined,
         parts: [{ type: "text", text: trimmed }, ...parts],
+      });
       });
       if (attachments.length) {
         try { await attachmentDrafts.remove(scope, attachments.map(file => file.id)); }
@@ -2752,6 +2762,68 @@ class Store {
   queueRecoveryReason(): string | null { return this.promptQueue.queueRecoveryReason(); }
   queueHasDifferentModel(): boolean { return this.promptQueue.queueHasDifferentModel(); }
   steerQueued(id: string): Promise<void> { return this.promptQueue.steerQueued(id); }
+  attentionItems(): {id:string; directory:string; title:string; reason:string}[] {
+    const out = new Map<string,{id:string;directory:string;title:string;reason:string}>();
+    const add = (id:string, reason:string, directory?:string) => {
+      const session = this.activitySessions.get(id) ?? this.state.sessions.find(s=>s.id===id);
+      const dir = directory ?? session?.directory ?? this.state.prefs.piSessions?.[id]?.directory;
+      if (!dir) return;
+      const old=out.get(id);
+      out.set(id,{id,directory:dir,title:session?.title ?? this.state.prefs.piSessions?.[id]?.title ?? id,reason:old?`${old.reason} · ${reason}`:reason});
+    };
+    for (const [id,chat] of Object.entries(this.state.chat.sessions)) if(chat.lastError) add(id,chat.lastError);
+    const pending=new Set([...Object.values(this.state.chat.permissions),...Object.values(this.state.chat.questions)].map(p=>p.sessionID));
+    for(const id of pending) add(id,'Требуется ваш ответ');
+    for(const d of this.piDialogs) add(d.sessionId,'Разрешение Pi',d.directory);
+    for(const [id,queue] of Object.entries(this.state.prefs.queues??{})) if(queue.length&&(!this.isRunning(id)||queue.some(q=>q.error||q.state==='uncertain')))
+      add(id,queue.find(q=>q.error)?.error??`В очереди: ${queue.length}`,queue[0].directory);
+    return [...out.values()];
+  }
+  async openAttentionChat(id:string,directory:string):Promise<void> {
+    const workspace=this.state.prefs.workspaceKey??this.state.prefs.endpoint;
+    const session=this.activitySessions.get(id)??this.state.sessions.find(s=>s.id===id)
+      ?? await this.engine(this.engineIdFor(id,directory)).getSession(id,directory);
+    if(workspace!==(this.state.prefs.workspaceKey??this.state.prefs.endpoint))throw Error('Компьютер изменился.');
+    if(!session)throw Error('Чат не найден у агента.');
+    await this.openChat(session);
+  }
+  async restoreOperationDraft(record:Operation):Promise<string> {
+    if(record.workspace!==(this.state.prefs.workspaceKey??this.state.prefs.endpoint))throw Error('Подключитесь к исходному компьютеру.');
+    if(!['prepared','cancelled','refused'].includes(record.state))throw Error('Сначала проверьте доставку.');
+    if(this.state.prefs.recoveredOperations?.includes(record.id)){savePrefs(this.state.prefs);if(!flushPrefs())throw Error('Не удалось сохранить черновик.');return 'Запрос уже возвращён в черновик.';}
+    const scope=attachmentScope(record.workspace,record.directory,record.sessionId);
+    if(record.attachments)await attachmentDrafts.copy(record.attachments.scope,scope,record.attachments.files.map(f=>f.id));
+    if(record.workspace!==(this.state.prefs.workspaceKey??this.state.prefs.endpoint))throw Error("Компьютер изменился. Вложения сохранены в исходном чате.");
+    const key=draftKey(record.sessionId,record.directory);
+    this.mutate(s=>({prefs:{...s.prefs,recoveredOperations:[...(s.prefs.recoveredOperations??[]),record.id],drafts:{...s.prefs.drafts,[key]:[s.prefs.drafts?.[key],record.text].filter(Boolean).join('\n\n')}}}));
+    savePrefs(this.state.prefs);if(!flushPrefs())throw Error('Не удалось сохранить черновик.');
+    if(record.state==='prepared')await operationJournal.cancelPrepared(record);
+    return 'Запрос возвращён в черновик исходного чата. Он не отправлен.';
+  }
+  async reconcileOperation(record: Operation): Promise<string> {
+    const workspace = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
+    if (workspace !== record.workspace) throw Error("Подключитесь к исходному компьютеру.");
+    if (record.engine === PI_BACKEND_ID) return "Pi не подтверждает исходный ID отправки. Проверьте историю чата вручную; повторной отправки не было.";
+    const backend = this.engine(this.engineIdFor(record.sessionId, record.directory));
+    if (backend.id !== record.engine) throw Error("Агент чата изменился.");
+    let before: string | undefined;
+    for (let page = 0; page < 10; page++) {
+      const result = await backend.messages(record.sessionId, { directory: record.directory, limit: 200, before });
+      if (workspace !== (this.state.prefs.workspaceKey ?? this.state.prefs.endpoint)) throw Error("Подключение изменилось.");
+      if (result.messages.some(message => message.info.id === record.id && message.info.role === "user")) {
+        await operationJournal.confirm(record, true);
+        if (record.source === "queue" && record.sourceId) {
+          this.writeQueue(record.sessionId, this.getQueue(record.sessionId).filter(item => item.id !== record.sourceId));
+          savePrefs(this.state.prefs); flushPrefs();
+        }
+        return "Доставка подтверждена историей агента. Повторной отправки не было.";
+      }
+      if (!result.before || result.before === before) break;
+      before = result.before;
+    }
+    return "Доставка не подтверждена. Проверьте историю чата; запрос не отправлялся повторно.";
+  }
+
   private drainQueue(): Promise<void> { return this.promptQueue.drainQueue(); }
   private writeQueue(id: string, list: QueuedPrompt[]): void { this.promptQueue.writeQueue(id, list); }
   private releaseQueueLock(sid: string): void { this.promptQueue.releaseQueueLock(sid); }
@@ -2805,7 +2877,7 @@ class Store {
       // No abort: the correction is seen at the next model/tool boundary.
       await modelServices.ensure(item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory));
       if (!current()) throw new Error("Чат изменился; запрос не отправлен.");
-      const parts = [];
+      const parts: Awaited<ReturnType<typeof prepareAttachments>> = [];
       if (item.attachments?.files.length) {
         if (!backend.capabilities.attachments) throw new Error("Этот агент не принимает вложения.");
         const info = engineId === PI_BACKEND_ID ? piModelInfo(this.state.piHealth, item.model) : this.modelInfo(item.model.providerID, item.model.modelID);
@@ -2829,8 +2901,12 @@ class Store {
         preparationMs: dispatchAt - preparationStarted,
         queueMs: typeof item.queuedAt === 'number' && preparationStarted >= item.queuedAt ? preparationStarted - item.queuedAt : null,
       };
-      posted = true;
       const submit = steer && backend.steer ? backend.steer.bind(backend) : backend.prompt.bind(backend);
+      await operationJournal.dispatch({ id: messageID, workspace: this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, engine: engineId, sessionId: sid, directory: item.directory, source: "queue", sourceId: item.id, text: item.text, model: `${item.model.providerID}/${item.model.modelID}`, attachments: item.attachments ?? null },
+        () => current() && (this.queueStops.get(sid) ?? 0) === stopped, async () => {
+      if (engineId !== PI_BACKEND_ID) await ownWork(backend.endpoint, item.directory, sid, messageID, this.client.headers.Authorization);
+      if (!current() || (this.queueStops.get(sid) ?? 0) !== stopped) throw new NotDispatched("Отправка отменена.");
+      posted = true;
       await submit(sid, item.directory, {
         messageID,
         model: {
@@ -2840,6 +2916,7 @@ class Store {
         agent: item.agent,
         variant: item.model.variant ?? undefined,
         parts: [{ type: "text", text: item.text }, ...parts],
+      });
       });
       if (workspaceBackend !== this.backend) return;
       this.writeQueue(
@@ -3118,7 +3195,9 @@ class Store {
     const changed = reduceEvent(this.state.chat, event);
     if (changed) {
       this.state = { ...this.state, rev: this.state.rev + 1 };
-      for (const l of this.listeners) l();
+      const part = event.properties?.part as MessagePart | undefined;
+      this.notifications.notify(event.type === 'message.part.delta' ||
+        (event.type === 'message.part.updated' && (part?.type === 'text' || part?.type === 'reasoning')));
     }
     if (event.type === "session.status") void this.drainQueue();
   }
@@ -3403,6 +3482,11 @@ try {
 // list of what this build can drive.
 registerBackendDescriptor(piDescriptor(() => store.pi()));
 import.meta.hot?.dispose(() => { stopCatalogPersistence(); store.dispose(); });
+
+export function useAppSelector<T extends object>(select: (state: AppState) => T): T {
+  const snapshot=useMemo(()=>selectedSnapshot(store.getSnapshot,select,shallowEqual),[select]);
+  return useSyncExternalStore(store.subscribe,snapshot);
+}
 
 export function useAppState(): AppState {
   return useSyncExternalStore(store.subscribe, store.getSnapshot);

@@ -5,7 +5,7 @@ import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
 import { useEffect, useState } from "react";
 import type { Session } from "../api/types";
-import { store, useAppState } from "../state/store";
+import { store, useAppSelector } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
 import { pathBasename } from "../util/paths";
@@ -26,8 +26,15 @@ function ActivityMark({ id, directory, pending = false }: { id: string; director
   return null;
 }
 
+const sidebarSnapshot = (s: import('../state/types').AppState) => ({
+  prefs:s.prefs, connection:s.connection, directory:s.directory, activeSessionId:s.activeSessionId,
+  piHealth:s.piHealth, projects:s.projects, projectSessionLists:s.projectSessionLists,
+  recentSessionList:s.recentSessionList, sessions:s.sessions, archivedSessions:s.archivedSessions,
+  activityStatuses:s.activityStatuses,
+  pending:Object.keys(s.chat.permissions).join('|')+';'+Object.keys(s.chat.questions).join('|'),
+});
 export function Sidebar() {
-  const s = useAppState();
+  const s = useAppSelector(sidebarSnapshot);
   const [information,setInformation] = useState<Session|null>(null);
   const [archived, setArchived] = useState(false),
     [menu, setMenu] = useState<string | null>(null),

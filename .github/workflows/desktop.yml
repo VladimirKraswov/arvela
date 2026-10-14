@@ -54,6 +54,8 @@ jobs:
       - run: npm ci
       - run: npm run check:architecture
       - run: npm test -- --maxWorkers=2
+      - name: Interruption and delivery fault acceptance
+        run: npm run test:faults
       - run: node --test src-tauri/resources/browser/test/evaluate-result.test.mjs
       - run: npm run eval:check
       - run: python -m unittest discover -s services/hub/tests
@@ -63,6 +65,7 @@ jobs:
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - name: Build platform package
         run: npm run build:${{ matrix.platform }}
+      - run: npm run check:bundle
       - name: Verify signed Mac permissions
         if: matrix.platform == 'macos'
         run: python3 scripts/verify-macos.py src-tauri/target/release/bundle/macos/Arvela.app

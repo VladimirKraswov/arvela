@@ -857,6 +857,11 @@ export class PiBackend implements AgentBackend {
       })(),
     });
     this.closedKeys.delete(opened.key);
+    try { await this.command<PiState>(opened.key, {type: "get_state"}, 10_000); }
+    catch (error) {
+      if (!opened.reused) {this.closedKeys.add(opened.key);await this.bridge.close(opened.key).catch(() => {});}
+      throw Error(`Pi не запустился в папке проекта. Проверьте системные разрешения на папку и расширения Pi. ${error instanceof Error ? error.message : String(error)}`);
+    }
     this.keys.set(sessionID, opened.key);
     return opened.key;
   }

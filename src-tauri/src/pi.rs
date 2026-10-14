@@ -779,6 +779,7 @@ pub async fn pi_open(
     state: State<'_, PiSessions>,
     request: PiOpenRequest,
 ) -> Result<PiOpened, String> {
+    crate::updates::ensure_writable()?;
     if !valid_session_id(&request.session_id) {
         return Err("Некорректный идентификатор сессии Pi.".into());
     }
@@ -816,6 +817,15 @@ pub async fn pi_open(
         let mut args: Vec<String> = vec!["--mode".into(), "rpc".into()];
         if request.ephemeral {
             args.push("--no-session".into());
+            args.extend(
+                [
+                    "--no-extensions",
+                    "--no-skills",
+                    "--no-prompt-templates",
+                    "--no-themes",
+                ]
+                .map(String::from),
+            );
         } else {
             args.push("--session-dir".into());
             args.push(session_dir.display().to_string());
@@ -1167,6 +1177,19 @@ pub async fn pi_request(
     command: Value,
     timeout_ms: Option<u64>,
 ) -> Result<Value, String> {
+    if !matches!(
+        command["type"].as_str(),
+        Some(
+            "get_state"
+                | "get_messages"
+                | "get_entries"
+                | "abort"
+                | "get_available_models"
+                | "get_commands"
+        )
+    ) {
+        crate::updates::ensure_writable()?;
+    }
     let handles = state.0.clone();
     let timeout = Duration::from_millis(timeout_ms.unwrap_or(30_000).clamp(1_000, 600_000));
     tauri::async_runtime::spawn_blocking(move || {
@@ -1216,6 +1239,7 @@ pub async fn pi_post(
     key: String,
     message: Value,
 ) -> Result<(), String> {
+    crate::updates::ensure_writable()?;
     let handles = state.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut map = handles.lock().map_err(|e| e.to_string())?;

@@ -1,3 +1,4 @@
+import { RecoveryButton } from "./RecoveryCenter";
 import { BrowserButton } from "./BrowserSettings";
 import { PI_BACKEND_ID } from "../agent/pi/backend";
 import { piAvailability } from "../state/engines";
@@ -58,6 +59,7 @@ export function TopBar() {
         <Icon name="handoff" size={17} /><span>Передать</span>
       </button>}
       <button className={`icon-btn${s.ui.contextOpen ? " on" : ""}`} aria-label="Контекст задачи" aria-expanded={s.ui.contextOpen} aria-controls={s.ui.contextOpen ? CONTEXT_PANEL_ID : undefined} title="Расписание, результаты, субагенты и источники" onClick={() => store.setUi({ contextOpen: !s.ui.contextOpen })}><Icon name="context" /></button>
+      <RecoveryButton/>
       <BrowserButton/>
       {s.ui.vcs?.branch && (
         <span className="branch-label">

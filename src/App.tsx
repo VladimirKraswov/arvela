@@ -7,7 +7,7 @@ import { BrowserPanel, BrowserPresence } from "./components/BrowserPanel";
 import { PiDialog } from "./components/PiDialog";
 import { EngineSwitchDialog } from "./components/EngineSwitchDialog";
 import { HostDialogs } from "./components/HostDialogs";
-import { store, useAppState, applyTheme } from "./state/store";
+import { store, useAppSelector, applyTheme } from "./state/store";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { ChatView } from "./components/ChatView";
@@ -20,8 +20,8 @@ import {
 } from "./components/Dialogs";
 import { TerminalPanel } from "./components/TerminalPanel";
 import { Palette } from "./components/Palette";
-import { SettingsScreen } from "./components/SettingsScreen";
-import { useEffect } from "react";
+const SettingsScreen = lazy(() => import("./components/SettingsScreen").then(m => ({default:m.SettingsScreen})));
+import { useEffect, lazy, Suspense } from "react";
 import { hasOverlayWindowControls, isNative, platform } from "./native/platform";
 
 /** Pointer-drag horizontal splitter: initial width follows movementX, clamped. */
@@ -48,14 +48,18 @@ function startResize(opts: {
   window.addEventListener("pointerup", up);
 }
 
+const shellSnapshot = (s: import('./state/types').AppState) => ({
+  prefs:s.prefs, ui:s.ui, activeSessionId:s.activeSessionId, directory:s.directory,
+  connection:s.connection,
+});
 export default function App() {
-  const s = useAppState();
+  const s = useAppSelector(shellSnapshot);
 
   useEffect(() => {
     // Sequential startup: connect() only touches projects after health succeeded.
     // connect() is idempotent, so a StrictMode double-invoke shares one attempt.
     applyTheme(store.state.prefs.theme);
-    void store.connect().then(() => store.restorePiRuntime()).catch(() => {});
+    void store.connect().catch(() => {}).finally(() => store.restorePiRuntime()).catch(() => {});
     // Detect Pi and hydrate its no-session model catalog for a restored chat.
     void store.refreshPiInstall();
   }, []);
@@ -218,7 +222,7 @@ export default function App() {
         </div>
       </div>
       {s.ui.paletteOpen && <Palette />}
-      {s.ui.settingsOpen && <SettingsScreen />}
+      {s.ui.settingsOpen && <Suspense fallback={<div role="status">Загрузка настроек…</div>}><SettingsScreen /></Suspense>}
       <HostDialogs />
       {capabilities.fork && <HandoffDialog />}
       <PiDialog />

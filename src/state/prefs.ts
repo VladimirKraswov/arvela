@@ -58,6 +58,7 @@ export interface PiSettings {
 }
 
 export interface Prefs {
+  recoveredOperations?: string[];
   modelServices?: import("../models/services").ModelService[];
   appearance: Appearance;
   /** Local browser lifecycle and executable choice; engines retain their own permissions. */

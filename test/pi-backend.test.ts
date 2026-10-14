@@ -85,6 +85,19 @@ function host(): PiHost {
   };
 }
 
+it('bounds failed Pi startup, closes only its newly opened process and never sends a prompt', async () => {
+  const commands:string[]=[];
+  respond=command=>{commands.push(command.type);throw Error('folder access timed out');};
+  const pi=new PiBackend(host()),chat=await pi.createSession({directory:'/work'});
+  await expect(pi.prompt(chat.id,'/work',{parts:[{type:'text',text:'do not send'}]})).rejects.toThrow('системные разрешения');
+  expect(closed).toHaveLength(1);expect(commands).toEqual(['get_state']);
+  closed=[];commands.length=0;
+  setPiBridge({...bridge,open:async request=>({...await bridge.open(request),reused:true})});
+  const reused=new PiBackend(host());
+  await expect(reused.prompt(chat.id,'/work',{parts:[{type:'text',text:'do not send'}]})).rejects.toThrow('системные разрешения');
+  expect(closed).toHaveLength(0);expect(commands).toEqual(['get_state']);
+});
+
 beforeEach(() => {
   handlers = [];
   opened = [];
@@ -181,7 +194,7 @@ it("does not launch an agent for a chat that was only created", async () => {
 it("queues instead of dropping a prompt sent while Pi is still running", async () => {
   const sent: any[] = [];
   respond = (command) => {
-    sent.push(command);
+    if(command.type === "prompt") sent.push(command);
     return { type: "response", success: true };
   };
   const pi = new PiBackend(host());
@@ -217,7 +230,7 @@ it("refuses attachments Pi cannot accept instead of silently dropping them", asy
 it("forwards an image attachment in Pi's own format", async () => {
   const sent: any[] = [];
   respond = (command) => {
-    sent.push(command);
+    if(command.type === "prompt") sent.push(command);
     return { type: "response", success: true };
   };
   const pi = new PiBackend(host());

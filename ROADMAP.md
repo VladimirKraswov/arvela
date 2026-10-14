@@ -1,5 +1,16 @@
 # Arvela roadmap
 
+## Reliability, skill quality and updates — 0.2.53
+
+- [x] Durable SQLite delivery receipts with attachment recovery and exact public-history reconciliation.
+- [x] Selective shell/sidebar subscriptions, batched text events, lazy settings and enforced bundle budgets.
+- [x] Interruption, disk, lost-acknowledgement, backup and skill-quality fault gates in CI.
+- [x] Attention center with scoped chat navigation and unsent-draft recovery.
+- [x] Revision-bound skill candidates, measured paired trials, guarded promotion and rollback.
+- [x] Stable/preview signed updates, native idle gate, private data/application backups and guarded restore.
+- [x] Pi Full/Allow/Stop/reconnect and startup probe repairs; ordinary Quit versus interface restart.
+- Native installation and published-feed verification are recorded separately in [evidence](docs/DEVELOPMENT-20261015.md).
+
 ## Reliability and architecture audit — 2026-10-14 (source verified)
 
 - [x] Reproduce and fix attachment transfer races, stale/cancelled submissions, durable queue failures and SSE transport recovery.

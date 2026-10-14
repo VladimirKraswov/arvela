@@ -1,3 +1,4 @@
+vi.mock("../src/operations/ownership", () => ({ownWork: vi.fn(async () => {})}));
 import { beforeEach, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({ stream: null as any }));
 vi.mock("../src/api/events", () => ({
@@ -53,6 +54,10 @@ beforeEach(async () => {
   captured.stream = null;
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) });
+  const journal = (await import('../src/operations/journal')).operationJournal;
+  // These regressions exercise store routing. Native durability is independently
+  // fault-tested; a mocked native host has no SQLite IPC bridge.
+  vi.spyOn(journal as any, 'storage').mockReturnValue({list: async () => [], write: async () => {}});
   store = (await import("../src/state/store")).store;
   store.state = {
     ...store.state,

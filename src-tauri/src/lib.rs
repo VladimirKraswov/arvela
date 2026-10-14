@@ -7,6 +7,8 @@ mod config;
 pub mod control;
 mod hosts;
 pub mod hub;
+mod journal;
+mod lifecycle;
 mod local_server;
 mod model_credentials;
 mod paths;
@@ -14,11 +16,14 @@ pub mod pi;
 mod process;
 mod sound;
 mod storage_info;
+mod updates;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(hosts::Hosts::default())
         .manage(pi::PiSessions::default())
+        .manage(lifecycle::Lifecycle::default())
+        .manage(updates::Updates::default())
         .manage(capabilities::SharedRuntime::default())
         .manage(browser::BrowserRuntime::default())
         .manage(control::AgentControl::default())
@@ -33,6 +38,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
+            journal::operation_journal,
+            lifecycle::own_work,
+            lifecycle::quit_report,
+            updates::app_update,
             attachments::stage_archive,
             attachments::archive_access,
             hub::hub_config,
@@ -61,6 +70,7 @@ pub fn run() {
             config::read_opencode_config,
             config::write_opencode_config,
             capabilities::shared_catalog,
+            capabilities::quality::skill_quality,
             capabilities::project_map::project_map_preview,
             capabilities::shared_save,
             capabilities::shared_install,
@@ -87,16 +97,31 @@ pub fn run() {
             pi::pi_probe_directory,
             pi::pi_prepare_chat_workspace
         ])
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                .pubkey(include_str!("../updater.pub").trim())
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
-            // The observer is auxiliary: closing the main window still exits
-            // the app and cleans up its browser/Pi children as before.
-            if matches!(&event, tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::Destroyed, .. } if label == "main") {
-                app.exit(0);
+            if let tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } = &event
+            {
+                if label == "main" && lifecycle::request_exit(app) {
+                    api.prevent_close();
+                }
+            }
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = &event {
+                if *code != Some(tauri::RESTART_EXIT_CODE) && lifecycle::request_exit(app) {
+                    api.prevent_exit();
+                }
             }
             if let tauri::RunEvent::Exit = event {
                 use tauri::Manager;

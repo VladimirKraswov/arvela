@@ -10,7 +10,7 @@ pub(super) struct SkillSource<'a> {
     pub engines: &'a [&'a str],
 }
 
-fn field(front: &str, name: &str) -> String {
+pub(super) fn field(front: &str, name: &str) -> String {
     let mut lines = front.lines();
     while let Some(line) = lines.next() {
         if let Some(value) = line.strip_prefix(&format!("{name}:")) {
