@@ -1,3 +1,4 @@
+import { OPENCODE_BACKEND_ID } from "./ids";
 // The OpenCode agent backend: the default and, today, the only implementation of
 // `AgentBackend`. It owns the loopback HTTP client and both SSE subscriptions so
 // that no URL or wire-format knowledge leaks into the state layer.
@@ -23,7 +24,7 @@ import type {
   EventSubscription,
 } from "./backend";
 
-export const OPENCODE_BACKEND_ID = "opencode";
+export { OPENCODE_BACKEND_ID } from "./ids";
 
 /** Verified against OpenCode 1.18.x. Additive server fields must not change these. */
 export const OPENCODE_CAPABILITIES: AgentCapabilities = {

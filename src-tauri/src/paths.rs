@@ -94,6 +94,11 @@ pub fn app_data_dir() -> Result<PathBuf, String> {
 /// be the same OS, and existing remote chats already live here.
 pub const REMOTE_CHATS_SUBPATH: &str = ".local/share/opencode-desktop/chats";
 
+/// OpenCode owns one shared database under its data root.
+pub fn opencode_data_dir() -> Result<PathBuf, String> {
+    resolve("XDG_DATA_HOME", ".local/share", "opencode")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,9 +226,4 @@ mod tests {
         assert!(!REMOTE_CHATS_SUBPATH.starts_with('/'));
         assert!(REMOTE_CHATS_SUBPATH.ends_with("/chats"));
     }
-}
-
-/// OpenCode owns one shared database under its data root.
-pub fn opencode_data_dir() -> Result<PathBuf, String> {
-    resolve("XDG_DATA_HOME", ".local/share", "opencode")
 }

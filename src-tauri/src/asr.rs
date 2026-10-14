@@ -106,6 +106,8 @@ async fn transcribe(
         .ok_or_else(|| "ASR не вернул распознанный текст".into())
 }
 
+// Keep the released Tauri IPC argument names compatible with existing callers.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn transcribe_audio(
     window: tauri::WebviewWindow,

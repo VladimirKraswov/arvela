@@ -9,8 +9,8 @@
 // selection existed simply have no entry, which resolves to OpenCode — that is
 // the whole migration, and it is verified by tests rather than a data rewrite.
 
-import { OPENCODE_BACKEND_ID } from "../agent/opencode";
-import { PI_BACKEND_ID } from "../agent/pi/backend";
+import { OPENCODE_BACKEND_ID } from "../agent/ids";
+import { PI_BACKEND_ID } from "../agent/ids";
 import type { Prefs } from "./prefs";
 
 export type EngineId = string;

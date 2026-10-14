@@ -20,7 +20,13 @@ Never import OpenCode internal database schemas or maintain a fork of its engine
 - `src/agent/`: the backend-neutral `AgentBackend` contract, its capability flags and the descriptor registry. OpenCode (`src/agent/opencode.ts`) is the default; Pi is a second implementation; see `docs/AGENT-BACKENDS.md`. The state layer calls only this contract, so another agent runtime is an added implementation rather than a UI/state rewrite. PTY, `/mcp` and the JSONC config editor are deliberately outside the contract and reach the OpenCode client through `asOpenCodeClient`, which returns null for any other backend.
 - `src/agent/pi/`: the Pi engine — RPC protocol types, a pure translator from Pi's event vocabulary into this app's own event model, the `AgentBackend` implementation and the native bridge. Pi is a local CLI driven over its documented JSONL RPC mode; see `docs/PI-ENGINE.md`.
 - `src/state/engines.ts`: which engine drives a folder or chat (per-chat override → folder preference → OpenCode). Pure and unit-tested; the absence of an entry *is* the migration for pre-existing projects and chats.
-- `src/state/`: the store remains the public command/subscription facade; `types.ts` defines the schema, `initial.ts` constructs transient state from already-loaded preferences, and `modelChoice.ts` selects models from normalized state without I/O. Type exports from `store.ts` remain compatible. Preferences migration/persistence stays in `prefs.ts`; pure stream/history merge stays in `chatReducer.ts`. Connection generations, queues, permission/stop ownership stay in the facade for this incremental extraction; no API normalization moved into selectors.
+- `src/state/`: the store remains the public command/subscription facade; `types.ts` defines the schema, `initial.ts` constructs transient state from already-loaded preferences, and `modelChoice.ts` selects models from normalized state without I/O. Type exports from `store.ts` remain compatible. Preferences migration/persistence stays in `prefs.ts`; pure stream/history merge stays in `chatReducer.ts`.
+- `src/state/promptQueue.ts`: queue editing, persistence, arming and dispatch policy behind a typed `PromptQueueHost`. The store owns the shared snapshot, backend calls, connection generations and permission/stop reconciliation. The controller does not create a second state store or an agent loop.
+- `src/state/submission.ts`: preparation ownership and cancellation. Navigation invalidates an operation even after an away-and-back round trip. Only the operation owning the composer may unlock it. Stop before dispatch cancels preparation; a POST already in flight retains acknowledgement ownership and is never automatically replayed.
+- `src/api/sse.ts`: bounded incremental SSE framing, separate from fetch/reconnect in `events.ts`. Cancellation releases the reader; parser/subscriber failures trigger reconciliation through reconnect. HTTP response-body cancellation remains a transport outcome rather than a JSON schema error.
+- `src/util/keyedQueue.ts`: synchronous reservation of every resource in a mutation. Attachment transfers reserve both scopes before awaiting work, preventing opposite-copy deadlocks and move/add data loss. IndexedDB commits precede successful cache publication.
+- `src/hub/collection.ts` and `identity.ts`: pure collection from one state snapshot and stable Hub identity. Unknown background session metadata is deferred rather than assigned the foreground directory. Native `hub/outbox.rs` validates numeric diagnostics, applies text-sharing policy and rejects enqueue/ack against a different Hub. Package installation also checks the source Hub after asynchronous steps.
+- `src-tauri/src/capabilities/skills.rs`: bounded skill discovery/metadata validation; MCP installation stays in the capabilities facade. Filesystem limits and symlink rejection remain unchanged.
 - `src/capabilities/` and native `capabilities.rs` / `shared_mcp.rs`: explicit shared catalog/adapters, independent agent capability boundaries and bounded MCP proxy. Native auth/paths never become privileged APIs in web pages.
 - `src/outcomes/`, `src/memory/`, `src/hub/` plus native `hub.rs`/`hub/retrieval.rs`: accepted task records, explicit project bindings and approved memory, durable scrubbed telemetry, optional read-only shared memory MCP with per-folder grants. Native Hub/vault credentials never enter MCP arguments; search is off by default and automatic context preparation is not enabled. See `PROJECT-MEMORY.md` and M41 evidence.
 - `src/components/` and feature folders: workspace chrome, projects/sessions, conversation/composer, review/files, terminal, settings.
@@ -38,6 +44,19 @@ Never import OpenCode internal database schemas or maintain a fork of its engine
 Every request/event subscription must carry the intended project directory where applicable. Store messages and parts keyed by session/message/part IDs. A reconnect must resync authoritative history/status and pending requests before consuming further incremental updates; deduplicate replay. Guard request completion with a generation or equivalent to prevent stale results after project switches. Bound retained terminal/log content and render large histories efficiently.
 
 Async submission acknowledgement means accepted, not finished. Handle server errors, uncertain network outcomes, output-length termination, abort and idle separately. Avoid sending a prompt twice on a UI double-click or reconnect. No recursive automated recovery hidden in the frontend.
+
+Queue edits must be durable before removing a draft or its attachment copies.
+Failed persistence leaves the draft editable. Preparation and uncertain delivery
+are distinct states: only preparation can be safely cancelled or retried.
+Workspace identity is the stable SSH/local workspace key, not an ephemeral
+forwarding URL; delayed dictation and attachments use that identity.
+
+`npm run check:architecture` checks TypeScript runtime imports for cycles and
+rejects dependencies from API/agent/util/attachment layers back into UI, control
+or the store facade. Type-only imports do not introduce runtime coupling. CI also
+enforces `cargo clippy --all-targets -- -D warnings`. A narrow documented lint
+exception preserves the released ASR IPC argument names. These checks complement
+behavioral tests; they do not prove correctness or replace platform acceptance.
 
 ## Security and ownership
 

@@ -1,3 +1,6 @@
+import { PromptQueueController } from "./promptQueue";
+import { errText } from "./errors";
+import { SubmissionLifecycle, type Submission } from "./submission";
 import { projectErrorText } from "../api/projectError";
 import type { MessagePart } from '../api/types';
 import { initialState } from './initial';
@@ -212,6 +215,8 @@ class Store {
   }
 
   setProjectEngine(directory: string, engine: EngineId): void {
+    if (!this.state.activeSessionId && directory === this.state.directory && this.engineIdFor() !== engine)
+      this.invalidateSelection();
     this.mutate((x) => ({
       prefs: {
         ...x.prefs,
@@ -253,6 +258,7 @@ class Store {
       this.setProjectEngine(this.state.directory, engine);
       return;
     } else {
+      if (this.engineIdFor() !== engine) this.invalidateSelection();
       this.mutate((x) => ({ prefs: { ...x.prefs, newChatEngine: engine } }));
     }
     this.persistPrefs();
@@ -609,6 +615,8 @@ class Store {
   private editBranchBusy = false;
   private conversationAtBottom = true;
   private directoryGeneration = 0;
+  private selectionGeneration = 0;
+  private submissions = new SubmissionLifecycle();
   private saveTimerQueued = false;
   private connectionGeneration = 0;
   private statusSequence = 0;
@@ -616,10 +624,29 @@ class Store {
   private historyGeneration = 0;
   private hostGeneration = 0;
   private workspacePromise: Promise<boolean> | null = null;
-  private queueArmed = new Set<string>();
-  private queueLocks = new Set<string>();
-  private queueStops = new Map<string, number>();
-  private queueEdits = new Map<string, { id: string; scope: string; directory: string }>();
+  private promptQueue = new PromptQueueController({
+    snapshot: () => this.state,
+    generation: () => this.selectionGeneration,
+    mutate: patch => this.mutate(patch),
+    patchUi: patch => this.patchUi(patch),
+    persistPrefs: () => this.persistPrefs(),
+    getModelChoice: () => this.getModelChoice(),
+    getAgentChoice: () => this.getAgentChoice(),
+    getDraft: () => this.getDraft(),
+    setDraft: text => this.setDraft(text),
+    conversation: () => this.conversation(),
+    engineReady: () => this.engineReady(),
+    engineIdFor: () => this.engineIdFor(),
+    isRunning: id => this.isRunning(id),
+    externalLock: id => this.scheduledLocks.has(id) || this.compactLocks.has(id),
+    pendingInteraction: id => this.pendingInteraction(id),
+    dispatchQueued: (item, steer) => this.dispatchQueued(item, steer),
+    beginSending: () => this.beginSending(),
+    finishSending: operation => this.finishSending(operation),
+  });
+  private get queueArmed() { return this.promptQueue.queueArmed; }
+  private get queueLocks() { return this.promptQueue.queueLocks; }
+  private get queueStops() { return this.promptQueue.queueStops; }
   private accessChanging = false;
   private compactLocks = new Set<string>();
   private historyJournals = new Set<ServerEvent[]>();
@@ -627,7 +654,25 @@ class Store {
   private sidebarRequests = new Map<string, number>();
   private recentRequest = 0;
 
+  private beginSending(): Submission {
+    const operation = this.submissions.begin(this.state.activeSessionId);
+    this.patchUi({ sending: true, sendError: null });
+    return operation;
+  }
+
+  private finishSending(operation: Submission): boolean {
+    if (!this.submissions.finish(operation)) return false;
+    this.patchUi({ sending: false });
+    return true;
+  }
+
+  private invalidateSelection(): void {
+    this.selectionGeneration++;
+    if (this.submissions.cancel()) this.patchUi({ sending: false });
+  }
+
   dispose(): void {
+    this.invalidateSelection();
     this.connectionGeneration++;
     this.directoryGeneration++;
     this.streamAbort?.abort();
@@ -719,6 +764,7 @@ class Store {
       this.patchUi({ toast: "Подключение не найдено." });
       return false;
     }
+    this.invalidateSelection();
     this.connectionGeneration++;
     this.directoryGeneration++;
     this.streamAbort?.abort();
@@ -809,6 +855,7 @@ class Store {
       return false;
     }
     this.queueArmed.clear();
+    this.invalidateSelection();
     const gen = ++this.connectionGeneration;
     this.patchUi({ handoffSource: null });
     this.mutate({ projectSessionLists: {}, recentSessionList: emptyRecentList() });
@@ -1190,6 +1237,7 @@ class Store {
     directory: string | null,
     opts: { restoreSession?: boolean } = {},
   ): Promise<void> {
+    this.invalidateSelection();
     const gen = ++this.directoryGeneration;
     this.listGeneration++; // in-flight list requests belong to the previous project
     this.streamAbort?.abort();
@@ -1320,6 +1368,7 @@ class Store {
       this.markReadIfViewing();
       return;
     }
+    this.invalidateSelection();
     const directory = this.state.directory;
     this.mutate((s) => ({
       activeSessionId: sessionId,
@@ -2148,6 +2197,7 @@ class Store {
         dialog: this.state.ui.piDialog?.sessionId === task.sessionID,
       });
     const preparationStarted = Date.now();
+    const stopped = this.queueStops.get(task.sessionID) ?? 0;
     let sending = false;
     this.scheduledLocks.add(task.sessionID);
     try {
@@ -2185,24 +2235,23 @@ class Store {
       }
       // Browser setup can take time. Re-check authoritative interaction state before dispatch.
       if (!pi) await untilAborted(this.configureSharedTools(task.directory), signal);
+      await untilAborted(modelServices.ensure(task.model.providerID, task.model.modelID, task.engine), signal);
       const [freshStatus, freshPermissions, freshQuestions] = await untilAborted(Promise.all([
         backend.sessionStatuses(task.directory, signal), backend.pendingPermissions(task.directory, signal), backend.pendingQuestions(task.directory, signal),
       ]), signal);
       if (!current() || this.state.ui.sending) return waiting("Подключение или текущая отправка изменились");
       const late = blocker(freshStatus[task.sessionID], freshPermissions, freshQuestions);
       if (late) return waiting(late);
-      if (signal.aborted) return { kind: "cancelled" };
+      if (signal.aborted || (this.queueStops.get(task.sessionID) ?? 0) !== stopped) return { kind: "cancelled" };
       // Use the model/agent the user explicitly saved with this task, including its reasoning variant.
       // No signal: a prompt that may have been delivered is never abandoned as if it was not.
-      sending = true;
       const seq = this.statusSequence;
       try {
-        await modelServices.ensure(task.model.providerID, task.model.modelID, task.engine);
-        if (!current()) return waiting("Подключение изменилось");
         const messageID = newMessageId(), dispatchAt = Date.now();
         (this.state.chat.sessions[task.sessionID] ??= emptySessionChat()).pendingTiming = {
           ...(pi ? {} : {messageID}), dispatchAt, preparationMs: dispatchAt - preparationStarted, queueMs: null,
         };
+        sending = true;
         await backend.prompt(task.sessionID, task.directory, {
           messageID, model: { providerID: task.model.providerID, modelID: task.model.modelID },
           variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
@@ -2289,11 +2338,13 @@ class Store {
     }
     if (attachments.length && !modelInfo) { this.patchUi({ sendError: "Выбранная модель больше не доступна." }); return false; }
     let scope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, selected);
+    const operation = this.beginSending();
     const sameContext = () =>
+      this.submissions.owns(operation) &&
+      this.engineStillActive(backend) &&
       gen === this.directoryGeneration &&
       this.state.directory === directory &&
       this.backend.endpoint === endpoint;
-    this.patchUi({ sending: true, sendError: null });
     let sessionId = this.state.activeSessionId;
     try {
       if (attachments.length) attachments = await attachmentDrafts.selected(initialScope, attachments.map(file => file.id));
@@ -2312,7 +2363,7 @@ class Store {
       if (engineId !== PI_BACKEND_ID) await this.configureSharedTools(directory);
       if (!sameContext() || this.state.activeSessionId !== selected) return false;
       const parts = attachments.length && modelInfo
-        ? await prepareAttachments(attachments, engineId === PI_BACKEND_ID ? { ...modelInfo, capabilities: { ...modelInfo.capabilities, input: { ...modelInfo.capabilities?.input, pdf: false, audio: false, video: false } } } : modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, onProgress, this.archiveStager(backend))
+        ? await prepareAttachments(attachments, engineId === PI_BACKEND_ID ? { ...modelInfo, capabilities: { ...modelInfo.capabilities, input: { ...modelInfo.capabilities?.input, pdf: false, audio: false, video: false } } } : modelInfo, this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, operation.signal, onProgress, this.archiveStager(backend))
         : [];
       if (!sameContext() || this.state.activeSessionId !== selected)
         throw new Error("Чат изменился во время подготовки вложений. Вложения остались в черновике.");
@@ -2335,6 +2386,7 @@ class Store {
         if (!sameContext() || this.state.activeSessionId !== selected)
           return false; // selection changed during creation
         sessionId = created.id;
+        operation.sessionID = created.id;
         this.rememberActivitySession(created);
         this.mutate((s) => ({
           sessions: [created, ...s.sessions.filter((x) => x.id !== created.id)],
@@ -2356,6 +2408,7 @@ class Store {
           scope = nextScope;
         }
       }
+      if (!sameContext() || this.state.activeSessionId !== sessionId) return false;
       const target = sessionId;
       const messageID = newMessageId();
       const dispatchAt = Date.now();
@@ -2363,6 +2416,7 @@ class Store {
         ...(engineId === PI_BACKEND_ID ? {} : {messageID}), dispatchAt,
         preparationMs: dispatchAt - preparationStarted, queueMs: 0,
       };
+      this.submissions.dispatched(operation);
       await backend.prompt(target, directory, {
         messageID,
         model: { providerID: model.providerID, modelID: model.modelID },
@@ -2372,7 +2426,7 @@ class Store {
       });
       if (attachments.length) {
         try { await attachmentDrafts.remove(scope, attachments.map(file => file.id)); }
-        catch { this.patchUi({ toast: "Запрос отправлен, но вложения не удалось убрать из черновика. Удалите их вручную перед следующим запросом." }); }
+        catch { if (sameContext()) this.patchUi({ toast: "Запрос отправлен, но вложения не удалось убрать из черновика. Удалите их вручную перед следующим запросом." }); }
       }
       if (!sameContext()) return true;
       // Accepted: clear only the exact draft revision we submitted, in its original slot.
@@ -2408,9 +2462,8 @@ class Store {
       if (sameContext() && this.state.activeSessionId === sessionId) this.patchUi({ sendError: errText(e) });
       return false;
     } finally {
-      onProgress("");
-      if (this.engineStillActive(backend)) {
-        this.patchUi({ sending: false });
+      if (this.finishSending(operation)) {
+        onProgress("");
         void this.drainQueue();
       }
     }
@@ -2473,6 +2526,7 @@ class Store {
   }
 
   async stopSession(sessionId: string): Promise<void> {
+    if (this.submissions.cancel(sessionId)) this.patchUi({ sending: false });
     this.queueStops.set(sessionId, (this.queueStops.get(sessionId) ?? 0) + 1);
     this.queueArmed.delete(sessionId);
     // Abort is directory-scoped: a session started in another project must be
@@ -2593,10 +2647,10 @@ class Store {
     this.persistPrefs();
   }
   /** Dictation is bound to its original draft even if navigation occurs meanwhile. */
-  appendDictation(endpoint: string, key: string, text: string) {
+  appendDictation(workspace: string, key: string, text: string) {
     if (!text.trim()) return;
     this.mutate((s) => {
-      if (s.prefs.endpoint === endpoint)
+      if ((s.prefs.workspaceKey ?? s.prefs.endpoint) === workspace)
         return {
           prefs: {
             ...s.prefs,
@@ -2606,13 +2660,13 @@ class Store {
             },
           },
         };
-      const old = s.prefs.endpointState?.[endpoint];
+      const old = s.prefs.endpointState?.[workspace];
       return {
         prefs: {
           ...s.prefs,
           endpointState: {
             ...s.prefs.endpointState,
-            [endpoint]: {
+            [workspace]: {
               ...old,
               drafts: {
                 ...old?.drafts,
@@ -2626,293 +2680,32 @@ class Store {
     this.persistPrefs();
   }
 
-  getQueue(id = this.state.activeSessionId): QueuedPrompt[] {
-    return id ? (this.state.prefs.queues?.[id] ?? []) : [];
-  }
-  isQueueArmed(id = this.state.activeSessionId) {
-    return !!id && this.queueArmed.has(id);
-  }
-  private writeQueue(id: string, list: QueuedPrompt[]) {
-    this.mutate((s) => ({
-      prefs: { ...s.prefs, queues: { ...s.prefs.queues, [id]: list } },
-    }));
-    this.persistPrefs();
-  }
+  getQueue(id = this.state.activeSessionId): QueuedPrompt[] { return this.promptQueue.getQueue(id); }
+  isQueueArmed(id = this.state.activeSessionId): boolean { return this.promptQueue.isQueueArmed(id); }
   enqueuePrompt(text: string, attachments?: QueuedPrompt["attachments"], captured?: Pick<QueuedPrompt, "model" | "agent">): boolean {
-    const id = this.state.activeSessionId,
-      directory = this.state.directory,
-      model = captured?.model ?? this.getModelChoice();
-    if (
-      !id ||
-      !directory ||
-      !model ||
-      (!text.trim() && !attachments?.files.length) ||
-      this.getQueue(id).length >= 20
-    )
-      return false;
-    const item: QueuedPrompt = {
-      id: newMessageId(),
-      text: text.trim() || "Проанализируй приложенные файлы.",
-      attachments,
-      sessionID: id,
-      directory,
-      model: { ...model },
-      agent: captured ? captured.agent : this.getAgentChoice() ?? undefined,
-      state: "ready",
-      queuedAt: Date.now(),
-    };
-    this.writeQueue(id, [...this.getQueue(id), item]);
-    this.queueArmed.add(id);
-    if (this.getDraft() === text) this.setDraft("");
-    void this.drainQueue();
-    return true;
+    return this.promptQueue.enqueuePrompt(text, attachments, captured);
   }
-  async enqueueWithAttachments(text: string, files: DraftAttachment[]): Promise<boolean> {
-    if (this.getQueueEdit()) return this.applyQueueEdit(text, files);
-    if (!files.length) return this.enqueuePrompt(text);
-    const sid = this.state.activeSessionId, directory = this.state.directory;
-    if (!sid || !directory || this.state.ui.sending || this.getQueue(sid).length >= 20) return false;
-    const workspace = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
-    const backend = this.conversation(), gen = this.directoryGeneration;
-    const model = this.getModelChoice();
-    if (!model) return false;
-    const captured = { model: { ...model }, agent: this.getAgentChoice() ?? undefined };
-    const from = attachmentScope(workspace, directory, sid);
-    const target = `${from}:queue:${newMessageId()}`;
-    const current = () => this.state.activeSessionId === sid && this.state.directory === directory
-      && gen === this.directoryGeneration && this.conversation() === backend;
-    this.patchUi({ sending: true, sendError: null });
-    let copies: DraftAttachment[] = [], queued: string | undefined;
-    try {
-      files = await attachmentDrafts.selected(from, files.map(file => file.id));
-      if (!current() || (!text.trim() && !files.length)) return false;
-      if (files.length) copies = await attachmentDrafts.copy(from, target, files.map(file => file.id));
-      if (!current()) return false;
-      const metadata = copies.length ? { scope: target, files: copies.map(({blob: _blob, ...file}) => file) } : undefined;
-      // Block automatic dispatch until both IndexedDB and preferences are durable.
-      if (!this.enqueuePrompt(text, metadata, captured)) return false;
-      queued = this.getQueue(sid)[this.getQueue(sid).length - 1].id;
-      savePrefs(this.state.prefs);
-      if (!flushPrefs()) {
-        this.writeQueue(sid, this.getQueue(sid).filter(item => item.id !== queued));
-        if (!this.getDraft()) this.setDraft(text);
-        queued = undefined;
-        throw new Error("Не удалось сохранить очередь. Вложения остались в черновике.");
-      }
-      // Remove only captured IDs; files added later belong to the next draft.
-      try { await attachmentDrafts.remove(from, files.map(file => file.id)); }
-      catch { if (current()) this.patchUi({ toast: "Запрос в очереди; копии вложений остались в черновике. Уберите их перед следующим запросом." }); }
-      return true;
-    } catch (error) {
-      if (current()) this.patchUi({ sendError: errText(error) });
-      return false;
-    } finally {
-      if (!queued && copies.length) await attachmentDrafts.remove(target, copies.map(file => file.id)).catch(() => {});
-      if (current()) { this.patchUi({ sending: false }); void this.drainQueue(); }
-      else if (this.engineStillActive(backend)) this.patchUi({ sending: false });
-    }
-  }
-  async removeQueued(id: string) {
-    const sid = this.state.activeSessionId;
-    if (!sid || this.queueLocks.has(sid)) return;
-    const item = this.getQueue(sid).find(x => x.id === id);
-    const previous = this.getQueue(sid);
-    this.writeQueue(sid, previous.filter(x => x.id !== id));
-    savePrefs(this.state.prefs);
-    if (!flushPrefs()) { this.writeQueue(sid, previous); this.patchUi({ sendError: "Не удалось сохранить очередь." }); return; }
-    if (item?.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
-  }
-  isQueueLocked() { return !!this.state.activeSessionId && this.queueLocks.has(this.state.activeSessionId); }
-  private releaseQueueLock(sid: string) {
-    this.queueLocks.delete(sid);
-    this.mutate(() => ({})); // Operation completion must re-enable the visible controls.
-  }
-  async removeQueuedAttachment(id: string, fileID: string) {
-    const sid = this.state.activeSessionId;
-    if (!sid || this.queueLocks.has(sid) || this.state.ui.sending) return;
-    const item = this.getQueue(sid).find(q => q.id === id);
-    if (!item || item.state !== 'ready' || !item.attachments?.files.some(f => f.id === fileID)) return;
-    const directory = this.state.directory, gen = this.directoryGeneration;
-    this.queueLocks.add(sid);
-    try {
-      const previous = this.getQueue(sid), files = item.attachments.files.filter(f => f.id !== fileID);
-      this.writeQueue(sid, previous.map(q => q.id === id ? {...q, attachments: files.length ? {...item.attachments!, files} : undefined, error: undefined} : q));
-      savePrefs(this.state.prefs);
-      if (!flushPrefs()) { this.writeQueue(sid, previous); throw Error('Не удалось сохранить удаление вложения.'); }
-      await attachmentDrafts.remove(item.attachments.scope, [fileID]);
-      if (gen === this.directoryGeneration && directory === this.state.directory && sid === this.state.activeSessionId)
-        this.patchUi({sendError: null});
-    } catch (error) {
-      if (gen === this.directoryGeneration && sid === this.state.activeSessionId) this.patchUi({sendError: errText(error)});
-    } finally { this.releaseQueueLock(sid); }
-  }
-  getQueueEdit() {
-    const edit = this.state.activeSessionId ? this.queueEdits.get(this.state.activeSessionId) : undefined;
-    return edit?.directory === this.state.directory ? edit : undefined;
-  }
-  async editQueued(id: string) {
-    const item = this.getQueue().find(x => x.id === id);
-    if (!item || item.state !== "ready" || this.getDraft().trim() || this.state.ui.sending || this.queueLocks.has(item.sessionID)) return false;
-    const sid = item.sessionID, directory = item.directory, gen = this.directoryGeneration;
-    const scope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, sid);
-    const current = () => gen === this.directoryGeneration && sid === this.state.activeSessionId && directory === this.state.directory;
-    this.queueLocks.add(sid);
-    let copies: DraftAttachment[] = [], editing = false;
-    try {
-      await attachmentDrafts.ensure(scope);
-      if (!current() || this.getDraft().trim() || attachmentDrafts.snapshot(scope).length) return false;
-      if (item.attachments) copies = await attachmentDrafts.copy(item.attachments.scope, scope, item.attachments.files.map(file => file.id));
-      if (!current() || this.getDraft().trim()) return false;
-      // Keep the original persisted entry and its position until Apply succeeds.
-      this.queueEdits.set(sid, { id, scope, directory });
-      editing = true;
-      this.setDraft(item.text);
-      return true;
-    } catch (error) { if (current()) this.patchUi({ sendError: errText(error) }); return false; }
-    finally {
-      if (!editing) {
-        this.releaseQueueLock(sid);
-        if (copies.length) await attachmentDrafts.remove(scope, copies.map(file => file.id)).catch(() => {});
-      }
-    }
-  }
-  async cancelQueueEdit() {
-    const edit = this.getQueueEdit(), sid = this.state.activeSessionId;
-    if (!edit || !sid || this.state.ui.sending) return;
-    const files = attachmentDrafts.snapshot(edit.scope);
-    this.queueEdits.delete(sid);
-    this.releaseQueueLock(sid);
-    this.setDraft("");
-    await attachmentDrafts.remove(edit.scope, files.map(file => file.id)).catch(() => {});
-    void this.drainQueue();
-  }
-  async applyQueueEdit(text: string, files: DraftAttachment[], drain = true): Promise<boolean> {
-    const edit = this.getQueueEdit(), sid = this.state.activeSessionId;
-    if (!edit || !sid || this.state.ui.sending || (!text.trim() && !files.length)) return false;
-    const item = this.getQueue(sid).find(q => q.id === edit.id);
-    if (!item || item.state !== "ready") return false;
-    const gen = this.directoryGeneration, backend = this.conversation();
-    const current = () => gen === this.directoryGeneration && sid === this.state.activeSessionId && this.getQueueEdit() === edit;
-    const target = `${edit.scope}:queue:${newMessageId()}`;
-    let copies: DraftAttachment[] = [], saved = false;
-    this.patchUi({ sending: true, sendError: null });
-    try {
-      files = await attachmentDrafts.selected(edit.scope, files.map(file => file.id));
-      if (!text.trim() && !files.length) return false;
-      if (files.length) copies = await attachmentDrafts.copy(edit.scope, target, files.map(file => file.id));
-      if (!current()) return false;
-      const previous = this.getQueue(sid);
-      const attachments = copies.length ? { scope: target, files: copies.map(({ blob: _blob, ...file }) => file) } : undefined;
-      this.writeQueue(sid, previous.map(q => q.id === item.id ? { ...q, text: text.trim() || "Проанализируй приложенные файлы.", attachments, error: undefined } : q));
-      savePrefs(this.state.prefs);
-      if (!flushPrefs()) {
-        this.writeQueue(sid, previous);
-        throw new Error("Не удалось сохранить изменения. Исходный запрос остался в очереди.");
-      }
-      saved = true;
-      this.queueEdits.delete(sid);
-      this.releaseQueueLock(sid);
-      if (this.getDraft() === text) this.setDraft("");
-      await attachmentDrafts.remove(edit.scope, files.map(file => file.id)).catch(() => {});
-      if (item.attachments) await attachmentDrafts.remove(item.attachments.scope, item.attachments.files.map(file => file.id)).catch(() => {});
-      return true;
-    } catch (error) { if (current()) this.patchUi({ sendError: errText(error) }); return false; }
-    finally {
-      if (!saved && copies.length) await attachmentDrafts.remove(target, copies.map(file => file.id)).catch(() => {});
-      if (gen === this.directoryGeneration && sid === this.state.activeSessionId) {
-        this.patchUi({ sending: false });
-        if (saved && drain) void this.drainQueue();
-      } else if (this.engineStillActive(backend)) this.patchUi({ sending: false });
-    }
-  }
-  /** Explicit recovery acknowledges the old failure; future error events still pause. */
-  resumeQueue(useSelectedModel = false) {
-    const sid = this.state.activeSessionId;
-    const queue = this.getQueue();
-    if (!sid || !queue.length || queue[0].state !== "ready" || this.queueLocks.has(sid)) return;
-    const previous = queue;
-    if (useSelectedModel) {
-      const model = this.getModelChoice();
-      if (!model) return;
-      this.writeQueue(sid, queue.map(item => item.state === "ready"
-        ? { ...item, model: { ...model }, error: undefined } : item));
-      if (!flushPrefs()) {
-        this.writeQueue(sid, previous);
-        this.patchUi({ sendError: "Не удалось сохранить выбор модели. Очередь не запущена." });
-        return;
-      }
-    }
-    const chat = this.state.chat.sessions[sid];
-    if (chat) chat.lastError = null;
-    this.queueArmed.add(sid);
-    this.patchUi({ sendError: null });
-    void this.drainQueue();
-  }
-  queueRecoveryReason(): string | null {
-    if (this.isQueueArmed() || !this.getQueue().length) return null;
-    const sid = this.state.activeSessionId;
-    const error = (sid ? this.state.chat.sessions[sid]?.lastError : null) || this.getQueue()[0]?.error;
-    if (!error) return null;
-    if (/insufficient.?balance|insufficient.?credits|payment required/i.test(error))
-      return "Недостаточно средств у провайдера. Пополните баланс или выберите другую модель и продолжите очередь. Задания сохранены.";
-    return "Очередь остановлена после ошибки. Устраните причину и продолжите; задания сохранены.";
-  }
-  queueHasDifferentModel(): boolean {
-    const model = this.getModelChoice();
-    return !!model && this.getQueue().some(item => item.state === "ready" &&
-      (item.model.providerID !== model.providerID || item.model.modelID !== model.modelID || item.model.variant !== model.variant));
-  }
-  private async drainQueue(explicit = false) {
-    const sid = this.state.activeSessionId;
-    if (
-      !sid ||
-      !this.queueArmed.has(sid) ||
-      this.isRunning(sid) ||
-      this.state.ui.sending ||
-      this.queueLocks.has(sid) ||
-      this.scheduledLocks.has(sid) ||
-      this.compactLocks.has(sid)
-    )
-      return;
-    if (
-      !this.engineReady() ||
-      (this.engineIdFor() !== PI_BACKEND_ID && !!this.state.connection.statusError) ||
-      (this.engineIdFor() !== PI_BACKEND_ID && this.state.connection.streamState !== "open")
-    )
-      return;
-    if (!explicit && this.state.chat.sessions[sid]?.lastError) {
-      this.queueArmed.delete(sid);
-      return;
-    }
-    const pending = this.pendingInteraction(sid);
-    if (pending.permissions.length || pending.questions.length) return;
-    const item = this.getQueue(sid)[0];
-    if (
-      !item ||
-      item.state !== "ready" ||
-      item.directory !== this.state.directory
-    )
-      return;
-    await this.dispatchQueued(item, false);
-  }
-  async steerQueued(id: string) {
-    if (this.state.ui.sending) return;
-    const edit = this.getQueueEdit(), sid = this.state.activeSessionId, gen = this.directoryGeneration;
-    const stopped = sid ? this.queueStops.get(sid) ?? 0 : 0;
-    if (edit) {
-      if (edit.id !== id) { this.patchUi({toast: 'Завершите редактирование текущего запроса.'}); return; }
-      if (!await this.applyQueueEdit(this.getDraft(), attachmentDrafts.snapshot(edit.scope), false)) return;
-      if (gen !== this.directoryGeneration || sid !== this.state.activeSessionId || (sid && (this.queueStops.get(sid) ?? 0) !== stopped)) return;
-    }
-    const item = this.getQueue().find((x) => x.id === id);
-    if (!item || item.state !== "ready") return;
-    await this.dispatchQueued(item, true);
-  }
+  enqueueWithAttachments(text: string, files: DraftAttachment[]): Promise<boolean> { return this.promptQueue.enqueueWithAttachments(text, files); }
+  removeQueued(id: string): Promise<void> { return this.promptQueue.removeQueued(id); }
+  isQueueLocked(): boolean { return this.promptQueue.isQueueLocked(); }
+  removeQueuedAttachment(id: string, fileID: string): Promise<void> { return this.promptQueue.removeQueuedAttachment(id, fileID); }
+  getQueueEdit() { return this.promptQueue.getQueueEdit(); }
+  editQueued(id: string) { return this.promptQueue.editQueued(id); }
+  cancelQueueEdit(): Promise<void> { return this.promptQueue.cancelQueueEdit(); }
+  applyQueueEdit(text: string, files: DraftAttachment[], drain = true): Promise<boolean> { return this.promptQueue.applyQueueEdit(text, files, drain); }
+  resumeQueue(useSelectedModel = false): void { this.promptQueue.resumeQueue(useSelectedModel); }
+  queueRecoveryReason(): string | null { return this.promptQueue.queueRecoveryReason(); }
+  queueHasDifferentModel(): boolean { return this.promptQueue.queueHasDifferentModel(); }
+  steerQueued(id: string): Promise<void> { return this.promptQueue.steerQueued(id); }
+  private drainQueue(): Promise<void> { return this.promptQueue.drainQueue(); }
+  private writeQueue(id: string, list: QueuedPrompt[]): void { this.promptQueue.writeQueue(id, list); }
+  private releaseQueueLock(sid: string): void { this.promptQueue.releaseQueueLock(sid); }
+
   private async dispatchQueued(item: QueuedPrompt, steer: boolean) {
     const sid = item.sessionID, engineId = this.engineIdFor(sid, item.directory),
       backend = this.engine(engineId), workspaceBackend = this.backend,
-      gen = this.directoryGeneration;
-    const current = () => gen === this.directoryGeneration && workspaceBackend === this.backend
+      gen = this.selectionGeneration;
+    const current = () => gen === this.selectionGeneration && workspaceBackend === this.backend
       && sid === this.state.activeSessionId && item.directory === this.state.directory
       && engineId === this.engineIdFor();
     if (
@@ -3542,13 +3335,7 @@ class Store {
   }
 }
 
-export function errText(e: unknown): string {
-  if (e instanceof ApiError)
-    return e.status === 404 ? "Not found on the OpenCode server" : e.detail;
-  if (e instanceof ConnectionError) return e.message;
-  if (e instanceof Error) return e.message;
-  return String(e);
-}
+export { errText } from "./errors";
 
 export const store = new Store();
 const stopCatalogPersistence = modelServices.subscribe(() => store.syncModelServiceCatalogs());

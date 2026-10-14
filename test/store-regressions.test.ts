@@ -24,6 +24,8 @@ beforeEach(async () => {
   vi.restoreAllMocks();
   vi.resetModules();
   captured.stream = null;
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) });
   store = (await import("../src/state/store")).store;
   store.state = {
     ...store.state,
@@ -129,6 +131,92 @@ it("R5: accepting a prompt must preserve a new draft typed while awaiting acknow
   expect(store.getDraft()).toBe("next task typed during request");
 });
 
+it('Stop during manual preparation prevents a late POST and retains the draft', async () => {
+  store.state = { ...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], connectedProviderIds: ['local-qwen-next'] };
+  store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
+  store.setDraft('keep this draft');
+  let ready!: () => void;
+  vi.mocked(store.configureSharedTools).mockImplementationOnce(() => new Promise<void>(resolve => { ready = resolve; }));
+  vi.spyOn(store.client, 'prompt').mockResolvedValue(undefined);
+  vi.spyOn(store.client, 'abort').mockResolvedValue(undefined);
+  const sending = store.sendPrompt('keep this draft');
+  await flush();
+  await store.stopSession('ses_a');
+  ready();
+  expect(await sending).toBe(false);
+  expect(store.client.prompt).not.toHaveBeenCalled();
+  expect(store.getDraft()).toBe('keep this draft');
+});
+
+it('leaving and returning to a chat invalidates its unfinished manual preparation', async () => {
+  store.state = { ...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], connectedProviderIds: ['local-qwen-next'] };
+  store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
+  let ready!: () => void;
+  vi.mocked(store.configureSharedTools).mockImplementationOnce(() => new Promise<void>(resolve => { ready = resolve; }));
+  vi.spyOn(store.client, 'prompt').mockResolvedValue(undefined);
+  const sending = store.sendPrompt('old preparation');
+  await flush();
+  await store.selectSession('ses_b');
+  await store.selectSession('ses_a');
+  ready();
+  expect(await sending).toBe(false);
+  expect(store.client.prompt).not.toHaveBeenCalled();
+});
+
+it('completion of cancelled preparation cannot unlock a newer send in another chat', async () => {
+  store.state = { ...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], connectedProviderIds: ['local-qwen-next'] };
+  store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
+  const ready: Array<() => void> = [];
+  vi.mocked(store.configureSharedTools).mockImplementation(() => new Promise<void>(resolve => { ready.push(resolve); }));
+  const prompt = vi.spyOn(store.client, 'prompt').mockResolvedValue(undefined);
+  const old = store.sendPrompt('old'); await flush();
+  await store.selectSession('ses_b');
+  store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
+  const current = store.sendPrompt('current'); await flush();
+  expect(ready).toHaveLength(2);
+  ready[0](); await old;
+  expect(store.state.ui.sending).toBe(true);
+  ready[1](); expect(await current).toBe(true);
+  expect(prompt).toHaveBeenCalledTimes(1);
+  expect(prompt.mock.calls[0][0]).toBe('ses_b');
+  expect(store.state.ui.sending).toBe(false);
+});
+
+it('leaving and returning to a chat invalidates unfinished queued preparation', async () => {
+  store.state = { ...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], statuses: { ses_a: { type: 'busy' } }, connectedProviderIds: ['local-qwen-next'] };
+  store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
+  const { modelServices } = await import('../src/models/services');
+  let ready!: () => void;
+  vi.spyOn(modelServices, 'ensure').mockImplementationOnce(() => new Promise<void>(resolve => { ready = resolve; }));
+  const prompt = vi.spyOn(store.client, 'prompt').mockResolvedValue(undefined);
+  expect(store.enqueuePrompt('queued')).toBe(true);
+  const sending = store.steerQueued(store.getQueue()[0].id);
+  await flush();
+  await store.selectSession('ses_b'); await store.selectSession('ses_a');
+  ready(); await sending;
+  expect(prompt).not.toHaveBeenCalled();
+  expect(store.getQueue()[0].state).toBe('ready');
+  expect(store.isQueueArmed()).toBe(false);
+});
+
+it('Stop after a POST keeps acknowledgement ownership and clears only its submitted draft', async () => {
+  store.state = { ...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], connectedProviderIds: ['local-qwen-next'] };
+  store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
+  store.setDraft('submitted');
+  let acknowledge!: () => void;
+  const prompt = vi.spyOn(store.client, 'prompt').mockImplementation(() => new Promise<void>(resolve => { acknowledge = resolve; }));
+  vi.spyOn(store.client, 'abort').mockResolvedValue(undefined);
+  const sending = store.sendPrompt('submitted');
+  await vi.waitFor(() => expect(prompt).toHaveBeenCalledOnce());
+  await store.stopSession('ses_a');
+  expect(store.state.ui.sending).toBe(true);
+  acknowledge();
+  expect(await sending).toBe(true);
+  expect(store.getDraft()).toBe('');
+  expect(store.state.ui.sending).toBe(false);
+  expect(prompt).toHaveBeenCalledOnce();
+});
+
 it("waits for local browser MCP attachment before delivering the first prompt", async () => {
   const platform = await import("../src/native/platform");
   vi.spyOn(platform, "isNative").mockReturnValue(true);
@@ -198,6 +286,32 @@ it("scheduled prompts preserve drafts, attachments and the saved reasoning model
  scheduledSetup();store.setDraft("user typing");const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
  expect(await store.runScheduledTask(scheduled())).toEqual({kind:"sent"});expect(store.getDraft()).toBe("user typing");
  expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"}]}));
+});
+it('cancelling a scheduled task during model readiness never sends it afterward', async () => {
+  scheduledSetup();
+  const { modelServices } = await import('../src/models/services');
+  let ready!: () => void;
+  vi.spyOn(modelServices, 'ensure').mockImplementationOnce(() => new Promise<void>(resolve => { ready = resolve; }));
+  const prompt = vi.spyOn(store.client, 'prompt').mockResolvedValue(undefined);
+  const cancel = new AbortController();
+  const operation = store.runScheduledTask(scheduled(), cancel.signal);
+  await vi.waitFor(() => expect(ready).toBeTypeOf('function'));
+  cancel.abort(); ready();
+  expect(await operation).toEqual({ kind: 'cancelled' });
+  expect(prompt).not.toHaveBeenCalled();
+});
+it('Stop during scheduled readiness prevents a late POST even without scheduler cancellation', async () => {
+  scheduledSetup();
+  const { modelServices } = await import('../src/models/services');
+  let ready!: () => void;
+  vi.spyOn(modelServices, 'ensure').mockImplementationOnce(() => new Promise<void>(resolve => { ready = resolve; }));
+  const prompt = vi.spyOn(store.client, 'prompt').mockResolvedValue(undefined);
+  vi.spyOn(store.client, 'abort').mockResolvedValue(undefined);
+  const operation = store.runScheduledTask(scheduled());
+  await vi.waitFor(() => expect(ready).toBeTypeOf('function'));
+  await store.stopSession('ses_a'); ready();
+  expect(await operation).toEqual({ kind: 'cancelled' });
+  expect(prompt).not.toHaveBeenCalled();
 });
 it("scheduled prompts never route to another server or bypass a pending permission",async()=>{
  scheduledSetup();const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);

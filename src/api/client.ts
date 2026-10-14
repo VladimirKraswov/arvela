@@ -174,7 +174,10 @@ export class OpenCodeClient {
       opts.onResponse?.(res);
       try {
         return (await res.json()) as T;
-      } catch {
+      } catch (error) {
+        // A body read can fail after headers arrived. Preserve cancellation and
+        // network failures; only JSON syntax errors indicate a malformed body.
+        if (ctrl.signal.aborted || !(error instanceof SyntaxError)) throw error;
         // The server answered, but not with the documented JSON body. Reporting
         // this as "cannot reach the server" would send the user hunting the
         // wrong problem (and hide a real API incompatibility).

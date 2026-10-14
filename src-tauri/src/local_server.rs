@@ -46,7 +46,7 @@ fn parse_endpoint(raw: &str) -> Result<LocalEndpoint, String> {
 }
 
 fn app_lock(dir: &Path) -> Result<File, String> {
-    fs::create_dir_all(&dir).map_err(|e| format!("Не удалось открыть каталог приложения: {e}"))?;
+    fs::create_dir_all(dir).map_err(|e| format!("Не удалось открыть каталог приложения: {e}"))?;
     let mut options = OpenOptions::new();
     options.read(true).write(true).create(true);
     #[cfg(unix)]

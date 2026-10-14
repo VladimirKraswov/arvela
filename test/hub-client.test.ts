@@ -16,6 +16,31 @@ beforeEach(()=>{invoke.mockReset();registry=emptyRegistry();invoke.mockImplement
  return {};
 });});
 describe('shared Hub adapters',()=>{
+ it('never registers an old Hub package under a newly selected Hub',async()=>{
+  let changed=false;
+  const original=invoke.getMockImplementation()!;
+  invoke.mockImplementation(async(cmd,args)=>{
+   if(cmd==='hub_config'&&!args.config)return changed?{...c,endpoint:'https://other'}:c;
+   const result=await original(cmd,args);
+   if(cmd==='hub_package')changed=true;
+   return result;
+  });
+  await expect(install(item)).rejects.toThrow('Hub');
+  expect(invoke.mock.calls.some(call=>call[0]==='shared_save'||(call[0]==='hub_config'&&call[1].config))).toBe(false);
+ });
+ it('rejects stale catalog actions before downloading a package',async()=>{
+  await expect(install(item,true,'stale-profile')).rejects.toThrow('Hub');
+  expect(invoke.mock.calls.some(call=>call[0]==='hub_package'||call[0]==='shared_save')).toBe(false);
+ });
+ it('does not write installation metadata into a Hub changed after registry commit',async()=>{
+  let changed=false;const original=invoke.getMockImplementation()!;
+  invoke.mockImplementation(async(cmd,args)=>{
+   if(cmd==='hub_config'&&!args.config)return changed?{...c,endpoint:'https://other'}:c;
+   const result=await original(cmd,args);if(cmd==='shared_save')changed=true;return result;
+  });
+  await expect(install(item)).rejects.toThrow('Hub');
+  expect(invoke.mock.calls.some(call=>call[0]==='hub_config'&&call[1].config)).toBe(false);
+ });
  it('preserves unrelated sources and installs through CAS',async()=>{registry.sources=[{id:'foreign',path:'/owned',enabled:true}];await install(item);expect(registry.sources[0].id).toBe('foreign');expect(registry.sources[1].id).toBe(sourceId(item.id));expect(invoke).toHaveBeenCalledWith('shared_save',expect.objectContaining({expected:'original'}));});
  it('background update preserves owner disabling a source',async()=>{registry.sources=[{id:sourceId(item.id),path:'/data/hub/packages/skill-abc/old',enabled:false}];await install(item,true);expect(registry.sources[0].enabled).toBe(false);});
  it('cannot take over a foreign source with a colliding id',async()=>{registry.sources=[{id:sourceId(item.id),path:'/owned',enabled:true}];await expect(install(item)).rejects.toThrow('занято');expect(invoke.mock.calls.some(c=>c[0]==='shared_save')).toBe(false);});

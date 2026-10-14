@@ -2,6 +2,7 @@
 // EventSource cannot carry per-connection state or be cleanly aborted across
 // project switches, so we parse the SSE wire format from a fetch stream.
 
+import { SseDecoder } from "./sse";
 import type { ServerEvent } from "./types";
 
 export interface GlobalEvent {
@@ -24,69 +25,76 @@ export interface EventStreamOptions<T = ServerEvent> {
 export async function runEventStream<T = ServerEvent>(opts: EventStreamOptions<T>): Promise<void> {
   const maxBackoff = opts.maxBackoffMs ?? 15000;
   let attempt = 0;
-  while (!opts.signal.aborted) {
-    opts.onState(attempt === 0 ? "connecting" : "reconnecting");
-    try {
-      const res = await fetch(opts.url, {
-        headers: { ...opts.headers, Accept: "text/event-stream" },
-        signal: opts.signal,
-        cache: "no-store",
-      });
-      if (!res.ok || !res.body) {
-        throw new Error(`event stream HTTP ${res.status}`);
-      }
-      opts.onState("open");
-      attempt = 0;
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        if (buffer.length > 4_000_000) buffer = buffer.slice(-1_000_000); // bounded retention
-        let match: RegExpExecArray | null;
-        while ((match = /\r?\n\r?\n/.exec(buffer))) {
-          const chunk = buffer.slice(0, match.index);
-          buffer = buffer.slice(match.index + match[0].length);
-          const dataLines = chunk
-            .split(/\r?\n/)
-            .filter((l) => l.startsWith("data:"))
-            .map((l) => l.slice(5).replace(/^ /, ""));
-          if (dataLines.length === 0) continue;
-          const data = dataLines.join("\n");
-          if (!data) continue;
-          try {
-            const parsed = JSON.parse(data) as ServerEvent | GlobalEvent;
-            if (parsed && (typeof (parsed as ServerEvent).type === "string" ||
-                typeof (parsed as GlobalEvent).payload?.type === "string"))
-              opts.onEvent(parsed as T);
-          } catch {
-            // Malformed frame: ignore, resync on next frame.
-          }
+  try {
+    while (!opts.signal.aborted) {
+      opts.onState(attempt === 0 ? "connecting" : "reconnecting");
+      let openedAt: number | undefined;
+      try {
+        const res = await fetch(opts.url, {
+          headers: { ...opts.headers, Accept: "text/event-stream" },
+          signal: opts.signal,
+          cache: "no-store",
+        });
+        if (!res.ok || !res.body) {
+          await res.body?.cancel();
+          throw new Error(`event stream HTTP ${res.status}`);
         }
+        const reader = res.body.getReader();
+        const cancel = () => { void reader.cancel().catch(() => {}); };
+        opts.signal.addEventListener("abort", cancel, { once: true });
+        try {
+          if (opts.signal.aborted) { cancel(); break; }
+          openedAt = Date.now();
+          opts.onState("open");
+          const decoder = new TextDecoder();
+          const frames = new SseDecoder();
+          while (!opts.signal.aborted) {
+            const { done, value } = await reader.read();
+            if (done || opts.signal.aborted) break;
+            frames.push(decoder.decode(value, { stream: true }), data => {
+              if (opts.signal.aborted) return false;
+              let parsed: ServerEvent | GlobalEvent;
+              try { parsed = JSON.parse(data); }
+              // A lost status/part cannot be safely skipped. Reconnect lets the
+              // store reconcile history without leaking the payload into logs.
+              catch { throw new Error('Invalid event stream JSON'); }
+              if (parsed && (typeof (parsed as ServerEvent).type === "string" ||
+                  typeof (parsed as GlobalEvent).payload?.type === "string"))
+                opts.onEvent(parsed as T);
+              return !opts.signal.aborted;
+            });
+          }
+        } finally {
+          opts.signal.removeEventListener("abort", cancel);
+          // EOF, cancellation, parser failure and subscriber failure all release
+          // the transport. No unread body keeps an obsolete subscription alive.
+          await reader.cancel().catch(() => {});
+          reader.releaseLock();
+        }
+        if (!opts.signal.aborted) opts.onState("reconnecting", "stream ended");
+      } catch (error) {
+        if (opts.signal.aborted) break;
+        opts.onState("error", error instanceof Error ? error.message : "Event stream failed");
       }
-      if (!opts.signal.aborted) opts.onState("reconnecting", "stream ended");
-    } catch (e) {
       if (opts.signal.aborted) break;
-      opts.onState("error", (e as Error)?.message);
+      // Merely getting HTTP headers is not a healthy stream. Immediate EOFs must
+      // back off too, otherwise a broken endpoint is hammered indefinitely.
+      if (openedAt !== undefined && Date.now() - openedAt >= 10000) attempt = 0;
+      attempt += 1;
+      const delay = Math.min(maxBackoff,
+        1000 * 2 ** Math.min(attempt, 6) * (0.75 + Math.random() * 0.5));
+      await new Promise<void>(resolve => {
+        const done = () => {
+          clearTimeout(timer);
+          opts.signal.removeEventListener("abort", done);
+          resolve();
+        };
+        const timer = setTimeout(done, delay);
+        opts.signal.addEventListener("abort", done, { once: true });
+        if (opts.signal.aborted) done();
+      });
     }
-    if (opts.signal.aborted) break;
-    attempt += 1;
-    const delay =
-      Math.min(1000 * 2 ** Math.min(attempt, 6), maxBackoff) *
-      (0.75 + Math.random() * 0.5);
-    await new Promise<void>((resolve) => {
-      const done = () => {
-        clearTimeout(t);
-        opts.signal.removeEventListener("abort", done);
-        resolve();
-      };
-      const t = setTimeout(done, delay);
-      opts.signal.addEventListener("abort", done, { once: true });
-    });
-  }
-  opts.onState("closed");
+  } finally { opts.onState("closed"); }
 }
 
 export function eventStreamUrl(

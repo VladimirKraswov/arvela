@@ -9,7 +9,7 @@ fn command(
     let (_, canonical) = key_for("project", Some(directory))?;
     let directory = canonical.ok_or("Откройте папку проекта")?;
     if Path::new(&directory).parent().is_none()
-        || PathBuf::from(&directory) == crate::paths::user_home()?
+        || Path::new(&directory) == crate::paths::user_home()?
     {
         return Err("Выберите папку проекта, а не домашнюю папку или корень диска".into());
     }
@@ -87,7 +87,7 @@ pub fn mcp_main() -> Result<(), String> {
         || spec.bearer
         || !spec.env_keys.is_empty()
         || spec.args != args[1..]
-        || PathBuf::from(&spec.command)
+        || Path::new(&spec.command)
             != std::env::current_exe().map_err(|_| "Не найдена программа")?
     {
         return Err("Подключение карты изменилось; переподключите инструмент".into());

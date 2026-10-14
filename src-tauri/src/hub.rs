@@ -1,5 +1,7 @@
 //! Scoped HTTPS client; device secrets never cross the WebView boundary on read.
+mod outbox;
 pub mod retrieval;
+use outbox::{strip_text, upload_batch};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -461,17 +463,23 @@ pub async fn hub_package(
     window: tauri::WebviewWindow,
     id: String,
     revision: String,
+    expected: Option<String>,
 ) -> Result<Value, String> {
     main_window(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
         if !id_ok(&id)||!hash_ok(&revision){return Err("Invalid package identity".into());}
-        let c=load()?;if !c.enabled{return Err("Hub disabled".into());}let v=request(&c,&format!("catalog/{id}?revision={revision}"),None)?;
+        let c=load()?;if !c.enabled{return Err("Hub disabled".into());}
+        if expected.as_deref()!=Some(&scope(&c)){return Err("Hub changed; refresh the catalog".into());}
+        let v=request(&c,&format!("catalog/{id}?revision={revision}"),None)?;
         if v["id"].as_str()!=Some(&id)||v["revision"].as_str()!=Some(&revision){return Err("Package identity mismatch".into());}
         let files=valid_files(&v)?;let _guard=IO.lock().map_err(|_|"Hub lock failed")?;
+        let current=load()?;
+        if !current.enabled || scope(&current)!=scope(&c){return Err("Hub changed during package download".into());}
         let base=root()?.join("packages");safe_dir(&base)?;let parent=base.join(&id);safe_dir(&parent)?;
         let folder=parent.join(&revision);safe_dir(&folder)?;
         for (name,text) in files{let p=folder.join(&name);let mut ancestor=folder.clone();for part in Path::new(&name).parent().into_iter().flat_map(|p|p.components()){ancestor.push(part);safe_dir(&ancestor)?;}
-            if p.exists() && read(&p)?!=text{return Err("Local package revision was modified; original preserved".into());}if !p.exists(){write(&p,&text)?;}}
+            if p.exists() && read(&p)?!=text{return Err("Local package revision was modified; original preserved".into());}
+            if !p.exists(){write(&p,&text)?;}}
         Ok(json!({"path":folder.to_string_lossy(),"sourcePath":folder.to_string_lossy(),"manifest":v}))
     }).await.map_err(|_|"Hub package task failed")?
 }
@@ -489,26 +497,6 @@ fn scope(c: &Config) -> String {
 fn fingerprint(v: &Value) -> String {
     format!("{:x}", Sha256::digest(v.to_string().as_bytes()))
 }
-// Apply privacy at enqueue, queue read and final HTTP send, including older queued cards.
-fn strip_text(r: &mut Value) {
-    if let Some(o) = r.as_object_mut() {
-        o.insert("text".into(), json!(""));
-        o.insert("title".into(), json!(""));
-        o.remove("assessment");
-    }
-}
-fn upload_batch(pending: &[Value]) -> Vec<Value> {
-    let mut bytes = 2;
-    pending
-        .iter()
-        .take(20)
-        .take_while(|r| {
-            bytes += r.to_string().len() + 1;
-            bytes <= 1536 * 1024
-        })
-        .cloned()
-        .collect()
-}
 #[tauri::command]
 pub async fn hub_spool(
     window: tauri::WebviewWindow,
@@ -521,7 +509,7 @@ pub async fn hub_spool(
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = IO.lock().map_err(|_| "Hub lock failed")?;
         let c = load()?;
-        if action=="ack" && expected.as_deref()!=Some(&scope(&c)) { return Err("Hub changed; stale acknowledgement ignored".into()); }
+        outbox::verify_origin(&action, expected.as_deref(), &scope(&c))?;
         let p = root()?.join("outbox.json");
         let raw = read(&p)?;
         let mut s: Spool = if raw.is_empty() {
@@ -540,38 +528,7 @@ pub async fn hub_spool(
                     return Err("Batch too large".into());
                 }
                 for mut r in records {
-                    // A complete user result card can be larger than the old message cap.
-                    let limit = if r.get("assessment").is_some() { 192000 } else { 64000 };
-                    if r.to_string().len() > limit {
-                        return Err("Record too large".into());
-                    }
-                    let o = r.as_object_mut().ok_or("Invalid record")?;
-                    o.retain(|k, _| {
-                        [
-                            "engine",
-                            "sessionId",
-                            "id",
-                            "role",
-                            "created",
-                            "completed",
-                            "title",
-                            "project",
-                            "provider",
-                            "model",
-                            "variant",
-                            "tokens",
-                            "text",
-                            "error",
-                            "tools",
-                            "finish",
-                            "truncated",
-                            "assessment",
-                        ]
-                        .contains(&k.as_str())
-                    });
-                    if !c.share_text {
-                        strip_text(&mut r);
-                    }
+                    r = outbox::prepare_record(r, c.share_text)?;
                     let h = fingerprint(&r);
                     if !s.seen.contains(&h) && !s.pending.iter().any(|v| fingerprint(v) == h) {
                         s.pending.push(r);
@@ -628,6 +585,45 @@ pub async fn hub_spool(
     .await
     .map_err(|_| "Hub outbox task failed")?
 }
+/// Administrator bootstrap: a PRIVATE local JSON file, never command-line secrets.
+/// Does not start an agent, browser, inference service, or change provider settings.
+pub fn cli() -> Result<(), String> {
+    let mode = std::env::args().nth(1).unwrap_or_default();
+    if mode == "--hub-setup" {
+        let path = std::env::args()
+            .nth(2)
+            .ok_or("Private setup file required")?;
+        let input: Value =
+            serde_json::from_str(&read(Path::new(&path))?).map_err(|_| "Invalid setup file")?;
+        let mut c: Config = serde_json::from_value(input["config"].clone())
+            .map_err(|_| "Invalid setup configuration")?;
+        validate(&c)?;
+        c.endpoint = origin(&c.endpoint)?;
+        let key = input["key"].as_str().ok_or("Missing device key")?;
+        if !(20..=256).contains(&key.len()) || key.contains(['\r', '\n']) {
+            return Err("Invalid device key".into());
+        }
+        let _guard = IO.lock().map_err(|_| "Hub lock failed")?;
+        vault(&c.endpoint)?
+            .set_password(key)
+            .map_err(|_| "Cannot save Hub credential")?;
+        write(
+            &root()?.join("connection.json"),
+            &serde_json::to_string_pretty(&c).map_err(|_| "Cannot encode connection")?,
+        )?;
+        println!("{{\"configured\":true}}");
+    } else {
+        let c = load()?;
+        let me = request(&c, "me", None)?;
+        let metrics = request(&c, "metrics?days=30", None)?;
+        println!(
+            "{}",
+            json!({"connected":true,"device":me["name"],"counts":metrics["counts"],"totals":metrics["totals"]})
+        );
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -722,43 +718,4 @@ mod tests {
             assert!(valid_files(&json!({"files":{path:"hello"},"hashes":{path:format!("{:x}",Sha256::digest(b"hello"))}})).is_err());
         }
     }
-}
-
-/// Administrator bootstrap: a PRIVATE local JSON file, never command-line secrets.
-/// Does not start an agent, browser, inference service, or change provider settings.
-pub fn cli() -> Result<(), String> {
-    let mode = std::env::args().nth(1).unwrap_or_default();
-    if mode == "--hub-setup" {
-        let path = std::env::args()
-            .nth(2)
-            .ok_or("Private setup file required")?;
-        let input: Value =
-            serde_json::from_str(&read(Path::new(&path))?).map_err(|_| "Invalid setup file")?;
-        let mut c: Config = serde_json::from_value(input["config"].clone())
-            .map_err(|_| "Invalid setup configuration")?;
-        validate(&c)?;
-        c.endpoint = origin(&c.endpoint)?;
-        let key = input["key"].as_str().ok_or("Missing device key")?;
-        if !(20..=256).contains(&key.len()) || key.contains(['\r', '\n']) {
-            return Err("Invalid device key".into());
-        }
-        let _guard = IO.lock().map_err(|_| "Hub lock failed")?;
-        vault(&c.endpoint)?
-            .set_password(key)
-            .map_err(|_| "Cannot save Hub credential")?;
-        write(
-            &root()?.join("connection.json"),
-            &serde_json::to_string_pretty(&c).map_err(|_| "Cannot encode connection")?,
-        )?;
-        println!("{{\"configured\":true}}");
-    } else {
-        let c = load()?;
-        let me = request(&c, "me", None)?;
-        let metrics = request(&c, "metrics?days=30", None)?;
-        println!(
-            "{}",
-            json!({"connected":true,"device":me["name"],"counts":metrics["counts"],"totals":metrics["totals"]})
-        );
-    }
-    Ok(())
 }

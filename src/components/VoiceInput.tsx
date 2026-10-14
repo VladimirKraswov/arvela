@@ -65,7 +65,7 @@ export function VoiceInput({ disabled, onActiveChange }: { disabled: boolean; on
     }
     const epoch = ++operation.current,
       key = draftKey(s.activeSessionId, s.directory),
-      endpoint = s.prefs.endpoint;
+      workspace = s.prefs.workspaceKey ?? s.prefs.endpoint;
     setError("");
     setPhase("requesting");
     setSeconds(0);
@@ -149,7 +149,7 @@ export function VoiceInput({ disabled, onActiveChange }: { disabled: boolean; on
             controller.signal,
           );
           if (epoch === operation.current)
-            store.appendDictation(endpoint, key, text);
+            store.appendDictation(workspace, key, text);
         } catch (e) {
           if (epoch === operation.current)
             setError(e instanceof Error ? e.message : String(e));

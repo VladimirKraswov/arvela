@@ -1,3 +1,4 @@
+import { PI_BACKEND_ID } from "../ids";
 // Pi as a real second `AgentBackend`.
 //
 // Pi is a local CLI, not a server: there is no project registry, no VCS service
@@ -50,7 +51,7 @@ import {
 } from "./protocol";
 import { entriesToHistory, PiStreamTranslator } from "./translate";
 
-export const PI_BACKEND_ID = "pi";
+export { PI_BACKEND_ID } from "../ids";
 
 /** Pi runs on this computer only: there is no remote transport in RPC mode. */
 export const PI_CAPABILITIES: AgentCapabilities = {

@@ -34,6 +34,16 @@ const status = (type: string) =>
     type: "session.status",
     properties: { sessionID: "ses_a", status: { type } },
   });
+it('does not clear a text draft or arm a queue when durable storage fails', () => {
+  store.setDraft('keep this task');
+  vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+  expect(store.enqueuePrompt('keep this task')).toBe(false);
+  expect(store.getDraft()).toBe('keep this task');
+  expect(store.getQueue()).toEqual([]);
+  expect(store.isQueueArmed()).toBe(false);
+  expect(store.state.ui.sendError).toContain('сохранить');
+});
+
 it("queues during generation, sends exactly once on idle, and retains captured model", async () => {
   store.setDraft("next");
   expect(store.enqueuePrompt("next")).toBe(true);
@@ -127,6 +137,16 @@ it("restored queue requires explicit resumption and dictation cannot leak across
   expect(
     store.state.prefs.endpointState["http://127.0.0.1:9999"].drafts.ses_old,
   ).toBe("recognized");
+});
+it('routes delayed dictation to its SSH workspace even when tunnels reuse one loopback endpoint', () => {
+  store.state.prefs.workspaceKey = 'ssh:current';
+  store.state.prefs.endpointState = { 'ssh:previous': { drafts: { ses_a: 'old draft' } } };
+  store.setDraft('current draft');
+  store.appendDictation('ssh:previous', 'ses_a', 'recognized');
+  expect(store.getDraft()).toBe('current draft');
+  expect(store.state.prefs.endpointState['ssh:previous'].drafts.ses_a).toBe('old draft recognized');
+  store.appendDictation('ssh:current', 'ses_a', 'here');
+  expect(store.getDraft()).toBe('current draft here');
 });
 it("applies permission changes only to the selected session and rejects busy changes", async () => {
   store.state.sessions = [{ id: "ses_a", permission: [] }];

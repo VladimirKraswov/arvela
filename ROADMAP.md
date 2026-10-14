@@ -1,5 +1,15 @@
 # Arvela roadmap
 
+## Reliability and architecture audit — 2026-10-14 (source verified)
+
+- [x] Reproduce and fix attachment transfer races, stale/cancelled submissions, durable queue failures and SSE transport recovery.
+- [x] Separate queue policy, submission ownership, SSE framing, multi-resource serialization, Hub collection/outbox and skill scanning into focused modules.
+- [x] Keep background-chat metrics and delayed dictation in their original project/workspace; bind Hub outbox/package operations to their source connection.
+- [x] Add dependency-boundary/cycle checks and strict Clippy to CI; update the vulnerable development dependency.
+- [x] Full local automated suites, production frontend build, isolated Chromium queue/browser acceptance and final source review.
+- Installed application and external services were not updated. Windows/Linux live acceptance and model inference are outside this audit's evidence.
+- Evidence and remaining limits: [Audit report](docs/REFACTORING-20261014.md).
+
 ## M48 — Project access diagnosis and recovery (0.2.37, installed locally)
 
 - [x] Correlated EPERM with TCC/signature and orphaned launch-context evidence; exact transaction limit documented.

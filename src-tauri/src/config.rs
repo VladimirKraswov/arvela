@@ -113,15 +113,15 @@ pub(crate) fn write_at(path: &Path, expected: &str, content: &str) -> Result<(),
             .and_then(|_| file.sync_all())
             .map_err(|_| "Не удалось записать конфигурацию")?;
         if path.exists() {
-            let permissions = fs::metadata(&path)
+            let permissions = fs::metadata(path)
                 .map_err(|_| "Не удалось прочитать права конфигурации")?
                 .permissions();
             fs::set_permissions(&temp, permissions)
                 .map_err(|_| "Не удалось сохранить права конфигурации")?;
             let backup = path.with_extension(format!("backup-{now}"));
-            fs::copy(&path, backup).map_err(|_| "Не удалось создать резервную копию")?;
+            fs::copy(path, backup).map_err(|_| "Не удалось создать резервную копию")?;
         }
-        fs::rename(&temp, &path).map_err(|_| "Не удалось заменить конфигурацию".to_string())
+        fs::rename(&temp, path).map_err(|_| "Не удалось заменить конфигурацию".to_string())
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temp);

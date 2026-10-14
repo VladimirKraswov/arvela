@@ -1,7 +1,7 @@
 import type { AppState } from './types';
 import type { ModelInfo, Session } from '../api/types';
 import type { PiHealth } from '../agent/pi/backend';
-import { PI_BACKEND_ID } from '../agent/pi/backend';
+import { PI_BACKEND_ID } from '../agent/ids';
 import { modelScope } from './engines';
 export interface ModelChoice { providerID: string; modelID: string; variant?: string | null }
 /** Selection policy on already-normalized data. No network, probes, writes or fallback to another engine. */

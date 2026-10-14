@@ -1,3 +1,4 @@
+import { hubOrigin } from "../hub/identity";
 import { useEffect, useRef, useState } from "react";
 import { config, drain, emptyConfig, install, request, spool, type HubConfig, type HubItem, type Spool } from "../hub/client";
 import { assessmentIndex, attachAssessment } from "../outcomes/sharing";
@@ -15,11 +16,11 @@ export function HubSettings({onDirtyChange}:{onDirtyChange?:(v:boolean)=>void}){
  const run=async(fn:()=>Promise<void>)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){if(mounted.current)setError(String(e));}finally{if(mounted.current)setBusy(false);}};
  async function refresh(){const d=await request<{items:HubItem[]}>("catalog");if(mounted.current){setItems(d.items);setStatus(await spool("read"));}}
  async function backfill(){const controller=new AbortController();cancel.current=controller;let count=0,failures=0;
-  try{const assessments=await assessmentIndex(),server=store.state.prefs.workspaceKey??store.state.prefs.endpoint;for(const source of usageSources()){
+  try{const origin=await hubOrigin(saved),assessments=await assessmentIndex(),server=store.state.prefs.workspaceKey??store.state.prefs.endpoint;for(const source of usageSources()){
    const sessions=(await source.sessions(controller.signal)).filter(s=>s.time.updated>Date.now()-30*86400000).slice(0,500);
    for(const session of sessions){controller.signal.throwIfAborted();let before:string|undefined;const seen=new Set<string>();
     try{for(let page=0;page<20;page++){controller.signal.throwIfAborted();const d=await source.messages(session,before,controller.signal),batch=d.messages.map(m=>attachAssessment(record(source.engine==="Pi"?"pi":"opencode",session,m.info,m.parts,saved.shareText),assessments,server,session.directory??"",saved.shareText)).filter(x=>x!==null);
-     for(let i=0;i<batch.length;i+=50)await spool("enqueue",batch.slice(i,i+50));
+     for(let i=0;i<batch.length;i+=50)await spool("enqueue",batch.slice(i,i+50),undefined,origin);
      for(let i=0;i<Math.ceil(batch.length/20);i++)await drain();count+=batch.length;if(mounted.current)setNotice(`Обработано сообщений: ${count}; ошибок чтения: ${failures}`);
      if(!d.before||seen.has(d.before))break;before=d.before;seen.add(before);
     }}catch(e){if(controller.signal.aborted)throw e;failures++;}
@@ -41,8 +42,8 @@ export function HubSettings({onDirtyChange}:{onDirtyChange?:(v:boolean)=>void}){
  </div></section>
  <section className="settings-group"><h2>Библиотека</h2><div className="settings-actions"><button className="btn" disabled={!saved.enabled||dirty||busy} onClick={()=>void run(refresh)}>Обновить каталог</button><button className="btn" disabled={!saved.endpoint||dirty} onClick={()=>void run(()=>openUrl(saved.endpoint))}>Открыть Web UI</button></div>
  {!items.length&&<p className="settings-muted">Каталог пуст.</p>}
- {items.filter(x=>x.enabled).map(item=><article className="capability-skill" key={item.id}><div className="capability-item"><div><strong>{item.title}</strong><p>{item.description}</p><small>{item.kind} · {item.revision.slice(0,12)} {saved.installed[item.id]===item.revision?"· установлено":""}</small></div><button className="btn" disabled={busy||dirty} onClick={()=>void run(async()=>{const pkg=await install(item);const c=await config();setSaved(c);setValue(c);setNotice(`Пакет сохранён: ${pkg.path}. Навыки доступны обоим агентам при следующей отправке.`);})}>Скачать / применить</button></div>
- {(item.kind==="prompt"||item.kind==="runbook")&&<button className="btn" disabled={busy||dirty} onClick={()=>void run(async()=>{const pkg=await install(item),text=Object.values(pkg.manifest.files).join("\n\n");store.setDraft([store.getDraft(),text].filter(Boolean).join("\n\n"));setNotice("Добавлено в черновик текущего чата. Сообщение не отправлено.");})}>Добавить в черновик</button>}</article>)}
+ {items.filter(x=>x.enabled).map(item=><article className="capability-skill" key={item.id}><div className="capability-item"><div><strong>{item.title}</strong><p>{item.description}</p><small>{item.kind} · {item.revision.slice(0,12)} {saved.installed[item.id]===item.revision?"· установлено":""}</small></div><button className="btn" disabled={busy||dirty} onClick={()=>void run(async()=>{const pkg=await install(item,false,await hubOrigin(saved));const c=await config();setSaved(c);setValue(c);setNotice(`Пакет сохранён: ${pkg.path}. Навыки доступны обоим агентам при следующей отправке.`);})}>Скачать / применить</button></div>
+ {(item.kind==="prompt"||item.kind==="runbook")&&<button className="btn" disabled={busy||dirty} onClick={()=>void run(async()=>{const pkg=await install(item,false,await hubOrigin(saved)),text=Object.values(pkg.manifest.files).join("\n\n");store.setDraft([store.getDraft(),text].filter(Boolean).join("\n\n"));setNotice("Добавлено в черновик текущего чата. Сообщение не отправлено.");})}>Добавить в черновик</button>}</article>)}
  </section><section className="settings-group"><h2>Передача истории</h2>
  <div className="settings-actions"><button className="btn" disabled={!saved.enabled||dirty||busy} onClick={()=>void run(async()=>setStatus(await drain()))}>Передать очередь</button><button className="btn" disabled={!saved.enabled||dirty||busy} onClick={()=>void run(backfill)}>Импортировать историю за 30 дней</button>{busy&&cancel.current&&<button className="btn" onClick={()=>cancel.current?.abort()}>Остановить импорт</button>}<button className="btn" disabled={busy} onClick={()=>void run(async()=>setStatus(await spool("clear")))}>Очистить очередь</button></div>
  {status&&<p className="settings-muted">В очереди: {status.pending} · Удалено при переполнении: {status.dropped}</p>}

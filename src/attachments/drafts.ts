@@ -1,3 +1,5 @@
+import { KeyedQueue } from '../util/keyedQueue';
+
 /** Binary drafts live outside localStorage, which cannot safely hold pasted files. */
 export interface DraftAttachment {
   id: string;
@@ -14,21 +16,30 @@ const empty: DraftAttachment[] = [];
 export const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 const cache = new Map<string, DraftAttachment[]>();
 const loading = new Map<string, Promise<void>>();
-const pending = new Map<string, Promise<unknown>>();
+const mutations = new KeyedQueue();
 const listeners = new Set<() => void>();
 let database: Promise<IDBDatabase> | undefined;
 
 function open(): Promise<IDBDatabase> {
-  database ??= new Promise((resolve, reject) => {
+  if (database) return database;
+  const attempt = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB, 1);
     request.onupgradeneeded = () => {
       const table = request.result.createObjectStore(STORE, { keyPath: "id" });
       table.createIndex("scope", "scope", { unique: false });
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      const invalidate = () => { if (database === attempt) database = undefined; };
+      db.onversionchange = () => { db.close(); invalidate(); };
+      db.onclose = invalidate;
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
   });
-  return database;
+  database = attempt;
+  void attempt.catch(() => { if (database === attempt) database = undefined; });
+  return attempt;
 }
 
 async function all(scope: string): Promise<DraftAttachment[]> {
@@ -53,12 +64,9 @@ async function write(items: StoredAttachment[], remove: string[] = []): Promise<
 }
 
 function emit() { for (const listener of listeners) listener(); }
-function serialize<T>(scope: string, task: () => Promise<T>): Promise<T> {
-  const previous = pending.get(scope) ?? Promise.resolve();
-  const next = previous.catch(() => {}).then(task);
-  pending.set(scope, next);
-  void next.finally(() => { if (pending.get(scope) === next) pending.delete(scope); }).catch(() => {});
-  return next;
+function checkCapacity(files: readonly DraftAttachment[]) {
+  if (files.length > 12 || files.reduce((sum, file) => sum + file.size, 0) > MAX_ATTACHMENT_BYTES)
+    throw new Error('В черновике слишком много вложений: до 12 файлов и 50 МБ.');
 }
 export const attachmentDrafts = {
   snapshot(scope: string) { return cache.get(scope) ?? empty; },
@@ -73,11 +81,11 @@ export const attachmentDrafts = {
   async selected(scope: string, ids: string[]) {
     // A remove click may precede Send in the same paint. Wait for that mutation,
     // then use current IDs, never blobs captured by an older React render.
-    await pending.get(scope);
+    await mutations.settled(scope);
     await this.ensure(scope);
     return this.snapshot(scope).filter(file => ids.includes(file.id));
   },
-  add(scope: string, files: File[]) { return serialize(scope, async () => {
+  add(scope: string, files: File[]) { return mutations.run([scope], async () => {
     await this.ensure(scope);
     const existing = cache.get(scope) ?? empty;
     if (existing.length + files.length > 12) throw new Error("Можно приложить не более 12 файлов к одному запросу.");
@@ -93,7 +101,7 @@ export const attachmentDrafts = {
     cache.set(scope, [...existing, ...items]); emit();
     return items;
   }); },
-  remove(scope: string, ids: string[]) { return serialize(scope, async () => {
+  remove(scope: string, ids: string[]) { return mutations.run([scope], async () => {
     await this.ensure(scope);
     const before = cache.get(scope) ?? empty;
     const owned = before.filter(item => ids.includes(item.id)).map(item => item.id);
@@ -101,29 +109,29 @@ export const attachmentDrafts = {
     try { await write([], owned); }
     catch (error) { cache.set(scope, before); emit(); throw error; }
   }); },
-  copy(from: string, to: string, ids: string[]) { return serialize(to, async () => {
-    if (from !== to) await pending.get(from);
+  copy(from: string, to: string, ids: string[]) { return mutations.run([from, to], async () => {
     await Promise.all([this.ensure(from), this.ensure(to)]);
     const source = ids.map(id => (cache.get(from) ?? empty).find(file => file.id === id));
     if (new Set(ids).size !== ids.length || source.some(file => !file))
       throw new Error("Вложения не найдены. Верните запрос в черновик и приложите файлы заново.");
     const existing = cache.get(to) ?? empty;
     const items = source.map(file => ({ ...file!, id: crypto.randomUUID() }));
-    if (existing.length + items.length > 12 || [...existing, ...items].reduce((n, file) => n + file.size, 0) > MAX_ATTACHMENT_BYTES)
-      throw new Error("В черновике слишком много вложений: до 12 файлов и 50 МБ.");
+    checkCapacity([...existing, ...items]);
     await write(items.map(item => ({ ...item, scope: to })));
     cache.set(to, [...existing, ...items]); emit();
     return items;
   }); },
-  async move(from: string, to: string) {
+  move(from: string, to: string) { return mutations.run([from, to], async () => {
     if (from === to) return;
     await Promise.all([this.ensure(from), this.ensure(to)]);
     const source = cache.get(from) ?? empty;
     if (!source.length) return;
+    const destination = [...(cache.get(to) ?? empty), ...source];
+    checkCapacity(destination);
     await write(source.map(item => ({ ...item, scope: to })));
-    cache.set(to, [...(cache.get(to) ?? empty), ...source]);
+    cache.set(to, destination);
     cache.set(from, []); emit();
-  },
+  }); },
 };
 
 export function attachmentScope(endpoint: string, directory: string | null, sessionId: string | null) {

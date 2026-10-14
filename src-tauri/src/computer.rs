@@ -112,7 +112,7 @@ fn windows_driver_path(local: &std::path::Path) -> PathBuf {
 fn driver_path() -> Result<PathBuf, String> {
     #[cfg(target_os = "macos")]
     {
-        return Ok(PathBuf::from(MAC_DRIVER));
+        Ok(PathBuf::from(MAC_DRIVER))
     }
     #[cfg(target_os = "windows")]
     {
@@ -122,7 +122,7 @@ fn driver_path() -> Result<PathBuf, String> {
         if !local.is_absolute() {
             return Err("LOCALAPPDATA должен быть абсолютным путём".into());
         }
-        return Ok(windows_driver_path(&local));
+        Ok(windows_driver_path(&local))
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
@@ -463,8 +463,7 @@ fn guard_request(mut message: Value, enabled: bool) -> Result<Value, String> {
             && args.get("target").is_some_and(|t| {
                 t.get("pid") != args.get("pid") || t.get("window_id") != args.get("window_id")
             });
-        if (!tagged && !legacy)
-            || (args.contains_key("target") && !tagged)
+        if (!legacy || args.contains_key("target")) && !tagged
             || ambiguous
             || (name == "move_cursor" && !tagged)
         {
