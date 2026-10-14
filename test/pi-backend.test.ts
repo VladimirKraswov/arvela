@@ -105,6 +105,45 @@ const emit = (payload: unknown, sessionId = "chat-a", directory = "/work") =>
     h({ key: `${directory}\u0000${sessionId}`, directory, sessionId, payload } as PiEnvelope),
   );
 
+it('Stop clears pending Pi work, restores it, and terminates only its own hung process', async () => {
+  const recovered: string[][] = [], calls: string[] = [];
+  const pi = new PiBackend({ ...host(), onQueueCleared: (_d, _s, texts) => recovered.push(texts) });
+  const chat = await pi.createSession({ directory: '/work' });
+  await pi.prompt(chat.id, '/work', { parts: [{type:'text',text:'task'}] } as any);
+  respond = command => {
+    calls.push(command.type);
+    if (command.type === 'clear_queue') return { success:true, data:{steering:['correction'],followUp:['next']} };
+    if (command.type === 'abort') throw Error('RPC hung');
+    return {success:true};
+  };
+  await Promise.all([pi.abort(chat.id), pi.abort(chat.id)]);
+  expect(calls).toEqual(['clear_queue','abort']);
+  expect(recovered).toEqual([['correction','next']]);
+  expect(closed).toEqual([`/work\u0000${chat.id}`]);
+  expect((await pi.sessionStatuses('/work'))[chat.id].type).toBe('idle');
+});
+
+it('a late prompt receipt cannot resurrect a settled Pi run', async () => {
+  const pi = new PiBackend(host()), chat = await pi.createSession({directory:'/work'});
+  respond = command => {
+    if (command.type === 'prompt') emit({type:'agent_settled'},chat.id);
+    return {success:true,data:{}};
+  };
+  await pi.prompt(chat.id,'/work',{parts:[{type:'text',text:'task'}]} as any);
+  expect((await pi.sessionStatuses('/work'))[chat.id].type).toBe('idle');
+});
+
+it('keeps tracking a running Pi child after leaving its project', async () => {
+  const activity: string[] = [];
+  const pi = new PiBackend({...host(),onActivity:(_d,_s,status)=>activity.push(status.type)});
+  const chat = await pi.createSession({directory:'/work'}), ctrl = new AbortController();
+  pi.subscribeDirectory('/work',{signal:ctrl.signal,onEvent:()=>{},onState:()=>{}});
+  await pi.prompt(chat.id,'/work',{parts:[{type:'text',text:'task'}]} as any);
+  ctrl.abort(); emit({type:'agent_settled'},chat.id);
+  expect((await pi.sessionStatuses('/work'))[chat.id].type).toBe('idle');
+  expect(activity.at(-1)).toBe('idle');
+});
+
 it("declares only the surfaces Pi actually has", () => {
   // Reporting a PTY or a permission queue Pi does not implement would leave
   // dead buttons in the UI.
@@ -514,4 +553,17 @@ it("persists chat access and gives each Pi process its own policy", async () => 
   expect((await pi.getSession(full.id,'/work')).permission).toEqual(accessRules('full'));
   for(const chat of [full,asking,reading]) await pi.prompt(chat.id,'/work',{parts:[{type:'text',text:'test'}]} as any);
   expect(opens.map(o=>o.toolPolicy)).toEqual(['full','ask','read']);
+});
+
+it('reattaches native Pi after interface reload without open or prompt, restoring dialogs and busy state', async () => {
+  meta['chat-running'] = {id:'chat-running',directory:'/test',title:'Running',created:1,updated:1};
+  const resumed = {key:'native-key', directory:'/test',sessionId:'chat-running', dialogs:[{type:'extension_ui_request' as const, id:'allow-one',method:'confirm'}]};
+  bridge.resumeSessions = async () => [resumed];
+  respond = c => ({type:'response',command:c.type,success:true,data:{isStreaming:true}});
+  const backend = new PiBackend(host());
+  await backend.restoreRunning();
+  expect(opened).toHaveLength(0);
+  expect(dialogs[0].request.id).toBe('allow-one');
+  expect(await backend.sessionStatuses('/test')).toEqual({'chat-running':{type:'busy'}});
+  delete bridge.resumeSessions;
 });

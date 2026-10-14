@@ -22,7 +22,9 @@ export function PiDialog() {
 
   if (!dialog) return null;
   const request = dialog.request;
-  const cancel = () => void store.answerPiDialog({ cancelled: true });
+  const answer = (value: {value?: string; confirmed?: boolean; cancelled?: boolean}) =>
+    void store.answerPiDialog(value, {key: dialog.key, id: request.id}).catch(() => {});
+  const cancel = () => answer({ cancelled: true });
 
   return (
     <div
@@ -39,6 +41,7 @@ export function PiDialog() {
         aria-label={request.title ?? "Запрос расширения Pi"}
       >
         <h2>{request.title ?? "Запрос расширения Pi"}</h2>
+        <button className="btn" onClick={() => void store.stopSession(dialog.sessionId)}>Остановить задачу</button>
         <p className="dialog-description">
           Запрос от расширения Pi в чате. Пока вы не ответите, агент ждёт.
         </p>
@@ -51,7 +54,7 @@ export function PiDialog() {
                 key={option}
                 ref={index === 0 ? (first as never) : undefined}
                 className="btn"
-                onClick={() => void store.answerPiDialog({ value: option })}
+                onClick={() => answer({ value: option })}
               >
                 {option}
               </button>
@@ -86,7 +89,7 @@ export function PiDialog() {
           {request.method === "confirm" && (
             <button
               className="btn primary"
-              onClick={() => void store.answerPiDialog({ confirmed: true })}
+              onClick={() => answer({ confirmed: true })}
             >
               Разрешить
             </button>
@@ -94,7 +97,7 @@ export function PiDialog() {
           {(request.method === "input" || request.method === "editor") && (
             <button
               className="btn primary"
-              onClick={() => void store.answerPiDialog({ value })}
+              onClick={() => answer({ value })}
             >
               Отправить
             </button>

@@ -71,6 +71,7 @@ export interface PiBridge {
   close(key: string): Promise<void>;
   sessions(directory: string): Promise<PiSessionFile[]>;
   liveSessions(): Promise<string[]>;
+  resumeSessions?(): Promise<{key: string; directory: string; sessionId: string; dialogs: import("./protocol").PiUiRequest[]}[]>;
   setupLsp(extraPaths?: string[]): Promise<LspSetup>;
   probeDirectory(): Promise<string>;
   prepareChatWorkspace(): Promise<{ directory: string; root: string }>;
@@ -130,6 +131,7 @@ function tauriBridge(): PiBridge {
     close: async (key) => (await core()).invoke("pi_close", { key }),
     sessions: async (directory) => (await core()).invoke("pi_sessions", { directory }),
     liveSessions: async () => (await core()).invoke("pi_live_sessions"),
+    resumeSessions: async () => (await core()).invoke("pi_resume_sessions"),
     setupLsp: async (extraPaths) =>
       (await core()).invoke("pi_setup_lsp", { extraPaths: extraPaths ?? [] }),
     probeDirectory: async () => (await core()).invoke("pi_probe_directory"),

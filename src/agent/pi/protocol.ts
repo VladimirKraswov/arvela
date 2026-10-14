@@ -181,6 +181,8 @@ export interface PiState {
   model?: PiModel | null;
   thinkingLevel?: string;
   isStreaming?: boolean;
+  isCompacting?: boolean;
+  pendingMessageCount?: number;
   sessionFile?: string;
   sessionId?: string;
   sessionName?: string;

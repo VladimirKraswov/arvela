@@ -81,6 +81,7 @@ pub fn run() {
             pi::pi_sessions,
             storage_info::session_storage,
             pi::pi_live_sessions,
+            pi::pi_resume_sessions,
             pi::pi_shared_inventory,
             pi::pi_setup_lsp,
             pi::pi_probe_directory,

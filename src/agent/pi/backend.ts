@@ -119,9 +119,12 @@ export interface PiHost {
   /** Surfaced outside the conversation: extension faults, transport errors. */
   onNotice?(directory: string, sessionId: string, notice: Notice): void;
   /** A blocking extension dialog needs a user answer. */
+  onDialogExpired?(key: string, id: string): void;
   onDialog?(request: PiDialogRequest): void;
   /** Provisional streaming ids are stale; re-read the durable history. */
   onHistoryStale?(directory: string, sessionId: string): void;
+  onQueueCleared?(directory: string, sessionId: string, messages: string[]): void;
+  onActivity?(directory: string, sessionId: string, status: SessionStatus): void;
 }
 
 export interface PiDialogRequest {
@@ -178,6 +181,8 @@ export class PiBackend implements AgentBackend {
   }>();
   private unsubscribe: (() => void) | null = null;
   private statuses = new Map<string, SessionStatus>();
+  private statusVersions = new Map<string, number>();
+  private stopping = new Map<string, Promise<void>>();
 
   constructor(private readonly host: PiHost) {}
 
@@ -551,17 +556,41 @@ export class PiBackend implements AgentBackend {
       // Never silently drop a prompt sent while the agent is mid-run.
       ...(running ? { streamingBehavior } : {}),
     };
+    const version = this.statusVersions.get(sessionID) ?? 0;
     const response = await this.raw(key, command, 60_000);
     if (response && response.success === false)
       throw new Error(String(response.error ?? "Pi отклонил запрос."));
-    this.setStatus(sessionID, { type: "busy" });
+    if ((this.statusVersions.get(sessionID) ?? 0) === version)
+      this.setStatus(sessionID, { type: "busy" });
   }
 
   async abort(sessionID: string): Promise<void> {
+    const existing = this.stopping.get(sessionID);
+    if (existing) return existing;
     const key = this.keys.get(sessionID);
-    if (!key) return;
-    await this.command(key, { type: "abort" }, 30_000);
-    this.setStatus(sessionID, { type: "idle" });
+    if (!key) { this.setStatus(sessionID, { type: "idle" }); return; }
+    const stop = (async () => {
+      let recoveryError: unknown;
+      try {
+        // Pi's abort otherwise starts pending follow-ups again. Preserve their
+        // returned text in the original chat, then wait for the abort receipt.
+        const queued = await this.command<{steering?: string[]; followUp?: string[]}>(key, { type: "clear_queue" }, 5_000);
+        try { this.host.onQueueCleared?.(this.host.meta.all()[sessionID]?.directory ?? "", sessionID,
+          [...(queued?.steering ?? []), ...(queued?.followUp ?? [])].filter(text => typeof text === "string")); }
+        catch (error) { recoveryError = error; }
+        await this.command(key, { type: "abort" }, 5_000);
+      } catch {
+        // Explicit Stop authorizes terminating this app-owned Pi process only.
+        // Native close drains stdin, then bounds TERM/KILL of its process group.
+        await this.bridge.close(key);
+        this.closedKeys.add(key); this.keys.delete(sessionID); this.translators.delete(sessionID);
+      }
+      this.setStatus(sessionID, { type: "idle" });
+      this.host.onHistoryStale?.(this.host.meta.all()[sessionID]?.directory ?? "", sessionID);
+      if (recoveryError) throw recoveryError;
+    })();
+    this.stopping.set(sessionID, stop);
+    try { await stop; } finally { this.stopping.delete(sessionID); }
   }
 
   async summarize(sessionID: string, directory: string, providerID: string, modelID: string): Promise<void> {
@@ -649,7 +678,7 @@ export class PiBackend implements AgentBackend {
       () => {
         this.subscribers.delete(entry);
         entry.subscription.onState("closed");
-        if (!this.subscribers.size) {
+        if (!this.subscribers.size && !this.keys.size) {
           this.unsubscribe?.();
           this.unsubscribe = null;
         }
@@ -667,6 +696,10 @@ export class PiBackend implements AgentBackend {
   private onEnvelope(envelope: PiEnvelope): void {
     if (this.closedKeys.has(envelope.key)) return;
     const payload = envelope.payload;
+    if (payload.type === "pi_dialog_expired") {
+      this.host.onDialogExpired?.(envelope.key, String(payload.id));
+      return;
+    }
     if ((payload as PiUiRequest).type === "extension_ui_request") {
       this.onUiRequest(envelope, payload as PiUiRequest);
       return;
@@ -711,15 +744,21 @@ export class PiBackend implements AgentBackend {
   }
 
   private trackStatus(sessionID: string, event: ServerEvent): void {
+    if (["session.status", "session.idle", "session.error"].includes(event.type))
+      this.statusVersions.set(sessionID, (this.statusVersions.get(sessionID) ?? 0) + 1);
     if (event.type === "session.status" && event.properties?.status)
       this.statuses.set(sessionID, event.properties.status as SessionStatus);
     if (event.type === "session.idle" || event.type === "session.error")
       this.statuses.set(sessionID, { type: "idle" });
+    if (["session.status", "session.idle", "session.error"].includes(event.type))
+      this.host.onActivity?.(this.host.meta.all()[sessionID]?.directory ?? "", sessionID, this.statuses.get(sessionID)!);
   }
 
   private setStatus(sessionID: string, status: SessionStatus): void {
+    this.statusVersions.set(sessionID, (this.statusVersions.get(sessionID) ?? 0) + 1);
     this.statuses.set(sessionID, status);
     const directory = this.host.meta.all()[sessionID]?.directory ?? "";
+    this.host.onActivity?.(directory, sessionID, status);
     this.dispatch(directory, {
       type: status.type === "idle" ? "session.idle" : "session.status",
       properties: { sessionID, status },
@@ -748,6 +787,41 @@ export class PiBackend implements AgentBackend {
     return translator;
   }
 
+  /** Recover only existing native children; never re-run a historical prompt. */
+  async restoreRunning(): Promise<void> {
+    if (!this.bridge.resumeSessions) return;
+    this.unsubscribe ??= this.bridge.subscribe(envelope => this.onEnvelope(envelope));
+    for (const live of await this.bridge.resumeSessions()) {
+      const meta = this.host.meta.all()[live.sessionId];
+      if (!meta || meta.directory !== live.directory) continue;
+      this.keys.set(live.sessionId, live.key);
+      this.closedKeys.delete(live.key);
+      for (const request of live.dialogs) this.onUiRequest({...live, payload: request}, request);
+    }
+    await this.refreshRunning();
+  }
+  private refreshing: Promise<void> | null = null;
+  refreshRunning(): Promise<void> {
+    return this.refreshing ??= this.refreshStates().finally(() => { this.refreshing = null; });
+  }
+  private async refreshStates(): Promise<void> {
+    for (const [id, key] of this.keys) {
+      const version = this.statusVersions.get(id) ?? 0;
+      try {
+        const state = await this.command<PiState>(key, {type: "get_state"}, 3000);
+        if (this.keys.get(id) !== key || (this.statusVersions.get(id) ?? 0) !== version) continue;
+        const busy = !!(state?.isStreaming || state?.isCompacting || state?.pendingMessageCount);
+        const type = busy ? "busy" : "idle";
+        if (this.statuses.get(id)?.type !== type) {
+          this.setStatus(id, {type});
+          if (!busy) this.host.onHistoryStale?.(this.host.meta.all()[id]?.directory ?? "", id);
+        }
+      } catch {
+        // A slow RPC is not proof the agent stopped. Keep Stop available.
+      }
+    }
+  }
+
   // ---- process lifetime ----
 
   /** Idempotent: a live child for this session is reused, never duplicated. */
@@ -758,6 +832,7 @@ export class PiBackend implements AgentBackend {
     sessionID: string,
     body?: PromptRequest,
   ): Promise<string> {
+    this.unsubscribe ??= this.bridge.subscribe((envelope) => this.onEnvelope(envelope));
     const existing = this.keys.get(sessionID);
     if (existing) return existing;
     const choice = this.host.choice(directory);

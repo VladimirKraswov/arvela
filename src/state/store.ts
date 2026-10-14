@@ -1,3 +1,4 @@
+import { DEFAULT_BASE_URL } from "../api/client";
 import { PromptQueueController } from "./promptQueue";
 import { errText } from "./errors";
 import { SubmissionLifecycle, type Submission } from "./submission";
@@ -174,9 +175,35 @@ class Store {
             this.persistPrefs();
           },
         },
+        onActivity: (directory, sessionId, status) => {
+          if (isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) && directory !== this.state.directory)
+            this.observeSessionStatus(sessionId, status, directory);
+        },
+        onQueueCleared: (directory, sessionId, messages) => {
+          if (!messages.length) return;
+          const key = draftKey(sessionId, directory);
+          this.mutate(s => {
+            const workspace = s.prefs.localEndpoint ?? DEFAULT_BASE_URL;
+            const current = (s.prefs.workspaceKey ?? s.prefs.endpoint) === workspace;
+            const target = current ? s.prefs : s.prefs.endpointState?.[workspace] ?? {};
+            const drafts = { ...target.drafts, [key]: [target.drafts?.[key], ...messages].filter(Boolean).join("\n\n") };
+            return { prefs: current ? { ...s.prefs, drafts } : { ...s.prefs, endpointState: {
+              ...s.prefs.endpointState, [workspace]: { ...target, drafts },
+            } } };
+          });
+          savePrefs(this.state.prefs);
+          if (!flushPrefs()) throw Error("Не удалось сохранить остановленные уточнения.");
+        },
         onNotice: (_directory, _session, notice) =>
           this.patchUi({ toast: notice.text }),
-        onDialog: (request) => this.patchUi({ piDialog: request }),
+        onDialog: (request) => {
+          if (!this.piDialogs.some(d => d.key === request.key && d.request.id === request.request.id)) this.piDialogs.push(request);
+          this.patchUi({ piDialog: this.piDialogs[0] ?? null });
+        },
+        onDialogExpired: (key, id) => {
+          this.piDialogs = this.piDialogs.filter(d => d.key !== key || d.request.id !== id);
+          this.patchUi({ piDialog: this.piDialogs[0] ?? null, toast: "Запрос Pi истёк. Действие не выполнено." });
+        },
         onHistoryStale: (directory, sessionId) => {
           // Streaming used provisional ids; re-read Pi's durable transcript.
           if (this.state.activeSessionId === sessionId && this.state.directory === directory)
@@ -211,7 +238,7 @@ class Store {
 
   /** A Pi chat is identified by app-owned metadata, not by the OpenCode server. */
   isPiSession(sessionId: string): boolean {
-    return Boolean(this.state.prefs.piSessions?.[sessionId]);
+    return Boolean(this.state.prefs.piSessions?.[sessionId]) || this.state.prefs.sessionEngine?.[sessionId] === PI_BACKEND_ID;
   }
 
   setProjectEngine(directory: string, engine: EngineId): void {
@@ -350,10 +377,10 @@ class Store {
       const created = await this.engine(engine).createSession({
         directory,
         title: `${session.title} · ${label(engine)}`,
+        permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
         ...(engine === PI_BACKEND_ID
           ? {}
           : {
-              permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
               agent: this.getAgentChoice() ?? undefined,
             }),
       });
@@ -595,13 +622,36 @@ class Store {
     }
   }
 
+  private piDialogs: import("../agent/pi/backend").PiDialogRequest[] = [];
+  private piAnswering = new Set<string>();
+  async restorePiRuntime(): Promise<void> {
+    if (!isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
+    await this.pi().restoreRunning();
+  }
+  async refreshPiActivity(): Promise<void> { await this.piEngine?.refreshRunning(); }
+  restartInterface(): void {
+    savePrefs(this.state.prefs);
+    if (!flushPrefs()) { this.patchUi({toast: "Не удалось сохранить состояние. Перезапуск отменён."}); return; }
+    window.location.reload();
+  }
   async answerPiDialog(
     answer: { value?: string; confirmed?: boolean; cancelled?: boolean },
+    expected?: { key: string; id: string },
   ): Promise<void> {
     const dialog = this.state.ui.piDialog;
-    if (!dialog) return;
-    this.patchUi({ piDialog: null });
-    await this.pi().answerDialog(dialog.key, dialog.request.id, answer);
+    if (!dialog || (expected && (dialog.key !== expected.key || dialog.request.id !== expected.id))) return;
+    const token = `${dialog.key}:${dialog.request.id}`;
+    if (this.piAnswering.has(token)) return;
+    this.piAnswering.add(token);
+    try {
+      await this.pi().answerDialog(dialog.key, dialog.request.id, answer);
+      this.piDialogs = this.piDialogs.filter(d => d.key !== dialog.key || d.request.id !== dialog.request.id);
+      if (this.state.ui.piDialog?.request.id === dialog.request.id && this.state.ui.piDialog?.key === dialog.key)
+        this.patchUi({ piDialog: this.piDialogs[0] ?? null });
+    } catch (error) {
+      this.patchUi({ toast: `Ответ Pi не доставлен: ${error instanceof Error ? error.message : String(error)}` });
+      throw error;
+    } finally { this.piAnswering.delete(token); }
   }
 
   private listeners = new Set<() => void>();
@@ -1632,6 +1682,7 @@ class Store {
       const session = await this.engine(engineId).createSession({
         directory,
         title,
+        permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
         agent: this.getAgentChoice() ?? undefined,
         model: choice
           ? {
@@ -2371,10 +2422,10 @@ class Store {
         const created = await backend.createSession({
           directory,
           title: trimmed.slice(0, 60),
+          permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
           ...(engineId === PI_BACKEND_ID
             ? {}
             : {
-                permission: accessRules(this.state.prefs.newAccess ?? "inherit"),
                 agent: agent ?? undefined,
                 model: {
                   id: model.modelID,
@@ -2535,6 +2586,8 @@ class Store {
       this.activityDirectories.get(sessionId) ?? this.state.directory;
     if (!directory) return;
     try {
+      if (this.state.ui.piDialog?.sessionId === sessionId)
+        await this.answerPiDialog({ cancelled: true }).catch(() => {});
       await this.engine(this.engineIdFor(sessionId, directory)).abort(
         sessionId,
         directory,
@@ -2603,11 +2656,13 @@ class Store {
       : (this.state.prefs.newAccess ?? "inherit");
   }
   async setAccessMode(mode: AccessMode) {
-    if (this.isRunning() || this.state.ui.sending || this.accessChanging)
+    if (this.isRunning() || this.state.ui.sending || this.accessChanging) {
+      this.patchUi({ toast: "Остановите ответ, чтобы изменить режим доступа." });
       return;
+    }
     const id = this.state.activeSessionId,
       directory = this.state.directory,
-      backend = this.backend;
+      backend = this.conversation(), generation = this.connectionGeneration;
     if (!id) {
       this.mutate((s) => ({ prefs: { ...s.prefs, newAccess: mode } }));
       this.persistPrefs();
@@ -2620,7 +2675,7 @@ class Store {
         { permission: accessRules(mode) },
         directory,
       );
-      if (backend === this.backend && directory === this.state.directory) {
+      if (generation === this.connectionGeneration && this.engineStillActive(backend) && directory === this.state.directory) {
         this.rememberActivitySession(updated);
         this.mutate((s) => ({
           sessions: s.sessions.map((x) => (x.id === id ? updated : x)),
@@ -2893,12 +2948,9 @@ class Store {
   private startPiStream(directory: string, gen: number): void {
     this.piStreamAbort?.abort();
     this.piStreamAbort = null;
-    const hasPiHere =
-      this.engineIdForDirectory(directory) === PI_BACKEND_ID ||
-      Object.values(this.state.prefs.piSessions ?? {}).some(
-        (m) => m.directory === directory,
-      );
-    if (!hasPiHere) return;
+    // A new Pi chat can be created after this subscription starts. Do not
+    // require existing metadata, otherwise its first run has no UI events.
+    if (!isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
     const ctrl = new AbortController();
     this.piStreamAbort = ctrl;
     this.pi().subscribeDirectory(directory, {
@@ -2959,7 +3011,7 @@ class Store {
       ]);
       if (gen !== this.directoryGeneration || journal.length >= 20000) return;
       for (const session of sessions) this.rememberActivitySession(session);
-      const visible = sessions.filter((s) => !s.parentID);
+      const visible = [...sessions.filter((s) => !s.parentID), ...this.state.sessions.filter(s => this.isPiSession(s.id) && s.directory === directory)];
       for (const [id, status] of Object.entries(statuses))
         this.observeSessionStatus(id, status, directory);
       this.rememberChatListing(directory, visible);
@@ -2968,6 +3020,9 @@ class Store {
         // locally accumulated busy state; sessions absent from it are idle again.
         const chatSessions: ChatRootState["sessions"] = { ...s.chat.sessions };
         for (const id of Object.keys(chatSessions)) {
+          // This response belongs to OpenCode in one directory. Pi and other
+          // projects have independent status authorities and must survive it.
+          if (this.isPiSession(id) || (this.activityDirectories.get(id) && this.activityDirectories.get(id) !== directory)) continue;
           chatSessions[id] = {
             ...chatSessions[id],
             status: statuses[id] ?? { type: "idle" },
@@ -2995,7 +3050,7 @@ class Store {
           sessions: visible.filter((x) => !x.time.archived),
           archivedSessions: visible.filter((x) => x.time.archived),
           ui: { ...s.ui, sessionListError: null },
-          statuses,
+          statuses: { ...Object.fromEntries(Object.entries(s.statuses).filter(([id]) => this.isPiSession(id) || (this.activityDirectories.get(id) && this.activityDirectories.get(id) !== directory))), ...statuses },
           connection: { ...s.connection, statusError: null },
           chat,
         };

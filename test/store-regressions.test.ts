@@ -20,6 +20,33 @@ const session = (id: string, directory = "/test/A", agent = "qwen-build") => ({
 const flush = async () => {
   for (let n = 0; n < 12; n++) await Promise.resolve();
 };
+it('routes access changes to Pi and keeps OpenCode out of its permissions', async () => {
+  const piSession = { ...session('pi:access'), permission: [] };
+  store.state.activeSessionId = piSession.id;
+  store.state.sessions = [piSession];
+  store.state.prefs.sessionEngine = { [piSession.id]: 'pi' };
+  const pi = store.engine('pi');
+  const updated = vi.spyOn(pi, 'updateSession').mockImplementation(async (_id: unknown, patch: any) => ({ ...piSession, ...patch }));
+  const wrong = vi.spyOn(store.backend, 'updateSession');
+  await store.setAccessMode('full');
+  expect(updated).toHaveBeenCalledOnce();
+  expect(wrong).not.toHaveBeenCalled();
+  expect(store.getAccessMode()).toBe('full');
+});
+it('OpenCode reconnect cannot erase a running Pi session or another project', async () => {
+  const { emptySessionChat } = await import('../src/state/chatReducer');
+  store.state.prefs.sessionEngine = { 'pi:active': 'pi' };
+  store.state.chat.sessions = {
+    'pi:active': { ...emptySessionChat(), status: { type: 'busy' } },
+    'ses_other': { ...emptySessionChat(), status: { type: 'busy' } },
+    'ses_stale': { ...emptySessionChat(), status: { type: 'busy' } },
+  };
+  store.activityDirectories.set('ses_other', '/other');
+  await store.resyncAfterReconnect('/test/A', store.directoryGeneration, false);
+  expect(store.state.chat.sessions['pi:active'].status.type).toBe('busy');
+  expect(store.state.chat.sessions.ses_other.status.type).toBe('busy');
+  expect(store.state.chat.sessions.ses_stale.status.type).toBe('idle');
+});
 beforeEach(async () => {
   vi.restoreAllMocks();
   vi.resetModules();
@@ -456,4 +483,76 @@ it("a Pi listing failure does not mark the healthy OpenCode project inaccessible
   await store.refreshSessions();
   expect(store.state.ui.sessionListError).toContain("Pi listing failed");
   expect(store.state.connection.statusError).toBeNull();
+});
+
+it('preserves full access when creating a Pi chat before its first prompt', async () => {
+  store.state.activeSessionId = null;
+  store.state.prefs.projectEngine = { '/test/A': 'pi' };
+  store.state.prefs.newAccess = 'full';
+  store.piInstalled = true;
+  const created = await store.createSessionNow('Pi full access');
+  expect(created).not.toBeNull();
+  expect(store.state.prefs.piSessions[created.id].permission).toContainEqual({ permission: '*', pattern: '*', action: 'allow' });
+  expect(store.getAccessMode()).toBe('full');
+});
+it('subscribes to Pi before the first Pi chat exists in a local project', () => {
+  store.state.prefs.piSessions = {};
+  store.state.prefs.projectEngine = {};
+  const subscribe = vi.spyOn(store.engine('pi'), 'subscribeDirectory').mockImplementation(() => {});
+  store.startPiStream('/test/A', store.directoryGeneration);
+  expect(subscribe).toHaveBeenCalledWith('/test/A', expect.objectContaining({signal: expect.any(AbortSignal)}));
+});
+
+it('restores cleared Pi follow-ups in their original draft without replacing typed text', () => {
+  store.state.prefs.drafts = { 'pi-origin': 'already typed', 'pi-other': 'other chat' };
+  store.engine('pi').host.onQueueCleared('/test/A', 'pi-origin', ['correction', 'next']);
+  expect(store.state.prefs.drafts['pi-origin']).toBe('already typed\n\ncorrection\n\nnext');
+  expect(store.state.prefs.drafts['pi-other']).toBe('other chat');
+  expect(store.state.prefs.drafts['/test/A']).toBeUndefined();
+});
+it('keeps recovered Pi text on the local computer after an SSH workspace switch', () => {
+  store.state.prefs.endpoint = 'http://127.0.0.1:5555';
+  store.state.prefs.workspaceKey = 'ssh:other';
+  store.state.prefs.localEndpoint = 'http://127.0.0.1:4096';
+  store.state.prefs.drafts = { 'pi-origin': 'remote untouched' };
+  store.state.prefs.endpointState = { 'http://127.0.0.1:4096': { drafts: { 'pi-origin': 'local' } } };
+  store.engine('pi').host.onQueueCleared('/test/A', 'pi-origin', ['restored']);
+  expect(store.state.prefs.drafts['pi-origin']).toBe('remote untouched');
+  expect(store.state.prefs.endpointState['http://127.0.0.1:4096'].drafts['pi-origin']).toBe('local\n\nrestored');
+});
+it('Stop cancels only its own Pi dialog before aborting the child', async () => {
+  store.state.prefs.sessionEngine = { 'pi-dialog': 'pi' };
+  store.state.ui.piDialog = { sessionId:'pi-dialog',key:'owned-key',request:{id:'question'} };
+  const pi = store.engine('pi'), events: string[] = [];
+  vi.spyOn(pi,'answerDialog').mockImplementation(async()=>{events.push('cancel');});
+  vi.spyOn(pi,'abort').mockImplementation(async()=>{events.push('abort');});
+  await store.stopSession('pi-dialog');
+  expect(events).toEqual(['cancel','abort']);expect(store.state.ui.piDialog).toBeNull();
+});
+
+it('Pi approval remains visible on transport failure and is tied to its exact request', async () => {
+  const pi = store.engine('pi');
+  const dialog = {key: 'key', directory: '/test/A', sessionId: 'pi:test', request: {type: 'extension_ui_request', id:'one', method:'confirm'}};
+  store.state.ui.piDialog = dialog;
+  const post = vi.spyOn(pi, 'answerDialog').mockRejectedValueOnce(Error('pipe closed')).mockResolvedValue(undefined);
+  await expect(store.answerPiDialog({confirmed:true}, {key:'key',id:'one'})).rejects.toThrow('pipe closed');
+  expect(store.state.ui.piDialog).toBe(dialog);
+  expect(store.state.ui.toast).toContain('не доставлен');
+  await store.answerPiDialog({confirmed:true}, {key:'key',id:'old'});
+  expect(post).toHaveBeenCalledTimes(1);
+  await store.answerPiDialog({confirmed:true}, {key:'key',id:'one'});
+  expect(post).toHaveBeenLastCalledWith('key','one',{confirmed:true});
+  expect(store.state.ui.piDialog).toBeNull();
+});
+it('two Pi permission requests are queued, never overwritten or answered together', async () => {
+  const pi = store.engine('pi');
+  const request = (id: string) => ({key: id, directory:'/test/A',sessionId:id,request:{id,method:'confirm',type:'extension_ui_request'}});
+  const post = vi.spyOn(pi,'answerDialog').mockResolvedValue(undefined);
+  pi.host.onDialog(request('first')); pi.host.onDialog(request('second'));
+  expect(store.state.ui.piDialog.request.id).toBe('first');
+  await store.answerPiDialog({confirmed:true},{key:'first',id:'first'});
+  expect(store.state.ui.piDialog.request.id).toBe('second');
+  expect(post).toHaveBeenCalledTimes(1);
+  pi.host.onDialogExpired('second','second');
+  expect(store.state.ui.piDialog).toBeNull();
 });

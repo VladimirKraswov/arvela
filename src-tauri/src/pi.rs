@@ -48,7 +48,7 @@ const TOOL_GATE: &str = include_str!("../resources/pi/tool-gate.ts");
 pub const PI_EVENT: &str = "pi://event";
 
 /// How long a dialog request may stay unanswered before it is auto-denied.
-const DIALOG_DEADLINE: Duration = Duration::from_secs(120);
+const DIALOG_DEADLINE: Duration = Duration::from_secs(30 * 60);
 /// Bound on retained stderr so a chatty child cannot grow memory without limit.
 const STDERR_TAIL: usize = 8 * 1024;
 
@@ -622,7 +622,7 @@ pub struct PiProcess {
     /// Taken on shutdown: closing it is the EOF that asks Pi to exit cleanly.
     stdin: Option<ChildStdin>,
     pending: Arc<Mutex<HashMap<String, Sender<Value>>>>,
-    dialogs: Arc<Mutex<HashMap<String, Instant>>>,
+    dialogs: Arc<Mutex<HashMap<String, Value>>>,
     stderr: Arc<Mutex<String>>,
     pub directory: String,
     pub session_id: String,
@@ -928,7 +928,7 @@ pub async fn pi_open(
         let stdout = child.stdout.take().ok_or("Pi не выдал поток вывода")?;
         let stderr_pipe = child.stderr.take().ok_or("Pi не выдал поток ошибок")?;
         let pending: Arc<Mutex<HashMap<String, Sender<Value>>>> = Arc::default();
-        let dialogs: Arc<Mutex<HashMap<String, Instant>>> = Arc::default();
+        let dialogs: Arc<Mutex<HashMap<String, Value>>> = Arc::default();
         let stderr = Arc::new(Mutex::new(String::new()));
         let stopping = Arc::new(AtomicBool::new(false));
 
@@ -1004,7 +1004,7 @@ fn spawn_reader(
     directory: String,
     session_id: String,
     pending: Arc<Mutex<HashMap<String, Sender<Value>>>>,
-    dialogs: Arc<Mutex<HashMap<String, Instant>>>,
+    dialogs: Arc<Mutex<HashMap<String, Value>>>,
     handles: Arc<Mutex<HashMap<String, PiProcess>>>,
     stopping: Arc<AtomicBool>,
 ) {
@@ -1042,9 +1042,12 @@ fn spawn_reader(
                 if let (Some(id), Some(method)) = (value["id"].as_str(), value["method"].as_str()) {
                     if DIALOG_METHODS.contains(&method) {
                         if let Ok(mut open) = dialogs.lock() {
-                            open.insert(id.to_string(), Instant::now());
+                            open.insert(id.to_string(), value.clone());
                         }
                         arm_dialog_watchdog(
+                            app.clone(),
+                            directory.clone(),
+                            session_id.clone(),
                             handles.clone(),
                             dialogs.clone(),
                             key.clone(),
@@ -1098,29 +1101,39 @@ fn spawn_stderr(stderr: std::process::ChildStderr, sink: Arc<Mutex<String>>) {
 /// Default-deny: an unanswered dialog is cancelled once the deadline passes, so
 /// a closed window or a stalled WebView can never read as approval.
 fn arm_dialog_watchdog(
+    app: tauri::AppHandle,
+    directory: String,
+    session_id: String,
     handles: Arc<Mutex<HashMap<String, PiProcess>>>,
-    dialogs: Arc<Mutex<HashMap<String, Instant>>>,
+    dialogs: Arc<Mutex<HashMap<String, Value>>>,
     key: String,
     id: String,
 ) {
     thread::spawn(move || {
         thread::sleep(DIALOG_DEADLINE);
-        let still_open = dialogs
-            .lock()
-            .map(|open| open.contains_key(&id))
-            .unwrap_or(false);
-        if !still_open {
-            return;
-        }
+        // Same lock order as pi_post: approval and expiry cannot both win.
         if let Ok(mut map) = handles.lock() {
             if let Some(process) = map.get_mut(&key) {
-                let _ = process.write_line(
-                    &json!({"type":"extension_ui_response","id":id,"cancelled":true}).to_string(),
-                );
+                let claimed = dialogs
+                    .lock()
+                    .map(|mut d| d.remove(&id).is_some())
+                    .unwrap_or(false);
+                if claimed {
+                    let _ = process.write_line(
+                        &json!({"type":"extension_ui_response","id":id,"cancelled":true})
+                            .to_string(),
+                    );
+                    emit(
+                        &app,
+                        PiEnvelope {
+                            key,
+                            directory,
+                            session_id,
+                            payload: json!({"type":"pi_dialog_expired","id":id}),
+                        },
+                    );
+                }
             }
-        }
-        if let Ok(mut open) = dialogs.lock() {
-            open.remove(&id);
         }
     });
 }
@@ -1208,11 +1221,27 @@ pub async fn pi_post(
         let mut map = handles.lock().map_err(|e| e.to_string())?;
         let process = map.get_mut(&key).ok_or("Сессия Pi не запущена.")?;
         if message["type"] == "extension_ui_response" {
-            if let Some(id) = message["id"].as_str() {
-                process.dialogs.lock().ok().map(|mut d| d.remove(id));
+            let id = message["id"]
+                .as_str()
+                .ok_or("Нет идентификатора запроса Pi.")?;
+            if !process
+                .dialogs
+                .lock()
+                .map_err(|e| e.to_string())?
+                .contains_key(id)
+            {
+                return Err("Запрос Pi уже закрыт или истёк. Действие не выполнено.".into());
             }
+            process.write_line(&message.to_string())?;
+            process
+                .dialogs
+                .lock()
+                .map_err(|e| e.to_string())?
+                .remove(id);
+            Ok(())
+        } else {
+            process.write_line(&message.to_string())
         }
-        process.write_line(&message.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -1241,6 +1270,17 @@ pub async fn pi_live_sessions(state: State<'_, PiSessions>) -> Result<Vec<String
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Reattach a reloaded WebView without starting or prompting any process.
+#[tauri::command]
+pub async fn pi_resume_sessions(state: State<'_, PiSessions>) -> Result<Vec<Value>, String> {
+    let mut handles = state.0.lock().map_err(|e| e.to_string())?;
+    handles.retain(|_, p| matches!(p.child.try_wait(), Ok(None)));
+    handles.iter().map(|(key, p)| {
+        let dialogs: Vec<Value> = p.dialogs.lock().map_err(|e| e.to_string())?.values().cloned().collect();
+        Ok(json!({"key": key, "directory": p.directory, "sessionId": p.session_id, "dialogs": dialogs}))
+    }).collect()
 }
 
 /// Stop every Pi child. Called on app exit so no agent outlives the window.

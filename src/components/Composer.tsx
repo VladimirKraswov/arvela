@@ -58,11 +58,11 @@ export function Composer() {
   const providers = store.configuredProvidersWithModels();
   const session = store.activeSession() ?? null;
   const status = session
-    ? (s.chat.sessions[session.id]?.status ?? s.statuses[session.id])
+    ? store.activityStatus(session.id)
     : s.ui.sending
       ? { type: "busy" as const }
       : { type: "idle" as const };
-  const running = status?.type === "busy" || status?.type === "retry";
+  const running = status?.type === "busy" || status?.type === "retry" || status?.type === "waiting";
   // The engine that will run the prompt decides readiness, not OpenCode alone.
   const connected = store.engineReady();
 

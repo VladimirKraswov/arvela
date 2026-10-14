@@ -55,9 +55,14 @@ export default function App() {
     // Sequential startup: connect() only touches projects after health succeeded.
     // connect() is idempotent, so a StrictMode double-invoke shares one attempt.
     applyTheme(store.state.prefs.theme);
-    void store.connect();
+    void store.connect().then(() => store.restorePiRuntime()).catch(() => {});
     // Detect Pi and hydrate its no-session model catalog for a restored chat.
     void store.refreshPiInstall();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => void store.refreshPiActivity(), 5000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
