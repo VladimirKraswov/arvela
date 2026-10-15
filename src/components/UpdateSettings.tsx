@@ -1,3 +1,4 @@
+import { SettingField } from "./SettingHelp";
 import {useEffect,useState} from 'react';
 import {invoke} from '@tauri-apps/api/core';
 import {store,useAppState} from '../state/store';
@@ -25,7 +26,7 @@ export function UpdateSettings(){
   const hot=u.release?.kind==='hot',built=updates.prepared(),stage=u.status?.build.stage;
   return <section className="setting-group quality-settings"><h2>Arvela {u.status?.hot.uiVersion??version}</h2>
     {u.status&&u.status.nativeVersion!==u.status.hot.uiVersion&&<p className="muted">Нативная версия {u.status.nativeVersion}</p>}
-    <label>Канал<select value={u.channel} disabled={disabled||u.waiting||compiling} onChange={e=>{const channel=e.target.value==='preview'?'preview':'stable';updates.setChannel(channel);localStorage.setItem('arvela.update.channel',channel);}}><option value="stable">Стабильный</option><option value="preview">Предварительный</option></select></label>
+    <SettingField label="Канал"><select value={u.channel} disabled={disabled||u.waiting||compiling} onChange={e=>{const channel=e.target.value==='preview'?'preview':'stable';updates.setChannel(channel);localStorage.setItem('arvela.update.channel',channel);}}><option value="stable">Стабильный</option><option value="preview">Предварительный</option></select></SettingField>
     <div className="btn-row"><button className="btn" disabled={disabled||compiling||u.waiting} onClick={()=>void updates.check()}>{u.busy==='check'?'Проверяю…':'Проверить обновления'}</button>
       {u.release?.available&&!u.downloaded&&<button className="btn" disabled={disabled} onClick={()=>void updates.download()}>{u.busy==='download'?'Загрузка…':`Скачать ${u.release.version}`}</button>}
       {u.downloaded&&!hot&&!compiling&&!built&&<button className="btn" disabled={disabled} onClick={()=>void updates.build()}>Собрать на этом компьютере</button>}
@@ -44,7 +45,7 @@ export function UpdateSettings(){
     {u.error&&<p role="alert">{u.error}</p>}{u.notice&&<p role="status">{u.notice}</p>}
     <h2>Резервные копии</h2>
     <button className="btn" disabled={disabled||running} onClick={()=>void maintain('backup')}>Создать резервную копию</button>
-    <label>Копия<select value={selected} onChange={e=>setSelected(e.target.value)} disabled={disabled}><option value="">Выберите копию</option>{backups.map(b=><option key={b.id} value={b.id}>{new Date(Number(b.id.slice(7))).toLocaleString()} · {b.version}</option>)}</select></label>
+    <SettingField label="Копия"><select value={selected} onChange={e=>setSelected(e.target.value)} disabled={disabled}><option value="">Выберите копию</option>{backups.map(b=><option key={b.id} value={b.id}>{new Date(Number(b.id.slice(7))).toLocaleString()} · {b.version}</option>)}</select></SettingField>
     <button className="btn" disabled={disabled||running||!selected} onClick={()=>void maintain('restore')}>Восстановить и перезапустить</button>
     {notice&&<p role="status">{notice}</p>}
   </section>;

@@ -1,3 +1,4 @@
+import { SettingHelp } from "./SettingHelp";
 import { platform } from "../native/platform";
 import {useEffect,useState} from "react";
 import {store,useAppState} from "../state/store";
@@ -50,7 +51,7 @@ export function ComputerSettings(){
   };
   const p=status?.permissions, os=platform(), windows=os==="windows";
   return <section className="computer-settings" aria-label="Управление компьютером">
-    <h4>Отдельный курсор агента</h4>
+    <h4>Отдельный курсор агента <SettingHelp topic="computer.control" title="Отдельный курсор агента"/></h4>
     <p>Снимки и текст выбранного окна получает модель.</p>
     {!["macos","windows"].includes(os)?<p role="status">Управление окнами Cua Driver на этой платформе недоступно. Управляемый браузер доступен в отдельном разделе настроек.</p>
       :!native?<p>Откройте установленное приложение Desktop.</p>:<>

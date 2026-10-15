@@ -1,3 +1,4 @@
+import { SettingHelp } from "./SettingHelp";
 import { usageSources } from "../usage/sources";
 import { useEffect, useRef, useState } from "react";
 import { store, useAppState } from "../state/store";
@@ -53,7 +54,7 @@ export function UsageSettings() {
   return <div className="usage-settings">
     <p className="settings-intro">Статистика по ответам OpenCode и Pi.</p>
     <div className="usage-toolbar">
-      <div className="usage-periods" role="group" aria-label="Период использования">
+      <div className="usage-periods" role="group" aria-label="Период использования"><SettingHelp topic="usage.period" title="Период и подсчёт токенов"/>
         {([ ["7d", "7 дней"], ["30d", "30 дней"], ["all", "Всё время"] ] as const).map(([key, title]) => <button key={key} className="btn" aria-pressed={period === key} onClick={() => setPeriod(key)}>{title}</button>)}
       </div>
       {progress ? <button className="btn" onClick={() => { currentScan.current?.abort(); currentScan.current = null; setProgress(null); setError("Расчёт отменён."); }}>Отменить</button> : <button className="btn" onClick={() => setRefresh(value => value + 1)}><Icon name="refresh" size={15}/>Обновить</button>}

@@ -1,3 +1,4 @@
+import { SettingField } from "./SettingHelp";
 import { useEffect, useRef, useState } from "react";
 import { store, useAppState } from "../state/store";
 import { isLocalComputer } from "../state/computer";
@@ -305,9 +306,7 @@ export function CapabilitiesSettings({
         <p>Управление доступно в установленном Arvela.</p>
       )}
       <div className="settings-actions">
-        <label>
-          Область{" "}
-          <select
+        <SettingField label="Область">{" "}<select
             aria-label="Область общего каталога"
             disabled={busy || dirty || !local}
             value={scope}
@@ -317,8 +316,7 @@ export function CapabilitiesSettings({
             <option value="project" disabled={!app.directory}>
               Этот проект
             </option>
-          </select>
-        </label>
+          </select></SettingField>
         <button
           className="btn"
           disabled={busy || !local || !isNative() || dirty}
@@ -388,8 +386,7 @@ export function CapabilitiesSettings({
                         : "Каталог на диске"}
                     </small>
                   </div>
-                  <label>
-                    <input
+                  <SettingField label="Включён"><input
                       type="checkbox"
                       aria-label={`Источник ${s.id}`}
                       checked={s.enabled}
@@ -404,30 +401,22 @@ export function CapabilitiesSettings({
                           ),
                         })
                       }
-                    />
-                    Включён
-                  </label>
+                    /></SettingField>
                 </div>
               ))}
               <div className="capability-form">
-                <label>
-                  Идентификатор источника
-                  <input
+                <SettingField label="Идентификатор источника"><input
                     aria-label="Идентификатор источника"
                     value={sourceId}
                     onChange={(e) => setSourceId(e.target.value)}
                     placeholder="my-skills"
-                  />
-                </label>
-                <label>
-                  Каталог навыков
-                  <input
+                  /></SettingField>
+                <SettingField label="Каталог навыков"><input
                     aria-label="Каталог навыков"
                     value={sourcePath}
                     onChange={(e) => setSourcePath(e.target.value)}
                     placeholder="Абсолютный путь"
-                  />
-                </label>
+                  /></SettingField>
                 <div className="settings-actions">
                   <button
                     className="btn"
@@ -529,8 +518,7 @@ export function CapabilitiesSettings({
                 >
                   <div className="capability-item">
                     <b>{s.name}</b>
-                    <label>
-                      <input
+                    <SettingField label="Включён"><input
                         aria-label={`MCP ${s.id}`}
                         type="checkbox"
                         checked={s.enabled}
@@ -545,9 +533,7 @@ export function CapabilitiesSettings({
                             ),
                           })
                         }
-                      />
-                      Включён
-                    </label>
+                      /></SettingField>
                   </div>
                   <code>{s.kind === "http" ? s.url : s.command}</code>
                   <div className="capability-statuses">
@@ -622,30 +608,22 @@ export function CapabilitiesSettings({
                     ? "Изменение MCP"
                     : "Новое подключение"}
                 </h3>
-                <label>
-                  Идентификатор MCP
-                  <input
+                <SettingField label="Идентификатор MCP"><input
                     aria-label="Идентификатор общего MCP"
                     value={server.id}
                     onChange={(e) =>
                       setServer({ ...server, id: e.target.value })
                     }
                     placeholder="project-search"
-                  />
-                </label>
-                <label>
-                  Название
-                  <input
+                  /></SettingField>
+                <SettingField label="Название"><input
                     aria-label="Название общего MCP"
                     value={server.name}
                     onChange={(e) =>
                       setServer({ ...server, name: e.target.value })
                     }
-                  />
-                </label>
-                <label>
-                  Транспорт
-                  <select
+                  /></SettingField>
+                <SettingField label="Транспорт"><select
                     aria-label="Транспорт общего MCP"
                     value={server.kind}
                     onChange={(e) =>
@@ -658,60 +636,44 @@ export function CapabilitiesSettings({
                   >
                     <option value="stdio">Локальная программа · stdio</option>
                     <option value="http">Streamable HTTP</option>
-                  </select>
-                </label>
+                  </select></SettingField>
                 {server.kind === "stdio" ? (
                   <>
-                    <label>
-                      Программа
-                      <input
+                    <SettingField label="Программа"><input
                         aria-label="Программа общего MCP"
                         value={server.command}
                         onChange={(e) =>
                           setServer({ ...server, command: e.target.value })
                         }
                         placeholder="Абсолютный путь к node / python / программе"
-                      />
-                    </label>
-                    <label>
-                      Аргументы · JSON
-                      <input
+                      /></SettingField>
+                    <SettingField label="Аргументы · JSON"><input
                         aria-label="Аргументы общего MCP"
                         value={args}
                         onChange={(e) => setArgs(e.target.value)}
                         placeholder='["/path/server.mjs"]'
-                      />
-                    </label>
-                    <label>
-                      Имена переменных окружения
-                      <input
+                      /></SettingField>
+                    <SettingField label="Имена переменных окружения"><input
                         aria-label="Переменные общего MCP"
                         value={env}
                         onChange={(e) => setEnv(e.target.value)}
                         placeholder="API_KEY, CONFIG_PATH"
-                      />
-                      <small>
+                      /><small>
                         Значения берутся из окружения запущенного Desktop; в
                         реестр не сохраняются.
-                      </small>
-                    </label>
+                      </small></SettingField>
                   </>
                 ) : (
                   <>
-                    <label>
-                      URL
-                      <input
+                    <SettingField label="URL"><input
                         aria-label="URL общего MCP"
                         value={server.url}
                         onChange={(e) =>
                           setServer({ ...server, url: e.target.value })
                         }
                         placeholder="https://service.example/mcp"
-                      />
-                    </label>
-                    <label>
-                      Bearer-токен
-                      <input
+                      /></SettingField>
+                    <SettingField label="Bearer-токен"><input
                         aria-label="Токен общего MCP"
                         type="password"
                         autoComplete="off"
@@ -722,12 +684,10 @@ export function CapabilitiesSettings({
                             ? "Сохранён в связке ключей; пусто — оставить"
                             : "Необязательно"
                         }
-                      />
-                      <small>
+                      /><small>
                         Сохраняется в системной связке ключей; не передаётся в
                         URL или аргументах процесса.
-                      </small>
-                    </label>
+                      </small></SettingField>
                     {server.bearer && (
                       <button
                         className="btn"

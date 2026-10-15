@@ -1,3 +1,4 @@
+import { SettingHelp } from "./SettingHelp";
 import { useEffect, useState } from "react";
 import { store, useAppState } from "../state/store";
 import {
@@ -63,7 +64,7 @@ export function AgentControlSettings() {
 
   return (
     <section className="computer-settings" aria-label="API управления агентами">
-      <h4>Arvela Control MCP</h4>
+      <h4>Arvela Control MCP <SettingHelp topic="agent.control" title="Arvela Control MCP"/></h4>
       <p>
         Агенты выбирают проект, чат, модель и движок, отправляют задачу, ждут
         завершения и читают результат через API. Физическая мышь и распознавание

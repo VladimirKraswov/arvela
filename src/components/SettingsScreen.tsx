@@ -1,3 +1,4 @@
+import { SettingHelp } from "./SettingHelp";
 import {consumeUpdateSettings} from "../updates/controller";
 import { SkillQualitySettings } from "./SkillQualitySettings";
 import { UpdateSettings } from "./UpdateSettings";
@@ -52,7 +53,7 @@ export function searchSettings(query: string) {
 }
 const isEngine = (id: Section): id is EngineSection => ["tools", "skills", "plugins", "mcp", "agents"].includes(id);
 function Row({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
-  return <div className="setting-row"><div className="setting-label"><span title={description}>{title}</span></div><div className="setting-control">{children}</div></div>;
+  return <div className="setting-row"><div className="setting-label"><div className="setting-field-heading"><span>{title}</span><SettingHelp topic={title} description={description}/></div></div><div className="setting-control">{children}</div></div>;
 }
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return <section className="setting-group" aria-label={title}><h2>{title}</h2><div className="setting-card">{children}</div></section>;

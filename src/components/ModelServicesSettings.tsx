@@ -1,3 +1,4 @@
+import { SettingHelp } from "./SettingHelp";
 import { useState, useSyncExternalStore } from "react";
 import { store, useAppState } from "../state/store";
 import { modelServices, type ModelService } from "../models/services";
@@ -70,13 +71,7 @@ export function ModelServicesSettings() {
               </div>
             </div>
             <div className="setting-row">
-              <label
-                className="setting-label"
-                htmlFor={`service-key-${service.id}`}
-              >
-                Ключ управления
-
-              </label>
+              <div className="setting-label"><div className="setting-field-heading"><label htmlFor={`service-key-${service.id}`}>Ключ управления</label><SettingHelp topic="Ключ управления"/></div></div>
               <div className="setting-control">
                 <input
                   id={`service-key-${service.id}`}
@@ -143,9 +138,7 @@ export function ModelServicesSettings() {
             ] as const
           ).map(([label, value, update]) => (
             <div className="setting-row" key={label}>
-              <label className="setting-label" htmlFor={label}>
-                {label}
-              </label>
+              <div className="setting-label"><div className="setting-field-heading"><label htmlFor={label}>{label}</label><SettingHelp topic={label} title={label}/></div></div>
               <div className="setting-control">
                 <input
                   id={label}
@@ -157,10 +150,7 @@ export function ModelServicesSettings() {
             </div>
           ))}
           <div className="setting-row">
-            <label className="setting-label" htmlFor="model-bindings">
-              Соответствие моделей
-
-            </label>
+            <div className="setting-label"><div className="setting-field-heading"><label htmlFor="model-bindings">Соответствие моделей</label><SettingHelp topic="Соответствие моделей"/></div></div>
             <div className="setting-control">
               <textarea
                 id="model-bindings"

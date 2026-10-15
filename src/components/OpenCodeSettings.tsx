@@ -1,3 +1,4 @@
+import { SettingField, SettingHelp } from "./SettingHelp";
 import { useEffect, useState } from "react";
 import { store, useAppState } from "../state/store";
 import { npmPluginName, parseConfig, permissionValue, remoteMcpUrl, updateConfig, type ConfigValue } from "../state/configEditor";
@@ -111,12 +112,10 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
 
   return <div className="engine-settings" data-unsaved-settings={pending ? "true" : undefined}>
     <div className="settings-scope">
-      <label>Область конфигурации
-        <select value={scope} disabled={!!pending || busy} onChange={(e) => setScope(e.target.value as Scope)}>
+      <SettingField label="Область конфигурации"><select value={scope} disabled={!!pending || busy} onChange={(e) => setScope(e.target.value as Scope)}>
           <option value="global">На этом компьютере · все проекты</option>
           <option value="project" disabled={!s.directory || remote}>Текущий проект</option>
-        </select>
-      </label>
+        </select></SettingField>
       <small>{doc?.path ?? (remote ? "Удалённый сервер: инвентарь доступен, редактирование локального файла отключено." : !native ? "Редактирование доступно в установленном приложении." : "Загрузка конфигурации…")}</small>
     </div>
     {error && <p role="alert" className="composer-error">{error}</p>}
@@ -133,7 +132,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
         {[...new Set([...tools, ...Object.keys(permissions)])].filter((x) => x !== "*").map((id) => {
           const value = permissionValue(config, id);
           return <div className="engine-row" key={id}>
-            <code>{id}</code>
+            <span><code>{id}</code><SettingHelp topic="opencode.permissions" title={`Разрешение ${id}`}/></span>
             <select aria-label={`Разрешение ${id}`} value={value} disabled={!canEdit || value === "custom"}
               onChange={(e) => {
                 const next = e.target.value;
@@ -151,9 +150,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
       {section === "skills" && <>
         <p>Обнаруженные навыки берутся из OpenCode API. Дополнительный источник URL сохраняется в <code>skills.urls</code>; OpenCode загрузит его при следующем запуске.</p>
         {skills.length ? skills.map((skill) => <div className="engine-item" key={`${skill.name}:${skill.location}`}><b>{skill.name}</b><small>{skill.description}</small><code>{skill.location}</code></div>) : <p>Навыки не обнаружены.</p>}
-        <label>Новый HTTPS-источник навыков
-          <input value={skillUrl} onChange={(e) => setSkillUrl(e.target.value)} placeholder="https://example.com/skills/" />
-        </label>
+        <SettingField label="Новый HTTPS-источник навыков"><input value={skillUrl} onChange={(e) => setSkillUrl(e.target.value)} placeholder="https://example.com/skills/" /></SettingField>
         <button className="btn" disabled={!canEdit || !skillUrl.trim()} onClick={() => {
           if (!remoteMcpUrl(skillUrl.trim()) || !skillUrl.trim().startsWith("https://")) { setError("Для навыков нужен HTTPS URL без учётных данных."); return; }
           const urls = asStrings(skillSources.urls);
@@ -166,7 +163,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
       {section === "plugins" && <>
         <p>Пакеты npm в <code>plugin</code> OpenCode скачает и установит через Bun при следующем запуске. Добавляйте только проверенные пакеты; плагины исполняют код на компьютере.</p>
         {plugins.map((item, i) => <div className="engine-row" key={`${i}:${JSON.stringify(item)}`}><code>{typeof item === "string" ? item : JSON.stringify(item)}</code><button className="btn small" disabled={!canEdit} onClick={() => void save(["plugin"], plugins.filter((_, index) => index !== i))}>Убрать</button></div>)}
-        <div className="engine-add"><input aria-label="Имя npm-пакета" value={pluginName} onChange={(e) => setPluginName(e.target.value)} placeholder="@scope/opencode-plugin@1.2.3" /><button className="btn" disabled={!canEdit || !pluginName.trim()} onClick={() => {
+        <div className="engine-add"><SettingField label="Имя npm-пакета"><input aria-label="Имя npm-пакета" value={pluginName} onChange={(e) => setPluginName(e.target.value)} placeholder="@scope/opencode-plugin@1.2.3" /></SettingField><button className="btn" disabled={!canEdit || !pluginName.trim()} onClick={() => {
           const name = pluginName.trim();
           if (!npmPluginName(name)) { setError("Введите имя npm-пакета, без URL или команды."); return; }
           if (plugins.includes(name)) { setError("Плагин уже добавлен."); return; }
@@ -176,7 +173,7 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
       {section === "mcp" && <>
 
         {Object.entries(mcp).map(([name, value]) => <div className="engine-row" key={name}><span><b>{name}</b><small> · {mcpStatus[name]?.status ?? "после перезапуска"}</small></span><button className="btn small" disabled={!canEdit} onClick={() => { const next = {...mcp}; delete next[name]; void save(["mcp"], next); }}>Убрать</button><code>{asRecord(value).type === "remote" ? String(asRecord(value).url ?? "") : "Локальный MCP"}</code></div>)}
-        <div className="engine-add"><input aria-label="Имя MCP" value={mcpName} onChange={(e) => setMcpName(e.target.value)} placeholder="имя-сервера" /><input aria-label="Адрес MCP" value={mcpUrl} onChange={(e) => setMcpUrl(e.target.value)} placeholder="https://server.example/mcp" /><button className="btn" disabled={!canEdit || !mcpName.trim() || !mcpUrl.trim()} onClick={() => {
+        <div className="engine-add"><SettingField label="Имя MCP"><input aria-label="Имя MCP" value={mcpName} onChange={(e) => setMcpName(e.target.value)} placeholder="имя-сервера" /></SettingField><SettingField label="Адрес MCP"><input aria-label="Адрес MCP" value={mcpUrl} onChange={(e) => setMcpUrl(e.target.value)} placeholder="https://server.example/mcp" /></SettingField><button className="btn" disabled={!canEdit || !mcpName.trim() || !mcpUrl.trim()} onClick={() => {
           const name = mcpName.trim(), url = mcpUrl.trim();
           if (!/^[a-zA-Z][a-zA-Z0-9_-]{1,48}$/.test(name) || !remoteMcpUrl(url)) { setError("Проверьте имя и HTTPS/loopback адрес MCP без учётных данных."); return; }
           if (mcp[name]) { setError("MCP с таким именем уже существует."); return; }
@@ -185,12 +182,10 @@ export function OpenCodeSettings({onDirtyChange, section = "tools"}: {onDirtyCha
       </>}
       {section === "agents" && <>
         <p>Агенты, обнаруженные OpenCode: {agentNames.join(", ") || "нет данных"}. Выбор агента для конкретного чата остаётся в поле ввода.</p>
-        <label>Агент по умолчанию для этой области
-          <select value={typeof config.default_agent === "string" ? config.default_agent : ""} disabled={!canEdit} onChange={(e) => void save(["default_agent"], e.target.value || undefined)}>
+        <SettingField label="Агент по умолчанию для этой области"><select value={typeof config.default_agent === "string" ? config.default_agent : ""} disabled={!canEdit} onChange={(e) => void save(["default_agent"], e.target.value || undefined)}>
             <option value="">Наследовать</option>
             {agentNames.map((name) => <option value={name} key={name}>{name}</option>)}
-          </select>
-        </label>
+          </select></SettingField>
       </>}
     </div>
   </div>;

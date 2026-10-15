@@ -2678,6 +2678,26 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .setting-row + .setting-row { border-top: 1px solid var(--border); }
 .setting-label { min-width: 0; flex: 1; line-height: 1.45; }
 .setting-label > span { font-size: .96rem; }
+.setting-field-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
+.setting-help-trigger { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:24px; height:24px; padding:0; margin-inline-start:6px; border:1px solid var(--border); border-radius:50%; background:transparent; color:var(--text-dim); font-family:inherit; font-size:12px; font-weight:600; line-height:1; cursor:pointer; vertical-align:middle; }
+.setting-help-trigger:hover { color:var(--text); background:var(--bg-hover); }
+.setting-help-trigger:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.setting-field-heading .setting-help-trigger { margin-inline-start:0; }
+.setting-help-field { display:grid; gap:8px; min-width:0; }
+.setting-field-control { display:grid; gap:8px; min-width:0; }
+.engine-add > .setting-help-field { flex:1; }
+.setting-help-toggle { display:flex; align-items:center; gap:8px; }
+.setting-help-toggle > label { display:flex; align-items:center; gap:10px; }
+.setting-help-dialog { width:min(520px,calc(100vw - 32px)); max-height:calc(100dvh - 40px); padding:0; border:1px solid var(--border); border-radius:18px; color:var(--text); background:var(--bg-raised); box-shadow:0 20px 80px #0006; overflow:auto; }
+.setting-help-dialog::backdrop { background:#0008; }
+.setting-help-dialog > header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 20px; border-bottom:1px solid var(--border); }
+.setting-help-dialog h2 { margin:0; font-size:1.05rem; overflow-wrap:anywhere; }
+.setting-help-dialog header button { flex-shrink:0; }
+.setting-help-body { padding:4px 20px 18px; font-size:.94rem; line-height:1.6; overflow-wrap:anywhere; }
+.setting-help-body dl { display:grid; gap:14px; }
+.setting-help-body dt { font-weight:600; }
+.setting-help-body dd { margin:3px 0 0; color:var(--text-dim); }
+.setting-help-note { border-top:1px solid var(--border); padding-top:14px; color:var(--text-dim); }
 .setting-label small { display: block; color: var(--text-dim); font-size: .86rem; margin-top: 4px; overflow-wrap: anywhere; }
 .setting-control { flex: 0 1 auto; max-width: 53%; min-width: 0; font-size: .93rem; text-align: right; overflow-wrap: anywhere; }
 .settings-page input:not([type="range"]):not([type="color"]), .settings-page select { color: var(--text); background: var(--bg-input); border: 1px solid var(--border-strong); border-radius: 8px; padding: 7px 9px; min-width: 0; max-width: 100%; }

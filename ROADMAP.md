@@ -1,5 +1,11 @@
 # Arvela roadmap
 
+## Подсказки настроек — 0.2.62
+
+- [x] Small question buttons with named modal explanations for browser parameters, agent permissions, shared capabilities, Hub, model services, appearance, ASR, updates and backups.
+- [x] Full browser value/tradeoff explanations, on-demand loading, keyboard focus/return and Escape isolated from settings; no settings mutation or secret copying.
+- [ ] Final full checks, release receipt and existing-client hot-update offer.
+
 ## Мастерская Arvela — 0.2.61
 
 - [x] One protected development chat above projects, app-owned workspace and shared OpenCode/Pi project instructions, source detection and no-key disclosure.

@@ -1,3 +1,4 @@
+import { SettingField } from "./SettingHelp";
 import { hubOrigin } from "../hub/identity";
 import { useEffect, useRef, useState } from "react";
 import { config, drain, emptyConfig, install, request, spool, type HubConfig, type HubItem, type Spool } from "../hub/client";
@@ -30,13 +31,13 @@ export function HubSettings({onDirtyChange}:{onDirtyChange?:(v:boolean)=>void}){
  }
  return <div className="hub-settings">
  <section className="settings-group"><h2>Подключение</h2><div className="settings-card hub-card">
- <label>Адрес сервиса HTTPS<input aria-label="Адрес библиотеки" placeholder="https://arvela-hub.local:8443" value={value.endpoint} onChange={e=>setValue({...value,endpoint:e.target.value})}/></label>
- <label>Публичный сертификат PEM<textarea aria-label="Сертификат библиотеки" spellCheck={false} placeholder="-----BEGIN CERTIFICATE-----" value={value.certificate} onChange={e=>setValue({...value,certificate:e.target.value})}/></label>
+ <SettingField label="Адрес сервиса HTTPS"><input aria-label="Адрес библиотеки" placeholder="https://arvela-hub.local:8443" value={value.endpoint} onChange={e=>setValue({...value,endpoint:e.target.value})}/></SettingField>
+ <SettingField label="Публичный сертификат PEM"><textarea aria-label="Сертификат библиотеки" spellCheck={false} placeholder="-----BEGIN CERTIFICATE-----" value={value.certificate} onChange={e=>setValue({...value,certificate:e.target.value})}/></SettingField>
  <p className="settings-muted">Импортируйте публичный сертификат сервиса.</p>
- <label>Ключ этого устройства<input aria-label="Ключ библиотеки" type="password" autoComplete="off" value={key} placeholder="Пусто — сохранить существующий ключ" onChange={e=>setKey(e.target.value)}/></label>
+ <SettingField label="Ключ этого устройства"><input aria-label="Ключ библиотеки" type="password" autoComplete="off" value={key} placeholder="Пусто — сохранить существующий ключ" onChange={e=>setKey(e.target.value)}/></SettingField>
  <p className="settings-muted">Ключ хранится в системной связке ключей.</p>
- <label className="hub-toggle"><input type="checkbox" checked={value.enabled} onChange={e=>setValue({...value,enabled:e.target.checked})}/>Подключить библиотеку и передавать метрики</label>
- <label className="hub-toggle"><input type="checkbox" checked={value.shareText} onChange={e=>setValue({...value,shareText:e.target.checked})}/>Передавать тексты запросов и итоговых ответов</label>
+ <SettingField label="Подключить библиотеку и передавать метрики" className="hub-toggle"><input type="checkbox" checked={value.enabled} onChange={e=>setValue({...value,enabled:e.target.checked})}/></SettingField>
+ <SettingField label="Передавать тексты запросов и итоговых ответов" className="hub-toggle"><input type="checkbox" checked={value.shareText} onChange={e=>setValue({...value,shareText:e.target.checked})}/></SettingField>
  <p className="settings-muted">Тексты запросов и ответов передаются в Hub. Файлы и скриншоты — нет. Не отправляйте секреты.</p>
  <div className="settings-actions"><button className="btn" disabled={!dirty||busy} onClick={()=>{setValue(saved);setKey("");}}>Отменить</button><button className="btn primary" disabled={!ready||busy||!dirty} onClick={()=>void run(async()=>{const c=await config(value,key||undefined,saved);setValue(c);setSaved(c);setKey("");if(c.enabled){const me=await request<{name:string}>("me");await refresh();setNotice(`Подключено: ${me.name}`);}else setNotice("Передача отключена.");})}>Сохранить и проверить</button></div>
  </div></section>

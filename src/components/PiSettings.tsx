@@ -1,3 +1,4 @@
+import { SettingHelp } from "./SettingHelp";
 // Pi's own settings section. Deliberately separate from the OpenCode sections:
 // nothing here is shared, and no OpenCode setting applies to Pi.
 //
@@ -24,7 +25,7 @@ function Row({
   return (
     <div className="setting-row">
       <div className="setting-label">
-        <span title={description}>{title}</span>
+        <div className="setting-field-heading"><span>{title}</span><SettingHelp topic={`pi:${title}`} title={title} description={description}/></div>
       </div>
       <div className="setting-control">{children}</div>
     </div>
