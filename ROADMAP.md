@@ -1,5 +1,10 @@
 # Arvela roadmap
 
+## Hot update visibility — 0.2.58
+
+- [x] Small UI-only update: checking button displays progress; native compatibility with installed 0.2.57 retained.
+- [ ] Owner applies the offered hot update to observe it; no automatic activation.
+
 ## Browser profile customization — installed 0.2.57
 
 - [x] Shared OpenCode/Pi environment settings and standard/compatibility/private presets alongside existing fast/human modes.

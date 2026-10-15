@@ -26,7 +26,7 @@ export function UpdateSettings(){
   return <section className="setting-group quality-settings"><h2>Arvela {u.status?.hot.uiVersion??version}</h2>
     {u.status&&u.status.nativeVersion!==u.status.hot.uiVersion&&<p className="muted">Нативная версия {u.status.nativeVersion}</p>}
     <label>Канал<select value={u.channel} disabled={disabled||u.waiting||compiling} onChange={e=>{const channel=e.target.value==='preview'?'preview':'stable';updates.setChannel(channel);localStorage.setItem('arvela.update.channel',channel);}}><option value="stable">Стабильный</option><option value="preview">Предварительный</option></select></label>
-    <div className="btn-row"><button className="btn" disabled={disabled||compiling||u.waiting} onClick={()=>void updates.check()}>Проверить обновления</button>
+    <div className="btn-row"><button className="btn" disabled={disabled||compiling||u.waiting} onClick={()=>void updates.check()}>{u.busy==='check'?'Проверяю…':'Проверить обновления'}</button>
       {u.release?.available&&!u.downloaded&&<button className="btn" disabled={disabled} onClick={()=>void updates.download()}>{u.busy==='download'?'Загрузка…':`Скачать ${u.release.version}`}</button>}
       {u.downloaded&&!hot&&!compiling&&!built&&<button className="btn" disabled={disabled} onClick={()=>void updates.build()}>Собрать на этом компьютере</button>}
       {u.downloaded&&(hot||built)&&<button className="btn primary" disabled={disabled||u.waiting} onClick={()=>void updates.install(running)}>{u.waiting?'Ожидаем завершения агентов':hot?'Обновить интерфейс':running?'Установить после завершения задач':'Установить и перезапустить'}</button>}
