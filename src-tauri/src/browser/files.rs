@@ -47,6 +47,10 @@ pub(super) const SCRIPTS: &[(&str, &str)] = &[
         "preferences.mjs",
         include_str!("../../resources/browser/preferences.mjs"),
     ),
+    (
+        "stealth.mjs",
+        include_str!("../../resources/browser/stealth.mjs"),
+    ),
     ("view.mjs", include_str!("../../resources/browser/view.mjs")),
     (
         "daemon.mjs",
@@ -290,6 +294,33 @@ pub(super) fn promote(root: &Path, staging: &Path, current: &Path) -> Result<(),
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn embedded_scripts_cover_every_relative_import_of_the_embedded_daemon() {
+        // A daemon import that is not shipped in SCRIPTS would crash the
+        // packaged browser runtime with ERR_MODULE_NOT_FOUND at startup.
+        let daemon = SCRIPTS
+            .iter()
+            .find(|(name, _)| *name == "daemon.mjs")
+            .map(|(_, content)| *content)
+            .expect("daemon.mjs is embedded");
+        let mut missing = Vec::new();
+        for line in daemon.lines().filter(|line| line.starts_with("import")) {
+            let Some(start) = line.find("'./") else {
+                continue;
+            };
+            let rest = &line[start + 3..];
+            let Some(end) = rest.find('\'') else { continue };
+            let imported = &rest[..end];
+            if !SCRIPTS.iter().any(|(name, _)| *name == imported) {
+                missing.push(imported.to_owned());
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "daemon imports missing from SCRIPTS: {missing:?}"
+        );
+    }
 
     fn temp(tag: &str) -> PathBuf {
         let stamp = std::time::SystemTime::now()

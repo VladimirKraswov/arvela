@@ -76,7 +76,13 @@ may affect calls, and blocking Service Workers may affect offline applications.
 - Live headed/native-window acceptance, site-specific login/WAF behavior,
   end-to-end WebRTC ICE leak testing and Windows/Linux OS runs are not claimed.
 
-## Automation-signal upgrade (0.2.65)
+## Automation-signal upgrade (0.2.65, repackaged in 0.2.66)
+
+0.2.65 shipped the new `stealth.mjs` module without adding it to the embedded
+Desktop script list that materializes the packaged browser runtime, so the
+released daemon could not start its stealth import. 0.2.66 embeds the module and
+adds a Rust regression that every relative import of the embedded daemon is
+present in the shipped script list.
 
 Reduction now also normalizes the visible headless identity: real-runtime smoke
 with the repository daemon showed `navigator.webdriver=false`, the ordinary

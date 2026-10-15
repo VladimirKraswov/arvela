@@ -1053,3 +1053,12 @@ limits (CDP-runtime detectors, no IP/geo change). Frontend 873 pass, Rust 126
 pass, fmt/strict clippy pass, build/architecture/bundle pass; help modal
 re-checked in the real managed browser. Windows/Linux and live WAF behavior
 unclaimed. Releasing via release:local stable per standing instruction.
+
+# 0.2.66 — ship stealth.mjs in the embedded runtime scripts
+
+0.2.65 published the UI/source but the packaged daemon imports ./stealth.mjs,
+which was not in browser/files.rs SCRIPTS, so a fresh installed runtime would
+hit ERR_MODULE_NOT_FOUND. Added the module to SCRIPTS plus a Rust regression
+that fails on any daemon relative import missing from the shipped list
+(mutation-verified). Released 0.2.66 via release:local stable; 0.2.65 is
+superseded and clients move to 0.2.66 (native fingerprint changed → rebuild).
