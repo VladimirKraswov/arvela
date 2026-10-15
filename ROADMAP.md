@@ -1,5 +1,13 @@
 # Arvela roadmap
 
+## Hub updates and background runtime — 0.2.54
+
+- [x] Authenticated atomic Hub publication of signed complete UI/source packets; guarded stable/preview channels and release page.
+- [x] Native compatibility fingerprint; pinned-key verification before use, local hot asset provider, health acknowledgement and rollback.
+- [x] Background source compilation with prerequisite checks, cancellation/deadlines, idle native install, private backups and platform helpers.
+- [x] Green/yellow update indicator and persistent background update controller. Window close hides to tray; explicit quit saves and stops owned agents.
+- [ ] Final release acceptance: full checks, signed packet verification, source rebuild, Hub deployment/publication and bootstrap availability. Windows/Linux live acceptance requires those systems.
+
 ## Reliability, skill quality and updates — 0.2.53
 
 - [x] Durable SQLite delivery receipts with attachment recovery and exact public-history reconciliation.

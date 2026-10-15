@@ -27,6 +27,16 @@ pub fn ensure_writable() -> Result<(), String> {
     }
 }
 struct ReleaseGate;
+pub(crate) struct Maintenance(ReleaseGate);
+impl Maintenance {
+    pub(crate) fn acquire() -> Result<Self, String> {
+        if MAINTENANCE.swap(true, Ordering::AcqRel) {
+            return Err("Уже выполняется обслуживание".into());
+        }
+        Ok(Self(ReleaseGate))
+    }
+}
+
 impl Drop for ReleaseGate {
     fn drop(&mut self) {
         MAINTENANCE.store(false, Ordering::Release);
@@ -44,7 +54,7 @@ fn backup_root() -> Result<PathBuf, String> {
     private(&p)?;
     Ok(p)
 }
-fn private(p: &Path) -> Result<(), String> {
+pub(crate) fn private(p: &Path) -> Result<(), String> {
     if p.is_symlink() {
         return Err("Backup cannot be a symbolic link".into());
     }
@@ -72,7 +82,7 @@ fn snapshot(dir: &Path, data: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     fs::rename(temp, dir.join("data.json")).map_err(|e| e.to_string())
 }
-fn backup(data: &str) -> Result<String, String> {
+pub(crate) fn backup(data: &str) -> Result<String, String> {
     let id = format!(
         "backup-{}",
         std::time::SystemTime::now()
@@ -96,7 +106,7 @@ fn backup(data: &str) -> Result<String, String> {
     fs::write(dir.join("version.txt"), env!("CARGO_PKG_VERSION")).map_err(|e| e.to_string())?;
     Ok(id)
 }
-async fn idle(app: &tauri::AppHandle) -> Result<(), String> {
+pub(crate) async fn idle(app: &tauri::AppHandle) -> Result<(), String> {
     let resumed = crate::pi::pi_resume_sessions(app.state()).await?;
     if resumed
         .iter()
@@ -296,7 +306,7 @@ async fn perform(
 }
 // Tauri/minisign format, with the signed version required. Bounded streaming
 // avoids allocating an unbounded HTTP response before signature verification.
-fn verify(bytes: &[u8], signature: &str, version: &str) -> Result<(), String> {
+pub(crate) fn verify(bytes: &[u8], signature: &str, version: &str) -> Result<(), String> {
     use base64::Engine;
     let decode = |s: &str| -> Result<String, String> {
         String::from_utf8(

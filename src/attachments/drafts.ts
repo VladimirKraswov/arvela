@@ -69,6 +69,7 @@ function checkCapacity(files: readonly DraftAttachment[]) {
     throw new Error('В черновике слишком много вложений: до 12 файлов и 50 МБ.');
 }
 export const attachmentDrafts = {
+  async flush() { await mutations.drain(); },
   async exportBackup() {
     const db=await open();
     const entries=await new Promise<StoredAttachment[]>((resolve,reject)=>{const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});

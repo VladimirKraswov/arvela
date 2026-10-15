@@ -1,3 +1,4 @@
+import { UpdateBadge } from "../updates/runtime";
 import { InformationDialog } from "./InformationDialog";
 import arvelaMark from "../assets/arvela-icon.png";
 import { modKeyLabel } from "../native/platform";
@@ -227,6 +228,7 @@ export function Sidebar() {
         </section>
       </div>
       <div className="sidebar-footer">
+        <UpdateBadge />
         <button
           className="profile-button"
           onClick={() => store.setUi({ settingsOpen: true })}

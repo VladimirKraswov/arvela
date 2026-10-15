@@ -7,6 +7,7 @@ mod config;
 pub mod control;
 mod hosts;
 pub mod hub;
+pub mod hub_updates;
 mod journal;
 mod lifecycle;
 mod local_server;
@@ -16,14 +17,24 @@ pub mod pi;
 mod process;
 mod sound;
 mod storage_info;
+mod tray;
 mod updates;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let hot = hub_updates::assets::HotAssets::load();
+    let mut context = tauri::generate_context!();
+    let embedded = std::mem::replace(&mut context.assets, Box::new(hub_updates::assets::Empty));
+    context.set_assets(Box::new(hub_updates::assets::Provider {
+        hot: hot.clone(),
+        embedded,
+    }));
     tauri::Builder::default()
         .manage(hosts::Hosts::default())
         .manage(pi::PiSessions::default())
         .manage(lifecycle::Lifecycle::default())
         .manage(updates::Updates::default())
+        .manage(hub_updates::HubUpdates::default())
+        .manage(hot)
         .manage(capabilities::SharedRuntime::default())
         .manage(browser::BrowserRuntime::default())
         .manage(control::AgentControl::default())
@@ -34,6 +45,9 @@ pub fn run() {
             if let Err(error) = control::start(app.handle().clone()) {
                 eprintln!("Agent Control is unavailable: {error}");
             }
+            if let Err(error) = tray::setup(app.handle()) {
+                eprintln!("System tray unavailable: {error}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -42,6 +56,8 @@ pub fn run() {
             lifecycle::own_work,
             lifecycle::quit_report,
             updates::app_update,
+            hub_updates::hub_update,
+            tray::runtime_quit_ready,
             attachments::stage_archive,
             attachments::archive_access,
             hub::hub_config,
@@ -105,7 +121,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::WindowEvent {
@@ -114,12 +130,20 @@ pub fn run() {
                 ..
             } = &event
             {
-                if label == "main" && lifecycle::request_exit(app) {
+                if label == "main" {
                     api.prevent_close();
+                    tray::close(app);
                 }
             }
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = &event {
+                tray::show(app);
+            }
             if let tauri::RunEvent::ExitRequested { api, code, .. } = &event {
-                if *code != Some(tauri::RESTART_EXIT_CODE) && lifecycle::request_exit(app) {
+                if code.is_none() {
+                    api.prevent_exit();
+                    tray::close(app);
+                } else if *code != Some(tauri::RESTART_EXIT_CODE) && lifecycle::request_exit(app) {
                     api.prevent_exit();
                 }
             }
@@ -128,7 +152,8 @@ pub fn run() {
                 if let Ok(mut tunnels) = app.state::<hosts::Hosts>().0.lock() {
                     tunnels.clear();
                 }
-                // No Pi agent may outlive the window that started it.
+                // Only explicit runtime exit stops agents; hiding stays alive.
+                app.state::<hub_updates::HubUpdates>().build.cancel();
                 capabilities::shutdown(app.state::<capabilities::SharedRuntime>().inner());
                 pi::shutdown(app);
                 browser::shutdown(app);

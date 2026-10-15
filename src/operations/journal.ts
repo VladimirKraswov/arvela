@@ -40,6 +40,7 @@ const nativeStorage: JournalStorage = {
   async write(record, expected) { await invoke('operation_journal', { workspace: record.workspace, record, expected }); },
 };
 export class OperationJournal {
+  private flights = new Set<Promise<void>>();
   private listeners = new Set<() => void>();
   subscribe = (fn: () => void) => { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; };
   constructor(private storage: () => JournalStorage = () => isNative() ? nativeStorage : browserStorage) {}
@@ -50,7 +51,17 @@ export class OperationJournal {
     for (const notify of this.listeners) notify();
     return next;
   }
-  async dispatch(input: OperationInput, current: () => boolean, send: () => Promise<unknown>): Promise<void> {
+  dispatch(input: OperationInput, current: () => boolean, send: () => Promise<unknown>): Promise<void> {
+    const flight=this.deliver(input,current,send);this.flights.add(flight);
+    void flight.then(()=>this.flights.delete(flight),()=>this.flights.delete(flight));
+    return flight;
+  }
+  async drain(): Promise<void> {
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    try { await Promise.race([Promise.allSettled([...this.flights]),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Дождитесь подтверждения отправляемого сообщения.')),15000);})]); }
+    finally { clearTimeout(timer); }
+  }
+  private async deliver(input: OperationInput, current: () => boolean, send: () => Promise<unknown>): Promise<void> {
     if(maintenance.active())throw new NotDispatched('Приложение обновляется; запрос сохранён в черновике.');
     const allowed=current;current=()=>!maintenance.active()&&allowed();
     // Keep private recovery copies. Composer/queue cleanup must not remove the

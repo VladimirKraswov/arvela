@@ -29,3 +29,7 @@ At each new task or resumed/compacted operation, read `.pi/TASK.md`, this file, 
 Strong types at API boundaries, testable stream reducer, request cancellation, bounded reconnect/backoff, accessible keyboard operation, useful empty/loading/error states, real light/dark themes. Keep components and state boundaries understandable. Tests must cover behavior rather than merely repeat implementation.
 
 Before each milestone handoff: relevant tests, `npm run build`, Rust check when native code changes, diff review, and a short evidence entry in `.pi/TASK.md`. Update README/ROADMAP to reflect implemented reality. Source implementation is your job; the bootstrapper provided only starter files and documentation.
+
+## Release transport (0.2.54+)
+
+Use `npm run release:hub -- stable` (or preview) to publish reviewed releases to the configured private Hub. Read `docs/HUB-UPDATES.md`; both full UI/source snapshots are signed with the pinned offline release key. Never publish credentials, local receipts or owner histories. Ordinary builds/tests do not publish. Retain app identity and agent ownership; hot UI activation must preserve native agents and flush pending delivery/storage. Source compilation stays isolated and native installation waits for authoritative idle. Windows/Linux live acceptance must be reported separately.

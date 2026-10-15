@@ -97,6 +97,62 @@ fn load() -> Result<Config, String> {
         serde_json::from_str(&s).map_err(|_| "Invalid Hub configuration".into())
     }
 }
+// Updates share the configured origin, certificate and device credential, but
+// work even when telemetry sharing is disabled. Credentials stay native.
+pub(crate) fn release_identity() -> Result<String, String> {
+    let c = load()?;
+    origin(&c.endpoint)?;
+    let token = vault(&c.endpoint)?
+        .get_password()
+        .map_err(|_| "Настройте ключ Hub в разделе «Общая библиотека»")?;
+    Ok(format!(
+        "{:x}",
+        Sha256::digest(format!("{}\0{}\0{}", c.endpoint, c.certificate, token))
+    ))
+}
+pub(crate) fn release_get(path: &str, identity: &str) -> Result<Value, String> {
+    if !matches!(path, "stable" | "preview")
+        && !path.strip_prefix("artifacts/").is_some_and(hash_ok)
+    {
+        return Err("Invalid release path".into());
+    }
+    let c = load()?;
+    let key = vault(&c.endpoint)?
+        .get_password()
+        .map_err(|_| "Нет ключа Hub")?;
+    origin(&c.endpoint)?;
+    if format!(
+        "{:x}",
+        Sha256::digest(format!("{}\0{}\0{}", c.endpoint, c.certificate, key))
+    ) != identity
+    {
+        return Err("Подключение Hub изменилось. Проверьте обновления заново.".into());
+    }
+    let response = client(&c)?
+        .get(format!(
+            "{}/api/updates/{path}",
+            c.endpoint.trim_end_matches('/')
+        ))
+        .timeout(Duration::from_secs(120))
+        .bearer_auth(key)
+        .send()
+        .map_err(|_| "Не удалось подключиться к Hub обновлений")?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Hub обновлений: HTTP {}",
+            response.status().as_u16()
+        ));
+    }
+    let mut bytes = Vec::new();
+    response
+        .take(64 * 1024 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Загрузка обновления прервана")?;
+    if bytes.len() > 64 * 1024 * 1024 {
+        return Err("Release exceeds 64 MiB".into());
+    }
+    serde_json::from_slice(&bytes).map_err(|_| "Некорректный ответ сервера обновлений".into())
+}
 fn origin(value: &str) -> Result<String, String> {
     let u = url::Url::parse(value.trim()).map_err(|_| "Нужен HTTPS-адрес библиотеки")?;
     if u.scheme() != "https"

@@ -19,3 +19,20 @@ class HTTP(unittest.TestCase):
   c=http.client.HTTPSConnection('localhost',self.server.server_port,context=ssl.create_default_context(),timeout=5)
   with self.assertRaises(ssl.SSLCertVerificationError):c.request('GET','/health')
   c.close()
+
+class UpdateHTTP(HTTP):
+ def test_release_upload_auth_before_body_and_large_authenticated_publish(self):
+  from test_releases import package
+  admin=self.h.provision('publisher','other',True)['token']
+  c=http.client.HTTPSConnection('localhost',self.server.server_port,context=self.ctx,timeout=5)
+  c.putrequest('POST','/api/updates');c.putheader('Content-Type','application/json');c.putheader('Content-Length',str(30*1024*1024));c.endheaders()
+  r=c.getresponse();self.assertEqual(r.status,401);r.read();c.close()
+  hot=package('hot',files={'index.html':'x'*(2*1024*1024)})
+  body=dict(channel='stable',expectedRevision=None,hot=hot,source=package('source'))
+  c=http.client.HTTPSConnection('localhost',self.server.server_port,context=self.ctx,timeout=5)
+  c.putrequest('POST','/api/updates');c.putheader('Authorization','Bearer '+self.key);c.putheader('Content-Type','application/json');c.putheader('Content-Length',str(30*1024*1024));c.endheaders();r=c.getresponse();self.assertEqual(r.status,403);r.read();c.close()
+  code,_,raw=self.req('/api/updates','POST',body,{'Authorization':'Bearer '+admin});self.assertEqual(code,200)
+  head=json.loads(raw);artifact=head['artifacts']['hot']['digest']
+  code,_,_=self.req('/api/updates/artifacts/'+artifact,headers={'Authorization':'Bearer '+self.key});self.assertEqual(code,200)
+  self.assertEqual(self.req('/api/updates/artifacts/'+artifact)[0],401)
+  self.assertEqual(self.req('/health')[0],200)

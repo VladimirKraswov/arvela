@@ -11,6 +11,9 @@ import importlib.util
 _memory_spec = importlib.util.spec_from_file_location('arvela_memory', Path(__file__).with_name('memory.py'))
 _memory_module = importlib.util.module_from_spec(_memory_spec)
 _memory_spec.loader.exec_module(_memory_module)
+_release_spec = importlib.util.spec_from_file_location('arvela_releases', Path(__file__).with_name('releases.py'))
+_release_module = importlib.util.module_from_spec(_release_spec)
+_release_spec.loader.exec_module(_release_module)
 
 MAX_BODY = 2 * 1024 * 1024
 KINDS = {'skill', 'prompt', 'tool', 'template', 'runbook'}
@@ -183,6 +186,7 @@ class Hub:
             ''')
         os.chmod(self.db, 0o600)
         self.memory = _memory_module.Memory(self.connection, self.lock, scrub, Fault)
+        self.releases = _release_module.Releases(root, self.lock, Fault)
 
     @contextlib.contextmanager
     def connection(self):
@@ -419,6 +423,8 @@ class Hub:
             'note':'Категории эвристические. Отказы и отмены не означают поломку. Статус completed не гарантирует успешный exit code; сырые выводы не собираются. Скорость и качество моделей по этим данным не оцениваются.'}
 
     def api(self, method, path, query, actor, data):
+        if path == '/api/updates' or path.startswith('/api/updates/'):
+            return self.releases.api(method, path, actor, data)
         if path == '/api/memory/retrieve' and method == 'POST':
             return self.memory.retrieve(data)
         if path == '/api/memory':
@@ -541,6 +547,8 @@ class Server(ThreadingHTTPServer):
     request_queue_size=32
     def __init__(self, address, hub, web):
         self.hub,self.web,self.slots=hub,web,threading.BoundedSemaphore(16)
+        self.release_upload=threading.BoundedSemaphore(1)
+        self.release_download=threading.BoundedSemaphore(2)
         super().__init__(address, Handler)
     def verify_request(self,request,client_address):
         address=ipaddress.ip_address(client_address[0])
@@ -577,6 +585,8 @@ class Handler(BaseHTTPRequestHandler):
         if entry and entry[1]>time.time():return self.server.hub.authenticate(entry[0])
         raise Fault(401,'Войдите по ключу.')
     def dispatch(self):
+        release_slot=False
+        download_slot=False
         try:
             parsed=urlsplit(self.path)
             path=parsed.path
@@ -584,10 +594,23 @@ class Handler(BaseHTTPRequestHandler):
             if origin and urlsplit(origin).netloc != self.headers.get('Host'):
                 raise Fault(403,'Запрос с другого сайта отклонён.')
             if self.command=='GET' and path=='/health':return self.respond(200,{'service':'arvela-hub','apiVersion':1})
+            if self.command=='GET' and path.startswith('/api/updates/artifacts/'):
+                self.close_connection=True
+                self.actor()
+                download_slot=self.server.release_download.acquire(False)
+                if not download_slot:raise Fault(429,'Загрузка обновлений занята. Повторите позже.')
             data={}
             if self.command=='POST':
                 size=int(self.headers.get('Content-Length','0'))
-                if not 0<size<=MAX_BODY or self.headers.get('Transfer-Encoding'):raise Fault(413,'Запрос слишком велик.')
+                limit = MAX_BODY
+                if path == '/api/updates':
+                    self.close_connection=True
+                    # Authenticate *before* accepting a large release body.
+                    self.server.hub.admin(self.actor())
+                    release_slot=self.server.release_upload.acquire(False)
+                    if not release_slot:raise Fault(429,'Публикация уже выполняется.')
+                    limit = _release_module.MAX_UPLOAD
+                if not 0<size<=limit or self.headers.get('Transfer-Encoding'):raise Fault(413,'Запрос слишком велик.')
                 if not self.headers.get('Content-Type','').startswith('application/json'):raise Fault(415,'Нужен JSON.')
                 data=json.loads(self.rfile.read(size))
                 if not isinstance(data,dict):raise Fault(400,'Нужен JSON-объект.')
@@ -618,6 +641,9 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             # No payload or credential is included in the error/log.
             self.respond(500,{'error':'Ошибка хранилища. Проверьте журнал сервиса.'})
+        finally:
+            if release_slot:self.server.release_upload.release()
+            if download_slot:self.server.release_download.release()
     do_GET=dispatch
     do_POST=dispatch
 

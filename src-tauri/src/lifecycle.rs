@@ -214,6 +214,9 @@ pub fn request_exit(app: &tauri::AppHandle) -> bool {
                 }
             }));
         }
+        app.state::<crate::hub_updates::HubUpdates>()
+            .build
+            .shutdown();
         crate::pi::shutdown(&app);
         for worker in workers {
             let _ = worker.join();

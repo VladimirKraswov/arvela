@@ -22,4 +22,8 @@ export class KeyedQueue {
   async settled(key: string): Promise<void> {
     await this.pending.get(key);
   }
+
+  async drain(): Promise<void> {
+    await Promise.all([...new Set(this.pending.values())]);
+  }
 }

@@ -1,3 +1,4 @@
+import {consumeUpdateSettings} from "../updates/controller";
 import { SkillQualitySettings } from "./SkillQualitySettings";
 import { UpdateSettings } from "./UpdateSettings";
 import { HubSettings } from "./HubSettings";
@@ -91,7 +92,8 @@ function AppearanceSettings() {
 
 export function SettingsScreen() {
   const s = useAppState();
-  const [section, setSection] = useState<Section>("general"), [query, setQuery] = useState("");
+  const [section, setSection] = useState<Section>(()=>consumeUpdateSettings()?"updates":"general"), [query, setQuery] = useState("");
+  useEffect(()=>{const open=()=>{consumeUpdateSettings();setSection("updates");setQuery("");};window.addEventListener("arvela-open-updates",open);return()=>window.removeEventListener("arvela-open-updates",open);},[]);
   const [engineSection, setEngineSection] = useState<EngineSection>("tools"), [engineVisited, setEngineVisited] = useState(false);
   const [qualityDirty,setQualityDirty]=useState(false),[qualityVisited,setQualityVisited]=useState(false);
   useEffect(()=>{if(section === "skillQuality")setQualityVisited(true);},[section]);
