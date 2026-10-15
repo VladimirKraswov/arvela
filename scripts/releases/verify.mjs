@@ -14,3 +14,17 @@ export async function verifyPublication(head, expected, envelopes, download){
   }
   return{version:head.version,nativeFingerprint:head.nativeFingerprint,revision:head.revision,artifacts};
 }
+
+export async function publishAndVerify(write, read, expected, envelopes, download) {
+  let published, lostAcknowledgement;
+  try { published=await write(); } catch(error) { lostAcknowledgement=error; }
+  // Never replay a POST: a disconnected response may have committed a release.
+  const served=await read();
+  if(published&&served.revision!==published.revision)throw Error('Hub channel changed while verifying publication');
+  try {
+    return {...await verifyPublication(served,expected,envelopes,download),...(lostAcknowledgement?{recoveredAcknowledgement:true}:{})};
+  } catch(error) {
+    if(lostAcknowledgement)throw new Error('Upload acknowledgement lost; served release did not verify. No publication retry was sent.',{cause:lostAcknowledgement});
+    throw error;
+  }
+}

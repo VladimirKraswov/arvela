@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import https from 'node:https';
 import {execFileSync} from 'node:child_process';
-import {verifyPublication} from './verify.mjs';
+import {publishAndVerify} from './verify.mjs';
 import {nativeFingerprint,snapshot,hash,validateVersions} from './packet.mjs';
 const root=path.resolve(import.meta.dirname,'../..');
 const channel=process.argv[2]??'stable';if(!['stable','preview'].includes(channel))throw Error('Use stable or preview');
@@ -17,7 +17,7 @@ if(!process.env.ARVELA_HUB_ADMIN_TOKEN||!process.env.TAURI_SIGNING_PRIVATE_KEY_P
 const ca=process.env.ARVELA_HUB_CA_FILE?fs.readFileSync(process.env.ARVELA_HUB_CA_FILE):undefined;
 function request(method,route,body,limit=65536){return new Promise((resolve,reject)=>{
   const data=body?Buffer.from(JSON.stringify(body)):undefined;
-  const req=https.request(new URL(route,endpoint),{method,ca,timeout:120000,headers:{Authorization:`Bearer ${process.env.ARVELA_HUB_ADMIN_TOKEN}`,...(data?{'Content-Type':'application/json','Content-Length':data.length}:{})}},r=>{
+  const req=https.request(new URL(route,endpoint),{method,ca,agent:false,timeout:120000,headers:{Authorization:`Bearer ${process.env.ARVELA_HUB_ADMIN_TOKEN}`,...(data?{'Content-Type':'application/json','Content-Length':data.length}:{})}},r=>{
     let size=0;const chunks=[];r.on('data',b=>{size+=b.length;if(size>limit)r.destroy(Error('Hub response too large'));else chunks.push(b);});r.on('error',reject);r.on('end',()=>{if(r.statusCode<200||r.statusCode>=300)return reject(Error(`Hub HTTP ${r.statusCode}`));try{resolve(JSON.parse(Buffer.concat(chunks)));}catch(e){reject(e);}});
   });req.on('timeout',()=>req.destroy(Error('Hub timeout')));req.on('error',reject);req.end(data);
 });}
@@ -38,10 +38,11 @@ try{
     console.log(`${kind}: ${payload.length} bytes, SHA256 ${hash(payload)}`);
   }
   const current=await request('GET',`/api/updates/${channel}`);
-  const head=await request('POST','/api/updates',{channel,expectedRevision:current.revision,...envelopes});
-  const served=await request('GET',`/api/updates/${channel}`);
-  if(served.revision!==head.revision)throw Error('Hub channel changed while verifying publication');
-  const receipt=await verifyPublication(served,{version,nativeFingerprint:fp},envelopes,digest=>request('GET',`/api/updates/artifacts/${digest}`,undefined,40*1048576));
+  const receipt=await publishAndVerify(
+    ()=>request('POST','/api/updates',{channel,expectedRevision:current.revision,...envelopes}),
+    ()=>request('GET',`/api/updates/${channel}`),
+    {version,nativeFingerprint:fp},envelopes,
+    digest=>request('GET',`/api/updates/artifacts/${digest}`,undefined,40*1048576));
   const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
   const receipts=path.join(root,'.local','releases');fs.mkdirSync(receipts,{recursive:true,mode:0o700});
   const file=path.join(receipts,`${version}-${channel}.json`);
