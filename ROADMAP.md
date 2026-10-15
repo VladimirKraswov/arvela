@@ -1,12 +1,13 @@
 # Arvela roadmap
 
-## Browser profile customization — source verified
+## Browser profile customization — installed 0.2.57
 
 - [x] Shared OpenCode/Pi environment settings and standard/compatibility/private presets alongside existing fast/human modes.
 - [x] Actual Chromium/installed Chrome selection, embedded/headed launch, locale/timezone/media preferences, bounded agent pacing, opt-in automation-marker reduction and privacy controls.
 - [x] Strict runtime option allowlist; atomic private configuration; existing-context snapshots, separate engine/session profiles and awaited temporary-profile cleanup.
 - [x] Full automated checks and isolated real Chromium/Chrome plus narrow/wide settings UI acceptance. Details: [browser preferences](docs/BROWSER-PREFERENCES.md).
-- [ ] Package/publish/install a new native release; headed window and Windows/Linux OS acceptance remain separate. Running owner application was not restarted.
+- [x] Signed macOS package, Hub stable publication and installed 0.2.57; see [release acceptance](docs/RELEASE-0.2.57.md).
+- [ ] Headed window and Windows/Linux OS acceptance remain separate.
 
 ## Hub updates and background runtime — 0.2.56
 
@@ -15,7 +16,8 @@
 - [x] Background source compilation with prerequisite checks, cancellation/deadlines, idle native install, private backups and platform helpers.
 - [x] Green/yellow update indicator and persistent background update controller. Window close hides to tray; explicit quit saves and stops owned agents.
 - [x] Source/package acceptance: full checks, signed HTTPS packets, native asset activation/cache recovery, source rebuild, Hub deployment/publication and 0.2.56 bootstrap release.
-- [ ] Live OS acceptance: first GUI launch/local-network permission and tray/active-agent update on macOS; Windows/Linux installation on those systems. New binaries launched by Codex receive TCP EHOSTUNREACH while the approved installed app works; do not bypass OS privacy.
+- [x] First normal GUI install/launch and actual native Hub connection on macOS verified in 0.2.57.
+- [ ] Tray clicks/active-agent update and Windows/Linux installation remain separate OS acceptance; privacy restrictions on isolated older binaries are not bypassed.
 
 ## Reliability, skill quality and updates — 0.2.53
 
