@@ -5,7 +5,7 @@
 - [x] One protected development chat above projects, app-owned workspace and shared OpenCode/Pi project instructions, source detection and no-key disclosure.
 - [x] Store-level delete/archive/rename/project-hide guards, per-server identity and reconciliation before creation.
 - [x] Private local release operator runs mandatory checks before credentials/publication; canonical publisher and Hub receipt remain authoritative.
-- [ ] Full checks, live UI/workspace and release/install acceptance.
+- [x] Full checks, isolated Chromium and actual native workspace/UI/identity persistence; signed Hub release and Mac installation verified. Pi context loader verified without inference. Windows/Linux native acceptance remains separate.
 
 
 ## Footer update indicator — 0.2.59
