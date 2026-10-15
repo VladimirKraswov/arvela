@@ -22,21 +22,21 @@ export function UpdateSettings(){
     });}catch(e){setNotice(String(e));}finally{setBusy('');}
   };
   const disabled=!!u.busy||!!busy;
-  const hot=u.release?.kind==='hot',stage=u.status?.build.stage;
+  const hot=u.release?.kind==='hot',built=updates.prepared(),stage=u.status?.build.stage;
   return <section className="setting-group quality-settings"><h2>Arvela {u.status?.hot.uiVersion??version}</h2>
     {u.status&&u.status.nativeVersion!==u.status.hot.uiVersion&&<p className="muted">Нативная версия {u.status.nativeVersion}</p>}
     <label>Канал<select value={u.channel} disabled={disabled||u.waiting||compiling} onChange={e=>{const channel=e.target.value==='preview'?'preview':'stable';updates.setChannel(channel);localStorage.setItem('arvela.update.channel',channel);}}><option value="stable">Стабильный</option><option value="preview">Предварительный</option></select></label>
     <div className="btn-row"><button className="btn" disabled={disabled||compiling||u.waiting} onClick={()=>void updates.check()}>Проверить обновления</button>
       {u.release?.available&&!u.downloaded&&<button className="btn" disabled={disabled} onClick={()=>void updates.download()}>{u.busy==='download'?'Загрузка…':`Скачать ${u.release.version}`}</button>}
-      {u.downloaded&&!hot&&!compiling&&stage!=='ready'&&<button className="btn" disabled={disabled} onClick={()=>void updates.build()}>Собрать на этом компьютере</button>}
-      {u.downloaded&&(hot||stage==='ready')&&<button className="btn primary" disabled={disabled||u.waiting} onClick={()=>void updates.install(running)}>{u.waiting?'Ожидаем завершения агентов':hot?'Обновить интерфейс':running?'Установить после завершения задач':'Установить и перезапустить'}</button>}
+      {u.downloaded&&!hot&&!compiling&&!built&&<button className="btn" disabled={disabled} onClick={()=>void updates.build()}>Собрать на этом компьютере</button>}
+      {u.downloaded&&(hot||built)&&<button className="btn primary" disabled={disabled||u.waiting} onClick={()=>void updates.install(running)}>{u.waiting?'Ожидаем завершения агентов':hot?'Обновить интерфейс':running?'Установить после завершения задач':'Установить и перезапустить'}</button>}
       {compiling&&<button className="btn" disabled={disabled} onClick={()=>void updates.cancel()}>Отменить сборку</button>}
       {u.waiting&&<button className="btn" onClick={()=>updates.stopWaiting()}>Отменить ожидание</button>}
-      {stage==='error'&&<button className="btn" disabled={disabled} onClick={()=>void updates.clear()}>Очистить сборку</button>}
+      {(stage==='error'||stage==='ready')&&<button className="btn" disabled={disabled} onClick={()=>void updates.clear()}>Очистить сборку</button>}
     </div>
     {u.release?.available&&<p className={`update-kind ${hot?'hot':''}`}>{hot?'Обновление интерфейса без остановки агентов':'Обновление нативной части — требуется локальная сборка'}</p>}
     {u.release?.available&&!hot&&<p className="muted">На этом компьютере нужны Node.js/npm, Rust/Cargo и зависимости Tauri для вашей ОС. Сборка выполняется в отдельной папке; установка ждёт завершения агентов.</p>}
-    {!hot&&stage&&stages[stage]&&<p role="status">{stages[stage]}</p>}
+    {!hot&&stage&&(stage!=='ready'||built)&&stages[stage]&&<p role="status">{stages[stage]}</p>}
     {!hot&&u.status?.build.error&&<p role="alert">{u.status.build.error}</p>}
     {u.status?.hot.lastError&&<p role="alert">{u.status.hot.lastError}</p>}
     {u.status?.installation?.error&&<p role="alert">{u.status.installation.error}</p>}

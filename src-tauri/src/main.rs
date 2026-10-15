@@ -2,7 +2,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    if std::env::args().nth(1).as_deref() == Some("--apply-update") {
+    if std::env::args().nth(1).as_deref() == Some("--hub-update-status") {
+        if let Err(e) = arvela_lib::hub_updates::cli_status() {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    } else if std::env::args().nth(1).as_deref() == Some("--apply-update") {
         if let Err(e) = arvela_lib::hub_updates::install::cli() {
             eprintln!("{e}");
             std::process::exit(1);

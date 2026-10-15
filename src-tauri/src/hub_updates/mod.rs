@@ -182,7 +182,7 @@ pub async fn hub_update(
     let state = app.state::<HubUpdates>();
     if action == "status" {
         return Ok(
-            json!({"nativeVersion":env!("CARGO_PKG_VERSION"),"nativeFingerprint":FINGERPRINT,"hot":app.state::<HotAssets>().status(),"build":state.build.status(),"installation":read_json::<Value>(&root()?.join("last-install.json")).ok(),"release":state.checked.lock().ok().and_then(|c|c.as_ref().map(|c|json!({"available":true,"version":c.version,"kind":c.kind,"channel":c.channel,"notes":c.notes}))),"downloaded":state.checked.lock().ok().is_some_and(|c|c.as_ref().is_some_and(|c|root().is_ok_and(|p|p.join(format!("{}.json",c.digest)).is_file())))}),
+            json!({"nativeVersion":env!("CARGO_PKG_VERSION"),"nativeFingerprint":FINGERPRINT,"hot":app.state::<HotAssets>().status(),"build":state.build.status(),"installation":read_json::<Value>(&root()?.join("last-install.json")).ok(),"release":state.checked.lock().ok().and_then(|c|c.as_ref().map(|c|json!({"available":true,"version":c.version,"kind":c.kind,"channel":c.channel,"digest":c.digest,"notes":c.notes}))),"downloaded":state.checked.lock().ok().is_some_and(|c|c.as_ref().is_some_and(|c|root().is_ok_and(|p|p.join(format!("{}.json",c.digest)).is_file())))}),
         );
     }
     if action == "ready" {
@@ -263,7 +263,7 @@ pub async fn hub_update(
                 .chars()
                 .take(4000)
                 .collect();
-            let reply = json!({"available":true,"version":version,"kind":kind,"notes":notes,"revision":head["revision"].as_str()});
+            let reply = json!({"available":true,"version":version,"kind":kind,"digest":digest,"notes":notes,"revision":head["revision"].as_str()});
             *state.checked.lock().map_err(|e| e.to_string())? = Some(Checked {
                 channel: checked_channel,
                 identity,
@@ -352,4 +352,22 @@ pub async fn hub_update(
         }
         _ => Err("Unknown Hub update action".into()),
     }
+}
+
+/// Read-only operator diagnostic: exercises the same pinned Hub connection as
+/// the updater without opening a window or touching an agent session.
+pub fn cli_status() -> Result<(), String> {
+    let identity = crate::hub::release_identity()?;
+    let head = crate::hub::release_get("stable", &identity)?;
+    let newer = head["version"]
+        .as_str()
+        .and_then(|v| semver::Version::parse(v).ok())
+        .is_some_and(|v| {
+            v > semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("package version")
+        });
+    println!(
+        "{}",
+        json!({"connected":true,"nativeVersion":env!("CARGO_PKG_VERSION"),"nativeFingerprint":FINGERPRINT,"releaseVersion":head["version"],"available":head["available"]==true&&newer,"kind":if head["nativeFingerprint"]==FINGERPRINT{"hot"}else{"source"}})
+    );
+    Ok(())
 }

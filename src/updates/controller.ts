@@ -1,5 +1,5 @@
-export interface Release {channel?:'stable'|'preview';available:boolean;version?:string;kind?:'hot'|'source';notes?:string;revision?:string}
-export interface NativeStatus {release?:Release|null;downloaded?:boolean;nativeVersion:string;nativeFingerprint:string;hot:{uiVersion:string;activeDigest:string|null;pending:boolean;lastError:string|null};build:{stage?:string;error?:string;version?:string};installation?:{version:string;installed:boolean;error?:string}}
+export interface Release {digest?:string;channel?:'stable'|'preview';available:boolean;version?:string;kind?:'hot'|'source';notes?:string;revision?:string}
+export interface NativeStatus {release?:Release|null;downloaded?:boolean;nativeVersion:string;nativeFingerprint:string;hot:{uiVersion:string;activeDigest:string|null;pending:boolean;lastError:string|null};build:{digest?:string|null;stage?:string;error?:string;version?:string};installation?:{version:string;installed:boolean;error?:string}}
 export interface UpdateState {release:Release|null;status:NativeStatus|null;busy:string;error:string;notice:string;downloaded:boolean;waiting:boolean;channel:'stable'|'preview'}
 export type Transport=<T>(action:string,extra?:Record<string,unknown>)=>Promise<T>;
 export class UpdateController {
@@ -11,6 +11,7 @@ export class UpdateController {
   private patch(value:Partial<UpdateState>){this.state={...this.state,...value};for(const fn of this.listeners)fn();}
   async run(action:string,fn:()=>Promise<void>){if(this.state.busy)return;this.patch({busy:action,error:'',notice:''});try{await fn();}catch(e){this.patch({error:String(e),waiting:false});}finally{this.patch({busy:''});}}
   setChannel(channel:'stable'|'preview'){if(this.state.busy||this.state.waiting||this.compiling())return;this.patch({channel,release:null,downloaded:false,error:'',notice:''});}
+  prepared(){return this.state.status?.build.stage==='ready'&&!!this.state.release?.digest&&this.state.status.build.digest===this.state.release.digest;}
   compiling(){return ['preparing','dependencies','compiling'].includes(this.state.status?.build.stage??'');}
   async refresh(){const status=await this.call<NativeStatus>('status');this.patch({status,...(!this.state.release&&status.release?.available&&status.release.channel===this.state.channel?{release:status.release,downloaded:!!status.downloaded}:{})});return status;}
   async ready(){const s=await this.refresh();await this.call('ready',{digest:s.hot.activeDigest});}

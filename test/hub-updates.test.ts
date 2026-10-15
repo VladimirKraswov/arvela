@@ -27,3 +27,8 @@ it('a previous channel cannot be restored into the newly selected channel',async
  c.setChannel('preview');await c.refresh();expect(c.snapshot().release).toBeNull();expect(c.snapshot().downloaded).toBe(false);
  c.setChannel('stable');await c.refresh();expect(c.snapshot().release?.version).toBe('1.0.1');expect(c.snapshot().downloaded).toBe(true);
 });
+it('a built artifact belongs only to the exact checked release',async()=>{
+ const call=vi.fn(async(action:string)=>action==='check'?{available:true,version:'1.0.1',kind:'source',digest:'b'.repeat(64)}:{...native,build:{stage:'ready',digest:'a'.repeat(64)}});
+ const c=new UpdateController(call as Transport,async()=>{});await c.check();await c.refresh();expect(c.prepared()).toBe(false);
+ call.mockImplementation(async()=>({...native,build:{stage:'ready',digest:'b'.repeat(64)}}));await c.refresh();expect(c.prepared()).toBe(true);
+});

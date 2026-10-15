@@ -35,10 +35,18 @@ impl Default for Build {
 }
 impl Build {
     pub fn status(&self) -> Value {
-        self.state
+        let mut state = self
+            .state
             .lock()
             .map(|s| s.clone())
-            .unwrap_or(json!({"stage":"error","error":"Build state unavailable"}))
+            .unwrap_or(json!({"stage":"error","error":"Build state unavailable"}));
+        state["digest"] = self
+            .prepared
+            .lock()
+            .ok()
+            .and_then(|p| p.as_ref().map(|(digest, _)| json!(digest)))
+            .unwrap_or(Value::Null);
+        state
     }
     pub fn running(&self) -> bool {
         self.running.load(Ordering::Acquire)
