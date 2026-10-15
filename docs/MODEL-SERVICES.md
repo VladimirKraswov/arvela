@@ -124,6 +124,14 @@ responsive under load. The helper supervises only its child, never searches for
 or terminates external SSH/agent/model processes. Offline unit/HTTP tests are in
 `scripts/test-model-tunnel-supervisor.py`; live qualification here is macOS only.
 
+## Общие V100-профили
+
+С 2026-10-15 Qwen, Qwen Pi и Gemma 4 31B используют один gateway и одну
+VM 5100. NInfer и llama.cpp запускаются последовательно через явные профили
+реестра; смена движка не требует передачи GPU между VM. Gemma доступна обоим
+агентам под провайдером `local-gemma4`; профиль Qwen Pi сохраняет свою политику.
+Подробности и фактические проверки: [локальные модели](LOCAL-MODELS.md).
+
 ## Version-1 control contract
 
 All control requests require `Authorization: Bearer <control-key>`.

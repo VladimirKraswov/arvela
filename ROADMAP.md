@@ -507,6 +507,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [x] Pi native model/effort confirmation, unopened-session compaction, prepared text attachments and durable message branching.
 - [x] Shared workspace terminal/Git for Pi, without inventing Pi PTY/permission-queue capabilities.
 - [x] Generic model-service bindings, catalog agent policy and real switch progress, ordinary/queued/scheduled/compact readiness gates.
+- [x] 2026-10-15: Gemma 4 31B added alongside both Qwen V100 profiles in VM5100; exclusive NInfer/llama.cpp switching, preserved Pi policy, reused verified weights, live OpenCode/Pi and picker acceptance. See LOCAL-MODELS.
 - [x] Native Mac UI/package acceptance, real V100 model qualification and switch deployment; final permissions and Pi-only picker checks recorded in docs/VERIFICATION.md.
 - [x] Reviewed runtime source published and installed as Mac 0.2.19; final release archive verified.
 
