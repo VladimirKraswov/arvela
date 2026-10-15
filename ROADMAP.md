@@ -4,7 +4,7 @@
 
 - [x] Small question buttons with named modal explanations for browser parameters, agent permissions, shared capabilities, Hub, model services, appearance, ASR, updates and backups.
 - [x] Full browser value/tradeoff explanations, on-demand loading, keyboard focus/return and Escape isolated from settings; no settings mutation or secret copying.
-- [ ] Final full checks, release receipt and existing-client hot-update offer.
+- [x] Full858 frontend/126 native/48 Hub/9 publisher tests,22 real Chromium settings surfaces, verified signed Hub0.2.62 and actual installed0.2.61 hot-update offer. No activation while owner works; Windows/Linux native acceptance separate.
 
 ## Мастерская Arvela — 0.2.61
 
