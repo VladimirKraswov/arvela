@@ -19,8 +19,32 @@ export function normalizeEnvironment(input = {}) {
   if (value.timezone) { try { new Intl.DateTimeFormat('en', {timeZone:value.timezone}); } catch { throw new Error('Invalid browser timezone'); } }
   return value;
 }
+// One ordinary desktop Chrome on macOS renders at 2x and reports Metal WebGL;
+// headless Chromium defaults differ in exactly the ways bot detectors read.
+// The angle-metal switches keep real GPU rendering on Apple Silicon; other
+// platforms keep the browser's own GL default. The user-agent is replaced in
+// the daemon only after the real executable version is verified, so this
+// object never claims a version that was not observed.
+export function stealthLaunchOptions(platform = process.platform) {
+  return {
+    ignoreDefaultArgs: ['--enable-automation'],
+    deviceScaleFactor: platform === 'darwin' ? 2 : 1,
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      ...(platform === 'darwin' ? ['--use-gl=angle', '--use-angle=metal'] : []),
+    ],
+  };
+}
+// Plausible physical display metrics for the hidden embedded surface; a real
+// browser never reports its screen as exactly its viewport.
+export function stealthScreenMetrics(platform = process.platform) {
+  if (platform === 'darwin') return { width: 1512, height: 982, availLeft: 0, availTop: 37, availWidth: 1512, availHeight: 873, chromeHeight: 83 };
+  if (platform === 'win32') return { width: 1920, height: 1080, availLeft: 0, availTop: 0, availWidth: 1920, availHeight: 1032, chromeHeight: 88 };
+  return { width: 1920, height: 1080, availLeft: 0, availTop: 27, availWidth: 1920, availHeight: 1010, chromeHeight: 116 };
+}
 export function environmentOptions(input) {
   const v = normalizeEnvironment(input);
+  const stealth = v.reduceAutomationSignals ? stealthLaunchOptions() : { args: [], ignoreDefaultArgs: undefined, deviceScaleFactor: undefined };
   return {
     headless: v.display === 'embedded', chromiumSandbox: true,
     ...(v.engine === 'chrome' ? {channel:'chrome'} : {}),
@@ -29,10 +53,11 @@ export function environmentOptions(input) {
     reducedMotion:v.reducedMotion, serviceWorkers:v.serviceWorkers,
     permissions: [], // Sites must not inherit desktop/agent Full access.
     extraHTTPHeaders: v.doNotTrack ? {DNT:'1'} : {},
-    ...(v.reduceAutomationSignals ? {ignoreDefaultArgs:['--enable-automation']} : {}),
+    ...(stealth.deviceScaleFactor !== undefined ? {deviceScaleFactor:stealth.deviceScaleFactor} : {}),
+    ...(stealth.ignoreDefaultArgs ? {ignoreDefaultArgs:stealth.ignoreDefaultArgs} : {}),
     args: [
+      ...stealth.args,
       ...(v.protectWebRTC ? ['--force-webrtc-ip-handling-policy=disable_non_proxied_udp'] : []),
-      ...(v.reduceAutomationSignals ? ['--disable-blink-features=AutomationControlled'] : []),
     ],
   };
 }

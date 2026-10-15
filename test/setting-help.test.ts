@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { SETTINGS_HELP } from "../src/settings/help";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { SettingField, SettingHelp } from "../src/components/SettingHelp";
@@ -15,6 +16,15 @@ beforeEach(() => {
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML="";vi.restoreAllMocks();vi.unstubAllGlobals(); });
 const trigger=()=>document.querySelector<HTMLButtonElement>(".setting-help-trigger")!;
 const open=async()=>act(async()=>{trigger().click();await import("../src/settings/help");});
+
+it("explains the automation-signal reduction honestly, including its limits", () => {
+  const help = SETTINGS_HELP["browser.reduceAutomationSignals"];
+  expect(help.summary).toContain("капч");
+  expect(help.values?.[0][1]).toContain("navigator.webdriver");
+  expect(help.values?.[0][1]).toContain("Headless");
+  expect(help.note).toContain("IP");
+  expect(help.note).toContain("Совместимость");
+});
 
 it("opens a named modal, returns focus on Close, and never submits its surrounding form", async () => {
   const submit=vi.fn();act(()=>root.render(createElement("form",{onSubmit:submit},createElement(SettingHelp,{topic:"browser.storage",title:"Данные сайтов"}))));

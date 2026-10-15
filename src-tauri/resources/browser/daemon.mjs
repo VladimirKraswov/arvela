@@ -1,5 +1,6 @@
 import { setTimeout as pause } from 'node:timers/promises';
 import { normalizeEnvironment, environmentOptions } from './preferences.mjs';
+import { applyUserAgentClientHints, stealthInitScript, stealthUserAgent } from './stealth.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { sessionKey } from './session.mjs';
 // A private lifecycle/transport bridge. Browser behavior is implemented by
@@ -65,13 +66,25 @@ async function getContext(owned = currentSession()) {
     await fs.mkdir(profile, { recursive: true, mode: 0o700 });
     const executablePath = process.platform === 'win32' && settings.engine === 'chromium'
       ? await promisify(realpath.native)(chromium.executablePath()) : undefined;
+    const options = {
+      ...environmentOptions(settings), viewport: { width: 1280, height: 800 },
+      ...(settings.engine === 'chromium' ? {executablePath} : {}),
+    };
+    if (settings.reduceAutomationSignals && settings.display === 'embedded') {
+      // The hidden surface must not announce "HeadlessChrome"; the version is
+      // read from the real executable and a failure keeps the stock identity.
+      const ordinaryUserAgent = await stealthUserAgent({ settings, root, chromium });
+      if (ordinaryUserAgent) options.userAgent = ordinaryUserAgent;
+    }
     let opened;
     try {
-      opened = await chromium.launchPersistentContext(profile, {
-        ...environmentOptions(settings), viewport: { width: 1280, height: 800 },
-        ...(settings.engine === 'chromium' ? {executablePath} : {}),
-      });
+      opened = await chromium.launchPersistentContext(profile, options);
+      if (settings.reduceAutomationSignals) {
+        await opened.addInitScript(stealthInitScript({ headless: settings.display === 'embedded' }));
+        if (options.userAgent) applyUserAgentClientHints(opened, options.userAgent, settings.locale || 'en-US');
+      }
     } catch (error) {
+      await opened?.close().catch(() => {});
       if (settings.storage === 'temporary') await fs.rm(profile, {recursive:true, force:true});
       throw error;
     }

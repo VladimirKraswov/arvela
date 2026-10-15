@@ -36,10 +36,23 @@ temporary profile. Browser sandboxing, HTTPS validation, workspace permissions,
 session isolation and the private authenticated loopback transport remain enabled.
 Camera, microphone, location and notification permissions are not auto-granted.
 
-Automation-marker reduction only adjusts the native `navigator.webdriver` feature
-and automation banner. It does not replace the UA/OS/hardware or guarantee that a
-site treats an automated browser as a human. Chromium's native implementation is
-visible in [Navigator source](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/frame/navigator.cc).
+Automation-marker reduction presents the managed browser as an ordinary Chrome
+profile for a normal user. It hides the `navigator.webdriver` automation feature
+and banner; replaces the service `HeadlessChrome` token with the version actually
+read from the launched executable in both `User-Agent` and the Sec-CH-UA client
+hints (brand list, platform, full version); enables real Metal GPU rendering and
+native display scaling on macOS; and, before any site script runs, adds the
+ordinary `window.chrome` object, standard PDF plugins/MimeTypes and plausible
+screen/outer-window metrics to the hidden embedded surface. The replacement UA
+version is only taken from `--version` of the executable that will really run
+(cached per runtime); an unparseable result keeps the stock identity. Client
+hints are re-asserted per page over one attached CDP session because Chromium
+reverts emulation when the client detaches. This reduction does not fake IP or
+geolocation, does not modify the OS itself and is not a guarantee: advanced bot
+detectors can still observe the CDP Runtime/Console activity the agent needs to
+drive the page, and the first request of a site-opened popup can race the hint
+re-application. Chromium's native implementation is visible in
+[Navigator source](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/frame/navigator.cc).
 Installed Chrome and ordinary windows are supported launch options; compatibility
 with a particular Chrome version/site still depends on that browser and site.
 See the [Playwright launch/context API](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context).
@@ -62,6 +75,20 @@ may affect calls, and blocking Service Workers may affect offline applications.
   overflow at 390 and 1100 px passed; fixture IPC never reaches owner services.
 - Live headed/native-window acceptance, site-specific login/WAF behavior,
   end-to-end WebRTC ICE leak testing and Windows/Linux OS runs are not claimed.
+
+## Automation-signal upgrade (0.2.65)
+
+Reduction now also normalizes the visible headless identity: real-runtime smoke
+with the repository daemon showed `navigator.webdriver=false`, the ordinary
+`Chrome/155.0.8059.12` User-Agent in both JS and request headers, matching
+Sec-CH-UA brand list (no `HeadlessChrome` brand), `macOS` platform hint,
+Metal WebGL renderer, 5 PDF plugins with named/MimeType access, `window.chrome`,
+screen 1512x982 with a smaller available area, outer window larger than the
+viewport and 2x device scaling; the panel screenshot capture path and daemon
+stop stayed intact, and the UA cache stored the observed executable version.
+Frontend 873 tests pass; the settings help modal was re-checked in the real
+managed browser. Advanced CDP-runtime detectors and Windows/Linux runs remain
+unclaimed.
 
 Reproduce the opt-in daemon check using read-only dependencies/browser binaries
 from an installed runtime; the runner creates and removes its own temporary root:

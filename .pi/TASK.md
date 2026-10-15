@@ -1038,3 +1038,18 @@ toolbar/Pi chat/LSP/tree cleanup/file input/dictation/SSH/stop remain unverified
 No runtime source, models, services or installed Mac app changed. Publish the
 verified unsigned Windows NSIS as a v0.2.16 asset; do not track executable/logs/
 private configuration in Git. See docs/WINDOWS-RESULT-0.2.16-20261005.md.
+
+# Browser automation-signal upgrade — 0.2.65 (2026-10-16)
+
+Owner asked to make the managed browser masquerade as an ordinary browser and
+to rework browser settings hints. reduceAutomationSignals now: hides
+navigator.webdriver/banner; replaces HeadlessChrome with the executable-observed
+version in UA and Sec-CH-UA (per-page live CDP Emulation.setUserAgentOverride,
+detaching reverts it); Metal GPU + native 2x scaling on macOS; pre-site init
+scripts add window.chrome, PDF plugins, plausible screen/outer metrics.
+Real-runtime daemon smoke verified all markers clean; panel capture unaffected.
+Help entries for reduceAutomationSignals/display/presets rewritten with honest
+limits (CDP-runtime detectors, no IP/geo change). Frontend 873 pass, Rust 126
+pass, fmt/strict clippy pass, build/architecture/bundle pass; help modal
+re-checked in the real managed browser. Windows/Linux and live WAF behavior
+unclaimed. Releasing via release:local stable per standing instruction.
