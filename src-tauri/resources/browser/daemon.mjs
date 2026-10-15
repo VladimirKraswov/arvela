@@ -1,3 +1,5 @@
+import { setTimeout as pause } from 'node:timers/promises';
+import { normalizeEnvironment, environmentOptions } from './preferences.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { sessionKey } from './session.mjs';
 // A private lifecycle/transport bridge. Browser behavior is implemented by
@@ -31,6 +33,8 @@ const sessionContext = new AsyncLocalStorage();
 let selectedKey = 'legacy'; // Older CLI clients are isolated once Desktop selects a chat.
 let selectedScope = null;
 let selectionRevision = 0;
+let environment = normalizeEnvironment();
+try { environment = normalizeEnvironment(JSON.parse(await fs.readFile(path.join(root, 'preferences.json'), 'utf8'))); } catch {}
 let defaultMode = 'fast';
 try { const mode = JSON.parse(await fs.readFile(path.join(root, 'interaction.json'), 'utf8')).mode; if (['fast', 'human'].includes(mode)) defaultMode = mode; } catch {}
 function ownedSession(key, scope = null) {
@@ -52,16 +56,30 @@ const lifecycleQueue = createToolQueue();
 const serial = (action, signal) => (currentSession()?.serial || lifecycleQueue)(action, signal);
 async function getContext(owned = currentSession()) {
   if (!owned.context) {
-    const profile = owned.key === 'legacy' ? path.join(root, 'profile')
+    const settings = environment;
+    const persistentProfile = owned.key === 'legacy' ? path.join(root, 'profile')
       : path.join(root, 'sessions', crypto.createHash('sha256').update(owned.key).digest('hex'), 'profile');
+    const engineProfile = settings.engine === 'chrome' ? path.join(persistentProfile, 'chrome-profile') : persistentProfile;
+    const profile = settings.storage === 'temporary'
+      ? await fs.mkdtemp(path.join(root, 'temporary-profile-')) : engineProfile;
     await fs.mkdir(profile, { recursive: true, mode: 0o700 });
-    const executablePath = process.platform === 'win32'
+    const executablePath = process.platform === 'win32' && settings.engine === 'chromium'
       ? await promisify(realpath.native)(chromium.executablePath()) : undefined;
-    const opened = await chromium.launchPersistentContext(profile, {
-      headless: true, viewport: { width: 1280, height: 800 }, chromiumSandbox: true, executablePath,
+    let opened;
+    try {
+      opened = await chromium.launchPersistentContext(profile, {
+        ...environmentOptions(settings), viewport: { width: 1280, height: 800 },
+        ...(settings.engine === 'chromium' ? {executablePath} : {}),
+      });
+    } catch (error) {
+      if (settings.storage === 'temporary') await fs.rm(profile, {recursive:true, force:true});
+      throw error;
+    }
+    owned.context = opened; owned.settings = settings;
+    opened.on('close', () => {
+      if (owned.context === opened) { owned.context = undefined; owned.settings = undefined; }
+      if (settings.storage === 'temporary') owned.cleanup = fs.rm(profile, {recursive:true, force:true}).catch(() => {});
     });
-    owned.context = opened;
-    opened.on('close', () => { if (owned.context === opened) owned.context = undefined; });
   }
   return owned.context;
 }
@@ -101,6 +119,9 @@ async function connection(candidate = workspace, access = 'project') {
 async function invokeTool(client, params, signal, owner = 'agent') {
   try {
     if (signal?.aborted) throw new Error('Cancelled before browser input');
+    const delay = currentSession().settings?.actionDelayMs ?? environment.actionDelayMs;
+    const observation = ['browser_snapshot','browser_take_screenshot','browser_console_messages','browser_network_requests','browser_network_request','browser_wait_for'].includes(params.name) || (params.name === 'browser_tabs' && params.arguments?.action === 'list');
+    if (owner === 'agent' && delay && !observation) await pause(delay, undefined, {signal});
     try { await currentSession().view.before(client, params, owner, signal); }
     catch (error) {
       if (error && typeof error === 'object') { error.recovery ||= 'preparation'; throw error; }
@@ -150,7 +171,7 @@ async function body(req) {
 }
 const server = http.createServer(async (req, res) => {
   if (!authorized(req)) return reply(res, 403, { error: 'Unauthorized browser connection' });
-  if (req.method === 'GET' && req.url === '/health') return reply(res, 200, { instanceId, version: '0.0.83', running: !closing, browserOpen: !!sessions.get(selectedKey)?.context, scope: selectedScope, scopeKey: selectedKey, performance: metrics.snapshot() });
+  if (req.method === 'GET' && req.url === '/health') return reply(res, 200, { instanceId, version: '0.0.83', running: !closing, browserOpen: !!sessions.get(selectedKey)?.context, scope: selectedScope, scopeKey: selectedKey, environment, environmentPending: [...sessions.values()].filter(s => s.context && JSON.stringify(s.settings) !== JSON.stringify(environment)).length, performance: metrics.snapshot() });
   // Frames do not wait behind a long navigation/tool call, so the panel stays
   // live while the agent acts. Bound to one capture at a time below.
   if (req.method === 'GET' && req.url === '/view') {
@@ -175,6 +196,19 @@ const server = http.createServer(async (req, res) => {
       void close(); return;
     }
     if (req.url !== '/rpc') return reply(res, 404, { error: 'Unknown endpoint' });
+    if (request.method === 'desktop/preferences') {
+      const next = normalizeEnvironment(request.environment);
+      await lifecycleQueue(async () => {
+        const file = path.join(root, 'preferences.json');
+        const temporary = `${file}.${crypto.randomUUID()}.tmp`;
+        try {
+          await fs.writeFile(temporary, JSON.stringify(next), {mode:0o600});
+          await fs.rename(temporary, file);
+        } finally { await fs.rm(temporary, {force:true}).catch(() => {}); }
+        environment = next;
+      });
+      return reply(res, 200, {result:{environment, pending: [...sessions.values()].filter(s => s.context && JSON.stringify(s.settings) !== JSON.stringify(environment)).length}});
+    }
     if (request.method === 'desktop/default-mode') {
       if (!['fast', 'human'].includes(request.mode)) throw new Error('Invalid browser mode');
       const target = sessions.get(selectedKey);
@@ -363,6 +397,7 @@ async function close() {
       await client.close().catch(() => {}); await official.close().catch(() => {});
     }
     await owned.context?.close().catch(() => {});
+    await owned.cleanup;
   }
   process.exit(0);
 }

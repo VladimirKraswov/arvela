@@ -3027,3 +3027,6 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 .update-kind { display:inline-flex; gap:8px; align-items:center; }
 .update-kind::before { content:''; width:10px; height:10px; border-radius:50%; background:#d6a32a; }
 .update-kind.hot::before { background:#36ad66; }
+
+.browser-environment-help { margin: 18px 0; font-size: .86rem; color: var(--text-dim); line-height: 1.5; }
+.browser-environment-help summary { cursor: pointer; color: var(--text); }

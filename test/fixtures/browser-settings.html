@@ -1,0 +1,12 @@
+<!doctype html><html lang="ru" data-theme="dark"><head><meta charset="UTF-8"><title>Isolated browser settings</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main class="settings-page" style="margin:0 auto;max-width:850px;padding:20px;overflow:auto;height:100vh"><div id="root"></div></main><script type="module">
+import React from 'react';import {createRoot} from 'react-dom/client';import '/src/styles.css';
+window.fixtureCalls=[];
+window.__TAURI_INTERNALS__={invoke:async(command,args)=>{
+  window.fixtureCalls.push({command,args});
+  if(command==='browser_status')return{supported:true,installed:true,running:true,version:'fixture',profilePath:'/test-owned/profile'};
+  if(command==='browser_input' && args.action==='preferences')return{pending:1};
+  throw new Error('Unexpected fixture invocation: '+command);
+}};
+const {store}=await import('/src/state/store.ts');store.state.prefs.endpoint='http://127.0.0.1:4096';store.state.prefs.browser={enabled:true};store.currentHost=()=>null;window.fixtureStore=store;
+const {BrowserSettings}=await import('/src/components/BrowserSettings.tsx');createRoot(document.getElementById('root')).render(React.createElement(BrowserSettings));
+</script></body></html>

@@ -117,3 +117,13 @@ and removes its own workspace. Native fixed geometry/lifecycle are verified with
 CUA and app exit separately. The headless smoke additionally verifies wheel
 invalidation of agent/manual coordinates and immediate sequence interruption;
 no model calls are made.
+
+## Browser environment preferences
+
+`preferences.mjs <absolute-current-runtime> <absolute-browser-cache> [--chrome]`
+reads only the installed runtime's dependencies and browser binaries, creates its
+own disposable daemon/profile/HTTP fixture, and checks actual settings, marker
+reduction, deferred application, worker policy, pacing, temporary cleanup and
+persistent storage across service restart. `--chrome` additionally tests installed
+Chrome in headless mode with a separate test profile. See
+[profile behavior and acceptance](../../../../docs/BROWSER-PREFERENCES.md).

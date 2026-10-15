@@ -43,6 +43,10 @@ pub(super) const SCRIPTS: &[(&str, &str)] = &[
         "actions.mjs",
         include_str!("../../resources/browser/actions.mjs"),
     ),
+    (
+        "preferences.mjs",
+        include_str!("../../resources/browser/preferences.mjs"),
+    ),
     ("view.mjs", include_str!("../../resources/browser/view.mjs")),
     (
         "daemon.mjs",

@@ -1,3 +1,4 @@
+import { BrowserEnvironmentSettings } from "./BrowserEnvironmentSettings";
 import { BrowserPerformance } from "./BrowserPerformance";
 import { useEffect, useState } from "react";
 import { browserNative, openSessionBrowser, browserSetupSnapshot, useBrowserSetup, type BrowserSetup, type BrowserStatus } from "../browser/integration";
@@ -74,6 +75,7 @@ export function BrowserSettings() {
       <div className="setting-row"><div className="setting-label"><span>Разрешения на действия</span></div><div className="setting-control"><span>Настройки OpenCode / Pi</span></div></div>
       <div className="settings-actions"><span className="settings-muted" role="status">{setupSummary(setup, enabled)}</span><button className="btn" disabled={!native || !local || busy || configuring} onClick={() => { setError(""); void store.configureBrowser(true); }}>Настроить и проверить</button></div>
     </div></section>
+    <BrowserEnvironmentSettings disabled={!native || !local || busy || configuring} running={!!status?.running}/>
     <section className="setting-group" aria-label="Панель браузера"><h2>Панель браузера</h2><div className="setting-card">
       <div className="setting-row engine-field-row"><div className="setting-label"><label htmlFor="browser-address">Адрес страницы</label></div><div className="setting-control"><input id="browser-address" type="url" value={url} placeholder="https://example.com" onChange={event => setUrl(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && native && local && enabled && status?.installed && !busy && !configuring) void action("browser_open"); }}/></div></div>
       <div className="setting-row"><div className="setting-label"><span>Состояние</span></div><div className="setting-control"><span>{status?.browserOpen ? "Браузер открыт внутри Desktop" : status?.running ? "Сервис готов; страница откроется по запросу" : "Остановлен"}</span></div></div>

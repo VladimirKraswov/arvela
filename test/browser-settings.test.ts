@@ -157,3 +157,36 @@ it("reads numeric diagnostics on demand without navigating or fetching session h
   expect(document.body.textContent).toContain("1.0 с / 2.0 с / 0.5 с");
   expect(document.body.textContent).toContain("3 / 1 / 2"); expect(opens()).toHaveLength(0);
 });
+
+it("applies environment settings without stopping or navigating an active session", async () => {
+  fake.invoke.mockImplementation(async command => command === "browser_input" ? {pending:2} : status);
+  await mount(); input("browser-env-locale", " en-us "); input("browser-env-timezone", "Europe/Moscow");
+  await act(async () => button("Сохранить профиль").click());
+  expect(fake.invoke).toHaveBeenCalledWith("browser_input", {action:"preferences", args:{environment:expect.objectContaining({locale:"en-US",timezone:"Europe/Moscow"})}});
+  expect(fake.setBrowserSettings).toHaveBeenCalledWith({environment:expect.objectContaining({locale:"en-US",timezone:"Europe/Moscow"})});
+  expect(fake.invoke.mock.calls.some(([c]) => ["browser_stop","browser_open"].includes(c))).toBe(false);
+  expect(document.body.textContent).toContain("2");
+});
+it("keeps failed environment changes unsaved and rejects invalid locales before a native call", async () => {
+  await mount(); input("browser-env-locale", "not a locale");
+  await act(async () => button("Сохранить профиль").click());
+  expect(fake.setBrowserSettings).not.toHaveBeenCalled();
+  expect(fake.invoke.mock.calls.some(([c]) => c === "browser_input")).toBe(false);
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain("язык");
+  input("browser-env-locale", "ru-RU");
+  fake.invoke.mockRejectedValueOnce(new Error("Settings transport unavailable"));
+  await act(async () => button("Сохранить профиль").click());
+  expect(fake.setBrowserSettings).not.toHaveBeenCalled();
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain("Settings transport unavailable");
+});
+it("saves environment offline without starting the browser and disables remote editing", async () => {
+  status.running = false;
+  await mount(); input("browser-env-timezone", "Europe/Moscow");
+  await act(async () => button("Сохранить профиль").click());
+  expect(fake.setBrowserSettings).toHaveBeenCalledOnce();
+  expect(fake.invoke.mock.calls.some(([c]) => c !== "browser_status")).toBe(false);
+  fake.host = {};
+  await mount();
+  expect((document.getElementById("browser-env-locale") as HTMLInputElement).disabled).toBe(true);
+  expect(button("Сбросить профиль").disabled).toBe(true);
+});

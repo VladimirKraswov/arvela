@@ -1,5 +1,13 @@
 # Arvela roadmap
 
+## Browser profile customization — source verified
+
+- [x] Shared OpenCode/Pi environment settings and standard/compatibility/private presets alongside existing fast/human modes.
+- [x] Actual Chromium/installed Chrome selection, embedded/headed launch, locale/timezone/media preferences, bounded agent pacing, opt-in automation-marker reduction and privacy controls.
+- [x] Strict runtime option allowlist; atomic private configuration; existing-context snapshots, separate engine/session profiles and awaited temporary-profile cleanup.
+- [x] Full automated checks and isolated real Chromium/Chrome plus narrow/wide settings UI acceptance. Details: [browser preferences](docs/BROWSER-PREFERENCES.md).
+- [ ] Package/publish/install a new native release; headed window and Windows/Linux OS acceptance remain separate. Running owner application was not restarted.
+
 ## Hub updates and background runtime — 0.2.56
 
 - [x] Authenticated atomic Hub publication of signed complete UI/source packets; guarded stable/preview channels and release page.

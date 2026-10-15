@@ -651,6 +651,16 @@ fn panel_tool(action: &str, args: &Value) -> Result<Value, String> {
             .ok_or_else(|| "Некорректные координаты браузера.".into())
     };
     let (name, arguments) = match action {
+        "preferences" => {
+            let environment = args
+                .get("environment")
+                .filter(|v| v.is_object())
+                .ok_or("Некорректные настройки браузера.")?;
+            if environment.to_string().len() > 4096 {
+                return Err("Слишком большой набор настроек браузера.".into());
+            }
+            ("desktop/preferences", json!({"environment":environment}))
+        }
         "mode" => {
             let mode = args["mode"]
                 .as_str()
@@ -1056,11 +1066,36 @@ mod tests {
     }
 
     #[test]
+    fn panel_environment_envelope_cannot_replace_rpc_method_or_escape_size_limit() {
+        let value = panel_tool(
+            "preferences",
+            &json!({
+                "environment":{"locale":"ru-RU"}, "method":"tools/call", "owner":"agent"
+            }),
+        )
+        .unwrap();
+        assert_eq!(
+            value,
+            json!({"name":"desktop/preferences", "arguments":{"environment":{"locale":"ru-RU"}}})
+        );
+        for environment in [
+            Value::Null,
+            json!([]),
+            json!("invalid"),
+            json!({"locale":"x".repeat(4096)}),
+        ] {
+            assert!(panel_tool("preferences", &json!({"environment":environment})).is_err());
+        }
+    }
+
+    #[test]
     fn resources_pin_official_dependencies_and_no_unsafe_flags() {
         let manifest: Value = serde_json::from_str(files::DEPENDENCIES[0].1).unwrap();
         assert_eq!(manifest["dependencies"]["@playwright/mcp"], VERSION);
         let daemon = include_str!("../resources/browser/daemon.mjs");
-        assert!(daemon.contains("chromiumSandbox: true"));
+        assert!(
+            include_str!("../resources/browser/preferences.mjs").contains("chromiumSandbox: true")
+        );
         assert!(!daemon.contains("allowUnrestrictedFileAccess: true"));
         assert!(!daemon.contains("--no-sandbox"));
         assert!(daemon.contains("127.0.0.1"));
