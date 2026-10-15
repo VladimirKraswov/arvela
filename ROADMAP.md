@@ -712,3 +712,7 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Apply edited text/files before Now, explicit Pi steer, visible guard failures and cancellation before POST after Stop.
 - [x] Frontend/native/isolated UI checks, verified Mac package/install, real native queued-file/gallery acceptance and main/release publication; downloaded artifact verified.
 - [ ] Native Windows/Linux and live SSH qualification.
+
+## Legacy-client source bootstrap — 2026-10-15
+
+- [x] Latest stable ZIP/manifest and immutable signed-source downloads through existing LAN HTTPS Hub; no device key needed for public release sources, private APIs stay authenticated. Automatic latest tracking and Windows manual-build instructions.

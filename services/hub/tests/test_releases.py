@@ -1,4 +1,4 @@
-import base64, hashlib, importlib.util, json, tempfile, unittest
+import base64, hashlib, importlib.util, io, json, tempfile, unittest, zipfile
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('hub',Path(__file__).parents[1]/'server.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 b64=lambda b:base64.b64encode(b).decode()
@@ -41,4 +41,32 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaises(m.Fault):self.publish('1.0.0-beta.1')
         head=self.call('POST',body=dict(channel='preview',expectedRevision=None,hot=package('hot','1.0.0-beta.1'),source=package('source','1.0.0-beta.1')))
         self.assertTrue(head['available'])
+    def test_bootstrap_zip_matches_manifest_and_pins_release_across_publication(self):
+        first=self.publish()
+        manifest,kind,name=self.h.releases.download('/downloads/latest')
+        self.assertTrue(kind.startswith('application/json'));self.assertIsNone(name)
+        archive,kind,name=self.h.releases.download('/downloads/latest/source.zip')
+        self.assertEqual(kind,'application/zip');self.assertEqual(name,'Arvela-1.0.0-source.zip')
+        self.assertEqual(hashlib.sha256(archive).hexdigest(),manifest['source']['sha256'])
+        self.assertEqual(len(archive),manifest['source']['bytes'])
+        with zipfile.ZipFile(io.BytesIO(archive)) as z:
+            self.assertIsNone(z.testzip());self.assertEqual(z.read('package.json'),b'source')
+        envelope,_,_=self.h.releases.download(manifest['signedSource']['url'])
+        self.assertEqual(envelope,package('source'))
+        self.publish('1.0.1',first['revision'])
+        self.assertEqual(self.h.releases.download(manifest['source']['url'])[0],archive)
+        latest=self.h.releases.download('/downloads/latest')[0]
+        self.assertEqual(latest['version'],'1.0.1');self.assertNotEqual(latest['source']['url'],manifest['source']['url'])
+    def test_bootstrap_missing_wrong_kind_tamper_and_private_paths_fail_closed(self):
+        with self.assertRaises(m.Fault) as e:self.h.releases.download('/downloads/latest/source.zip')
+        self.assertEqual(e.exception.status,404)
+        head=self.publish();key=head['artifacts']['source']['digest']
+        for path in ['/downloads/../../hub.sqlite','/downloads/source/../source.zip',
+                     '/downloads/source/'+head['artifacts']['hot']['digest']+'.json',
+                     '/downloads/source/'+'b'*64+'.zip']:
+            with self.assertRaises(m.Fault):self.h.releases.download(path)
+        # Valid structure but changed bytes under an immutable key must never be served.
+        changed=package('source','9.0.0');self.h.releases.atomic(self.h.releases.root/(key+'.json'),changed)
+        with self.assertRaises(m.Fault) as e:self.h.releases.download('/downloads/latest/source.zip')
+        self.assertEqual(e.exception.status,500)
 if __name__=='__main__':unittest.main()

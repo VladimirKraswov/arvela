@@ -8,6 +8,17 @@ Proxmox `pve`, unprivileged Debian12 CT206 `arvela-hub`: 1vCPU,1024MiB RAM,256Mi
 
 Code `/opt/arvela-hub`; SQLite `/var/lib/arvela-hub/hub.sqlite`; TLS `/etc/arvela-hub/server.crt` and private `server.key`. systemd service runs as dedicated unprivileged user with filesystem restrictions,512MiB memory ceiling and16request workers. Unused Debian template logind/networkd units masked; headless CT uses ifupdown/DHCP and pct management. Nesting not enabled. Restart verified service/network/autostart.
 
+## Source downloads for legacy clients
+
+Unauthenticated LAN-only HTTPS `GET /downloads/latest/source.zip` downloads the
+latest stable source as ZIP. `GET /downloads/latest` provides version, ZIP size,
+SHA256 and immutable `/downloads/source/{source-payload-sha256}.zip` and `.json`
+links. The latter is the original signed source envelope. These routes share the
+existing two-download limit and do not expose private Hub APIs. Sources come
+from the same canonical release; publishing stable updates the link automatically.
+Use the verified local TLS certificate, then compare manifest ZIP SHA256/size.
+See [Windows bootstrap](../../docs/WINDOWS-BOOTSTRAP.md).
+
 ## Another Mac / Windows / Linux
 
 1. Install Arvela0.2.27+. Settings → **Облачная библиотека**.

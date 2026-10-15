@@ -570,11 +570,12 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,fmt,*args):
         # Never log URL query, payload, authorization or personal session titles.
         print(encode({'method':self.command,'path':urlsplit(self.path).path,'status':str(args[1]) if len(args)>1 else ''}),flush=True)
-    def respond(self,code,body,kind='application/json; charset=utf-8',cookie=None):
+    def respond(self,code,body,kind='application/json; charset=utf-8',cookie=None,filename=None):
         raw=encode(body).encode() if kind.startswith('application/json') else body
         self.send_response(code)
         for k,v in [('Content-Type',kind),('Content-Length',str(len(raw))),('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer'),('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")]:self.send_header(k,v)
         if cookie:self.send_header('Set-Cookie',cookie)
+        if filename:self.send_header('Content-Disposition','attachment; filename="'+filename+'"')
         self.end_headers();self.wfile.write(raw)
     def actor(self):
         auth=self.headers.get('Authorization','')
@@ -594,6 +595,13 @@ class Handler(BaseHTTPRequestHandler):
             if origin and urlsplit(origin).netloc != self.headers.get('Host'):
                 raise Fault(403,'Запрос с другого сайта отклонён.')
             if self.command=='GET' and path=='/health':return self.respond(200,{'service':'arvela-hub','apiVersion':1})
+            if path.startswith('/downloads/'):
+                self.close_connection=True
+                if self.command!='GET':raise Fault(405,'Скачивание доступно только через GET.')
+                download_slot=self.server.release_download.acquire(False)
+                if not download_slot:raise Fault(429,'Загрузка обновлений занята. Повторите позже.')
+                body,kind,filename=self.server.hub.releases.download(path)
+                return self.respond(200,body,kind,filename=filename)
             if self.command=='GET' and path.startswith('/api/updates/artifacts/'):
                 self.close_connection=True
                 self.actor()

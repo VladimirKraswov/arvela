@@ -5,11 +5,13 @@ Both complete UI and source snapshots are required so every OS can update.
 """
 import base64
 import hashlib
+import io
 import json
 import os
 import re
 import secrets
 import shutil
+import zipfile
 
 MAX_UPLOAD = 64 * 1024 * 1024
 MAX_PAYLOAD = 24 * 1024 * 1024
@@ -129,6 +131,53 @@ class Releases:
         keep.update(p.stem for p in items[:40])
         for p in items:
             if p.stem not in keep:p.unlink()
+
+    def download(self, path):
+        """Public source-only bootstrap; never expose catalog/history/device data.
+
+        Take a consistent head/envelope snapshot before releasing the publication
+        lock. Immutable URLs let a client pin the manifest across a new release.
+        The signed envelope remains available for native signature verification.
+        """
+        latest = path in ('/downloads/latest', '/downloads/latest/source.zip')
+        match = re.fullmatch(r'/downloads/source/([0-9a-f]{64})\.(zip|json)', path)
+        if not latest and not match:
+            self.error('Файл релиза не найден.', 404)
+        with self.lock:
+            head = self.head('stable') if latest else None
+            if latest and not head['available']:
+                self.error('Стабильный релиз ещё не опубликован.', 404)
+            key = head['artifacts']['source']['digest'] if latest else match[1]
+            if not isinstance(key, str) or not HASH.fullmatch(key):
+                self.error('Повреждён указатель релиза.', 500)
+            envelope = self.read(self.root / (key + '.json'))
+        if envelope is None:
+            self.error('Исходники релиза не найдены.', 404)
+        raw, packet = self.validate(envelope, 'source')
+        if hashlib.sha256(raw).hexdigest() != key:
+            self.error('Контрольная сумма исходников не совпала.', 500)
+        if head and (packet['version'] != head['version']
+                     or packet['nativeFingerprint'] != head['nativeFingerprint']
+                     or len(raw) != head['artifacts']['source']['bytes']):
+            self.error('Исходники не соответствуют стабильному релизу.', 500)
+        if match and match[2] == 'json':
+            return envelope, 'application/json; charset=utf-8', None
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+            for name, value in sorted(packet['files'].items()):
+                info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.create_system = 3
+                info.external_attr = 0o100644 << 16
+                archive.writestr(info, base64.b64decode(value, validate=True))
+        data = output.getvalue()
+        if path == '/downloads/latest':
+            return {'version': packet['version'], 'channel': 'stable',
+                    'source': {'url': '/downloads/source/' + key + '.zip',
+                               'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)},
+                    'signedSource': {'url': '/downloads/source/' + key + '.json',
+                                     'payloadSha256': key}}, 'application/json; charset=utf-8', None
+        return data, 'application/zip', 'Arvela-' + packet['version'] + '-source.zip'
 
     def api(self, method, path, actor, data):
         suffix = path.removeprefix('/api/updates')

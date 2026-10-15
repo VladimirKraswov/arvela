@@ -21,6 +21,26 @@ class HTTP(unittest.TestCase):
   c.close()
 
 class UpdateHTTP(HTTP):
+ def test_public_bootstrap_source_without_exposing_private_api(self):
+  from test_releases import package
+  import hashlib, io, zipfile
+  self.assertEqual(self.req('/downloads/latest')[0],404)
+  self.h.releases.api('POST','/api/updates',{'admin':True},dict(channel='stable',expectedRevision=None,hot=package('hot'),source=package('source')))
+  code,_,raw=self.req('/downloads/latest');self.assertEqual(code,200);manifest=json.loads(raw)
+  code,headers,archive=self.req(manifest['source']['url']);self.assertEqual(code,200)
+  self.assertEqual(headers['Content-Type'],'application/zip');self.assertIn('attachment;',headers['Content-Disposition'])
+  self.assertEqual(hashlib.sha256(archive).hexdigest(),manifest['source']['sha256'])
+  with zipfile.ZipFile(io.BytesIO(archive)) as z:self.assertIsNone(z.testzip())
+  self.assertEqual(self.req('/downloads/latest/source.zip')[2],archive)
+  self.assertEqual(self.req(manifest['signedSource']['url'])[0],200)
+  for path in ['/api/metrics','/api/sessions','/api/catalog','/api/updates/stable']:
+   self.assertEqual(self.req(path)[0],401)
+  self.assertEqual(self.req('/downloads/../server.py')[0],404)
+  self.assertEqual(self.req('/downloads/latest','POST',{})[0],405)
+  self.assertEqual(self.req('/downloads/latest',headers={'Origin':'https://other.site'})[0],403)
+  self.server.release_download.acquire();self.server.release_download.acquire()
+  try:self.assertEqual(self.req('/downloads/latest')[0],429)
+  finally:self.server.release_download.release();self.server.release_download.release()
  def test_release_upload_auth_before_body_and_large_authenticated_publish(self):
   from test_releases import package
   admin=self.h.provision('publisher','other',True)['token']
