@@ -1,9 +1,15 @@
 # Arvela roadmap
 
+## Обязательный выпуск в мастерской — 0.2.64
+
+- [x] Permanent owner authorization repeated as hidden scoped context for manual, queued/steer and scheduled prompts; shared OpenCode/Pi contract and Pi history preservation.
+- [x] Explicit no-deploy/analysis requests keep priority; tests and actual Hub packet/receipt verification required before claiming delivery. No automated loop or permission bypass.
+- [ ] Final checks, verified Hub publication and hot activation.
+
 ## Контраст выделения — 0.2.63
 
 - [x] Use system Highlight/HighlightText for selected text instead of low-contrast accent tint; regression assertions preserve the contract.
-- [ ] Verified Hub packet contains the selection rule; activate and verify in installed Arvela.
+- [x] Verified Hub0.2.63 signed packets, actual active native cache digest and acknowledgement; production CSS Chromium selection in both themes.
 
 ## Подсказки настроек — 0.2.62
 

@@ -1,3 +1,4 @@
+import { workshopParts } from "../workshop/policy";
 import { prepareWorkshop, resolveWorkshop, isWorkshopSession, type WorkshopRecord } from "../workshop/workspace";
 import { ownWork } from "../operations/ownership";
 import { StreamNotifications, selectedSnapshot, shallowEqual } from "./notifications";
@@ -2357,7 +2358,7 @@ class Store {
         sending = true;
         await backend.prompt(task.sessionID, task.directory, {
           messageID, model: { providerID: task.model.providerID, modelID: task.model.modelID },
-          variant: task.model.variant ?? undefined, agent: task.agent, parts: [{ type: "text", text: task.prompt }],
+          variant: task.model.variant ?? undefined, agent: task.agent, parts: workshopParts(this.state.prefs.workshop, task.sessionID, task.directory, [{ type: "text", text: task.prompt }]),
         });
         });
       } catch (error) {
@@ -2530,7 +2531,7 @@ class Store {
         model: { providerID: model.providerID, modelID: model.modelID },
         agent: agent ?? undefined,
         variant: model.variant ?? undefined,
-        parts: [{ type: "text", text: trimmed }, ...parts],
+        parts: workshopParts(this.state.prefs.workshop, target, directory, [{ type: "text", text: trimmed }, ...parts]),
       });
       });
       if (attachments.length) {
@@ -2963,7 +2964,7 @@ class Store {
         },
         agent: item.agent,
         variant: item.model.variant ?? undefined,
-        parts: [{ type: "text", text: item.text }, ...parts],
+        parts: workshopParts(this.state.prefs.workshop, sid, item.directory, [{ type: "text", text: item.text }, ...parts]),
       });
       });
       if (workspaceBackend !== this.backend) return;

@@ -163,6 +163,27 @@ it("R5: accepting a prompt must preserve a new draft typed while awaiting acknow
   expect(store.getDraft()).toBe("next task typed during request");
 });
 
+it('workshop manual requests carry the permanent release authorization without changing the draft',async()=>{
+ const s=session('workshop');store.state.activeSessionId=s.id;store.state.sessions=[s];
+ store.state.prefs.workshop={directory:s.directory,sourceDirectory:'/source',session:s};
+ store.state.connectedProviderIds=['p'];store.setModelChoice('p','m','medium');
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ expect(await store.sendPrompt('Исправь цвет')).toBe(true);
+ const body=prompt.mock.calls[0][2];expect(body.parts[0]).toEqual({type:'text',text:'Исправь цвет'});
+ expect(body.parts.at(-1)).toMatchObject({type:'text',synthetic:true,metadata:{arvelaWorkshopRelease:1}});
+ expect(body.variant).toBe('medium');
+});
+
+it('workshop queued corrections retain release authorization when steering now',async()=>{
+ const s=session('workshop');store.state.activeSessionId=s.id;store.state.sessions=[s];
+ store.state.prefs.workshop={directory:s.directory,sourceDirectory:'/source',session:s};
+ store.state.connectedProviderIds=['p'];store.setModelChoice('p','m','medium');store.state.statuses[s.id]={type:'busy'};
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ expect(store.enqueuePrompt('Также исправь тест')).toBe(true);
+ await store.steerQueued(store.getQueue()[0].id);
+ expect(prompt).toHaveBeenCalledOnce();expect(prompt.mock.calls[0][2].parts.at(-1)).toMatchObject({synthetic:true,metadata:{arvelaWorkshopRelease:1}});
+});
+
 it('Stop during manual preparation prevents a late POST and retains the draft', async () => {
   store.state = { ...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], connectedProviderIds: ['local-qwen-next'] };
   store.setModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium');
@@ -318,6 +339,12 @@ it("scheduled prompts preserve drafts, attachments and the saved reasoning model
  scheduledSetup();store.setDraft("user typing");const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
  expect(await store.runScheduledTask(scheduled())).toEqual({kind:"sent"});expect(store.getDraft()).toBe("user typing");
  expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"}]}));
+});
+it('scheduled workshop prompts also retain permanent release authorization',async()=>{
+ scheduledSetup();const s=session('ses_a');store.state.prefs.workshop={directory:s.directory,sourceDirectory:'/source',session:s};
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ expect(await store.runScheduledTask(scheduled())).toEqual({kind:'sent'});
+ expect(prompt.mock.calls[0][2].parts.at(-1)).toMatchObject({synthetic:true,metadata:{arvelaWorkshopRelease:1}});
 });
 it('cancelling a scheduled task during model readiness never sends it afterward', async () => {
   scheduledSetup();

@@ -35,3 +35,16 @@ Before each milestone handoff: relevant tests, `npm run build`, Rust check when 
 Use `npm run release:hub -- stable` (or preview) to publish reviewed releases to the configured private Hub. Read `docs/HUB-UPDATES.md`; both full UI/source snapshots are signed with the pinned offline release key. Never publish credentials, local receipts or owner histories. Ordinary builds/tests do not publish. Retain app identity and agent ownership; hot UI activation must preserve native agents and flush pending delivery/storage. Source compilation stays isolated and native installation waits for authoritative idle. Windows/Linux live acceptance must be reported separately.
 
 A production rollout is incomplete without the canonical publisher's verified Hub receipt in `.local/releases/<version>-<channel>.json`. Publish Hub before exposing a GitHub/bootstrap release or updating the legacy feed; verify the served head and both signed downloads. Ordinary development/CI builds are not production rollouts. Keep release credentials private; never claim an upload alone proves client availability.
+
+## Protected workshop delivery
+
+The owner permanently authorizes local commits and verified Hub publication for
+implementation tasks in «Мастерская Arvela». This satisfies the explicit-publication
+rule above; do not ask whether a commit/release is wanted again. An explicit user
+request for analysis only or no deployment takes precedence. Preserve unrelated
+changes; stage only your scope, and use an isolated clean copy with independent
+dependencies when another task has pending work. Run `npm run release:local -- stable`
+and verify its canonical receipt, served head and both signed packets include your
+actual changed files. Another available release does not prove delivery of your
+change. If blocked, say code changed but update NOT published, with the exact reason;
+do not label delivery DONE. Publication offers an update; applying it remains separate.

@@ -1,3 +1,4 @@
+import { workshopVisibleText } from "../../workshop/policy";
 // Pure translation from Pi's RPC vocabulary into the application's own event and
 // message model, so the existing stream reducer, renderer and scroll logic work
 // for Pi exactly as they do for OpenCode — without a second agent loop.
@@ -141,7 +142,7 @@ export function entriesToHistory(
       const parts: MessagePart[] = [];
       blocks.forEach((block, index) => {
         if (block.type === "text" && typeof block.text === "string") {
-          const split = splitArchiveText(String(block.text));
+          const split = splitArchiveText(workshopVisibleText(String(block.text),sessionID));
           parts.push({
             id: partId(id, index),
             sessionID,
@@ -385,7 +386,7 @@ export class PiStreamTranslator {
       // composer can clear without waiting for the run to settle.
       const id = this.nextMessageId("user");
       const blocks = contentBlocks(message);
-      const split = splitArchiveText(textOf(blocks));
+      const split = splitArchiveText(workshopVisibleText(textOf(blocks),this.sessionID));
       const info: Message = {
         id,
         sessionID: this.sessionID,
