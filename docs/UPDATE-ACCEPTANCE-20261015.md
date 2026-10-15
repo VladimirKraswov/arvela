@@ -19,6 +19,8 @@ storage77MiB at verification. No owner prompts, model inference or GPU changes.
   Dependency compiler caches were reused; source/node_modules were separate.
 - App strict signature/microphone capability, DMG checksum, updater archive
   extraction/binary equality and native version-bound updater signature PASS.
+- Public legacy feed0.2.56 and freshly downloaded GitHub updater archive matched
+  the local SHA and passed the native pinned-key/version verifier. Own Vite fixture stopped.
 
 Native fingerprint:`03dbdbccb64f830440f65328f96e9de9ec5fafc0ce172ae153bb495c33c6929c`.
 Hub UI payload SHA256:`eee00936adea81db4c9342a29a1430e05f1dd95eda43caf25069163aafcbd636`.
