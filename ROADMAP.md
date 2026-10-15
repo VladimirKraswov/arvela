@@ -4,7 +4,7 @@
 
 - [x] Permanent owner authorization repeated as hidden scoped context for manual, queued/steer and scheduled prompts; shared OpenCode/Pi contract and Pi history preservation.
 - [x] Explicit no-deploy/analysis requests keep priority; tests and actual Hub packet/receipt verification required before claiming delivery. No automated loop or permission bypass.
-- [ ] Final checks, verified Hub publication and hot activation.
+- [x] All867 frontend/126 native/48 Hub/9 publisher checks, actual OpenCode noReply context persistence, verified Hub0.2.64 and active native UI assets; original session/model/processes preserved.
 
 ## Контраст выделения — 0.2.63
 
