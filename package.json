@@ -1,7 +1,7 @@
 {
   "name": "arvela",
   "private": true,
-  "version": "0.2.56",
+  "version": "0.2.57",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,8 +18,9 @@
     "check:linux-prereqs": "./scripts/check-linux-prereqs.sh",
     "test:faults": "vitest run test/recovery-faults.test.ts test/store-regressions.test.ts test/attachments.test.ts test/pi-backend.test.ts test/backup-recovery.test.ts test/skill-quality.test.ts test/update-feed.test.ts",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "release": "npm run release:hub --",
     "release:hub": "node scripts/releases/publish.mjs",
-    "test:releases": "node --test scripts/releases/packet.test.mjs",
+    "test:releases": "node --test scripts/releases/*.test.mjs",
     "build:release:macos": "tauri build --bundles app,dmg --config '{\"bundle\":{\"createUpdaterArtifacts\":true,\"macOS\":{\"signingIdentity\":\"-\"}}}'"
   },
   "dependencies": {

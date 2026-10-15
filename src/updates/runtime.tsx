@@ -1,3 +1,4 @@
+import {watchUpdateChecks} from './checks';
 import {keepRuntimeAwake} from './background';
 import {useEffect,useSyncExternalStore} from 'react';
 import {invoke} from '@tauri-apps/api/core';
@@ -25,14 +26,15 @@ export function UpdateRuntime(){
     const stopAwake=keepRuntimeAwake();
     const saved=localStorage.getItem('arvela.update.channel');updates.setChannel(saved==='preview'?'preview':'stable');
     // Health is acknowledged after React has mounted, never while downloading.
-    void updates.ready().then(()=>updates.check()).catch(()=>{});
+    const checks=watchUpdateChecks(()=>updates.check(),()=>!updates.snapshot().busy&&!updates.snapshot().downloaded&&!updates.compiling()&&!updates.snapshot().waiting);
+    void updates.ready().catch(()=>{}).finally(()=>checks.check());
     let alive=true;let unlisten:(()=>void)|undefined;let quitListen:(()=>void)|undefined;
     void listen('arvela-open-updates',()=>{requestUpdateSettings();store.setUi({settingsOpen:true});}).then(fn=>{if(alive)unlisten=fn;else fn();}).catch(()=>{});
     void listen('arvela-before-quit',()=>{void (async()=>{try{savePrefs(store.getSnapshot().prefs);if(!flushPrefs())throw Error('Не удалось сохранить состояние перед выходом.');await attachmentDrafts.flush();await invoke('runtime_quit_ready',{ready:true});}catch(e){store.setUi({toast:String(e)});await invoke('runtime_quit_ready',{ready:false});}})().catch(()=>{});}).then(fn=>{if(alive)quitListen=fn;else fn();}).catch(()=>{});
     let refreshing=false;
     const timer=setInterval(()=>{if(refreshing)return;refreshing=true;void updates.refresh().then(()=>updates.tick(agentsRunning())).catch(()=>{}).finally(()=>{refreshing=false;});},2000);
-    const check=setInterval(()=>{if(!updates.snapshot().downloaded&&!updates.compiling()&&!updates.snapshot().waiting)void updates.check();},30*60000);
-    return()=>{alive=false;stopAwake();clearInterval(timer);clearInterval(check);unlisten?.();quitListen?.();};
+
+    return()=>{alive=false;stopAwake();clearInterval(timer);checks.stop();unlisten?.();quitListen?.();};
   },[]);return null;
 }
 export function UpdateBadge(){const s=useUpdates();if(!s.release?.available)return null;

@@ -3,7 +3,7 @@ const invoke=vi.hoisted(()=>vi.fn());
 const state=vi.hoisted(()=>({chat:{sessions:{}},ui:{sending:false}}));
 vi.mock('../src/capabilities/integration',()=>({capabilityNative:invoke,invalidateCapabilities:vi.fn()}));
 vi.mock('../src/state/store',()=>({store:{state}}));
-import {install,sourceId,drain,disable,type HubItem} from '../src/hub/client';
+import {config,install,sourceId,drain,disable,type HubItem} from '../src/hub/client';
 import {emptyRegistry} from '../src/capabilities/registry';
 const item:HubItem={id:'skill-abc',kind:'skill',revision:'a'.repeat(64),title:'Example',description:'',enabled:true};
 let registry=emptyRegistry();const c={endpoint:'https://host',certificate:'',enabled:true,shareText:true,label:'Mac',installed:{}};
@@ -47,4 +47,13 @@ describe('shared Hub adapters',()=>{
  it('MCP is imported disabled and cannot overwrite an existing configured server',async()=>{await install({...item,kind:'tool'});expect(registry.servers[0].enabled).toBe(false);registry.servers[0].enabled=true;registry.servers[0].authRevision='private-vault-marker';await install({...item,kind:'tool'});expect(registry.servers[0].enabled).toBe(true);expect(registry.servers[0].authRevision).toBe('private-vault-marker');});
  it('acks only after successful ingest and binds upload/ack to profile',async()=>{await drain();expect(invoke).toHaveBeenCalledWith('hub_request',expect.objectContaining({expected:'origin-bound',path:'ingest'}));expect(invoke).toHaveBeenCalledWith('hub_spool',expect.objectContaining({action:'ack',expected:'origin-bound'}));invoke.mockImplementation(async(cmd,args)=>{if(cmd==='hub_request')throw Error('offline');return {records:[{}],hashes:['h'],origin:'x'};});invoke.mockClear();await expect(drain()).rejects.toThrow('offline');expect(invoke.mock.calls.some(c=>c[0]==='hub_spool'&&c[1].action==='ack')).toBe(false);});
  it('revocation preserves unrelated owner source',async()=>{registry.sources=[{id:'foreign',path:'/owned',enabled:true},{id:sourceId(item.id),path:'/data/hub/packages/skill-abc/rev',enabled:true}];await disable(item);expect(registry.sources[0].enabled).toBe(true);expect(registry.sources[1].enabled).toBe(false);});
+});
+
+it('signals update checks only after a successful connection change, never on history/catalog polling',async()=>{
+ const events=new EventTarget(),changed=vi.fn();events.addEventListener('arvela-hub-config-changed',changed);vi.stubGlobal('window',events);
+ try {
+  await config();await config({...c,installed:{s:'revision'}},undefined,c);expect(changed).not.toHaveBeenCalled();
+  await config({...c,endpoint:'https://new-host'},undefined,c);expect(changed).toHaveBeenCalledOnce();
+  invoke.mockRejectedValueOnce(Error('save failed'));await expect(config(c,'new-key',c)).rejects.toThrow('save failed');expect(changed).toHaveBeenCalledOnce();
+ }finally{vi.unstubAllGlobals();}
 });

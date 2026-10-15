@@ -10,7 +10,11 @@ export interface HubItem {id:string;kind:"skill"|"prompt"|"tool"|"template"|"run
 export interface HubPackage {path:string;sourcePath:string;manifest:{id:string;kind:HubItem["kind"];files:Record<string,string>;revision:string}}
 export interface Spool {origin:string;pending:number;dropped:number;records:HubRecord[];hashes:string[]}
 export const emptyConfig:HubConfig={endpoint:"",certificate:"",enabled:false,shareText:true,label:"",installed:{}};
-export const config=(value?:HubConfig,key?:string,expected?:HubConfig)=>capabilityNative<HubConfig>("hub_config",{config:value??null,key:key??null,expected:expected??null});
+export async function config(value?:HubConfig,key?:string,expected?:HubConfig){
+ const saved=await capabilityNative<HubConfig>("hub_config",{config:value??null,key:key??null,expected:expected??null});
+ if((key!==undefined||(value!==undefined&&(!expected||value.endpoint!==expected.endpoint||value.certificate!==expected.certificate||value.enabled!==expected.enabled)))&&typeof window!=="undefined")window.dispatchEvent(new Event("arvela-hub-config-changed"));
+ return saved;
+}
 export const request=<T>(path:string,body?:unknown,expected?:string)=>capabilityNative<T>("hub_request",{path,body:body??null,expected:expected??null});
 export const spool=(action:string,records?:HubRecord[],hashes?:string[],expected?:string)=>capabilityNative<Spool>("hub_spool",{action,records:records??null,hashes:hashes??null,expected:expected??null});
 export async function drain(){const batch=await spool("read");if(batch.records.length){await request("ingest",{appVersion:version,records:batch.records},batch.origin);return spool("ack",undefined,batch.hashes,batch.origin);}return batch;}

@@ -52,6 +52,7 @@ jobs:
           key: desktop-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: desktop-${{ runner.os }}-${{ runner.arch }}-
       - run: npm ci
+      - run: npm run test:releases
       - run: npm run check:architecture
       - run: npm test -- --maxWorkers=2
       - name: Interruption and delivery fault acceptance
