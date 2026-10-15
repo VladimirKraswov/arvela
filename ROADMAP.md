@@ -1,5 +1,10 @@
 # Arvela roadmap
 
+## Контраст выделения — 0.2.63
+
+- [x] Use system Highlight/HighlightText for selected text instead of low-contrast accent tint; regression assertions preserve the contract.
+- [ ] Verified Hub packet contains the selection rule; activate and verify in installed Arvela.
+
 ## Подсказки настроек — 0.2.62
 
 - [x] Small question buttons with named modal explanations for browser parameters, agent permissions, shared capabilities, Hub, model services, appearance, ASR, updates and backups.

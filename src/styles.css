@@ -73,7 +73,11 @@ select {
   color: inherit;
 }
 ::selection {
-  background: var(--accent-soft);
+  /* Системный цвет выделения: контрастен в любой теме. Фон --accent-soft
+     почти не отличался от фона панелей (#eaeaea на #fff, #303030 на #202020),
+     и выделенный текст было почти не видно. */
+  background: Highlight;
+  color: HighlightText;
 }
 :focus-visible {
   outline: 2px solid var(--accent);
