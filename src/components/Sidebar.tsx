@@ -10,6 +10,8 @@ import { store, useAppSelector } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
 import { Icon } from "./Icon";
 import { pathBasename } from "../util/paths";
+import { isNative } from "../native/platform";
+import { WORKSHOP_TITLE } from "../workshop/workspace";
 export const pickFolder = pickProjectFolder;
 
 function ActivityMark({ id, directory, pending = false }: { id: string; directory: string; pending?: boolean }) {
@@ -53,9 +55,14 @@ export function Sidebar() {
   });
   const [shownByProject, setShownByProject] = useState<Record<string, number>>({});
   const [recentCount, setRecentCount] = useState(8);
+  const [openingWorkshop, setOpeningWorkshop] = useState(false);
   const expandedKey = JSON.stringify(dirs.filter((dir) => store.isProjectExpanded(dir)));
   const hostKey = s.prefs.workspaceKey ?? s.prefs.endpoint;
   const localPi = (s.prefs.activeHost ?? "local") === "local" && Boolean(s.piHealth?.install.installed);
+  useEffect(() => {
+    if (isNative() && (s.prefs.activeHost ?? "local") === "local" && s.connection.phase === "connected" && !s.prefs.workshop)
+      void store.ensureWorkshop().catch(() => {});
+  }, [s.connection.phase, hostKey, s.prefs.workshop]);
   useEffect(() => {
     if (s.connection.phase === "connected" || localPi) void store.loadRecentSessions(archived);
   }, [s.connection.phase, hostKey, archived, localPi]);
@@ -66,6 +73,7 @@ export function Sidebar() {
   }, [s.connection.phase, hostKey, expandedKey, localPi]);
   useEffect(() => { setMenu(null); setRename(null); setShownByProject({}); setRecentCount(8); }, [hostKey]);
   const row = (sess: Session, prefix: string, recent = false) => {
+    if (store.isWorkshopSession(sess)) return null;
     const rowKey = `${prefix}:${sess.id}`;
     const isArchived = Boolean(sess.time.archived);
     const pending = store.pendingInteraction(sess.id);
@@ -129,7 +137,7 @@ export function Sidebar() {
     );
   };
   const recent = s.recentSessionList;
-  const visibleRecent = recent.sessions.filter((session) => !store.isProjectHidden(session.directory));
+  const visibleRecent = recent.sessions.filter((session) => !store.isProjectHidden(session.directory) && !store.isWorkshopSession(session));
   return (
     <aside
       className="sidebar"
@@ -165,6 +173,15 @@ export function Sidebar() {
       </nav>
       <div className="sidebar-host">
         <HostPicker compact />
+      </div>
+      <div className="workshop-entry">
+        <button className={`workshop-button${s.activeSessionId === s.prefs.workshop?.session.id ? " active" : ""}`}
+          aria-label={WORKSHOP_TITLE} aria-busy={openingWorkshop} disabled={openingWorkshop}
+          onClick={async () => { setOpeningWorkshop(true); try { await store.openWorkshop(); } finally { setOpeningWorkshop(false); } }}>
+          <Icon name="code" size={18}/><span className="workshop-title">{WORKSHOP_TITLE}</span>
+          {s.prefs.workshop && <ActivityMark id={s.prefs.workshop.session.id} directory={s.prefs.workshop.directory}/>}
+          <Icon name="lock" size={12}/>
+        </button>
       </div>
       <div className="sidebar-scroll">
         <div className="section-label">

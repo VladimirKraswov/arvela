@@ -1,5 +1,13 @@
 # Arvela roadmap
 
+## Мастерская Arvela — 0.2.61
+
+- [x] One protected development chat above projects, app-owned workspace and shared OpenCode/Pi project instructions, source detection and no-key disclosure.
+- [x] Store-level delete/archive/rename/project-hide guards, per-server identity and reconciliation before creation.
+- [x] Private local release operator runs mandatory checks before credentials/publication; canonical publisher and Hub receipt remain authoritative.
+- [ ] Full checks, live UI/workspace and release/install acceptance.
+
+
 ## Footer update indicator — 0.2.59
 
 - [x] Update circle placed inside the Arvela/connection/settings footer; narrow240/304px and settings navigation verified.

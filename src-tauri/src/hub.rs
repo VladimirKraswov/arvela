@@ -97,6 +97,12 @@ fn load() -> Result<Config, String> {
         serde_json::from_str(&s).map_err(|_| "Invalid Hub configuration".into())
     }
 }
+pub(crate) fn workshop_endpoint() -> Option<String> {
+    load()
+        .ok()
+        .filter(|c| origin(&c.endpoint).is_ok())
+        .map(|c| c.endpoint)
+}
 // Updates share the configured origin, certificate and device credential, but
 // work even when telemetry sharing is disabled. Credentials stay native.
 pub(crate) fn release_identity() -> Result<String, String> {

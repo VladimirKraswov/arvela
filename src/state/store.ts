@@ -1,3 +1,4 @@
+import { prepareWorkshop, resolveWorkshop, isWorkshopSession, type WorkshopRecord } from "../workshop/workspace";
 import { ownWork } from "../operations/ownership";
 import { StreamNotifications, selectedSnapshot, shallowEqual } from "./notifications";
 import { DEFAULT_BASE_URL } from "../api/client";
@@ -1229,6 +1230,46 @@ class Store {
     }
   }
 
+  private workshopFlights = new Map<string, Promise<WorkshopRecord>>();
+  isWorkshopSession(session: Pick<Session, "id" | "directory">): boolean {
+    return isWorkshopSession(this.state.prefs.workshop, session);
+  }
+  isWorkshopDirectory(directory: string): boolean { return this.state.prefs.workshop?.directory === directory; }
+  async ensureWorkshop(): Promise<WorkshopRecord> {
+    if (!isNative() || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()))
+      throw new Error("Выберите «Этот компьютер», чтобы открыть мастерскую Arvela.");
+    if (this.state.connection.phase !== "connected") throw new Error("Подключите OpenCode, чтобы открыть мастерскую.");
+    const key = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
+    const pending = this.workshopFlights.get(key); if (pending) return pending;
+    const backend = this.backend, previous = this.state.prefs.workshop, permission = accessRules(this.state.prefs.newAccess ?? "inherit");
+    const work = (async () => {
+      const paths = await backend.paths(null);
+      const workspace = await prepareWorkshop(paths.home);
+      const record = await resolveWorkshop(backend, workspace, previous, permission);
+      this.mutate(s => {
+        const current = (s.prefs.workspaceKey ?? s.prefs.endpoint) === key;
+        return {prefs:current ? {...s.prefs,workshop:record,
+          sessionEngine:{...s.prefs.sessionEngine,[record.session.id]:DEFAULT_BACKEND_ID}}
+          : {...s.prefs,endpointState:{...s.prefs.endpointState,[key]:{
+            ...s.prefs.endpointState?.[key],workshop:record,
+          }}}};
+      });
+      this.persistPrefs();
+      return record;
+    })();
+    this.workshopFlights.set(key,work);
+    try { return await work; } finally { if (this.workshopFlights.get(key) === work) this.workshopFlights.delete(key); }
+  }
+  async openWorkshop(): Promise<void> {
+    const selection = this.directoryGeneration, session = this.state.activeSessionId;
+    const key = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
+    try {
+      const record = await this.ensureWorkshop();
+      if ((this.state.prefs.workspaceKey ?? this.state.prefs.endpoint) !== key || selection !== this.directoryGeneration || session !== this.state.activeSessionId) return;
+      await this.openChat(record.session);
+    } catch (e) { if ((this.state.prefs.workspaceKey ?? this.state.prefs.endpoint) === key) this.patchUi({toast:errText(e)}); }
+  }
+
   async refreshProjects(): Promise<void> {
     if (this.state.connection.phase !== "connected") return;
     try {
@@ -1247,6 +1288,7 @@ class Store {
   }
 
   removeProject(directory: string): void {
+    if (this.isWorkshopDirectory(directory)) return;
     // This is a workspace-list operation, never a filesystem/session deletion.
     this.mutate((s) => ({ prefs: { ...s.prefs,
       hiddenProjects: [...new Set([...(s.prefs.hiddenProjects ?? []), directory])],
@@ -1414,6 +1456,8 @@ class Store {
   // ---------- session selection / history ----------
 
   async selectSession(sessionId: string | null): Promise<void> {
+    if (!sessionId && this.state.directory && this.isWorkshopDirectory(this.state.directory))
+      sessionId = this.state.prefs.workshop!.session.id;
     if (sessionId === this.state.activeSessionId) {
       this.markReadIfViewing();
       return;
@@ -1539,7 +1583,7 @@ class Store {
         ...(this.state.prefs.pinnedProjects ?? []),
         ...(this.state.directory ? [this.state.directory] : []),
       ]),
-    ].filter((p) => p && p !== "/" && !this.isProjectlessDirectory(p) && !this.isProjectHidden(p));
+    ].filter((p) => p && p !== "/" && !this.isProjectlessDirectory(p) && !this.isWorkshopDirectory(p) && !this.isProjectHidden(p));
   }
   chatSessions(archived = false): Session[] {
     return (this.state.prefs.projectlessSessions ?? [])
@@ -1674,6 +1718,7 @@ class Store {
   async createSessionNow(title?: string): Promise<Session | null> {
     const directory = this.state.directory;
     if (!directory) return null;
+    if (this.isWorkshopDirectory(directory)) { await this.openWorkshop(); return this.state.prefs.workshop?.session ?? null; }
     const gen = this.directoryGeneration;
     const endpoint = this.backend.endpoint;
     const choice = this.getModelChoice();
@@ -1716,6 +1761,7 @@ class Store {
   }
 
   async renameSession(session: Session, title: string): Promise<void> {
+    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская Arvela защищена от удаления и архивирования."}); return; }
     const gen = this.connectionGeneration;
     const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
@@ -1744,6 +1790,7 @@ class Store {
   }
 
   async archiveSession(session: Session): Promise<void> {
+    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская Arvela защищена от удаления и архивирования."}); return; }
     const gen = this.connectionGeneration;
     const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
@@ -1827,6 +1874,7 @@ class Store {
   }
 
   async deleteSession(session: Session): Promise<void> {
+    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская Arvela защищена от удаления и архивирования."}); return; }
     const gen = this.connectionGeneration;
     const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {

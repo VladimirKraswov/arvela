@@ -1,7 +1,7 @@
 {
   "name": "arvela",
   "private": true,
-  "version": "0.2.60",
+  "version": "0.2.61",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,7 +21,8 @@
     "release": "npm run release:hub --",
     "release:hub": "node scripts/releases/publish.mjs",
     "test:releases": "node --test scripts/releases/*.test.mjs",
-    "build:release:macos": "tauri build --bundles app,dmg --config '{\"bundle\":{\"createUpdaterArtifacts\":true,\"macOS\":{\"signingIdentity\":\"-\"}}}'"
+    "build:release:macos": "tauri build --bundles app,dmg --config '{\"bundle\":{\"createUpdaterArtifacts\":true,\"macOS\":{\"signingIdentity\":\"-\"}}}'",
+    "release:local": "node scripts/releases/operator.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

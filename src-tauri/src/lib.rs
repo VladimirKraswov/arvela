@@ -19,6 +19,7 @@ mod sound;
 mod storage_info;
 mod tray;
 mod updates;
+pub mod workshop;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let hot = hub_updates::assets::HotAssets::load();
@@ -80,6 +81,7 @@ pub fn run() {
             browser::browser_pi_support,
             hosts::ssh_aliases,
             hosts::prepare_chat_workspace,
+            workshop::workshop_prepare,
             hosts::connect_ssh,
             local_server::ensure_local_opencode,
             local_server::detect_local_opencode,

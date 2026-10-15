@@ -58,6 +58,7 @@ export interface PiSettings {
 }
 
 export interface Prefs {
+  workshop?: import("../workshop/workspace").WorkshopRecord;
   recoveredOperations?: string[];
   modelServices?: import("../models/services").ModelService[];
   appearance: Appearance;
@@ -158,6 +159,14 @@ export const DEFAULT_PREFS: Prefs = {
 
 const KEY = "ocdesktop.prefs.v1";
 
+function restoredWorkshop(value: Prefs["workshop"]): Prefs["workshop"] {
+  return value && typeof value.directory === "string" && !!value.directory &&
+    value.session && typeof value.session.id === "string" && !!value.session.id &&
+    value.session.directory === value.directory && typeof value.session.title === "string" &&
+    value.session.time && Number.isFinite(value.session.time.created) && Number.isFinite(value.session.time.updated) &&
+    (value.sourceDirectory === null || typeof value.sourceDirectory === "string") ? value : undefined;
+}
+
 export function loadPrefs(): Prefs {
   try {
     const raw = localStorage.getItem(KEY);
@@ -166,6 +175,7 @@ export function loadPrefs(): Prefs {
     return {
       ...DEFAULT_PREFS,
       ...parsed,
+      workshop: restoredWorkshop(parsed.workshop),
       appearance: normalizeAppearance(parsed.appearance),
       asr: parsed.asr?.endpoint?.trim() ? parsed.asr : defaultAsr,
       layout: { ...DEFAULT_PREFS.layout, ...(parsed.layout ?? {}) },
@@ -243,6 +253,7 @@ export function switchEndpointPrefs(
     ...DEFAULT_PREFS,
     layout: prefs.layout,
     ...saved,
+    workshop: restoredWorkshop(saved?.workshop),
     // The CPU helper and speech recognizer belong to this computer, not an
     // OpenCode workspace. Pi is local too: its runtime settings and its chats
     // must survive switching to another OpenCode server.
