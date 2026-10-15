@@ -3020,7 +3020,7 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 
 /* A quiet, accessible update affordance beside the application profile. */
 .sidebar-footer { position: relative; }
-.update-badge { position:absolute; right:12px; top:-24px; z-index:2; width:26px; height:26px; border:1px solid color-mix(in srgb,currentColor 55%,transparent); border-radius:50%; display:grid; place-items:center; cursor:pointer; font-size:17px; line-height:1; box-shadow:0 2px 8px #0002; }
+.update-badge { flex-shrink:0; width:26px; height:26px; border:1px solid color-mix(in srgb,currentColor 55%,transparent); border-radius:50%; display:grid; place-items:center; cursor:pointer; font-size:17px; line-height:1; box-shadow:0 2px 8px #0002; }
 .update-badge.hot { color:#0c753e; background:#d6f5df; }
 .update-badge.native { color:#855700; background:#ffedb3; }
 .update-badge:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
@@ -3030,3 +3030,8 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 
 .browser-environment-help { margin: 18px 0; font-size: .86rem; color: var(--text-dim); line-height: 1.5; }
 .browser-environment-help summary { cursor: pointer; color: var(--text); }
+
+.sidebar-footer .profile-button { flex:1; min-width:0; width:auto; }
+.sidebar-footer .profile-button > span:nth-child(2) { min-width:0; }
+.sidebar-footer .profile-avatar, .sidebar-footer .profile-button > svg { flex-shrink:0; }
+.sidebar-footer .profile-button small { overflow:hidden; white-space:nowrap; }

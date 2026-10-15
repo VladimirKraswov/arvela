@@ -1,5 +1,9 @@
 # Arvela roadmap
 
+## Footer update indicator — 0.2.59
+
+- [x] Update circle placed inside the Arvela/connection/settings footer; narrow240/304px and settings navigation verified.
+
 ## Hot update visibility — 0.2.58
 
 - [x] Small UI-only update: checking button displays progress; native compatibility with installed 0.2.57 retained.

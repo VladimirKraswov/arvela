@@ -228,7 +228,6 @@ export function Sidebar() {
         </section>
       </div>
       <div className="sidebar-footer">
-        <UpdateBadge />
         <button
           className="profile-button"
           onClick={() => store.setUi({ settingsOpen: true })}
@@ -249,6 +248,7 @@ export function Sidebar() {
           </span>
           <Icon name="settings" size={17} />
         </button>
+        <UpdateBadge />
       </div>
       {rename && (
         <div
