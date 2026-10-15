@@ -9,12 +9,16 @@
         "minWidth": 900,
         "minHeight": 620,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "backgroundThrottling": "disabled"
       }
     ]
   },
   "bundle": {
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "macOS": {
       "entitlements": "Entitlements.plist"
     }

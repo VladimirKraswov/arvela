@@ -1,3 +1,4 @@
+import {keepRuntimeAwake} from './background';
 import {useEffect,useSyncExternalStore} from 'react';
 import {invoke} from '@tauri-apps/api/core';
 import {listen} from '@tauri-apps/api/event';
@@ -21,6 +22,7 @@ export const useUpdates=()=>useSyncExternalStore(updates.subscribe,updates.snaps
 export function UpdateRuntime(){
   useEffect(()=>{
     if(!isNative())return;
+    const stopAwake=keepRuntimeAwake();
     const saved=localStorage.getItem('arvela.update.channel');updates.setChannel(saved==='preview'?'preview':'stable');
     // Health is acknowledged after React has mounted, never while downloading.
     void updates.ready().then(()=>updates.check()).catch(()=>{});
@@ -30,7 +32,7 @@ export function UpdateRuntime(){
     let refreshing=false;
     const timer=setInterval(()=>{if(refreshing)return;refreshing=true;void updates.refresh().then(()=>updates.tick(agentsRunning())).catch(()=>{}).finally(()=>{refreshing=false;});},2000);
     const check=setInterval(()=>{if(!updates.snapshot().downloaded&&!updates.compiling()&&!updates.snapshot().waiting)void updates.check();},30*60000);
-    return()=>{alive=false;clearInterval(timer);clearInterval(check);unlisten?.();quitListen?.();};
+    return()=>{alive=false;stopAwake();clearInterval(timer);clearInterval(check);unlisten?.();quitListen?.();};
   },[]);return null;
 }
 export function UpdateBadge(){const s=useUpdates();if(!s.release?.available)return null;

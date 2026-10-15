@@ -1,6 +1,6 @@
 # Arvela roadmap
 
-## Hub updates and background runtime — 0.2.55
+## Hub updates and background runtime — 0.2.56
 
 - [x] Authenticated atomic Hub publication of signed complete UI/source packets; guarded stable/preview channels and release page.
 - [x] Native compatibility fingerprint; pinned-key verification before use, local hot asset provider, health acknowledgement and rollback.
