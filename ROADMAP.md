@@ -3,6 +3,7 @@
 ## Hot update visibility — 0.2.58
 
 - [x] Small UI-only update: checking button displays progress; native compatibility with installed 0.2.57 retained.
+- [x] Canonical Hub stable0.2.58 publication verified; installed0.2.57 reports available:true/kind:hot.
 - [ ] Owner applies the offered hot update to observe it; no automatic activation.
 
 ## Browser profile customization — installed 0.2.57
