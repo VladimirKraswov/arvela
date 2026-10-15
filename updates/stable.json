@@ -1,11 +1,11 @@
 {
-  "version": "0.2.53",
-  "notes": "Arvela 0.2.53",
-  "pub_date": "2026-10-14T22:07:43.928Z",
+  "version": "0.2.56",
+  "notes": "Arvela 0.2.56",
+  "pub_date": "2026-10-15T18:54:28.607Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZGRmekgwSnM0REtwTVp0TiswcTRxK2g4bGY4K2Z2Q0lFVWx5cWlZV3ZzQjhxUm9mNTZHZTdEeWt1ekMyeVBZM09qVDJwWEROUDM2dnlmMXdYV2FVMXlGOFB1eXRCRkFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMDE1MzQ1CWZpbGU6QXJ2ZWxhLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuNTMKQXhtUUJjZHp5T3VWa28ySkJXR3lCQTBvSlF3citwMFNETlVRNk1tdS9UZ0dIZ0VpeS9VSDdHcUY3NnhWcEdMYStlb2FyZFZXK1RPVjY0WG4zTXFBREE9PQo=",
-      "url": "https://github.com/VladimirKraswov/arvela/releases/download/v0.2.53/Arvela.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZGRmekgwSnM0REluQjFVM0xFLys2ellZY3Uwc2p6dDlSTERrMURKMGJWR01uVmhoSExVV0I2MDl6bHRsOUZDNjVUWTZnUDgzZWI3YnpRcU9VMVJYZS9VTGxxbVZBbUFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMDkwMDM5CWZpbGU6QXJ2ZWxhLmFwcC50YXIuZ3oJdmVyc2lvbjowLjIuNTYKQkM5L1VGZ0FVQllORkdiN0trdHV3S2dOaDF2d3kyL0pRZGhEZXIyTXNlSEtRbENmNnoraXhlNUllNU0rMzJhVDBmUVdOWEZDMmlta3IxODI3WEY1QlE9PQo=",
+      "url": "https://github.com/VladimirKraswov/arvela/releases/download/v0.2.56/Arvela.app.tar.gz"
     }
   }
 }

@@ -6,7 +6,8 @@
 - [x] Native compatibility fingerprint; pinned-key verification before use, local hot asset provider, health acknowledgement and rollback.
 - [x] Background source compilation with prerequisite checks, cancellation/deadlines, idle native install, private backups and platform helpers.
 - [x] Green/yellow update indicator and persistent background update controller. Window close hides to tray; explicit quit saves and stops owned agents.
-- [ ] Final release acceptance: full checks, signed packet verification, source rebuild, Hub deployment/publication and bootstrap availability. Windows/Linux live acceptance requires those systems.
+- [x] Source/package acceptance: full checks, signed HTTPS packets, native asset activation/cache recovery, source rebuild, Hub deployment/publication and 0.2.56 bootstrap release.
+- [ ] Live OS acceptance: first GUI launch/local-network permission and tray/active-agent update on macOS; Windows/Linux installation on those systems. New binaries launched by Codex receive TCP EHOSTUNREACH while the approved installed app works; do not bypass OS privacy.
 
 ## Reliability, skill quality and updates — 0.2.53
 
