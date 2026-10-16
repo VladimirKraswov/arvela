@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { browserEnvironment, browserEnvironmentDefaults } from "../src/browser/environment";
 // @ts-expect-error The exact runtime implementation is exercised at the boundary.
@@ -119,4 +120,27 @@ it("injects an ordinary-browser presentation before site scripts only into the h
   expect(navigator1.userAgentData.brands[0].brand).toBe("Chromium");
   const high = await navigator1.userAgentData.getHighEntropyValues(["platformVersion", "uaFullVersion"]);
   expect(high.uaFullVersion).toBe("155.0.8059.12");
+});
+it("aligns the headless notification denial with the ordinary prompt state", async () => {
+  const metadata = uaClientHintMetadata("155.0.8059.12", "chromium", "darwin", "25.3.0", "arm64");
+  const hidden = stealthInitScript({ headless: true, platform: "darwin", identity: { userAgent: "ua", fullVersion: "155.0.8059.12", metadata } });
+  expect(hidden).toContain("Notification.permission === 'denied'");
+  const source = `Object.defineProperty(globalThis.navigator, 'permissions', { value: { query: p => Promise.resolve({ state: p.name === 'notifications' ? 'denied' : 'granted' }) }, configurable: true });
+    globalThis.window = globalThis; globalThis.screen = {};
+    globalThis.Notification = { permission: 'denied' };
+    ${hidden};
+    return { permission: Notification.permission, notifications: navigator.permissions.query({ name: 'notifications' }), geolocation: navigator.permissions.query({ name: 'geolocation' }) };`;
+  const result = await new Function(source)();
+  expect(result.permission).toBe("default");
+  expect((await result.notifications).state).toBe("prompt");
+  expect((await result.geolocation).state).toBe("granted"); // other permissions keep their truth
+});
+it("keeps the stealth layer on the narrowest CDP surface (no Runtime/Console/Log enabling)", () => {
+  // Runtime.enable/Console serialization is the leak advanced anti-bot probes
+  // time; the daemon must never subscribe to page events that force it on.
+  const stealth = readFileSync(new URL("../src-tauri/resources/browser/stealth.mjs", import.meta.url), "utf8");
+  const daemon = readFileSync(new URL("../src-tauri/resources/browser/daemon.mjs", import.meta.url), "utf8");
+  expect(stealth).toContain("Emulation.setUserAgentOverride");
+  for (const source of [stealth, daemon]) for (const leak of ["Runtime.enable", "Console.enable", "Log.enable", "Page.enable"]) expect(source).not.toContain(leak);
+  for (const leak of [".on('console'", ".on('pageerror'", ".route(", "exposeBinding"]) expect(daemon).not.toContain(leak);
 });

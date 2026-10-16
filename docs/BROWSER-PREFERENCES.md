@@ -103,10 +103,21 @@ request headers, a matching Sec-CH-UA brand list (no `HeadlessChrome` brand),
 full `uaFullVersion`, `macOS` platform hint, Metal WebGL renderer, 5 PDF
 plugins with `PluginArray` presentation, `window.chrome`, screen 1512x982 with
 a smaller available area, outer window larger than the viewport and 2x device
-scaling; cache invalidation was verified by touching the executable. Frontend
-and native suites pass; the settings help modal was re-checked in the real
-managed browser. Advanced CDP-runtime detectors and Windows/Linux runs remain
-unclaimed.
+scaling; cache invalidation was verified by touching the executable. The head
+`denied/denied` notification pair (a headless tell) now reports the ordinary
+`default`/`prompt` desktop state.
+
+The CDP surface itself was measured, not assumed: through the real daemon and
+connected Playwright MCP client (navigate + snapshot + evaluate load), the
+console Error-stack serialization traps that `Runtime.enable` would fire stay
+false at first load and after the CDP machinery is exercised, no automation
+globals (`__playwright__binding__`, cdc_*, driver, selenium) appear on the
+page, and sixty consecutive driver evaluations produce no main-thread rAF
+gaps. A guard test keeps the stealth and daemon sources free of
+`Runtime/Console/Log/Page.enable`, console/pageerror subscriptions, route
+interception and `exposeBinding`, which are exactly what turns those leaks on.
+Detectors that profile the raw timing of heavy per-action evaluation can still
+statistically notice a driver; Windows/Linux runs remain unclaimed.
 
 Reproduce the opt-in daemon check using read-only dependencies/browser binaries
 from an installed runtime; the runner creates and removes its own temporary root:

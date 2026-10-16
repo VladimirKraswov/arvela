@@ -1093,3 +1093,20 @@ headless-shell realpath pin is skipped only on the new stealth channel
 (Windows acceptance pending). Real-Chromium check: pdfViewerEnabled true,
 ANGLE Metal renderer, screenshot ok, reduced UA, matching Sec-CH-UA headers,
 plugins/screen/dpr presentation intact. Help text and docs updated.
+
+# 0.2.69 — measured CDP-trace hygiene instead of an engine swap
+
+Best-decision analysis: patched-Chromium forks (patchright/Camoufox) mainly fix
+Runtime.enable/console-serialization leaks; measurement through the real
+daemon + connected @playwright/mcp client showed those leaks are ALREADY off
+(console Error-stack traps false at load and after snapshot/evaluate load; no
+__playwright__binding__/cdc_/driver globals; 60 driver evaluates → zero rAF
+gaps). BiDi is not a stable Chromium path in this Playwright. So no 50 MB
+unproven fork: shipped targeted hardening instead —
+- stealth init aligns the headless denied/denied notifications pair to the
+  ordinary default/prompt desktop state (verified through the daemon path);
+- new guard test pins stealth/daemon sources free of Runtime/Console/Log/
+  Page.enable, console/pageerror listeners, route(), exposeBinding — the very
+  calls that would turn the leaks back on.
+Frontend 876 pass. Remaining honest limit: statistical timing of heavy
+per-action evaluation; Windows/Linux unclaimed.

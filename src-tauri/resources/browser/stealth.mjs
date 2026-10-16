@@ -207,6 +207,16 @@ export function stealthInitScript({ headless, platform = process.platform, ident
       [Symbol.toStringTag]: { value: 'MimeTypeArray' },
     });
     Object.defineProperty(navigator, 'mimeTypes', { get: () => mimeTypes, configurable: true });
+    // Headless Chromium denies notifications outright; a real desktop profile
+    // waits for the user. The denied/denied pair is a headless tell detectors
+    // cross-check, so present the ordinary prompt state consistently instead.
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+      Object.defineProperty(Notification, 'permission', { get: () => 'default', configurable: true });
+      const queryPermission = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = parameters => parameters && parameters.name === 'notifications'
+        ? Promise.resolve({ state: 'prompt', onchange: null })
+        : queryPermission(parameters);
+    }
     Object.defineProperties(window, {
       outerWidth: { get: () => window.innerWidth, configurable: true },
       outerHeight: { get: () => window.innerHeight + ${screen.chromeHeight}, configurable: true },
