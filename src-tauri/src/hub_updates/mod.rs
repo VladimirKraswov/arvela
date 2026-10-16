@@ -33,6 +33,19 @@ struct Checked {
     fingerprint: String,
     notes: String,
 }
+/// A checked release is only worth reporting while it is newer than the UI
+/// that is actually running. A hot activation reloads only the webview, so the
+/// cached check of the just-applied release would otherwise keep the update
+/// badge lit until the user pressed "проверить обновление" by hand.
+fn checked_is_newer(c: &Checked, ui_version: &str) -> bool {
+    match (
+        semver::Version::parse(&c.version),
+        semver::Version::parse(ui_version),
+    ) {
+        (Ok(v), Ok(current)) => v > current,
+        _ => false,
+    }
+}
 struct Gate<'a>(&'a AtomicBool);
 impl Drop for Gate<'_> {
     fn drop(&mut self) {
@@ -181,8 +194,26 @@ pub async fn hub_update(
     }
     let state = app.state::<HubUpdates>();
     if action == "status" {
+        let hot = app.state::<HotAssets>().status();
+        let ui_version = hot["uiVersion"]
+            .as_str()
+            .unwrap_or(env!("CARGO_PKG_VERSION"))
+            .to_owned();
+        let mut cached = state.checked.lock().ok().and_then(|c| c.clone());
+        if cached
+            .as_ref()
+            .is_some_and(|c| !checked_is_newer(c, &ui_version))
+        {
+            cached = None;
+            if let Ok(mut guard) = state.checked.lock() {
+                *guard = None;
+            }
+        }
+        let downloaded = cached
+            .as_ref()
+            .is_some_and(|c| root().is_ok_and(|p| p.join(format!("{}.json", c.digest)).is_file()));
         return Ok(
-            json!({"nativeVersion":env!("CARGO_PKG_VERSION"),"nativeFingerprint":FINGERPRINT,"hot":app.state::<HotAssets>().status(),"build":state.build.status(),"installation":read_json::<Value>(&root()?.join("last-install.json")).ok(),"release":state.checked.lock().ok().and_then(|c|c.as_ref().map(|c|json!({"available":true,"version":c.version,"kind":c.kind,"channel":c.channel,"digest":c.digest,"notes":c.notes}))),"downloaded":state.checked.lock().ok().is_some_and(|c|c.as_ref().is_some_and(|c|root().is_ok_and(|p|p.join(format!("{}.json",c.digest)).is_file())))}),
+            json!({"nativeVersion":env!("CARGO_PKG_VERSION"),"nativeFingerprint":FINGERPRINT,"hot":hot,"build":state.build.status(),"installation":read_json::<Value>(&root()?.join("last-install.json")).ok(),"release":cached.as_ref().map(|c|json!({"available":true,"version":c.version,"kind":c.kind,"channel":c.channel,"digest":c.digest,"notes":c.notes})),"downloaded":downloaded}),
         );
     }
     if action == "ready" {
@@ -300,6 +331,11 @@ pub async fn hub_update(
             }
             let v = verified(&c)?;
             app.state::<HotAssets>().activate(&c.digest, v)?;
+            // The release is applied now; keeping the cached check would flash
+            // the badge again on the reloaded webview until a manual check.
+            if let Ok(mut guard) = state.checked.lock() {
+                *guard = None;
+            }
             let hot = app.state::<HotAssets>().inner().clone();
             let app = app.clone();
             let digest = c.digest;
@@ -370,4 +406,31 @@ pub fn cli_status() -> Result<(), String> {
         json!({"connected":true,"nativeVersion":env!("CARGO_PKG_VERSION"),"nativeFingerprint":FINGERPRINT,"releaseVersion":head["version"],"available":head["available"]==true&&newer,"kind":if head["nativeFingerprint"]==FINGERPRINT{"hot"}else{"source"}})
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod checked_freshness_tests {
+    use super::{checked_is_newer, Checked};
+    fn checked(version: &str) -> Checked {
+        Checked {
+            channel: "stable".into(),
+            identity: "id".into(),
+            kind: "hot".into(),
+            digest: "0".repeat(64),
+            version: version.into(),
+            fingerprint: "f".repeat(64),
+            notes: String::new(),
+        }
+    }
+    #[test]
+    fn reports_only_releases_newer_than_the_running_ui() {
+        assert!(checked_is_newer(&checked("0.2.72"), "0.2.71"));
+        // Regression: after a hot activation only the webview reloads, so a
+        // cached check of the just-applied version used to keep the update
+        // badge lit until the user checked for updates manually.
+        assert!(!checked_is_newer(&checked("0.2.71"), "0.2.71"));
+        assert!(!checked_is_newer(&checked("0.2.70"), "0.2.71"));
+        assert!(!checked_is_newer(&checked("not-a-version"), "0.2.71"));
+        assert!(!checked_is_newer(&checked("0.2.72"), "not-a-version"));
+    }
 }

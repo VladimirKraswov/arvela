@@ -1132,3 +1132,14 @@ a file" next to the real attach-files button. It now renders a new `command`
 Guard test test/composer-commands-icon.test.ts pins the button glyph and the
 path definition. Verified in the real managed browser: ⌘ renders clearly
 beside the document attach icon.
+
+# 0.2.72 — update badge no longer stays lit after applying a hot update
+
+Root cause: hub_update "status" replayed the in-memory cached check verbatim.
+A hot activation reloads only the webview, so the applied release stayed
+"available" (and "downloaded", because the packet file exists), which also made
+the watchUpdateChecks `!downloaded` gate skip every automatic recheck — the
+badge persisted until a manual "check for updates". Fix: status now validates
+the cached check against the running hot uiVersion and self-clears it when it
+is not strictly newer; "activate" additionally clears the cached check right
+away. Rust regression test checked_freshness_tests (mutation-verified).
