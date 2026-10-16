@@ -1123,3 +1123,12 @@ a >=45 channel lead); it provably rejects the historical washed-out
 accent-soft results (#eaeaea/#fff, #303030/#202020). Verified live in the real
 managed browser: dark theme, gold accent — computed selection background
 gold/0.45, text color inherited, highlight clearly visible on screenshot.
+
+# 0.2.71 — command palette button shows the ⌘ glyph
+
+The composer's "Открыть команды" button used a large plus, which read as "add
+a file" next to the real attach-files button. It now renders a new `command`
+(⌘) outline glyph; plain plus stays reserved for genuinely additive buttons.
+Guard test test/composer-commands-icon.test.ts pins the button glyph and the
+path definition. Verified in the real managed browser: ⌘ renders clearly
+beside the document attach icon.
