@@ -64,7 +64,10 @@ async function getContext(owned = currentSession()) {
     const profile = settings.storage === 'temporary'
       ? await fs.mkdtemp(path.join(root, 'temporary-profile-')) : engineProfile;
     await fs.mkdir(profile, { recursive: true, mode: 0o700 });
-    const executablePath = process.platform === 'win32' && settings.engine === 'chromium'
+    // The reduced-signal hidden surface runs the full Chromium through the
+    // "chromium" channel; an explicit headless-shell path would defeat it.
+    const stealthChromiumChannel = settings.engine === 'chromium' && settings.reduceAutomationSignals && settings.display === 'embedded';
+    const executablePath = process.platform === 'win32' && settings.engine === 'chromium' && !stealthChromiumChannel
       ? await promisify(realpath.native)(chromium.executablePath()) : undefined;
     const options = {
       ...environmentOptions(settings), viewport: { width: 1280, height: 800 },

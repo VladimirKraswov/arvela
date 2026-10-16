@@ -30,6 +30,10 @@ it("maps compatibility/privacy to real Chromium options without insecure launch 
 it("hides automation signals without disabling security", () => {
   const options = environmentOptions({reduceAutomationSignals:true});
   expect(options.ignoreDefaultArgs).toEqual(["--enable-automation"]);
+  // The hidden surface launches the full Chromium (--headless=new), not the
+  // stripped headless shell whose missing features detectors probe.
+  expect(options.channel).toBe("chromium");
+  expect(options.headless).toBe(true);
   expect(options.args).toEqual(stealthLaunchOptions(process.platform).args);
   expect(options.args).toContain("--disable-blink-features=AutomationControlled");
   expect(options.deviceScaleFactor).toBe(stealthLaunchOptions(process.platform).deviceScaleFactor);
@@ -44,7 +48,12 @@ it("keeps the stock launch when the automation-signal reduction is off", () => {
   const options = environmentOptions({});
   expect(options).not.toHaveProperty("ignoreDefaultArgs");
   expect(options).not.toHaveProperty("deviceScaleFactor");
+  expect(options).not.toHaveProperty("channel");
   expect(options.args).toEqual([]);
+});
+it("never overrides an installed Chrome or a visible window with the chromium channel", () => {
+  expect(environmentOptions({reduceAutomationSignals:true, engine:"chrome"}).channel).toBe("chrome");
+  expect(environmentOptions({reduceAutomationSignals:true, display:"window"})).not.toHaveProperty("channel");
 });
 it("plans ordinary-platform presentation per operating system", () => {
   expect(stealthLaunchOptions("darwin").deviceScaleFactor).toBe(2);

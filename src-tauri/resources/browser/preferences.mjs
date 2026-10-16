@@ -47,7 +47,11 @@ export function environmentOptions(input) {
   const stealth = v.reduceAutomationSignals ? stealthLaunchOptions() : { args: [], ignoreDefaultArgs: undefined, deviceScaleFactor: undefined };
   return {
     headless: v.display === 'embedded', chromiumSandbox: true,
-    ...(v.engine === 'chrome' ? {channel:'chrome'} : {}),
+    // Installed Chrome keeps its channel. With automation-signal reduction the
+    // hidden surface launches the full Chromium binary (--headless=new) rather
+    // than the stripped headless-shell whose missing features detectors probe.
+    ...(v.engine === 'chrome' ? {channel:'chrome'}
+      : (v.reduceAutomationSignals && v.display === 'embedded' ? {channel:'chromium'} : {})),
     ...(v.locale ? {locale:v.locale} : {}), ...(v.timezone ? {timezoneId:v.timezone} : {}),
     colorScheme: v.colorScheme === 'system' ? null : v.colorScheme,
     reducedMotion:v.reducedMotion, serviceWorkers:v.serviceWorkers,

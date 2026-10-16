@@ -84,6 +84,10 @@ released daemon could not start its stealth import. 0.2.66 embeds the module and
 adds a Rust regression that every relative import of the embedded daemon is
 present in the shipped script list.
 
+With the reduction enabled the hidden surface launches the full Chromium
+binary in its new headless mode (the "chromium" channel) instead of the
+stripped headless-shell build, so feature-presence probes see the same engine
+an ordinary window uses; installed Chrome keeps its own channel.
 Reduction now also normalizes the visible headless identity. The user-agent
 carries only the reduced `Chrome/<major>.0.0.0` build token that desktop Chrome
 itself sends since UA-Reduction; the full observed build version appears only

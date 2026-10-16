@@ -1081,3 +1081,15 @@ quote styles and dynamic imports (mutation-verified again).
 Real-Chromium smoke re-passed: reduced UA in JS+headers, sync brands, full
 uaFullVersion, Metal, screen/outer/dpr unchanged-good. Frontend 873 + native
 suites pass; releasing 0.2.67.
+
+# 0.2.68 — hidden mode launches the full Chromium (--headless=new)
+
+reduceAutomationSignals + hidden display now passes channel "chromium", so the
+embedded surface runs the same full browser binary an ordinary window uses
+instead of the stripped chromium-headless-shell whose missing features
+(PDF viewer, built-ins) detectors probe. Installed Chrome keeps channel
+"chrome"; visible windows and the stock launch are unchanged; the win32
+headless-shell realpath pin is skipped only on the new stealth channel
+(Windows acceptance pending). Real-Chromium check: pdfViewerEnabled true,
+ANGLE Metal renderer, screenshot ok, reduced UA, matching Sec-CH-UA headers,
+plugins/screen/dpr presentation intact. Help text and docs updated.
