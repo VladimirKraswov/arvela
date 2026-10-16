@@ -305,15 +305,20 @@ mod tests {
             .map(|(_, content)| *content)
             .expect("daemon.mjs is embedded");
         let mut missing = Vec::new();
-        for line in daemon.lines().filter(|line| line.starts_with("import")) {
-            let Some(start) = line.find("'./") else {
-                continue;
-            };
-            let rest = &line[start + 3..];
-            let Some(end) = rest.find('\'') else { continue };
-            let imported = &rest[..end];
-            if !SCRIPTS.iter().any(|(name, _)| *name == imported) {
-                missing.push(imported.to_owned());
+        // Covers static and dynamic imports written with either quote style.
+        for quote in ['\'', '"'] {
+            let pattern = format!("{quote}./");
+            let mut from = 0;
+            while let Some(pos) = daemon[from..].find(&pattern) {
+                let start = from + pos + 3;
+                let rest = &daemon[start..];
+                let Some(end) = rest.find(quote) else { break };
+                let imported = &rest[..end];
+                if imported.ends_with(".mjs") && !SCRIPTS.iter().any(|(name, _)| *name == imported)
+                {
+                    missing.push(imported.to_owned());
+                }
+                from = start + end;
             }
         }
         assert!(

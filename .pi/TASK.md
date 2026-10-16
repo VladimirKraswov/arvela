@@ -1062,3 +1062,22 @@ hit ERR_MODULE_NOT_FOUND. Added the module to SCRIPTS plus a Rust regression
 that fails on any daemon relative import missing from the shipped list
 (mutation-verified). Released 0.2.66 via release:local stable; 0.2.65 is
 superseded and clients move to 0.2.66 (native fingerprint changed → rebuild).
+
+# 0.2.67 — stealth quality follow-up (review-driven)
+
+Independent review found no blockers but three majors, all fixed:
+(1) UA now uses desktop Chrome's reduced "Chrome/<major>.0.0.0" token; the full
+observed build only lives in Sec-CH-UA fullVersionList/uaFullVersion.
+(2) navigator.userAgentData (brands + getHighEntropyValues) is defined by the
+init script before site scripts, closing the pre-CDP brand race; headers still
+re-asserted over the live CDP session. Installed-Chrome engine now adds the
+"Google Chrome" brand.
+(3) UA cache is keyed by executable path + size + mtime (schema 2), so a
+Chromium upgrade forces a fresh --version read (verified by touch).
+Also: arm64 UA shells per OS, PluginArray/MimeTypeArray toStringTag, CDP
+close-race guard, stock (honest) presentation when no identity resolves, dead
+patchHeadlessUserAgent removed, files.rs import regression now covers both
+quote styles and dynamic imports (mutation-verified again).
+Real-Chromium smoke re-passed: reduced UA in JS+headers, sync brands, full
+uaFullVersion, Metal, screen/outer/dpr unchanged-good. Frontend 873 + native
+suites pass; releasing 0.2.67.

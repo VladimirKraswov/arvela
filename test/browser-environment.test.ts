@@ -3,7 +3,7 @@ import { browserEnvironment, browserEnvironmentDefaults } from "../src/browser/e
 // @ts-expect-error The exact runtime implementation is exercised at the boundary.
 import { environmentDefaults, normalizeEnvironment, environmentOptions, stealthLaunchOptions, stealthScreenMetrics } from "../src-tauri/resources/browser/preferences.mjs";
 // @ts-expect-error The exact runtime implementation is exercised at the boundary.
-import { chromeExecutableCandidates, patchHeadlessUserAgent, stealthInitScript, uaClientHintMetadata, userAgentFromVersion } from "../src-tauri/resources/browser/stealth.mjs";
+import { browserVersionFromVersion, chromeExecutableCandidates, stealthInitScript, uaClientHintMetadata, userAgentFromVersion } from "../src-tauri/resources/browser/stealth.mjs";
 
 it("shares defaults with the native runtime and keeps sessions isolated", () => {
   expect(browserEnvironmentDefaults).toEqual(environmentDefaults);
@@ -55,41 +55,59 @@ it("plans ordinary-platform presentation per operating system", () => {
   expect(stealthScreenMetrics("darwin").width).toBeGreaterThan(1400);
   expect(stealthScreenMetrics("win32").availHeight).toBeLessThan(stealthScreenMetrics("win32").height);
 });
-it("builds the ordinary user-agent only from an observed executable version", () => {
+it("builds the reduced ordinary user-agent only from an observed executable version", () => {
+  // Desktop Chrome sends the UA-Reduction token: only the major build number.
+  expect(browserVersionFromVersion("Chromium 155.0.8059.12")).toBe("155.0.8059.12");
+  expect(browserVersionFromVersion("Google Chrome for Testing 155.0.8059.12")).toBe("155.0.8059.12");
+  expect(browserVersionFromVersion("dev build")).toBeNull();
   expect(userAgentFromVersion("Chromium 155.0.8059.12", "darwin"))
-    .toBe("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.8059.12 Safari/537.36");
-  expect(userAgentFromVersion("Google Chrome 141.0.7390.108", "win32")).toContain("(Windows NT 10.0; Win64; x64)");
-  expect(userAgentFromVersion("Google Chrome 141.0.7390.108", "win32")).toContain("Chrome/141.0.7390.108");
-  expect(userAgentFromVersion("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chromium 155.0.8059.12", "linux")).toContain("Chrome/155.0.8059.12");
+    .toBe("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36");
+  expect(userAgentFromVersion("Google Chrome 141.0.7390.108", "win32", "x64")).toContain("(Windows NT 10.0; Win64; x64)");
+  expect(userAgentFromVersion("Google Chrome 141.0.7390.108", "win32", "x64")).toContain("Chrome/141.0.0.0");
+  expect(userAgentFromVersion("Google Chrome 141.0.7390.108", "win32", "arm64")).toContain("(Windows NT 10.0; ARM64)");
+  expect(userAgentFromVersion("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chromium 155.0.8059.12", "linux")).toContain("Chrome/155.0.0.0");
+  expect(userAgentFromVersion("Chromium 155.0.8059.12", "linux", "arm64")).toContain("X11; Linux aarch64");
   expect(userAgentFromVersion("dev build", "darwin")).toBeNull();
   expect(userAgentFromVersion(undefined, "linux")).toBeNull();
-  expect(patchHeadlessUserAgent("Mozilla/5.0 (Macintosh) HeadlessChrome/155.0.8059.12 Safari/537.36"))
-    .toBe("Mozilla/5.0 (Macintosh) Chrome/155.0.8059.12 Safari/537.36");
   expect(chromeExecutableCandidates("darwin", {})[0]).toContain("Google Chrome");
 });
-it("derives Sec-CH-UA brand hints from the ordinary user-agent, never from the headless build", () => {
-  const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.8059.12 Safari/537.36";
-  const metadata = uaClientHintMetadata(ua, "darwin", "25.3.0", "arm64");
+it("derives Sec-CH-UA brand hints from the observed full version, never from the headless build", () => {
+  const metadata = uaClientHintMetadata("155.0.8059.12", "chromium", "darwin", "25.3.0", "arm64");
   expect(metadata.brands).toEqual([{ brand: "Chromium", version: "155" }, { brand: "Not(A:Brand", version: "24" }]);
   expect(metadata.fullVersionList[0].version).toBe("155.0.8059.12");
+  expect(metadata.uaFullVersion).toBe("155.0.8059.12");
   expect(metadata.platform).toBe("macOS");
   expect(metadata.platformVersion).toBe("16.0.0");
   expect(metadata.architecture).toBe("arm");
   expect(metadata.mobile).toBe(false);
-  expect(uaClientHintMetadata(ua, "win32", "10.0.26100", "x64").platform).toBe("Windows");
-  expect(uaClientHintMetadata(ua, "win32", "10.0.26100", "x64").platformVersion).toBe("15.0.0");
-  expect(uaClientHintMetadata("Mozilla/5.0 Safari/537.36", "linux")).toBeNull();
+  // Installed Google Chrome also carries its own brand in both lists.
+  const chrome = uaClientHintMetadata("141.0.7390.108", "chrome", "win32", "10.0.26100", "x64");
+  expect(chrome.brands.map(b => b.brand)).toEqual(["Chromium", "Google Chrome", "Not(A:Brand"]);
+  expect(chrome.platform).toBe("Windows");
+  expect(chrome.platformVersion).toBe("15.0.0");
+  expect(uaClientHintMetadata("155.0", "chromium", "linux")).toBeNull();
+  expect(uaClientHintMetadata(undefined, "chromium", "linux")).toBeNull();
 });
 it("injects an ordinary-browser presentation before site scripts only into the hidden surface", async () => {
-  const hidden = stealthInitScript({ headless: true, platform: "darwin" });
+  const metadata = uaClientHintMetadata("155.0.8059.12", "chromium", "darwin", "25.3.0", "arm64");
+  const identity = { userAgent: userAgentFromVersion("155.0.8059.12", "darwin"), fullVersion: "155.0.8059.12", metadata };
+  const hidden = stealthInitScript({ headless: true, platform: "darwin", identity });
   expect(hidden).toContain("PDF Viewer");
   expect(hidden).toContain("window.chrome");
   expect(hidden).toContain("outerHeight");
   expect(hidden).toContain("1512"); // plausible macOS screen instead of the viewport
+  // UA-CH is answered before any site script runs, closing the pre-CDP race.
+  expect(hidden).toContain("userAgentData");
+  expect(hidden).toContain("getHighEntropyValues");
+  expect(stealthInitScript({ headless: true, platform: "darwin" })).toBeNull(); // no identity → honest stock presentation
   const visible = stealthInitScript({ headless: false, platform: "darwin" });
   expect(visible).not.toContain("availWidth"); // the real window keeps its real metrics
   // The generated scripts must be syntactically valid and never throw.
-  const run = (source: string) => new Function(`globalThis.navigator = globalThis.navigator || {}; globalThis.window = globalThis; globalThis.screen = globalThis.screen || {}; ${source}`);
+  const run = (source: string) => new Function(`globalThis.navigator = globalThis.navigator || {}; globalThis.window = globalThis; globalThis.screen = globalThis.screen || {}; ${source}; return navigator;`);
   expect(() => run(hidden)()).not.toThrow();
   expect(() => run(visible)()).not.toThrow();
+  const navigator1 = run(hidden)();
+  expect(navigator1.userAgentData.brands[0].brand).toBe("Chromium");
+  const high = await navigator1.userAgentData.getHighEntropyValues(["platformVersion", "uaFullVersion"]);
+  expect(high.uaFullVersion).toBe("155.0.8059.12");
 });

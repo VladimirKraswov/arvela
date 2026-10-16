@@ -70,18 +70,20 @@ async function getContext(owned = currentSession()) {
       ...environmentOptions(settings), viewport: { width: 1280, height: 800 },
       ...(settings.engine === 'chromium' ? {executablePath} : {}),
     };
+    let identity;
     if (settings.reduceAutomationSignals && settings.display === 'embedded') {
       // The hidden surface must not announce "HeadlessChrome"; the version is
       // read from the real executable and a failure keeps the stock identity.
-      const ordinaryUserAgent = await stealthUserAgent({ settings, root, chromium });
-      if (ordinaryUserAgent) options.userAgent = ordinaryUserAgent;
+      identity = await stealthUserAgent({ settings, root, chromium });
+      if (identity) options.userAgent = identity.userAgent;
     }
     let opened;
     try {
       opened = await chromium.launchPersistentContext(profile, options);
       if (settings.reduceAutomationSignals) {
-        await opened.addInitScript(stealthInitScript({ headless: settings.display === 'embedded' }));
-        if (options.userAgent) applyUserAgentClientHints(opened, options.userAgent, settings.locale || 'en-US');
+        const initScript = stealthInitScript({ headless: settings.display === 'embedded', identity });
+        if (initScript) await opened.addInitScript(initScript);
+        if (identity) applyUserAgentClientHints(opened, identity, settings.locale || 'en-US');
       }
     } catch (error) {
       await opened?.close().catch(() => {});

@@ -84,15 +84,23 @@ released daemon could not start its stealth import. 0.2.66 embeds the module and
 adds a Rust regression that every relative import of the embedded daemon is
 present in the shipped script list.
 
-Reduction now also normalizes the visible headless identity: real-runtime smoke
-with the repository daemon showed `navigator.webdriver=false`, the ordinary
-`Chrome/155.0.8059.12` User-Agent in both JS and request headers, matching
-Sec-CH-UA brand list (no `HeadlessChrome` brand), `macOS` platform hint,
-Metal WebGL renderer, 5 PDF plugins with named/MimeType access, `window.chrome`,
-screen 1512x982 with a smaller available area, outer window larger than the
-viewport and 2x device scaling; the panel screenshot capture path and daemon
-stop stayed intact, and the UA cache stored the observed executable version.
-Frontend 873 tests pass; the settings help modal was re-checked in the real
+Reduction now also normalizes the visible headless identity. The user-agent
+carries only the reduced `Chrome/<major>.0.0.0` build token that desktop Chrome
+itself sends since UA-Reduction; the full observed build version appears only
+in Sec-CH-UA client hints (`fullVersionList`/`uaFullVersion`), and installed
+Google Chrome adds its own brand. `navigator.userAgentData` is defined before
+any site script runs (init script), so the brand list is correct from the
+first synchronous read and does not wait for the CDP override that keeps the
+request headers matching. The observed version is cached keyed by the exact
+executable path plus its size and mtime, so a Chromium upgrade forces a fresh
+read instead of an eternally stale UA. Real-runtime smoke showed
+`navigator.webdriver=false`, the reduced ordinary User-Agent in both JS and
+request headers, a matching Sec-CH-UA brand list (no `HeadlessChrome` brand),
+full `uaFullVersion`, `macOS` platform hint, Metal WebGL renderer, 5 PDF
+plugins with `PluginArray` presentation, `window.chrome`, screen 1512x982 with
+a smaller available area, outer window larger than the viewport and 2x device
+scaling; cache invalidation was verified by touching the executable. Frontend
+and native suites pass; the settings help modal was re-checked in the real
 managed browser. Advanced CDP-runtime detectors and Windows/Linux runs remain
 unclaimed.
 
