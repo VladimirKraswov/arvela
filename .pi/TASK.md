@@ -1110,3 +1110,16 @@ unproven fork: shipped targeted hardening instead —
   calls that would turn the leaks back on.
 Frontend 876 pass. Remaining honest limit: statistical timing of heavy
 per-action evaluation; Windows/Linux unclaimed.
+
+# 0.2.70 — text selection uses the primary accent and stays clearly visible
+
+Owner contract change: selection must carry the primary color (system
+Highlight was theme-blind). ::selection now paints
+color-mix(accent|text 45%, transparent) with color:inherit, Highlight declared
+first as fallback. selection-contrast.test.ts rewritten to the new contract:
+CSS-shape assertions plus a numeric visibility guard over every
+accent x theme x surface (luminance contrast >=1.25 OR rgb-distance >=90 with
+a >=45 channel lead); it provably rejects the historical washed-out
+accent-soft results (#eaeaea/#fff, #303030/#202020). Verified live in the real
+managed browser: dark theme, gold accent — computed selection background
+gold/0.45, text color inherited, highlight clearly visible on screenshot.
