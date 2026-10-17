@@ -1163,3 +1163,12 @@ freed VRAM to the model's native 262k context. f16 KV at 262k needs 20 GiB
 (OOM on the 32 GB V100); q8_0 KV loads at 32.2 GiB and answered real probes
 (n_ctx 262144 confirmed live via gateway). Model is now text-only in both
 agent configs; registry label "Q4_0 262k". Gateway verified qwen->artemis->qwen.
+
+# 2026-10-17 (3) — artemis31-v100 final profile: MTP + 196608
+
+Owner asked to trade a bit of context back for MTP speed (book-writing model:
+max input, output ~one chapter). Reused mtp-gemma-4-31B-it-Q4_0 draft from the
+base gemma-it. Measured on free GPU: no-spec 31.8 t/s vs MTP-4 40.7–41.3 t/s
+(+~28%, ~26% draft acceptance). 262144 and 229376 with draft OOM (KV+compute
+buffers); final 196608 (in ~180224, out 16384) at 31.3 GiB. Verified live
+through gateway (n_ctx 196608, real "MTP-196K-OK" answer), default qwen restored.
