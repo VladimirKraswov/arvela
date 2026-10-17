@@ -1143,3 +1143,15 @@ badge persisted until a manual "check for updates". Fix: status now validates
 the cached check against the running hot uiVersion and self-clears it when it
 is not strictly newer; "activate" additionally clears the cached check right
 away. Rust regression test checked_freshness_tests (mutation-verified).
+
+# 2026-10-17 — artemis31-v100 added to the V100 model-switch service
+
+Infrastructure change (no application code): TheDrummer/Artemis-31B-v1.2
+(gemma-4-31B-it finetune) installed on VM 5100 from bartowski GGUF Q4_0 + f16
+mmproj, SHA256 matched HF LFS OIDs. Registry entry cloned from the gemma31
+pattern minus MTP/draft flags; catalog now offers 4 models. Verified live
+qwen-v100 -> artemis31-v100 -> qwen-v100 switches with real completions.
+Mac agent configs (opencode.jsonc local-artemis, pi models.json local-artemis)
+extended; backups kept as *.before-artemis-20261017. V100 returned from the
+stray running 5151 to 5100 (documented steady state). No Hub release: no app
+code changed.

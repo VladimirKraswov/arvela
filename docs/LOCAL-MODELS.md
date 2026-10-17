@@ -13,6 +13,7 @@ Flash Next на RTX 5090 / VM 5200 работает отдельно.
 | `qwen-v100` | NInfer, Huihui NVFP4 | 262144 / 32768 | OpenCode, Pi |
 | `qwen-v100-pi` | NInfer, mixed groupwise-int | 262144 / 32768 | Pi |
 | `gemma31-v100` | llama.cpp, Q4_0 + native MTP 4 | 131072 / 16384 | OpenCode, Pi |
+| `artemis31-v100` | llama.cpp, Q4_0 (Artemis v1.2, без MTP-черновика) | 131072 / 16384 | OpenCode, Pi |
 
 Gateway `ninfer-model-gateway.service` слушает `:8080`; единственный дочерний
 движок слушает loopback `:18080`. Реестр:
@@ -20,6 +21,18 @@ Gateway `ninfer-model-gateway.service` слушает `:8080`; единстве�
 веса, vision-проектор и MTP из VM 5151; они перенесены напрямую между VM,
 SHA256 всех трёх файлов совпали. Повторного скачивания и хранения весов на Mac
 не было. Runtime и его CUDA/NCCL-зависимости проверены на целевой VM.
+
+2026-10-17: добавлена `artemis31-v100` — TheDrummer/Artemis-31B-v1.2
+(дообучение google/gemma-4-31B-it). GGUF Q4_0 и vision-проектор f16 взяты из
+bartowski/TheDrummer_Artemis-31B-v1.2-GGUF; SHA256 обоих файлов совпали с LFS
+OID Hugging Face (`980ded7d…79ea`, `83e25a30…14792`). Файлы лежат в
+`/srv/ninfer-v100-lab/artemis31/models/`, движок — тот же llama-server из
+`gemma31/bin`. MTP-черновика для v1.2 публично нет, поэтому декодирование без
+`--spec` (медленнее Gemma с MTP — ожидаемо). Запись реестра создана по образцу
+gemma31-v100; прежний реестр сохранён как `registry.before-artemis-20261017.json`.
+На Mac добавлены провайдеры `local-artemis` (`artemis31-v100`) в OpenCode
+(`18021`) и Pi (`18008`); переключение qwen-v100 ↔ artemis31-v100 проверено
+реальными короткими ответами, по умолчанию остался `qwen-v100`.
 
 На Mac оба существующих SSH-forward (`18021`, `18008`) ведут к одному gateway.
 Новый провайдер обоих агентов — `local-gemma4/gemma31-v100`; в настройках Arvela
