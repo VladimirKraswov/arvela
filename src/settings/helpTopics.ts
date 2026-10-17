@@ -21,6 +21,7 @@ export const SETTING_HELP_TOPICS = [
   "browser.profile",
   "browser.permissions",
   "browser.metrics",
+  "Каталог моделей Hub",
   "Тема",
   "Основной цвет",
   "Свой цвет",

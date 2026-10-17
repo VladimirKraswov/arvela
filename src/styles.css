@@ -3038,6 +3038,7 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 .quality-settings { display:flex; flex-direction:column; align-items:stretch; gap:14px; }
 .quality-settings label {display:flex; flex-direction:column; gap:6px;}
 .quality-settings textarea {width:100%; resize:vertical; font-family:var(--font-mono, monospace); font-size:13px;}
+.catalog-json {width:100%; resize:vertical; font-family:var(--font-mono, monospace); font-size:12px;}
 .quality-table {overflow:auto; max-height:420px;}
 .quality-table table {width:100%; border-collapse:collapse; font-size:12px;}
 .quality-table td,.quality-table th {text-align:left; padding:8px; border-bottom:1px solid var(--border);}

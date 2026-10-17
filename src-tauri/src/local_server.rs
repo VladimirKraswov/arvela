@@ -285,6 +285,120 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
     }
 }
 
+#[cfg(unix)]
+fn listener_pids(port: u16) -> Result<Vec<u32>, String> {
+    let output = Command::new("lsof")
+        .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
+        .output()
+        .map_err(|e| format!("Не удалось найти процесс сервера: {e}"))?;
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+    let mut pids: Vec<u32> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.trim().parse().ok())
+        .collect();
+    pids.sort_unstable();
+    pids.dedup();
+    Ok(pids)
+}
+
+#[cfg(windows)]
+fn listener_pids(port: u16) -> Result<Vec<u32>, String> {
+    let output = Command::new("netstat")
+        .args(["-ano", "-p", "tcp"])
+        .output()
+        .map_err(|e| format!("Не удалось найти процесс сервера: {e}"))?;
+    let suffix = format!(":{port}");
+    let mut pids: Vec<u32> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| {
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            fields.len() == 5
+                && fields[0] == "TCP"
+                && fields[1].ends_with(&suffix)
+                && fields[3] == "LISTENING"
+        })
+        .filter_map(|line| {
+            line.split_whitespace()
+                .last()
+                .and_then(|value| value.parse().ok())
+        })
+        .collect();
+    pids.sort_unstable();
+    pids.dedup();
+    Ok(pids)
+}
+
+#[cfg(unix)]
+fn terminate_pid(pid: u32) -> Result<(), String> {
+    Command::new("kill")
+        .arg(pid.to_string())
+        .output()
+        .map_err(|e| format!("Не удалось остановить OpenCode: {e}"))?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn terminate_pid(pid: u32) -> Result<(), String> {
+    Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .output()
+        .map_err(|e| format!("Не удалось остановить OpenCode: {e}"))?;
+    Ok(())
+}
+
+/// Stops the healthy OpenCode server owning this endpoint, then starts a new one.
+/// Only a process serving a healthy /global/health on the endpoint is terminated,
+/// so an unrelated application holding the port is never killed.
+fn restart_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Result<(), String> {
+    let endpoint = parse_endpoint(raw)?;
+    let client = reqwest::blocking::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| format!("Не удалось проверить OpenCode: {e}"))?;
+    {
+        let _lock = app_lock(data_dir)?;
+        if probe(&client, &endpoint) == Probe::Healthy {
+            let pids = listener_pids(endpoint.port)?;
+            if pids.is_empty() {
+                return Err("Не удалось найти процесс сервера OpenCode".into());
+            }
+            for pid in &pids {
+                terminate_pid(*pid)?;
+            }
+            let deadline = Instant::now() + Duration::from_secs(15);
+            while probe(&client, &endpoint) != Probe::Absent {
+                if Instant::now() >= deadline {
+                    return Err("Сервер OpenCode не остановился за 15 секунд".into());
+                }
+                thread::sleep(Duration::from_millis(200));
+            }
+        }
+    }
+    ensure_with(raw, binary_override, data_dir)
+}
+
+fn restart_sync(raw: &str, program: Option<&str>) -> Result<(), String> {
+    let configured = program.map(str::trim).filter(|value| !value.is_empty());
+    let binary = match configured {
+        Some(path) => Some(find_binary(Some(Path::new(path)))?),
+        None => None,
+    };
+    restart_with(raw, binary.as_deref(), &crate::paths::app_data_dir()?)
+}
+
+#[tauri::command]
+pub async fn restart_local_opencode(
+    endpoint: String,
+    program: Option<String>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || restart_sync(&endpoint, program.as_deref()))
+        .await
+        .map_err(|e| format!("Не удалось перезапустить OpenCode: {e}"))?
+}
+
 fn ensure_sync(raw: &str, program: Option<&str>) -> Result<(), String> {
     let configured = program.map(str::trim).filter(|value| !value.is_empty());
     // Existing healthy servers are never restarted. The settings probe also
@@ -463,6 +577,59 @@ time.sleep(1)
         drop(socket);
         ensure_with(&format!("http://127.0.0.1:{port}"), Some(&binary), &root).unwrap();
         thread::sleep(Duration::from_millis(1200));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn restart_replaces_the_healthy_server_with_a_new_process() {
+        let root = std::env::temp_dir().join(format!(
+            "opencode-autostart-restart-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let binary = root.join("opencode");
+        fs::write(
+            &binary,
+            r#"#!/usr/bin/env python3
+import sys, signal
+from http.server import BaseHTTPRequestHandler, HTTPServer
+port = int(sys.argv[sys.argv.index('--port') + 1])
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = b'{"healthy":true,"version":"1.18.18"}'
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+    def log_message(self, *_):
+        pass
+signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+HTTPServer(('127.0.0.1', port), Handler).serve_forever()
+"#,
+        )
+        .unwrap();
+        fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).unwrap();
+        let socket = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = socket.local_addr().unwrap().port();
+        drop(socket);
+        let url = format!("http://127.0.0.1:{port}");
+        ensure_with(&url, Some(&binary), &root).unwrap();
+        let before = listener_pids(port).unwrap();
+        assert_eq!(before.len(), 1, "{before:?}");
+        restart_with(&url, Some(&binary), &root).unwrap();
+        let after = listener_pids(port).unwrap();
+        assert_eq!(after.len(), 1, "{after:?}");
+        assert_ne!(after, before);
+        for pid in after {
+            let _ = Command::new("kill").arg(pid.to_string()).output();
+        }
+        thread::sleep(Duration::from_millis(300));
         fs::remove_dir_all(root).unwrap();
     }
 }

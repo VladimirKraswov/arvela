@@ -14,3 +14,11 @@ export async function detectLocalOpenCode(program?: string): Promise<boolean | n
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<boolean>("detect_local_opencode", { program: program ?? null });
 }
+
+/** Applies newly written model configuration by restarting the local OpenCode server. */
+export async function restartLocalServerIfNative(endpoint: string, program?: string): Promise<boolean> {
+  if (!isNative()) return false;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("restart_local_opencode", { endpoint, program: program ?? null });
+  return true;
+}

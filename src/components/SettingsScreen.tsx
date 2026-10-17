@@ -5,6 +5,7 @@ import { UpdateSettings } from "./UpdateSettings";
 import { HubSettings } from "./HubSettings";
 import { CapabilitiesSettings } from "./CapabilitiesSettings";
 import { ModelServicesSettings } from "./ModelServicesSettings";
+import { ModelCatalogSettings } from "./ModelCatalogSettings";
 import { BrowserSettings } from "./BrowserSettings";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { version as appVersion } from "../../package.json";
@@ -36,6 +37,7 @@ export const SETTINGS_SECTIONS = [
   { id: "computer", title: "Управление компьютером", group: "Общие возможности", icon: "monitor", description: "Только macOS: курсор агента, Cua Driver и системные разрешения", keywords: "запись экрана универсальный доступ мышь" },
   { id: "agentControl", title: "API для агентов", group: "Общие возможности", icon: "server", description: "Управление Desktop через локальный MCP без мышки", keywords: "mcp api automation управление агент subagent" },
   { id: "modelServices", title: "Сервисы моделей", group: "Общие возможности", icon: "server", description: "Переключение моделей, загрузка и доступные агенты", keywords: "inference api модели loader прогресс Pi OpenCode" },
+  { id: "modelCatalog", title: "Модели (Hub)", group: "Общие возможности", icon: "file", description: "Общий каталог моделей на Hub и применение на этом устройстве", keywords: "hub каталог модели opencode pi провайдер синхронизация windows mac" },
   { id: "helper", title: "Сервисы помощника", group: "Общие возможности", icon: "server", description: "Обработка PDF, аудио и видео на CPU-контейнере", keywords: "вложения файлы контейнер Proxmox PDF видео аудио MCP" },
   { id: "tools", title: "Разрешения OpenCode", group: "OpenCode", icon: "terminal", description: "Разрешения на команды, файлы и поиск", keywords: "bash read edit tools доступ permission" },
   { id: "skills", title: "Навыки OpenCode", group: "OpenCode", icon: "file", description: "Обнаруженные навыки и их источники", keywords: "skills skill" },
@@ -201,6 +203,7 @@ export function SettingsScreen() {
         </Group>
       </>}
       {section === "modelServices" && <ModelServicesSettings/>}
+      {section === "modelCatalog" && <ModelCatalogSettings/>}
         {section === "helper" && <>
 
           <Group title="Диктовка"><Row title="Распознавание речи"><span>GigaAM ASR</span><button className="btn" onClick={() => navigate("voice")}>Настроить диктовку</button></Row></Group>

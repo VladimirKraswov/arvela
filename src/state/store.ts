@@ -2751,6 +2751,10 @@ class Store {
     this.mutate((s) => ({ prefs: { ...s.prefs, asr: settings } }));
     this.persistPrefs();
   }
+  setHubModels(state: import("../models/catalog").HubModelsPrefs) {
+    this.mutate((s) => ({ prefs: { ...s.prefs, hubModels: state } }));
+    this.persistPrefs();
+  }
   setModelServices(services: ModelService[]) {
     modelServices.configure(services);
     this.mutate(s => ({ prefs: { ...s.prefs, modelServices: modelServices.configuredServices() } }));

@@ -14,6 +14,9 @@ _memory_spec.loader.exec_module(_memory_module)
 _release_spec = importlib.util.spec_from_file_location('arvela_releases', Path(__file__).with_name('releases.py'))
 _release_module = importlib.util.module_from_spec(_release_spec)
 _release_spec.loader.exec_module(_release_module)
+_catalog_spec = importlib.util.spec_from_file_location('arvela_model_catalog', Path(__file__).with_name('model_catalog.py'))
+_catalog_module = importlib.util.module_from_spec(_catalog_spec)
+_catalog_spec.loader.exec_module(_catalog_module)
 
 MAX_BODY = 2 * 1024 * 1024
 KINDS = {'skill', 'prompt', 'tool', 'template', 'runbook'}
@@ -187,6 +190,7 @@ class Hub:
         os.chmod(self.db, 0o600)
         self.memory = _memory_module.Memory(self.connection, self.lock, scrub, Fault)
         self.releases = _release_module.Releases(root, self.lock, Fault)
+        self.model_catalog = _catalog_module.ModelCatalog(root, self.lock, Fault)
 
     @contextlib.contextmanager
     def connection(self):
@@ -429,6 +433,13 @@ class Hub:
             return self.memory.retrieve(data)
         if path == '/api/memory':
             return self.memory.api(method, query, actor, data)
+        if path == '/api/model-catalog':
+            if method == 'GET':
+                return self.model_catalog.get()
+            if method == 'POST':
+                self.admin(actor)
+                return self.model_catalog.put(data, actor)
+            raise Fault(405, 'Метод не поддерживается.')
         with self.connection() as c:
             if method=='GET' and path=='/api/me':
                 return {k:actor[k] for k in ('id','name','platform','admin')}

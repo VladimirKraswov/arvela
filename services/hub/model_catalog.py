@@ -1,0 +1,211 @@
+"""Shared model catalog: the single source of truth for common models of all instances.
+
+An admin publishes the whole catalog; every device reads it and merges it into local
+engine configuration (opencode provider block, pi models.json providers). The Hub
+never probes endpoints and never executes anything here. Per-device choices
+(selection, exclusions, extra local providers) stay on the device.
+"""
+
+import json
+import os
+import re
+import secrets
+import time
+from urllib.parse import urlsplit
+
+MAX_CATALOG = 256 * 1024
+MAX_MODEL_JSON = 24 * 1024
+MODEL_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+PROVIDER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+PLAIN_TOKEN = re.compile(r"\b(?:sk-|gh[pousr]_|xox[baprs]-)[A-Za-z0-9_-]{8,}")
+
+
+class ModelCatalog:
+    def __init__(self, root, lock, fault):
+        self.path, self.lock, self.fault = root / "model-catalog.json", lock, fault
+
+    def error(self, message, status=400):
+        raise self.fault(status, message)
+
+    def get(self):
+        with self.lock:
+            if not self.path.exists():
+                return {
+                    "version": 0,
+                    "models": [],
+                    "note": "Каталог общих моделей ещё не опубликован.",
+                }
+            if self.path.is_symlink():
+                self.error("Небезопасный путь каталога моделей.", 500)
+            if self.path.stat().st_size > MAX_CATALOG:
+                self.error("Каталог моделей слишком велик.", 413)
+            return json.loads(self.path.read_bytes())
+
+    def check_url(self, value, field):
+        if not isinstance(value, str):
+            self.error(f"{field} должен быть http(s)-адресом.")
+        try:
+            url = urlsplit(value)
+        except ValueError:
+            return self.error(f"Некорректный {field}.")
+        if (
+            url.scheme not in ("http", "https")
+            or not url.hostname
+            or url.username
+            or url.password
+            or url.query
+            or url.fragment
+            or len(value) > 400
+        ):
+            self.error(
+                f"{field} должен быть http(s)-адресом без учётных данных и query."
+            )
+        try:
+            if url.port is not None and not 0 < url.port < 65536:
+                self.error(f"Некорректный порт в {field}.")
+        except ValueError:
+            self.error(f"Некорректный порт в {field}.")
+
+    def check_text(self, value, field, limit):
+        if (
+            not isinstance(value, str)
+            or not value
+            or len(value) > limit
+            or any(ord(c) < 32 for c in value)
+        ):
+            self.error(f"{field} должен быть текстом до {limit} символов.")
+
+    def engine(self, entry, name):
+        value = entry.get(name)
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            self.error(f"Блок {name} должен быть объектом.")
+        extra = set(value) - (
+            {"providerId", "name", "provider"}
+            if name == "opencode"
+            else {"providerId", "provider"}
+        )
+        if extra:
+            self.error(f"Неизвестные поля в блоке {name}: {sorted(extra)[0]}.")
+        provider_id = value.get("providerId")
+        if not isinstance(provider_id, str) or not PROVIDER_ID.fullmatch(provider_id):
+            self.error(f"Некорректный providerId в блоке {name}.")
+        if "name" in value:
+            self.check_text(value["name"], f"{name}.name", 80)
+        provider = value.get("provider")
+        if not isinstance(provider, dict) or not provider:
+            self.error(f"В блоке {name} нет объекта provider.")
+        raw = json.dumps(value, ensure_ascii=False)
+        if len(raw.encode()) > MAX_MODEL_JSON:
+            self.error(f"Блок {name} слишком велик.")
+        if PLAIN_TOKEN.search(raw):
+            self.error(
+                f"В блоке {name} похожий на ключ секрет; храните ключи вне каталога."
+            )
+        if name == "opencode":
+            options = provider.get("options")
+            if not isinstance(options, dict) or "baseURL" not in options:
+                self.error("В opencode provider нет options.baseURL.")
+            self.check_url(options["baseURL"], f"{name}.provider.options.baseURL")
+            models = provider.get("models")
+            if not isinstance(models, dict) or not models:
+                self.error("В opencode provider нет карты models.")
+        else:
+            if "baseUrl" not in provider:
+                self.error("В pi provider нет поля baseUrl.")
+            self.check_url(provider["baseUrl"], f"{name}.provider.baseUrl")
+            models = provider.get("models")
+            if (
+                not isinstance(models, list)
+                or not models
+                or not all(
+                    isinstance(model, dict)
+                    and isinstance(model.get("id"), str)
+                    and model["id"]
+                    for model in models
+                )
+            ):
+                self.error("В pi provider models должен быть списком объектов с id.")
+            if "headers" in provider:
+                headers = provider["headers"]
+                if (
+                    not isinstance(headers, dict)
+                    or len(headers) > 8
+                    or any(
+                        not isinstance(k, str)
+                        or not isinstance(v, str)
+                        or len(k) > 40
+                        or len(v) > 200
+                        or k.lower() in ("authorization", "cookie", "x-api-key")
+                        for k, v in headers.items()
+                    )
+                ):
+                    self.error("Некорректные заголовки в pi provider.")
+        return value
+
+    def validate(self, data):
+        if not isinstance(data, dict) or not isinstance(data.get("models"), list):
+            self.error("Нужен объект с полем models (список).")
+        models = data["models"]
+        if len(models) > 64:
+            self.error("Слишком много моделей в каталоге.")
+        seen = set()
+        result = []
+        for entry in models:
+            if not isinstance(entry, dict):
+                self.error("Каждая модель должна быть объектом.")
+            extra = set(entry) - {"id", "label", "note", "opencode", "pi"}
+            if extra:
+                self.error(f"Неизвестные поля модели: {sorted(extra)[0]}.")
+            model_id = entry.get("id")
+            if not isinstance(model_id, str) or not MODEL_ID.fullmatch(model_id):
+                self.error("Некорректный id модели (строчные латинские, цифры, ._-).")
+            if model_id in seen:
+                self.error(f"Повторяется id модели {model_id}.")
+            seen.add(model_id)
+            self.check_text(entry.get("label"), "label модели " + model_id, 120)
+            if "note" in entry:
+                self.check_text(entry["note"], "note модели " + model_id, 400)
+            engines = {name: self.engine(entry, name) for name in ("opencode", "pi")}
+            if not any(engines.values()):
+                self.error(f"Модель {model_id} не настроена ни для одного движка.")
+            result.append(
+                {
+                    "id": model_id,
+                    "label": entry["label"],
+                    **({"note": entry["note"]} if "note" in entry else {}),
+                    **{k: v for k, v in engines.items() if v},
+                }
+            )
+        if len(json.dumps(result, ensure_ascii=False).encode()) > MAX_CATALOG:
+            self.error("Каталог моделей слишком велик.", 413)
+        return result
+
+    def put(self, data, actor):
+        models = self.validate(data)
+        with self.lock:
+            current = self.get()
+            record = {
+                "version": int(current.get("version", 0)) + 1,
+                "updatedAt": int(time.time()),
+                "updatedBy": actor.get("name") or actor.get("id") or "admin",
+                "models": models,
+            }
+            temporary = self.path.with_name("." + secrets.token_hex(12) + ".tmp")
+            raw = json.dumps(record, ensure_ascii=False, separators=(",", ":")).encode()
+            try:
+                with temporary.open("xb") as output:
+                    os.chmod(temporary, 0o600)
+                    output.write(raw)
+                    output.flush()
+                    os.fsync(output.fileno())
+                temporary.replace(self.path)
+                descriptor = os.open(self.path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
+            finally:
+                temporary.unlink(missing_ok=True)
+            return record

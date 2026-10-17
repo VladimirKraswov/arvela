@@ -91,6 +91,52 @@ pub fn write_opencode_config(
     })
 }
 
+fn pi_models_path() -> Result<PathBuf, String> {
+    let path = crate::paths::user_home()?
+        .join(".pi")
+        .join("agent")
+        .join("models.json");
+    if path.exists() && path.is_symlink() {
+        return Err("Символьная ссылка на настройки моделей Pi не поддерживается".into());
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+pub fn read_pi_models(window: tauri::WebviewWindow) -> Result<ConfigDocument, String> {
+    if window.label() != "main" {
+        return Err("Недоступно в этом окне".into());
+    }
+    let path = pi_models_path()?;
+    Ok(ConfigDocument {
+        path: path.display().to_string(),
+        content: read_at(&path)?,
+    })
+}
+
+#[tauri::command]
+pub fn write_pi_models(
+    window: tauri::WebviewWindow,
+    expected: String,
+    content: String,
+) -> Result<ConfigDocument, String> {
+    if window.label() != "main" {
+        return Err("Недоступно в этом окне".into());
+    }
+    if content.len() > 1024 * 1024 {
+        return Err("Настройки моделей Pi слишком велики".into());
+    }
+    let path = pi_models_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|_| "Не удалось открыть каталог настроек Pi")?;
+    }
+    write_at(&path, &expected, &content)?;
+    Ok(ConfigDocument {
+        path: path.display().to_string(),
+        content,
+    })
+}
+
 pub(crate) fn write_at(path: &Path, expected: &str, content: &str) -> Result<(), String> {
     let current = read_at(path)?;
     if current != expected {

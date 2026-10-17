@@ -520,6 +520,127 @@ fn valid_files(v: &Value) -> Result<BTreeMap<String, String>, String> {
     }
     Ok(out)
 }
+fn admin_vault(endpoint: &str) -> Result<keyring::Entry, String> {
+    keyring::Entry::new(
+        "dev.local.opencodedesktop.hub",
+        &format!("{endpoint}#model-admin"),
+    )
+    .map_err(|_| "System credential store unavailable".into())
+}
+fn catalog_send(
+    c: &Config,
+    method: reqwest::Method,
+    body: Option<&Value>,
+    key: &str,
+) -> Result<Result<Value, (u16, String)>, String> {
+    let url = format!("{}/api/model-catalog", c.endpoint.trim_end_matches('/'));
+    let mut q = client(c)?.request(method, url).bearer_auth(key);
+    if let Some(b) = body {
+        if b.to_string().len() > 256 * 1024 {
+            return Err("Каталог моделей превышает 256KiB".into());
+        }
+        q = q.json(b);
+    }
+    let response = q
+        .send()
+        .map_err(|_| "Библиотека недоступна или сертификат не совпадает")?;
+    let status = response.status().as_u16();
+    let mut raw = String::new();
+    response
+        .take(1024 * 1024)
+        .read_to_string(&mut raw)
+        .map_err(|_| "Cannot read Hub response")?;
+    if raw.len() > 512 * 1024 {
+        return Err("Ответ каталога моделей слишком велик".into());
+    }
+    let value: Value = serde_json::from_str(&raw).map_err(|_| "Invalid Hub JSON".to_string())?;
+    Ok(if (200..299).contains(&status) {
+        Ok(value)
+    } else {
+        Err((
+            status,
+            value["error"]
+                .as_str()
+                .unwrap_or("ошибка Hub")
+                .chars()
+                .take(300)
+                .collect(),
+        ))
+    })
+}
+#[tauri::command]
+pub async fn hub_model_catalog(
+    window: tauri::WebviewWindow,
+    action: String,
+    models: Option<Value>,
+    admin_key: Option<String>,
+) -> Result<Value, String> {
+    main_window(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let c = load()?;
+        if !c.enabled || c.endpoint.is_empty() {
+            return Err("Hub не подключён".into());
+        }
+        origin(&c.endpoint)?;
+        let device = vault(&c.endpoint)?
+            .get_password()
+            .map_err(|_| "Нет ключа библиотеки в системном хранилище")?;
+        if action == "get" {
+            return match catalog_send(&c, reqwest::Method::GET, None, &device)? {
+                Ok(value) => Ok(value),
+                Err((status, message)) => Err(format!("Hub HTTP {status} — {message}")),
+            };
+        }
+        if action != "publish" {
+            return Err("Неизвестное действие каталога моделей".into());
+        }
+        let list = models
+            .as_ref()
+            .and_then(|m| m.get("models").cloned())
+            .ok_or("Нужен список моделей")?;
+        let body = serde_json::json!({ "models": list });
+        if !body["models"].is_array() {
+            return Err("models должен быть списком".into());
+        }
+        let provided = admin_key
+            .map(|k| k.trim().to_string())
+            .filter(|k| !k.is_empty());
+        if let Some(k) = &provided {
+            if !(20..=256).contains(&k.len()) || k.contains(['\r', '\n']) {
+                return Err("Некорректный административный ключ".into());
+            }
+        }
+        let mut keys: Vec<String> = Vec::new();
+        if let Some(k) = &provided {
+            keys.push(k.clone());
+        }
+        if let Ok(Some(k)) = admin_vault(&c.endpoint).map(|v| v.get_password().ok()) {
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
+        if !keys.contains(&device) {
+            keys.push(device);
+        }
+        let mut last =
+            "Hub отклонил публикацию: ни один ключ не является администратором".to_string();
+        for k in &keys {
+            match catalog_send(&c, reqwest::Method::POST, Some(&body), k)? {
+                Ok(value) => {
+                    if Some(k) == provided.as_ref() {
+                        let _ = admin_vault(&c.endpoint)?.set_password(k);
+                    }
+                    return Ok(value);
+                }
+                Err((403, message)) => last = format!("Hub HTTP 403 — {message}"),
+                Err((status, message)) => return Err(format!("Hub HTTP {status} — {message}")),
+            }
+        }
+        Err(last)
+    })
+    .await
+    .map_err(|_| "Каталог моделей: задача не выполнена")?
+}
 #[tauri::command]
 pub async fn hub_package(
     window: tauri::WebviewWindow,

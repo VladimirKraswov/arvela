@@ -61,6 +61,8 @@ export interface Prefs {
   workshop?: import("../workshop/workspace").WorkshopRecord;
   recoveredOperations?: string[];
   modelServices?: import("../models/services").ModelService[];
+  /** Local application of the shared Hub model catalog; the catalog itself lives on Hub. */
+  hubModels?: import("../models/catalog").HubModelsPrefs;
   appearance: Appearance;
   /** Local browser lifecycle and executable choice; engines retain their own permissions. */
   browser?: BrowserPreferences;
