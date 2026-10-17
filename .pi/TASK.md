@@ -1155,3 +1155,11 @@ Mac agent configs (opencode.jsonc local-artemis, pi models.json local-artemis)
 extended; backups kept as *.before-artemis-20261017. V100 returned from the
 stray running 5151 to 5100 (documented steady state). No Hub release: no app
 code changed.
+
+# 2026-10-17 (2) — artemis31-v100: Vision off, native 262144 context
+
+Owner decision: drop the vision projector for artemis31-v100 and give the
+freed VRAM to the model's native 262k context. f16 KV at 262k needs 20 GiB
+(OOM on the 32 GB V100); q8_0 KV loads at 32.2 GiB and answered real probes
+(n_ctx 262144 confirmed live via gateway). Model is now text-only in both
+agent configs; registry label "Q4_0 262k". Gateway verified qwen->artemis->qwen.

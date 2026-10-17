@@ -13,7 +13,7 @@ Flash Next на RTX 5090 / VM 5200 работает отдельно.
 | `qwen-v100` | NInfer, Huihui NVFP4 | 262144 / 32768 | OpenCode, Pi |
 | `qwen-v100-pi` | NInfer, mixed groupwise-int | 262144 / 32768 | Pi |
 | `gemma31-v100` | llama.cpp, Q4_0 + native MTP 4 | 131072 / 16384 | OpenCode, Pi |
-| `artemis31-v100` | llama.cpp, Q4_0 (Artemis v1.2, без MTP-черновика) | 131072 / 16384 | OpenCode, Pi |
+| `artemis31-v100` | llama.cpp, Q4_0 (без MTP-черновика и Vision) | 262144 / 16384 | OpenCode, Pi |
 
 Gateway `ninfer-model-gateway.service` слушает `:8080`; единственный дочерний
 движок слушает loopback `:18080`. Реестр:
@@ -28,11 +28,19 @@ bartowski/TheDrummer_Artemis-31B-v1.2-GGUF; SHA256 обоих файлов со�
 OID Hugging Face (`980ded7d…79ea`, `83e25a30…14792`). Файлы лежат в
 `/srv/ninfer-v100-lab/artemis31/models/`, движок — тот же llama-server из
 `gemma31/bin`. MTP-черновика для v1.2 публично нет, поэтому декодирование без
-`--spec` (медленнее Gemma с MTP — ожидаемо). Запись реестра создана по образцу
-gemma31-v100; прежний реестр сохранён как `registry.before-artemis-20261017.json`.
-На Mac добавлены провайдеры `local-artemis` (`artemis31-v100`) в OpenCode
-(`18021`) и Pi (`18008`); переключение qwen-v100 ↔ artemis31-v100 проверено
-реальными короткими ответами, по умолчанию остался `qwen-v100`.
+`--spec` (медленнее Gemma с MTP — ожидаемо). По решению владельца Vision для
+этой модели отключён: `--mmproj` и `--image-max-tokens` убраны, освобождённая
+память отдана под нативный контекст 262144 (`max_position_embeddings` модели).
+KV в f16 на 262k требует 20 ГиБ и не влезает, поэтому кэш KV — q8_0: проба на
+свободной карте подняла 262144 при 32,2 ГиБ VRAM с реальным completion,
+запущенный движок подтвердил `n_ctx: 262144`. Модель текстовая (Pi `input:
+["text"]`, OpenCode без image-модальности и без attachments). Запись реестра
+создана по образцу gemma31-v100; прежний реестр сохранён как
+`registry.before-artemis-20261017.json`.
+На Mac добавлены провайдеры `local-artemis` (`artemis31-v100`, лимиты
+262144 / 245760 / 16384) в OpenCode (`18021`) и Pi (`18008`); переключение
+qwen-v100 ↔ artemis31-v100 проверено реальными короткими ответами через
+gateway (`CTX262-OK`), по умолчанию остался `qwen-v100`.
 
 На Mac оба существующих SSH-forward (`18021`, `18008`) ведут к одному gateway.
 Новый провайдер обоих агентов — `local-gemma4/gemma31-v100`; в настройках Arvela
