@@ -1,5 +1,22 @@
 # Arvela 0.2.75 — central Hub model readiness (2026-10-18)
 
+Published to Hub/stable from runtime `d129e31` (feature `53dd2a5`). Canonical final
+gates: **940 frontend / 130 native / 74 Hub / 9 publisher tests passed**, with
+6 frontend and 3 native pre-existing opt-in skips. The first publisher gate
+stopped before publication on a 2.9KB raw-main budget overrun; native-only lazy
+coordinator loading plus an awaited dispatch barrier fixed it without raising
+the budget (main1,395,966B / gzip397,046; settings137,643B / gzip35,376).
+
+Canonical receipt, served revision and both downloaded packets verified. All33
+changed source files match the runtime commit; all14 hot files match `dist`.
+The existing native pinned-key verifier independently passed both actual signed
+packets, including tamper/version rejection and source fingerprint verification.
+Source packet1128files/14,203,733B; hot6,532,663B. Installed0.2.74 reports an
+available **source** update0.2.75. No application installation or agent restart.
+Final read-only Hub check:9routes, anonymous access401, Artemis and Flash Next
+both ready. Private receipts remain outside Git. This follow-up documentation
+commit does not replace the signed runtime revision or need an empty release.
+
 Reproduced the exact owner's Artemis failure: the configured provider had no
 model-control binding; the VM gateway still had Qwen resident and returned 409.
 The owner's failed prompt was not replayed.
