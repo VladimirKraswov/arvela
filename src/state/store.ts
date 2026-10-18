@@ -15,7 +15,7 @@ export type { AppState, UiState, ConnectionState, ConnectionPhase } from './type
 import { chooseOpenCodeModel, choosePiModel, parseModelId, piModelInfo, type ModelChoice } from './modelChoice';
 import {configureShared} from "../capabilities/integration";
 import { modelServices, type ModelService } from "../models/services";
-import { HubModelServices } from "../models/hub";
+import type { HubModelServices } from "../models/hub";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
 import { chatBlocker, liveModelProblem, modelProblem } from "../schedules/preflight";
 import { untilAborted } from "../util/abort";
@@ -3558,9 +3558,13 @@ export { errText } from "./errors";
 
 export const store = new Store();
 const stopCatalogPersistence = modelServices.subscribe(() => store.syncModelServiceCatalogs());
-const hubModels = isNative() ? new HubModelServices(undefined, id => store.isRunning(id)) : undefined;
-const stopHubModels = hubModels && modelServices.attachHub(hubModels);
-hubModels?.start();
+let hubModels: HubModelServices | undefined, stopHubModels: (() => void) | undefined, disposed = false;
+if (isNative()) modelServices.waitForHub(import("../models/hub").then(({HubModelServices}) => {
+  if (disposed) return;
+  hubModels = new HubModelServices(undefined, id => store.isRunning(id));
+  stopHubModels = modelServices.attachHub(hubModels);
+  hubModels.start();
+}));
 const refreshHubModels = () => { hubModels?.connectionChanged(); void hubModels?.refresh().catch(() => {}); };
 if (typeof window !== "undefined") window.addEventListener("arvela-hub-config-changed", refreshHubModels);
 try {
@@ -3571,7 +3575,7 @@ try {
 // Both engines live in the registry, so `listBackendDescriptors()` is the honest
 // list of what this build can drive.
 registerBackendDescriptor(piDescriptor(() => store.pi()));
-import.meta.hot?.dispose(() => { stopCatalogPersistence(); stopHubModels?.(); hubModels?.dispose(); window.removeEventListener("arvela-hub-config-changed", refreshHubModels); store.dispose(); });
+import.meta.hot?.dispose(() => { disposed = true; stopCatalogPersistence(); stopHubModels?.(); hubModels?.dispose(); window.removeEventListener("arvela-hub-config-changed", refreshHubModels); store.dispose(); });
 
 export function useAppSelector<T extends object>(select: (state: AppState) => T): T {
   const snapshot=useMemo(()=>selectedSnapshot(store.getSnapshot,select,shallowEqual),[select]);

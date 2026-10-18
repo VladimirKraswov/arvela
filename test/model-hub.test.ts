@@ -104,3 +104,14 @@ it("explicit retry after a lost acknowledgement reuses its durable idempotency k
   expect(keys).toHaveLength(1);lost=false;
   await hub.ensure(route.providerID,route.modelID,'opencode');expect(keys).toHaveLength(2);expect(keys[1]).toBe(keys[0]);
 });
+
+it("the lazy coordinator must initialize before an unknown provider can pass the dispatch gate", async()=>{
+  let load!:()=>void;
+  const api=transport(()=>status('ready')),hub=new HubModelServices(api),manager=new ModelServices();
+  manager.waitForHub(new Promise<void>(resolve=>{load=()=>{manager.attachHub(hub);resolve();};}));
+  let finished=false;
+  const pending=manager.ensure(route.providerID,route.modelID,route.agent).then(()=>{finished=true;});
+  await Promise.resolve();await Promise.resolve();expect(finished).toBe(false);expect(api.request).not.toHaveBeenCalled();
+  load();await pending;expect(finished).toBe(true);
+  expect(api.request).toHaveBeenCalledWith('prepare',expect.objectContaining({modelID:'artemis'}),'test-hub');
+});

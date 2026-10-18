@@ -115,6 +115,11 @@ export class ModelServices {
   private services: ModelService[] = [];
   private sources = new Map<string, ModelSource[]>();
   private hub?: HubModelServices;
+  private hubInitialization?: Promise<void>;
+  waitForHub(ready: Promise<void>) {
+    this.hubInitialization = ready;
+    void ready.catch(() => {});
+  }
   attachHub(hub: HubModelServices) {
     this.hub = hub;
     return hub.subscribe(() => this.emit());
@@ -372,6 +377,8 @@ export class ModelServices {
     agent: string,
     options?: {owner?: string; signal?: AbortSignal; context?: string},
   ): Promise<void> {
+    await this.hubInitialization;
+    options?.signal?.throwIfAborted();
     if (this.hub) {
       await this.hub.refresh().catch(error => {
         if (this.hub?.route(providerID, modelID) || this.hub?.configured() && this.route(providerID, modelID, agent)) throw error;
