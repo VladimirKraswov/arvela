@@ -60,6 +60,8 @@ export interface PiSettings {
 export interface Prefs {
   workshop?: import("../workshop/workspace").WorkshopRecord;
   recoveredOperations?: string[];
+  /** Audio is removed only after its text and receipt are durably saved together. */
+  dictationReceipts?: string[];
   modelServices?: import("../models/services").ModelService[];
   /** Local application of the shared Hub model catalog; the catalog itself lives on Hub. */
   hubModels?: import("../models/catalog").HubModelsPrefs;

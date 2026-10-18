@@ -170,7 +170,7 @@ it('workshop manual requests carry the permanent release authorization without c
  const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
  expect(await store.sendPrompt('Исправь цвет')).toBe(true);
  const body=prompt.mock.calls[0][2];expect(body.parts[0]).toEqual({type:'text',text:'Исправь цвет'});
- expect(body.parts.at(-1)).toMatchObject({type:'text',synthetic:true,metadata:{arvelaWorkshopRelease:1}});
+ expect(body.parts.find(p=>p.type==='text' && p.metadata?.arvelaWorkshopRelease)).toMatchObject({type:'text',synthetic:true,metadata:{arvelaWorkshopRelease:1}});
  expect(body.variant).toBe('medium');
 });
 
@@ -181,7 +181,7 @@ it('workshop queued corrections retain release authorization when steering now',
  const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
  expect(store.enqueuePrompt('Также исправь тест')).toBe(true);
  await store.steerQueued(store.getQueue()[0].id);
- expect(prompt).toHaveBeenCalledOnce();expect(prompt.mock.calls[0][2].parts.at(-1)).toMatchObject({synthetic:true,metadata:{arvelaWorkshopRelease:1}});
+ expect(prompt).toHaveBeenCalledOnce();expect(prompt.mock.calls[0][2].parts.find(p=>p.type==='text' && p.metadata?.arvelaWorkshopRelease)).toMatchObject({synthetic:true,metadata:{arvelaWorkshopRelease:1}});
 });
 
 it('Stop during manual preparation prevents a late POST and retains the draft', async () => {
@@ -338,13 +338,13 @@ const scheduledSetup = () => {
 it("scheduled prompts preserve drafts, attachments and the saved reasoning model", async()=>{
  scheduledSetup();store.setDraft("user typing");const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
  expect(await store.runScheduledTask(scheduled())).toEqual({kind:"sent"});expect(store.getDraft()).toBe("user typing");
- expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"}]}));
+ expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"},expect.objectContaining({synthetic:true,metadata:{arvelaResponseLanguage:1}})]}));
 });
 it('scheduled workshop prompts also retain permanent release authorization',async()=>{
  scheduledSetup();const s=session('ses_a');store.state.prefs.workshop={directory:s.directory,sourceDirectory:'/source',session:s};
  const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
  expect(await store.runScheduledTask(scheduled())).toEqual({kind:'sent'});
- expect(prompt.mock.calls[0][2].parts.at(-1)).toMatchObject({synthetic:true,metadata:{arvelaWorkshopRelease:1}});
+ expect(prompt.mock.calls[0][2].parts.find(p=>p.type==='text' && p.metadata?.arvelaWorkshopRelease)).toMatchObject({synthetic:true,metadata:{arvelaWorkshopRelease:1}});
 });
 it('cancelling a scheduled task during model readiness never sends it afterward', async () => {
   scheduledSetup();
@@ -587,4 +587,26 @@ it('two Pi permission requests are queued, never overwritten or answered togethe
   expect(post).toHaveBeenCalledTimes(1);
   pi.host.onDialogExpired('second','second');
   expect(store.state.ui.piDialog).toBeNull();
+});
+
+it('acknowledges dictation text and its receipt atomically and never appends it twice',()=>{
+ store.state.prefs.drafts={voice:'Existing'};const workspace=store.state.prefs.workspaceKey??store.state.prefs.endpoint;
+ store.appendDictation(workspace,'voice','новая фраза','dictation-receipt');
+ store.appendDictation(workspace,'voice','новая фраза','dictation-receipt');
+ expect(store.state.prefs.drafts.voice).toBe('Existing новая фраза');
+ expect(store.state.prefs.dictationReceipts).toContain('dictation-receipt');
+});
+it('retains the receipt after a failed draft save, so retry persists without duplicating text',()=>{
+ const workspace=store.state.prefs.workspaceKey??store.state.prefs.endpoint;
+ const write=vi.spyOn(localStorage,'setItem').mockImplementationOnce(()=>{throw Error('disk full');});
+ expect(()=>store.appendDictation(workspace,'voice','новый текст','failed-save-receipt')).toThrow(/сохранить/);
+ store.appendDictation(workspace,'voice','новый текст','failed-save-receipt');
+ expect(store.state.prefs.drafts.voice).toBe('новый текст');write.mockRestore();
+});
+it('delivers dictation to its original workspace even after navigation',()=>{
+ const current=store.state.prefs.workspaceKey??store.state.prefs.endpoint;
+ store.state.prefs.endpointState={...store.state.prefs.endpointState,old:{drafts:{voice:'Old'}}};
+ store.appendDictation('old','voice','сохранено','old-workspace-receipt');
+ expect(store.state.prefs.endpointState.old.drafts.voice).toBe('Old сохранено');
+ expect(store.state.prefs.drafts.voice).toBeUndefined();expect(store.state.prefs.workspaceKey??store.state.prefs.endpoint).toBe(current);
 });

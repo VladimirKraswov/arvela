@@ -101,7 +101,6 @@ async fn transcribe(
     value["text"]
         .as_str()
         .map(str::trim)
-        .filter(|s| !s.is_empty())
         .map(str::to_owned)
         .ok_or_else(|| "ASR не вернул распознанный текст".into())
 }

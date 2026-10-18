@@ -2199,7 +2199,7 @@ kbd {
 /* Recording owns a full, in-flow row; files cannot displace its controls. */
 .composer-voice-active .composer-controls-left,
 .composer-voice-active .composer-controls-right,
-.composer-voice-active .composer-actions > :not(.voice-control) { display: none; }
+.composer-voice-active .composer-actions > :not(.voice-control):not(.stop-btn) { display: none; }
 .composer-voice-active .composer-actions { grid-column: 1 / -1; grid-row: 1; width: 100%; min-width: 0; }
 .composer-voice-active .voice-control { width: 100%; min-width: 0; }
 .composer-voice-active .voice-recording { position: static; width: 100%; height: auto; min-height: 44px; gap: 8px; }
@@ -3073,3 +3073,10 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 .workshop-button:hover { background: var(--bg-raised); color: var(--text); }
 .workshop-button.active { background: var(--accent-soft); color: var(--text); }
 .workshop-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.catalog-controls { border: 0; margin: 0; padding: 0; min-width: 0; }
+.voice-recovery { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; max-width: 100%; margin-bottom: 6px; color: var(--text-dim); font-size: .8rem; }
+.voice-recovery .btn { padding: 4px 7px; }
+
+.voice-saved { color: var(--text); }
+.voice-recovery button { float: none; }

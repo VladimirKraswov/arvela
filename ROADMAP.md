@@ -741,3 +741,9 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 ## Legacy-client source bootstrap — 2026-10-15
 
 - [x] Latest stable ZIP/manifest and immutable signed-source downloads through existing LAN HTTPS Hub; no device key needed for public release sources, private APIs stay authenticated. Automatic latest tracking and Windows manual-build instructions.
+
+## Review of Workshop model catalog — 0.2.74
+
+Shared Russian response policy across OpenCode/Pi/manual/queue/schedules, with hidden exact policy blocks in Pi history. JSONC edits use the existing parser and refuse malformed/duplicate keys; both engine files are validated before writes, with explicit partial-CAS failure recovery. Empty published catalogs can remove managed providers. Hub rejects duplicate providers and inline secrets and guards current editors with expectedVersion. Restart owns a live Child handle, checks idle and listener PID, and refuses external servers.
+
+Progressive dictation in 0.2.74: no total time limit, observed silence60s, independent short phrase clips, IndexedDB checkpoint before ASR, serial progressive draft delivery with durable receipts, explicit scoped recovery and safe audio flush on quit/update. CPU GigaAM remains the existing service; no model replacement.

@@ -1,240 +1,236 @@
-import { useEffect, useRef, useState } from "react";
-import { store } from "../state/store";
-import { draftKey } from "../state/prefs";
-import { defaultAsr, transcribeAudio, validateAsr } from "../voice/asr";
-import { captureErrorMessage, micUnavailableMessage } from "../voice/captureError";
-import { Icon } from "./Icon";
-
-export function VoiceInput({ disabled, onActiveChange }: { disabled: boolean; onActiveChange?: (active: boolean) => void }) {
-  const [phase, setPhase] = useState<
-    "idle" | "requesting" | "recording" | "transcribing"
-  >("idle");
-  const [error, setError] = useState(""),
-    [seconds, setSeconds] = useState(0);
-  useEffect(() => onActiveChange?.(phase !== "idle"), [phase, onActiveChange]);
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const operation = useRef(0),
-    recorder = useRef<MediaRecorder | null>(null),
-    stream = useRef<MediaStream | null>(null),
-    context = useRef<AudioContext | null>(null),
-    frame = useRef(0),
-    timer = useRef<ReturnType<typeof setInterval> | null>(null),
-    cancel = useRef<AbortController | null>(null);
-  const cleanup = () => {
-    cancelAnimationFrame(frame.current);
-    if (timer.current) clearInterval(timer.current);
-    timer.current = null;
-    stream.current?.getTracks().forEach((t) => t.stop());
-    stream.current = null;
-    void context.current?.close().catch(() => {});
-    context.current = null;
-  };
-  const abort = () => {
-    operation.current++;
-    cancel.current?.abort();
-    if (recorder.current?.state === "recording") recorder.current.stop();
-    cleanup();
-    setPhase("idle");
-  };
-  useEffect(
-    () => () => {
-      operation.current++;
-      cancel.current?.abort();
-      if (recorder.current?.state === "recording") recorder.current.stop();
-      cleanup();
-    },
-    [],
-  );
-  const start = async () => {
-    const s = store.state,
-      settings = { ...(s.prefs.asr ?? defaultAsr) },
-      problem = validateAsr(settings);
-    if (problem) {
-      setError(problem);
-      store.setUi({ settingsOpen: true });
-      return;
-    }
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setError(
-        micUnavailableMessage(),
-      );
-      return;
-    }
-    const epoch = ++operation.current,
-      key = draftKey(s.activeSessionId, s.directory),
-      workspace = s.prefs.workspaceKey ?? s.prefs.endpoint;
-    setError("");
-    setPhase("requesting");
-    setSeconds(0);
-    try {
-      const input = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-        video: false,
-      });
-      if (epoch !== operation.current) {
-        input.getTracks().forEach((t) => t.stop());
-        return;
-      }
-      stream.current = input;
-      // WebKit can leave AudioContext.resume() pending indefinitely. Sound
-      // visualization is optional and must never block the actual recorder.
-      let analyser: AnalyserNode | null = null;
-      try {
-        const audio = new AudioContext();
-        context.current = audio;
-        analyser = audio.createAnalyser();
-        analyser.fftSize = 256;
-        audio.createMediaStreamSource(input).connect(analyser);
-        void audio.resume().catch(() => {});
-      } catch {
-        void context.current?.close().catch(() => {});
-        context.current = null;
-      }
-      const data = new Uint8Array(analyser?.frequencyBinCount ?? 0),
-        history = Array<number>(48).fill(0);
-      const draw = () => {
-        if (epoch !== operation.current) return;
-        analyser?.getByteTimeDomainData(data);
-        let sum = 0;
-        for (const v of data) sum += ((v - 128) / 128) ** 2;
-        history.push(data.length ? Math.min(1, Math.sqrt(sum / data.length) * 5) : 0);
-        history.shift();
-        const el = canvas.current,
-          ctx = el?.getContext("2d");
-        if (el && ctx) {
-          ctx.clearRect(0, 0, el.width, el.height);
-          ctx.fillStyle = getComputedStyle(el).color;
-          history.forEach((v, i) => {
-            const h = Math.max(3, v * el.height);
-            ctx.beginPath();
-            ctx.roundRect(i * 6, (el.height - h) / 2, 3, h, 2);
-            ctx.fill();
-          });
+import { useEffect, useRef, useState } from 'react';
+import { store } from '../state/store';
+import { draftKey } from '../state/prefs';
+import { defaultAsr, validateAsr } from '../voice/asr';
+import { captureErrorMessage, micUnavailableMessage } from '../voice/captureError';
+import { activeDictationSegments, SegmentedCapture } from '../voice/capture';
+import { dictationJournal, dictationScope, type DictationSegment } from '../voice/journal';
+import { TranscriptionQueue } from '../voice/transcriptionQueue';
+import { Icon } from './Icon';
+type Phase = 'idle' | 'requesting' | 'recording' | 'transcribing';
+export function VoiceInput({ disabled, onActiveChange }: {
+    disabled: boolean;
+    onActiveChange?: (active: boolean) => void;
+}) {
+    const [phase, setPhase] = useState<Phase>('idle');
+    const [error, setError] = useState('');
+    const [seconds, setSeconds] = useState(0);
+    const [pending, setPending] = useState<DictationSegment[]>([]);
+    const [noVad, setNoVad] = useState(false);
+    const canvas = useRef<HTMLCanvasElement>(null);
+    const history = useRef(Array<number>(48).fill(0));
+    const epoch = useRef(0), alive = useRef(true);
+    const capture = useRef<SegmentedCapture | null>(null);
+    const audio = useRef<AudioContext | null>(null);
+    const queue = useRef<TranscriptionQueue | null>(null);
+    const workspace = store.state.prefs.workspaceKey ?? store.state.prefs.endpoint;
+    const key = draftKey(store.state.activeSessionId, store.state.directory);
+    const scope = dictationScope(workspace, key);
+    const currentScope = useRef(scope);
+    currentScope.current = scope;
+    useEffect(() => onActiveChange?.(phase !== 'idle'), [phase, onActiveChange]);
+    const refresh = async () => {
+        const records = await dictationJournal.list(scope);
+        if (alive.current && currentScope.current === scope)
+            setPending(records.filter(s => !activeDictationSegments().has(s.id)));
+    };
+    const processor = () => {
+        if (queue.current)
+            return queue.current;
+        queue.current = new TranscriptionQueue(dictationJournal, scope, {
+            append: (segment, text) => store.appendDictation(segment.workspace, segment.draft, text, segment.id),
+            tail: segment => {
+                const prefs = store.state.prefs;
+                return ((prefs.workspaceKey ?? prefs.endpoint) === segment.workspace ? prefs.drafts : prefs.endpointState?.[segment.workspace]?.drafts)?.[segment.draft] ?? '';
+            },
+        }, message => {
+            if (!alive.current || currentScope.current !== scope)
+                return;
+            if (message)
+                setError(message);
+            void refresh().catch(e => setError(String(e)));
+        });
+        return queue.current;
+    };
+    useEffect(() => {
+        alive.current = true;
+        void refresh().catch(e => { if (alive.current)
+            setError(String(e)); });
+        return () => {
+            epoch.current++;
+            alive.current = false;
+            queue.current?.dispose();
+            queue.current = null;
+            void capture.current?.finish();
+            capture.current = null;
+            void audio.current?.close().catch(() => { });
+            audio.current = null;
+        };
+        // Captured audio belongs to the original draft; navigating never moves it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scope]);
+    useEffect(() => { setPhase('idle'); setPending([]); setError(''); }, [scope]);
+    const finish = () => {
+        if (capture.current) {
+            setPhase('transcribing');
+            void capture.current.finish();
         }
-        frame.current = requestAnimationFrame(draw);
-      };
-      const mime = [
-        "audio/webm;codecs=opus",
-        "audio/mp4",
-        "audio/ogg;codecs=opus",
-      ].find((x) => MediaRecorder.isTypeSupported(x));
-      const rec = new MediaRecorder(
-        input,
-        mime ? { mimeType: mime } : undefined,
-      );
-      recorder.current = rec;
-      const chunks: Blob[] = [];
-      rec.ondataavailable = (e) => {
-        if (e.data.size) chunks.push(e.data);
-      };
-      rec.onerror = () => {
-        if (epoch === operation.current) {
-          abort();
-          setError("Запись прервана. Проверьте микрофон.");
+    };
+    const cancel = () => {
+        // Permission cancellation has no audio. Once recording begins, stopping
+        // preserves already recognized text and the durable pending audio.
+        if (capture.current) {
+            finish();
+            return;
         }
-      };
-      rec.onstop = async () => {
-        if (epoch !== operation.current) return;
-        cleanup();
-        setPhase("transcribing");
-        const controller = new AbortController();
-        cancel.current = controller;
+        epoch.current++;
+        queue.current?.dispose();
+        queue.current = null;
+        void audio.current?.close().catch(() => { });
+        audio.current = null;
+        setPhase('idle');
+        void refresh().catch(e => setError(String(e)));
+    };
+    const draw = (level: number) => {
+        const values = history.current;
+        values.push(Math.min(1, level * 5));
+        values.shift();
+        const el = canvas.current, ctx = el?.getContext('2d');
+        if (!el || !ctx)
+            return;
+        ctx.clearRect(0, 0, el.width, el.height);
+        ctx.fillStyle = getComputedStyle(el).color;
+        values.forEach((value, i) => { const height = Math.max(3, value * el.height); ctx.beginPath(); ctx.roundRect(i * 6, (el.height - height) / 2, 3, height, 2); ctx.fill(); });
+    };
+    const start = async () => {
+        const settings = { ...(store.state.prefs.asr ?? defaultAsr) }, problem = validateAsr(settings);
+        if (problem) {
+            setError(problem);
+            store.setUi({ settingsOpen: true });
+            return;
+        }
+        if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+            setError(micUnavailableMessage());
+            return;
+        }
+        const operation = ++epoch.current, active = () => alive.current && epoch.current === operation && currentScope.current === scope;
+        setError('');
+        setSeconds(0);
+        setNoVad(false);
+        setPhase('requesting');
+        // Resume while still in the user's click gesture; never await WebKit's
+        // sometimes unresolved resume promise before starting actual recording.
+        let context: AudioContext | null = null;
         try {
-          const text = await transcribeAudio(
-            new Blob(chunks, { type: rec.mimeType }),
-            settings,
-            controller.signal,
-          );
-          if (epoch === operation.current)
-            store.appendDictation(workspace, key, text);
-        } catch (e) {
-          if (epoch === operation.current)
-            setError(e instanceof Error ? e.message : String(e));
-        } finally {
-          if (epoch === operation.current) setPhase("idle");
+            context = new AudioContext();
+            audio.current = context;
+            void context.resume().catch(() => { });
         }
-      };
-      rec.start(250);
-      setPhase("recording");
-      draw();
-      const started = Date.now();
-      timer.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - started) / 1000);
-        setSeconds(elapsed);
-        if (elapsed >= 120 && rec.state === "recording") rec.stop();
-      }, 250);
-    } catch (e) {
-      if (epoch === operation.current) {
-        cleanup();
-        setPhase("idle");
-        setError(captureErrorMessage(e));
-      }
-    }
-  };
-  return (
-    <div className="voice-control">
-      {error && (
-        <div className="voice-error" role="alert">
-          {error}
-          <button
-            onClick={() => setError("")}
-            aria-label="Закрыть ошибку микрофона"
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {phase === "idle" ? (
-        <button
-          className="icon-btn"
-          title="Надиктовать"
-          aria-label="Надиктовать"
-          disabled={disabled}
-          onClick={() => void start()}
-        >
-          <Icon name="mic" />
-        </button>
-      ) : (
-        <div className="voice-recording" role="status" aria-label="Надиктовка">
-          <button
-            className="voice-cancel icon-btn"
-            aria-label="Отменить диктовку"
-            title="Отменить диктовку"
-            onClick={abort}
-          >
-            <Icon name="close" />
-          </button>
-          {phase === "recording" ? (
-            <>
-              <canvas
-                width="288"
-                height="32"
-                ref={canvas}
-                aria-label="Уровень звука микрофона"
-              />
-              <span className="voice-timer">
-                {Math.floor(seconds / 60)}:
-                {String(seconds % 60).padStart(2, "0")}
-              </span>
-              <button
-                className="voice-finish icon-btn"
-                aria-label="Закончить и распознать"
-                title="Закончить и распознать"
-                onClick={() => recorder.current?.stop()}
-              >
-                <Icon name="stop" size={14} />
-              </button>
-            </>
-          ) : (
-            <span>
-              {phase === "requesting" ? "Доступ к микрофону…" : "Распознаю…"}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
+        catch {
+            context = null;
+        }
+        let stream: MediaStream | null = null;
+        let storageReady = false;
+        try {
+            await dictationJournal.ready();
+            storageReady = true;
+            const saved = await dictationJournal.list(scope);
+            if (saved.length) {
+                if (active()) { setPending(saved); setPhase('idle'); setError('Есть сохранённая диктовка. Восстановите её или удалите звук перед новой записью.'); }
+                void context?.close().catch(() => {});
+                return;
+            }
+            if (!active()) {
+                void context?.close().catch(() => { });
+                return;
+            }
+            stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+            if (!active()) {
+                stream.getTracks().forEach(t => t.stop());
+                void context?.close().catch(() => { });
+                return;
+            }
+            const work = processor();
+            const recording = new SegmentedCapture(stream, context, dictationJournal, workspace, key, settings, {
+                progress: (time, level, vad) => { if (active()) {
+                    setSeconds(time);
+                    setNoVad(time >= 3 && !vad);
+                    draw(level);
+                } },
+                segmentReady: () => { void work.drain(); if (active())
+                    void refresh().catch(e => setError(String(e))); },
+                error: message => { if (active())
+                    setError(message); },
+                stopped: () => {
+                    if (active()) {
+                        capture.current = null;
+                        audio.current = null;
+                        setPhase('transcribing');
+                    }
+                    void work.drain().finally(() => { if (active()) {
+                        setPhase('idle');
+                        void refresh().catch(e => setError(String(e)));
+                    } });
+                },
+            });
+            capture.current = recording;
+            recording.start();
+            setPhase('recording');
+        }
+        catch (e) {
+            stream?.getTracks().forEach(t => t.stop());
+            void context?.close().catch(() => { });
+            if (active()) {
+                capture.current = null;
+                audio.current = null;
+                setPhase('idle');
+                setError(storageReady ? captureErrorMessage(e) : "Не удалось подготовить локальное хранилище диктовки. Запись не начата.");
+            }
+        }
+    };
+    const retry = async () => {
+        setError('');
+        try {
+            await processor().retry(activeDictationSegments());
+            await refresh();
+        }
+        catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        }
+    };
+    const discard = async () => {
+        if (phase !== 'idle' || !window.confirm('Удалить нераспознанный звук? Готовый текст останется в черновике.'))
+            return;
+        queue.current?.dispose();
+        queue.current = null;
+        try {
+            for (const segment of pending)
+                await dictationJournal.remove(segment.id);
+            await refresh();
+            setError('');
+        }
+        catch (e) {
+            setError(String(e));
+        }
+    };
+    const recoverable = pending.length > 0 && (phase === 'idle' || !!error);
+    return <div className="voice-control">
+    {(error || recoverable) && <div className={`voice-error ${error ? '' : 'voice-saved'}`} role={error ? 'alert' : 'status'}>
+      {error && <><span>{error}</span><button onClick={() => setError('')} aria-label="Закрыть ошибку микрофона">×</button></>}
+      {recoverable && <div className="voice-recovery">
+        <span>Сохранённый звук: {pending.length}</span>
+        <button type="button" className="btn" onClick={() => void retry()}>Восстановить диктовку</button>
+        {phase === 'idle' && <button type="button" className="icon-btn" aria-label="Удалить сохранённую диктовку" onClick={() => void discard()}><Icon name="close"/></button>}
+      </div>}
+    </div>}
+    {phase === 'idle' ? <button className="icon-btn" title="Надиктовать" aria-label="Надиктовать" disabled={disabled || pending.length > 0} onClick={() => void start()}><Icon name="mic"/></button> :
+            <div className="voice-recording" role="status" aria-label="Надиктовка">
+        {phase !== 'recording' && <button className="voice-cancel icon-btn" aria-label={phase === 'requesting' ? 'Отменить диктовку' : 'Прекратить ожидание распознавания'} title={phase === 'requesting' ? 'Отменить' : 'Готовый текст и сохранённый звук останутся'} onClick={cancel}><Icon name="close"/></button>}
+        {phase === 'recording' ? <>
+          <canvas width="288" height="32" ref={canvas} aria-label="Уровень звука микрофона"/>
+          <span className="voice-timer" title={noVad ? 'Автостоп по тишине недоступен. Остановите запись вручную.' : 'Запись остановится после минуты тишины'}>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>
+          <button className="voice-finish icon-btn" aria-label="Закончить и распознать" title="Закончить диктовку" onClick={finish}><Icon name="stop" size={14}/></button>
+        </> : <span>{phase === 'requesting' ? 'Доступ к микрофону…' : 'Распознаю последние фрагменты…'}</span>}
+      </div>}
+  </div>;
 }

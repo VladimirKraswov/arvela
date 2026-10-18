@@ -260,12 +260,13 @@ export function ModelCatalogSettings() {
     setError("");
     setNotice("");
     try {
-      const saved = await publishCatalog(models, adminKey);
+      const saved = await publishCatalog(models, adminKey, catalog?.version);
       setAdminKey("");
-      const fresh = await fetchCatalog();
-      setCatalog(fresh);
-      setModels(structuredClone(fresh.models ?? []));
-      setNotice(`Каталог опубликован на Hub (версия ${saved.version ?? fresh.version}).`);
+      // The acknowledged CAS response is this publication. A second GET could
+      // lose the acknowledgement or replace this draft with another editor's.
+      setCatalog(saved);
+      setModels(structuredClone(saved.models));
+      setNotice(`Каталог опубликован на Hub (версия ${saved.version}).`);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -280,10 +281,11 @@ export function ModelCatalogSettings() {
     setBusy(true);
     setError("");
     try {
-      await restartLocalServerIfNative(
+      const restarted = await restartLocalServerIfNative(
         prefs.localEndpoint ?? prefs.endpoint,
         prefs.localOpenCodeProgram,
       );
+      if (!restarted) throw new Error("Перезапуск доступен в установленном приложении.");
       setNotice("Движок OpenCode перезапущен с новыми моделями.");
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -299,7 +301,7 @@ export function ModelCatalogSettings() {
         : [...state.excluded, id],
     });
   return (
-    <>
+    <fieldset className="catalog-controls" disabled={busy || loading}>
       <section className="setting-group">
         <h2>Общий каталог моделей</h2>
         <div className="setting-card">
@@ -342,12 +344,12 @@ export function ModelCatalogSettings() {
               </small>
             </div>
             <div className="setting-control">
-              <button className="btn" disabled={loading} onClick={() => void load()}>
+              <button className="btn" disabled={loading || busy} onClick={() => void load()}>
                 Обновить с Hub
               </button>
               <button
                 className="btn primary"
-                disabled={busy || !catalog || !catalog.models.length}
+                disabled={busy || loading || !catalog || catalog.version === 0}
                 title={state.enabled ? undefined : "Сначала включите «Применять на этом устройстве»"}
                 onClick={() => void apply()}
               >
@@ -363,7 +365,7 @@ export function ModelCatalogSettings() {
         </div>
       </section>
       {models.map((model, index) => (
-        <div key={`${model.id}-${index}`}>
+        <div key={`${catalog?.version ?? 0}:${model.id}-${index}`}>
           <ModelDraft
             model={model}
             index={index}
@@ -396,7 +398,7 @@ export function ModelCatalogSettings() {
           <div className="setting-row">
             <div className="setting-label">
               <label htmlFor="hub-catalog-admin">Административный ключ Hub</label>
-              <small>Нужен только для записи каталога; сохраняется в системном хранилище.</small>
+              <small>Нужен только для записи каталога; при доступном системном хранилище сохраняется в нём.</small>
             </div>
             <div className="setting-control">
               <input
@@ -441,13 +443,13 @@ export function ModelCatalogSettings() {
               >
                 Добавить модель
               </button>
-              <button className="btn primary" disabled={busy || !dirty} onClick={() => void publish()}>
+              <button className="btn primary" disabled={busy || loading || !catalog || !dirty} onClick={() => void publish()}>
                 Опубликовать на Hub
               </button>
             </div>
           </div>
         </div>
       </section>
-    </>
+    </fieldset>
   );
 }

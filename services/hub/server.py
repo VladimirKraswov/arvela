@@ -579,12 +579,19 @@ class Handler(BaseHTTPRequestHandler):
         super().setup();self.connection.settimeout(15)
         if isinstance(self.connection, ssl.SSLSocket): self.connection.do_handshake()
     def log_message(self,fmt,*args):
-        # Never log URL query, payload, authorization or personal session titles.
-        print(encode({'method':self.command,'path':urlsplit(self.path).path,'status':str(args[1]) if len(args)>1 else ''}),flush=True)
+        # BaseHTTPRequestHandler also passes parser errors here; args[1] then
+        # contains raw request data, not a status. Never log that error format.
+        if fmt != '\"%s\" %s %s' or len(args) < 2:return
+        status=str(args[1])
+        if not re.fullmatch(r'[1-5][0-9]{2}',status):return
+        try:path=urlsplit(self.path).path
+        except ValueError:path='[invalid]'
+        print(encode({'method':self.command,'path':path,'status':status}),flush=True)
     def respond(self,code,body,kind='application/json; charset=utf-8',cookie=None,filename=None):
         raw=encode(body).encode() if kind.startswith('application/json') else body
         self.send_response(code)
         for k,v in [('Content-Type',kind),('Content-Length',str(len(raw))),('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer'),('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")]:self.send_header(k,v)
+        if self.close_connection:self.send_header('Connection','close')
         if cookie:self.send_header('Set-Cookie',cookie)
         if filename:self.send_header('Content-Disposition','attachment; filename="'+filename+'"')
         self.end_headers();self.wfile.write(raw)
@@ -653,7 +660,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200,file.read_bytes(),kind)
             raise Fault(404,'Страница не найдена.')
         except Fault as e:
-            if e.status in (400,413,415): self.close_connection=True
+            if e.status>=400:self.close_connection=True
             self.respond(e.status,{'error':e.message})
         except (ValueError,TypeError,KeyError):self.respond(400,{'error':'Некорректный запрос.'})
         except (BrokenPipeError,ConnectionResetError,TimeoutError):pass

@@ -7,9 +7,13 @@ import { captureErrorMessage } from "../src/voice/captureError";
 import { resetPlatformCache } from "../src/native/platform";
 
 const fake = vi.hoisted(() => ({
-  state: {} as any, setUi: vi.fn(), appendDictation: vi.fn(), transcribe: vi.fn(),
+  records: new Map<string,any>(), state: {} as any, setUi: vi.fn(), appendDictation: vi.fn(), transcribe: vi.fn(),
 }));
 vi.mock("../src/state/store", () => ({ store: fake }));
+vi.mock('../src/voice/journal',async(original)=>({
+ ...await original<typeof import('../src/voice/journal')>(),
+ dictationJournal:{ready:async()=>{},list:async(scope:string)=>[...fake.records.values()].filter(r=>r.scope===scope),put:async(s:any)=>{fake.records.set(s.id,{...s,parts:[...s.parts]});},remove:async(id:string)=>{fake.records.delete(id);}}
+}));
 vi.mock("../src/voice/asr", async (original) => ({
   ...await original<typeof import("../src/voice/asr")>(), transcribeAudio: fake.transcribe,
 }));
@@ -17,8 +21,8 @@ import { VoiceInput } from "../src/components/VoiceInput";
 
 let root: Root;
 let resume: ReturnType<typeof vi.fn>, close: ReturnType<typeof vi.fn>, capture: ReturnType<typeof vi.fn>;
-beforeEach(() => {
-  vi.clearAllMocks();
+beforeEach(async () => {
+  vi.clearAllMocks();fake.records.clear();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fake.state = { prefs: structuredClone(DEFAULT_PREFS), activeSessionId: "session", directory: "/tmp" };
   resume = vi.fn().mockResolvedValue(undefined); close = vi.fn().mockResolvedValue(undefined); capture = vi.fn();
@@ -28,7 +32,7 @@ beforeEach(() => {
   resetPlatformCache();
   vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", mediaDevices: { getUserMedia: capture } });
   const node = document.createElement("div"); document.body.append(node);
-  root = createRoot(node); act(() => root.render(createElement(VoiceInput, { disabled: false })));
+  root = createRoot(node); await act(async () => root.render(createElement(VoiceInput, { disabled: false })));
 });
 afterEach(() => {
   act(() => root.unmount()); document.body.innerHTML = ""; vi.restoreAllMocks(); vi.unstubAllGlobals(); resetPlatformCache();
@@ -43,7 +47,7 @@ it("explains native permission refusal without exposing the raw WebKit error or 
   expect(alert.textContent).toContain("Конфиденциальность и безопасность → Микрофон");
   expect(alert.textContent).toContain("Если доступ уже включён");
   expect(alert.textContent).not.toContain("user agent");
-  expect(close).not.toHaveBeenCalled(); expect(fake.transcribe).not.toHaveBeenCalled();
+  expect(close).toHaveBeenCalledOnce(); expect(fake.transcribe).not.toHaveBeenCalled();
   expect(document.querySelector('button[aria-label="Надиктовать"]')).not.toBeNull();
   await click("Закрыть ошибку микрофона");
   expect(document.querySelector('[role="alert"]')).toBeNull();
@@ -62,8 +66,9 @@ it("records and transcribes even when Web Audio never resumes", async () => {
     static isTypeSupported() { return true; }
     state = "inactive"; mimeType = "audio/webm";
     onstop: (() => void) | null = null;
+    ondataavailable: ((event:{data:Blob})=>void) | null = null;
     start() { this.state = "recording"; started(); }
-    stop() { this.state = "inactive"; this.onstop?.(); }
+    stop() { this.state = "inactive"; this.ondataavailable?.({data:new Blob(["fixture-audio"])});this.onstop?.(); }
   });
   vi.stubGlobal("requestAnimationFrame", () => 1);
   vi.stubGlobal("cancelAnimationFrame", () => {});
@@ -77,7 +82,7 @@ it("records and transcribes even when Web Audio never resumes", async () => {
   expect(document.querySelector('button[aria-label="Закончить и распознать"]')).not.toBeNull();
   await click("Закончить и распознать");
   expect(fake.transcribe).toHaveBeenCalledOnce();
-  expect(fake.appendDictation).toHaveBeenCalledWith(expect.any(String), expect.any(String), "распознано");
+  expect(fake.appendDictation).toHaveBeenCalledWith(expect.any(String), expect.any(String), "распознано",expect.any(String));
   expect(stop).toHaveBeenCalledOnce();
 });
 it("keeps the composer in recording layout until cancellation completes", async () => {
@@ -120,4 +125,16 @@ it("distinguishes missing and unavailable devices from permission errors", () =>
   expect(captureErrorMessage({ name: "NotReadableError" })).toContain("занято ли оно");
   expect(captureErrorMessage({ name: "AbortError" })).toContain("прерван");
   expect(captureErrorMessage(new Error("private raw details"))).not.toContain("private raw details");
+});
+it('requires explicit recovery of interrupted audio before starting another recording',async()=>{
+ const {draftKey}=await import('../src/state/prefs');const {dictationScope}=await import('../src/voice/journal');
+ const workspace=fake.state.prefs.workspaceKey??fake.state.prefs.endpoint,draft=draftKey(fake.state.activeSessionId,fake.state.directory);
+ fake.records.set('interrupted',{id:'interrupted',group:'old',scope:dictationScope(workspace,draft),workspace,draft,settings:fake.state.prefs.asr,created:1,sequence:0,overlap:false,mime:'audio/webm',parts:[new Blob(['saved-audio'])],complete:false});
+ await click('Надиктовать');expect(capture).not.toHaveBeenCalled();expect(fake.transcribe).not.toHaveBeenCalled();
+ expect(document.querySelector('[role="alert"]')?.textContent).toContain('сохранённая диктовка');
+ expect(document.querySelector<HTMLButtonElement>('button[aria-label="Надиктовать"]')?.disabled).toBe(true);
+ fake.transcribe.mockResolvedValue('восстановленный текст');
+ await act(async()=>{[...document.querySelectorAll('button')].find(b=>b.textContent==='Восстановить диктовку')!.click();});
+ expect(fake.transcribe).toHaveBeenCalledOnce();expect(fake.appendDictation).toHaveBeenCalledWith(workspace,draft,'восстановленный текст','interrupted');
+ expect(fake.records.size).toBe(0);
 });

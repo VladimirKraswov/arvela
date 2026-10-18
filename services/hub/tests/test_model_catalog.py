@@ -88,7 +88,11 @@ class ModelCatalog(unittest.TestCase):
 
     def test_republish_replaces_and_increments(self):
         self.put({"models": [entry()]})
-        r = self.put({"models": [entry("qwen-next"), entry("gemma31-v100")]})
+        qwen, gemma = entry("qwen-next"), entry("gemma31-v100")
+        for name in ("opencode", "pi"):
+            qwen[name]["providerId"] = "local-qwen"
+            gemma[name]["providerId"] = "local-gemma"
+        r = self.put({"models": [qwen, gemma]})
         self.assertEqual(r["version"], 2)
         self.assertEqual(
             [x["id"] for x in self.get()["models"]], ["qwen-next", "gemma31-v100"]
@@ -185,3 +189,28 @@ class ModelCatalog(unittest.TestCase):
                 self.put({"models": [{"id": "a", "label": "A", "pi": p}]})
 if __name__ == "__main__":
         unittest.main()
+
+
+class CatalogConcurrencyTests(unittest.TestCase):
+    setUp = ModelCatalog.setUp
+    tearDown = ModelCatalog.tearDown
+    get = ModelCatalog.get
+    put = ModelCatalog.put
+    def test_stale_editor_cannot_overwrite_new_catalog(self):
+        self.put({"models": [entry()], "expectedVersion": 0})
+        with self.assertRaises(m.Fault) as error:
+            self.put({"models": [], "expectedVersion": 0})
+        self.assertEqual(error.exception.status, 409)
+        self.assertEqual(len(self.get()["models"]), 1)
+
+    def test_duplicate_provider_rejected_at_publication(self):
+        with self.assertRaises(m.Fault):
+            self.put({"models": [entry("one"), entry("two")]})
+        self.assertEqual(self.get()["version"], 0)
+
+    def test_inline_secret_without_known_prefix_is_rejected(self):
+        value = entry()
+        value["opencode"]["provider"]["options"]["apiKey"] = "owner-private-password-123456789"
+        with self.assertRaises(m.Fault):
+            self.put({"models": [value]})
+        self.assertEqual(self.get()["version"], 0)

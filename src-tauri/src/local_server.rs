@@ -3,10 +3,12 @@
 
 use fs2::FileExt;
 use std::{
+    collections::HashMap,
     fs::{self, File, OpenOptions},
     net::{TcpStream, ToSocketAddrs},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Child, Command, Stdio},
+    sync::{Arc, Mutex, OnceLock},
     thread,
     time::{Duration, Instant},
 };
@@ -199,6 +201,40 @@ fn probe(client: &reqwest::blocking::Client, endpoint: &LocalEndpoint) -> Probe 
     Probe::Absent
 }
 
+type ManagedChild = Arc<Mutex<Child>>;
+static MANAGED: OnceLock<Mutex<HashMap<String, ManagedChild>>> = OnceLock::new();
+fn managed() -> &'static Mutex<HashMap<String, ManagedChild>> {
+    MANAGED.get_or_init(|| Mutex::new(HashMap::new()))
+}
+fn retain_child(origin: &str, child: Child) {
+    let child = Arc::new(Mutex::new(child));
+    let origin = origin.to_string();
+    managed()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(origin.clone(), child.clone());
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(1));
+        let exited = child
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .try_wait()
+            .ok()
+            .flatten()
+            .is_some();
+        if exited {
+            let mut registry = managed().lock().unwrap_or_else(|e| e.into_inner());
+            if registry
+                .get(&origin)
+                .is_some_and(|current| Arc::ptr_eq(current, &child))
+            {
+                registry.remove(&origin);
+            }
+            break;
+        }
+    });
+}
+
 fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Result<(), String> {
     let endpoint = parse_endpoint(raw)?;
     // The file lock covers the second probe and readiness wait. Two Desktop
@@ -258,9 +294,7 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if probe(&client, &endpoint) == Probe::Healthy {
-            thread::spawn(move || {
-                let _ = child.wait();
-            });
+            retain_child(&endpoint.origin, child);
             return Ok(());
         }
         if let Some(status) = child
@@ -273,9 +307,7 @@ fn ensure_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Re
             ));
         }
         if Instant::now() >= deadline {
-            thread::spawn(move || {
-                let _ = child.wait();
-            });
+            retain_child(&endpoint.origin, child);
             return Err(format!(
                 "OpenCode запущен, но не ответил за 30 секунд. Журнал: {}",
                 log_path.display()
@@ -332,48 +364,91 @@ fn listener_pids(port: u16) -> Result<Vec<u32>, String> {
 
 #[cfg(unix)]
 fn terminate_pid(pid: u32) -> Result<(), String> {
-    Command::new("kill")
+    let output = Command::new("kill")
         .arg(pid.to_string())
         .output()
         .map_err(|e| format!("Не удалось остановить OpenCode: {e}"))?;
+    if !output.status.success() {
+        return Err("OpenCode отказал в остановке".into());
+    }
     Ok(())
 }
 
 #[cfg(windows)]
 fn terminate_pid(pid: u32) -> Result<(), String> {
-    Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/F"])
+    let mut command = Command::new("taskkill");
+    command.args(["/PID", &pid.to_string(), "/F"]);
+    crate::process::hide_console(&mut command);
+    let output = command
         .output()
         .map_err(|e| format!("Не удалось остановить OpenCode: {e}"))?;
+    if !output.status.success() {
+        return Err("OpenCode отказал в остановке".into());
+    }
     Ok(())
 }
 
-/// Stops the healthy OpenCode server owning this endpoint, then starts a new one.
-/// Only a process serving a healthy /global/health on the endpoint is terminated,
-/// so an unrelated application holding the port is never killed.
+/// Restart only a live child started by THIS Arvela process. A healthy endpoint
+/// is not proof of ownership: an external server (or SSH tunnel) stays untouched.
 fn restart_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Result<(), String> {
     let endpoint = parse_endpoint(raw)?;
     let client = reqwest::blocking::Client::builder()
         .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(2))
         .build()
         .map_err(|e| format!("Не удалось проверить OpenCode: {e}"))?;
     {
         let _lock = app_lock(data_dir)?;
         if probe(&client, &endpoint) == Probe::Healthy {
-            let pids = listener_pids(endpoint.port)?;
-            if pids.is_empty() {
-                return Err("Не удалось найти процесс сервера OpenCode".into());
+            let owned = managed().lock().unwrap_or_else(|e| e.into_inner())
+                .get(&endpoint.origin).cloned()
+                .ok_or("Это внешний сервер OpenCode. Перезапустите его через средство, которым он запущен; Arvela его не остановит.")?;
+            let mut child = owned
+                .lock()
+                .map_err(|_| "Не удалось проверить процесс OpenCode")?;
+            if child
+                .try_wait()
+                .map_err(|_| "Не удалось проверить процесс OpenCode")?
+                .is_some()
+                || listener_pids(endpoint.port)? != vec![child.id()]
+            {
+                return Err("Процесс сервера изменился; перезапуск отменён".into());
             }
-            for pid in &pids {
-                terminate_pid(*pid)?;
+            // Fail closed if activity cannot be read. The UI also gates across
+            // all known directories/backends; never infer idle from stale UI.
+            let statuses = client
+                .get(format!("{}/session/status", endpoint.origin))
+                .send()
+                .and_then(reqwest::blocking::Response::error_for_status)
+                .and_then(|r| r.json::<serde_json::Value>())
+                .map_err(|_| "Не удалось проверить активные сессии OpenCode; перезапуск отменён")?;
+            let sessions = statuses
+                .as_object()
+                .ok_or("Некорректное состояние сессий OpenCode")?;
+            if sessions
+                .values()
+                .any(|s| s["type"].as_str() != Some("idle"))
+            {
+                return Err("Дождитесь завершения активных сессий OpenCode".into());
             }
+            terminate_pid(child.id())?;
             let deadline = Instant::now() + Duration::from_secs(15);
-            while probe(&client, &endpoint) != Probe::Absent {
+            loop {
+                if child
+                    .try_wait()
+                    .map_err(|_| "Ошибка ожидания OpenCode")?
+                    .is_some()
+                {
+                    break;
+                }
                 if Instant::now() >= deadline {
                     return Err("Сервер OpenCode не остановился за 15 секунд".into());
                 }
-                thread::sleep(Duration::from_millis(200));
+                thread::sleep(Duration::from_millis(100));
+            }
+            if probe(&client, &endpoint) != Probe::Absent {
+                return Err("Порт OpenCode всё ещё занят; другой процесс не остановлен".into());
             }
         }
     }
@@ -391,9 +466,13 @@ fn restart_sync(raw: &str, program: Option<&str>) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn restart_local_opencode(
+    window: tauri::WebviewWindow,
     endpoint: String,
     program: Option<String>,
 ) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Недоступно в этом окне".into());
+    }
     tauri::async_runtime::spawn_blocking(move || restart_sync(&endpoint, program.as_deref()))
         .await
         .map_err(|e| format!("Не удалось перезапустить OpenCode: {e}"))?
@@ -601,7 +680,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 port = int(sys.argv[sys.argv.index('--port') + 1])
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        body = b'{"healthy":true,"version":"1.18.18"}'
+        from pathlib import Path
+        body = (b'{"s":{"type":"busy"}}' if Path(__file__).with_name('busy').exists() else b'{}') if self.path == '/session/status' else b'{"healthy":true,"version":"1.18.18"}'
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(body)))
@@ -622,6 +702,19 @@ HTTPServer(('127.0.0.1', port), Handler).serve_forever()
         ensure_with(&url, Some(&binary), &root).unwrap();
         let before = listener_pids(port).unwrap();
         assert_eq!(before.len(), 1, "{before:?}");
+        // A second Arvela process has no ownership and cannot kill this listener.
+        let owned = managed().lock().unwrap().remove(&url).unwrap();
+        assert!(restart_with(&url, Some(&binary), &root)
+            .unwrap_err()
+            .contains("внешний"));
+        assert_eq!(listener_pids(port).unwrap(), before);
+        managed().lock().unwrap().insert(url.clone(), owned);
+        fs::write(root.join("busy"), "1").unwrap();
+        assert!(restart_with(&url, Some(&binary), &root)
+            .unwrap_err()
+            .contains("активных"));
+        assert_eq!(listener_pids(port).unwrap(), before);
+        fs::remove_file(root.join("busy")).unwrap();
         restart_with(&url, Some(&binary), &root).unwrap();
         let after = listener_pids(port).unwrap();
         assert_eq!(after.len(), 1, "{after:?}");

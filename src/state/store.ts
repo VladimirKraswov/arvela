@@ -1,4 +1,4 @@
-import { workshopParts } from "../workshop/policy";
+import { agentParts } from "../agent/promptPolicy";
 import { prepareWorkshop, resolveWorkshop, isWorkshopSession, type WorkshopRecord } from "../workshop/workspace";
 import { ownWork } from "../operations/ownership";
 import { StreamNotifications, selectedSnapshot, shallowEqual } from "./notifications";
@@ -2358,7 +2358,7 @@ class Store {
         sending = true;
         await backend.prompt(task.sessionID, task.directory, {
           messageID, model: { providerID: task.model.providerID, modelID: task.model.modelID },
-          variant: task.model.variant ?? undefined, agent: task.agent, parts: workshopParts(this.state.prefs.workshop, task.sessionID, task.directory, [{ type: "text", text: task.prompt }]),
+          variant: task.model.variant ?? undefined, agent: task.agent, parts: agentParts(this.state.prefs.workshop, task.sessionID, task.directory, [{ type: "text", text: task.prompt }]),
         });
         });
       } catch (error) {
@@ -2531,7 +2531,7 @@ class Store {
         model: { providerID: model.providerID, modelID: model.modelID },
         agent: agent ?? undefined,
         variant: model.variant ?? undefined,
-        parts: workshopParts(this.state.prefs.workshop, target, directory, [{ type: "text", text: trimmed }, ...parts]),
+        parts: agentParts(this.state.prefs.workshop, target, directory, [{ type: "text", text: trimmed }, ...parts]),
       });
       });
       if (attachments.length) {
@@ -2765,13 +2765,19 @@ class Store {
     this.persistPrefs();
   }
   /** Dictation is bound to its original draft even if navigation occurs meanwhile. */
-  appendDictation(workspace: string, key: string, text: string) {
-    if (!text.trim()) return;
+  appendDictation(workspace: string, key: string, text: string, receipt?: string) {
+    if (receipt && this.state.prefs.dictationReceipts?.includes(receipt)) {
+      savePrefs(this.state.prefs);
+      if (!flushPrefs()) throw Error("Не удалось сохранить текст диктовки. Звук оставлен для восстановления.");
+      return;
+    }
+    if (!text.trim() && !receipt) return;
     this.mutate((s) => {
+      const prefs = receipt ? {...s.prefs,dictationReceipts:[...(s.prefs.dictationReceipts??[]).slice(-1999),receipt]} : s.prefs;
       if ((s.prefs.workspaceKey ?? s.prefs.endpoint) === workspace)
         return {
           prefs: {
-            ...s.prefs,
+            ...prefs,
             drafts: {
               ...s.prefs.drafts,
               [key]: [s.prefs.drafts[key], text].filter(Boolean).join(" "),
@@ -2781,7 +2787,7 @@ class Store {
       const old = s.prefs.endpointState?.[workspace];
       return {
         prefs: {
-          ...s.prefs,
+          ...prefs,
           endpointState: {
             ...s.prefs.endpointState,
             [workspace]: {
@@ -2795,7 +2801,10 @@ class Store {
         },
       };
     });
-    this.persistPrefs();
+    if (receipt) {
+      savePrefs(this.state.prefs);
+      if (!flushPrefs()) throw Error("Не удалось сохранить текст диктовки. Звук оставлен для восстановления.");
+    } else this.persistPrefs();
   }
 
   getQueue(id = this.state.activeSessionId): QueuedPrompt[] { return this.promptQueue.getQueue(id); }
@@ -2968,7 +2977,7 @@ class Store {
         },
         agent: item.agent,
         variant: item.model.variant ?? undefined,
-        parts: workshopParts(this.state.prefs.workshop, sid, item.directory, [{ type: "text", text: item.text }, ...parts]),
+        parts: agentParts(this.state.prefs.workshop, sid, item.directory, [{ type: "text", text: item.text }, ...parts]),
       });
       });
       if (workspaceBackend !== this.backend) return;

@@ -44,6 +44,7 @@ export async function transcribeAudio(
   blob: Blob,
   settings: AsrSettings,
   signal: AbortSignal,
+  options: {allowEmpty?:boolean} = {},
 ): Promise<string> {
   const error = validateAsr(settings);
   if (error) throw new Error(error);
@@ -93,7 +94,7 @@ export async function transcribeAudio(
     text = result.text;
   }
   if (signal.aborted) throw new DOMException("Отменено", "AbortError");
-  if (typeof text !== "string" || !text.trim())
+  if (typeof text !== "string" || (!text.trim() && !options.allowEmpty))
     throw new Error("ASR не вернул распознанный текст.");
   return text.trim();
 }

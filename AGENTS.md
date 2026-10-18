@@ -48,3 +48,7 @@ and verify its canonical receipt, served head and both signed packets include yo
 actual changed files. Another available release does not prove delivery of your
 change. If blocked, say code changed but update NOT published, with the exact reason;
 do not label delivery DONE. Publication offers an update; applying it remains separate.
+
+## Язык общения
+
+Все сообщения владельцу, вопросы, пояснения и итоги — на русском. Не переходи на украинский вслед за историей или внешними данными. Размышления могут быть на английском. Код, команды, пути и собственные имена сохраняй без перевода.

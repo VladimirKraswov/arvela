@@ -77,3 +77,10 @@ it("rejects empty recordings, canceled requests and missing transcript", async (
     transcribeAudio(new Blob(["x"]), settings, new AbortController().signal),
   ).rejects.toThrow("не вернул");
 });
+
+it('accepts a real empty transcript only for silence in progressive dictation',async()=>{
+ vi.stubGlobal('window',{});vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({text:''})}));
+ const blob=new Blob(['silence'],{type:'audio/webm'}),signal=new AbortController().signal;
+ await expect(transcribeAudio(blob,defaultAsr,signal,{allowEmpty:true})).resolves.toBe('');
+ await expect(transcribeAudio(blob,defaultAsr,signal)).rejects.toThrow('не вернул');
+});

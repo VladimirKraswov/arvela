@@ -1,3 +1,4 @@
+import {flushDictationCapture} from '../voice/capture';
 import {watchUpdateChecks} from './checks';
 import {keepRuntimeAwake} from './background';
 import {useEffect,useSyncExternalStore} from 'react';
@@ -14,6 +15,7 @@ import {savePrefs,flushPrefs} from '../state/prefs';
 const call=<T,>(action:string,extra:Record<string,unknown>={})=>invoke<T>('hub_update',{action,channel:null,data:null,digest:null,...extra});
 export function agentsRunning(){const s=store.getSnapshot();return s.ui.sending||s.ui.workspacePreparing||Object.values({...s.statuses,...s.activityStatuses}).some(s=>s.type!=='idle')||Object.keys(s.chat.permissions).length>0||Object.keys(s.chat.questions).length>0||!!s.ui.piDialog;}
 export const updates=new UpdateController(call,kind=>maintenance.run(async()=>{
+  await flushDictationCapture();
   await operationJournal.drain();await attachmentDrafts.flush();
   savePrefs(store.getSnapshot().prefs);if(!flushPrefs())throw Error('Не удалось сохранить состояние. Обновление отменено.');
   if(kind==='hot') {await call('activate',{channel:updates.snapshot().channel});maintenance.handoff();window.location.reload();}
@@ -30,7 +32,7 @@ export function UpdateRuntime(){
     void updates.ready().catch(()=>{}).finally(()=>checks.check());
     let alive=true;let unlisten:(()=>void)|undefined;let quitListen:(()=>void)|undefined;
     void listen('arvela-open-updates',()=>{requestUpdateSettings();store.setUi({settingsOpen:true});}).then(fn=>{if(alive)unlisten=fn;else fn();}).catch(()=>{});
-    void listen('arvela-before-quit',()=>{void (async()=>{try{savePrefs(store.getSnapshot().prefs);if(!flushPrefs())throw Error('Не удалось сохранить состояние перед выходом.');await attachmentDrafts.flush();await invoke('runtime_quit_ready',{ready:true});}catch(e){store.setUi({toast:String(e)});await invoke('runtime_quit_ready',{ready:false});}})().catch(()=>{});}).then(fn=>{if(alive)quitListen=fn;else fn();}).catch(()=>{});
+    void listen('arvela-before-quit',()=>{void (async()=>{try{await flushDictationCapture();savePrefs(store.getSnapshot().prefs);if(!flushPrefs())throw Error('Не удалось сохранить состояние перед выходом.');await attachmentDrafts.flush();await invoke('runtime_quit_ready',{ready:true});}catch(e){store.setUi({toast:String(e)});await invoke('runtime_quit_ready',{ready:false});}})().catch(()=>{});}).then(fn=>{if(alive)quitListen=fn;else fn();}).catch(()=>{});
     let refreshing=false;
     const timer=setInterval(()=>{if(refreshing)return;refreshing=true;void updates.refresh().then(()=>updates.tick(agentsRunning())).catch(()=>{}).finally(()=>{refreshing=false;});},2000);
 

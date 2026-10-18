@@ -18,10 +18,10 @@ export const fetchCatalog = () =>
     adminKey: null,
   });
 
-export const publishCatalog = (models: HubModel[], adminKey?: string) =>
-  capabilityNative<{ version: number }>("hub_model_catalog", {
+export const publishCatalog = (models: HubModel[], adminKey?: string, expectedVersion?: number) =>
+  capabilityNative<HubCatalog>("hub_model_catalog", {
     action: "publish",
-    models: { models },
+    models: { models, ...(expectedVersion === undefined ? {} : {expectedVersion}) },
     adminKey: adminKey?.trim() ? adminKey.trim() : null,
   });
 
@@ -47,8 +47,13 @@ export async function applyCatalog(
     scope: "global",
     directory: null,
   });
+  const pi = await invoke<{ content: string }>("read_pi_models");
   const ocMerge = mergeOpencodeProviders(oc.content, plan.opencode, plan.removeOpencode);
+  const piMerge = mergePiModels(pi.content, plan.pi, plan.removePi);
+  // Validate both before either write. CAS still guards each file against an
+  // external edit; after a partial write persist ownership for a safe retry.
   if (ocMerge.error) throw new Error(ocMerge.error);
+  if (piMerge.error) throw new Error(piMerge.error);
   if (ocMerge.changed)
     await invoke("write_opencode_config", {
       scope: "global",
@@ -57,11 +62,13 @@ export async function applyCatalog(
       content: ocMerge.text,
     });
   onOpencodeApplied?.(Object.keys(plan.opencode));
-  const pi = await invoke<{ content: string }>("read_pi_models");
-  const piMerge = mergePiModels(pi.content, plan.pi, plan.removePi);
-  if (piMerge.error) throw new Error(piMerge.error);
-  if (piMerge.changed)
-    await invoke("write_pi_models", { expected: pi.content, content: piMerge.text });
+  if (piMerge.changed) {
+    try {
+      await invoke("write_pi_models", { expected: pi.content, content: piMerge.text });
+    } catch (error) {
+      throw new Error(`Настройки OpenCode применены; Pi не обновлён. Повторите применение после проверки models.json. ${String(error)}`);
+    }
+  }
   return {
     report: {
       opencodeChanged: ocMerge.changed,

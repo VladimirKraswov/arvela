@@ -598,7 +598,10 @@ pub async fn hub_model_catalog(
             .as_ref()
             .and_then(|m| m.get("models").cloned())
             .ok_or("Нужен список моделей")?;
-        let body = serde_json::json!({ "models": list });
+        let mut body = serde_json::json!({ "models": list });
+        if let Some(expected) = models.as_ref().and_then(|m| m.get("expectedVersion")) {
+            body["expectedVersion"] = expected.clone();
+        }
         if !body["models"].is_array() {
             return Err("models должен быть списком".into());
         }
@@ -628,7 +631,11 @@ pub async fn hub_model_catalog(
             match catalog_send(&c, reqwest::Method::POST, Some(&body), k)? {
                 Ok(value) => {
                     if Some(k) == provided.as_ref() {
-                        let _ = admin_vault(&c.endpoint)?.set_password(k);
+                        // Publication is already acknowledged. A credential
+                        // cache failure must not turn it into a failed publish.
+                        if let Ok(entry) = admin_vault(&c.endpoint) {
+                            let _ = entry.set_password(k);
+                        }
                     }
                     return Ok(value);
                 }

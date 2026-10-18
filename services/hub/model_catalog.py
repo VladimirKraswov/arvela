@@ -75,6 +75,26 @@ class ModelCatalog:
         ):
             self.error(f"{field} должен быть текстом до {limit} символов.")
 
+    def check_credentials(self, value, allow_env=False):
+        # Pattern matching known token prefixes misses arbitrary passwords/API
+        # keys. Shared configuration carries references, never inline secrets.
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key.lower().replace("-", "").replace("_", "") in {
+                    "apikey", "xapikey", "authorization", "proxyauthorization", "cookie", "password", "token", "secret"
+                }:
+                    reference = isinstance(item, str) and (
+                        re.fullmatch(r"\{(?:env|file):[^{}\r\n]+\}", item)
+                        or (allow_env and re.fullmatch(r"[A-Z][A-Z0-9_]{2,}", item))
+                    )
+                    placeholder = item in ("local", "none", "dummy", "unused", "not-needed", "not-used") if isinstance(item, str) else False
+                    if not reference and not placeholder:
+                        self.error("Секреты храните на устройстве; в каталоге используйте ссылку на переменную окружения.")
+                self.check_credentials(item, allow_env)
+        elif isinstance(value, list):
+            for item in value:
+                self.check_credentials(item, allow_env)
+
     def engine(self, entry, name):
         value = entry.get(name)
         if value is None:
@@ -96,6 +116,7 @@ class ModelCatalog:
         provider = value.get("provider")
         if not isinstance(provider, dict) or not provider:
             self.error(f"В блоке {name} нет объекта provider.")
+        self.check_credentials(provider, allow_env=name == "pi")
         raw = json.dumps(value, ensure_ascii=False)
         if len(raw.encode()) > MAX_MODEL_JSON:
             self.error(f"Блок {name} слишком велик.")
@@ -151,6 +172,7 @@ class ModelCatalog:
         if len(models) > 64:
             self.error("Слишком много моделей в каталоге.")
         seen = set()
+        providers = {"opencode": set(), "pi": set()}
         result = []
         for entry in models:
             if not isinstance(entry, dict):
@@ -168,6 +190,12 @@ class ModelCatalog:
             if "note" in entry:
                 self.check_text(entry["note"], "note модели " + model_id, 400)
             engines = {name: self.engine(entry, name) for name in ("opencode", "pi")}
+            for name, engine in engines.items():
+                if engine:
+                    pid = engine["providerId"]
+                    if pid in providers[name]:
+                        self.error(f"Повторяется providerId {pid} в {name}.")
+                    providers[name].add(pid)
             if not any(engines.values()):
                 self.error(f"Модель {model_id} не настроена ни для одного движка.")
             result.append(
@@ -186,6 +214,12 @@ class ModelCatalog:
         models = self.validate(data)
         with self.lock:
             current = self.get()
+            expected = data.get("expectedVersion")
+            if expected is not None:
+                if type(expected) is not int or expected < 0:
+                    self.error("Некорректная ожидаемая версия каталога.")
+                if expected != current.get("version", 0):
+                    self.error("Каталог изменён на другом устройстве. Обновите его с Hub перед публикацией.", 409)
             record = {
                 "version": int(current.get("version", 0)) + 1,
                 "updatedAt": int(time.time()),
