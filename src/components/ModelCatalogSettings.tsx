@@ -58,6 +58,8 @@ function ModelDraft({
     opencodeProvider: ocText,
     piId: model.pi?.providerId ?? "",
     piProvider: piText,
+    controlService: model.control?.service ?? "",
+    controlBindings: model.control ? pretty(model.control.bindings) : "",
   });
   const save = () => {
     try {
@@ -87,6 +89,13 @@ function ModelDraft({
       }
       if (!next.opencode && !next.pi)
         throw new Error("Нужен хотя бы один движок (OpenCode или Pi)");
+      if (draft.controlService.trim() || draft.controlBindings.trim()) {
+        if (!MODEL_ID.test(draft.controlService.trim())) throw new Error("Некорректный id сервиса Hub");
+        const bindings = parseJson(draft.controlBindings, "Привязки сервиса Hub");
+        if (!Object.keys(bindings).length || Object.entries(bindings).some(([key, value]) =>
+          !MODEL_ID.test(key) || typeof value !== "string" || !MODEL_ID.test(value))) throw new Error("Привязки: JSON-объект идентификаторов моделей");
+        next.control = {service: draft.controlService.trim(), bindings: bindings as Record<string, string>};
+      } else if (model.control) next.control = null;
       onChange(next);
       setError("");
       setOpen(false);
@@ -127,11 +136,13 @@ function ModelDraft({
                 ["id модели", "id", "artemis31-v100"],
                 ["Название", "label", "Artemis 31B v1.2 · Q4_0 MTP · 196k (V100)"],
                 ["Заметка", "note", "Что важно владельцу каталога"],
+                ["Сервис управления Hub", "controlService", "v100"],
               ] as const
             ).map(([title, key, placeholder]) => (
               <div className="setting-row" key={key}>
                 <div className="setting-label">
                   <label htmlFor={`catalog-${index}-${key}`}>{title}</label>
+                  {key === "controlService" && <SettingHelp topic={title} description="Идентификатор сервиса в конфигурации Hub, например v100. Hub знает адрес VM и ключ управления; клиенту они не нужны. Пустое поле оставляет модель без управления через Hub."/>}
                 </div>
                 <div className="setting-control">
                   <input
@@ -149,18 +160,20 @@ function ModelDraft({
                 ["provider OpenCode (JSON)", "opencodeProvider", pretty({ npm: "@ai-sdk/openai-compatible", options: { baseURL: "http://127.0.0.1:18021/v1", apiKey: "local" }, models: {} })],
                 ["providerId Pi", "piId", "local-artemis"],
                 ["provider Pi (JSON)", "piProvider", pretty({ baseUrl: "http://127.0.0.1:18008/v1", api: "openai-completions", apiKey: "local", models: [] })],
+                ["Привязки сервиса Hub (JSON)", "controlBindings", pretty({"artemis31-v100": "artemis31-v100"})],
               ] as const
             ).map(([title, key, placeholder]) => (
               <div className="setting-row" key={key}>
                 <div className="setting-label">
                   <label htmlFor={`catalog-${index}-${key}`}>{title}</label>
+                  {key === "controlBindings" && <SettingHelp topic={title} description="JSON-объект: идентификатор модели в OpenCode или Pi → точный идентификатор в реестре сервиса. Каждая настроенная модель должна иметь привязку. Hub проверяет её перед загрузкой; названия моделей для маршрутизации не используются."/>}
                   <small>Пусто — движок не настраивается</small>
                 </div>
                 <div className="setting-control">
                   <textarea
                     id={`catalog-${index}-${key}`}
-                    rows={key.includes("Provider") ? 8 : 1}
-                    className={key.includes("Provider") ? "catalog-json" : undefined}
+                    rows={key.includes("Provider") ? 8 : key === "controlBindings" ? 4 : 1}
+                    className={key.includes("Provider") || key === "controlBindings" ? "catalog-json" : undefined}
                     value={draft[key]}
                     placeholder={placeholder}
                     spellCheck={false}

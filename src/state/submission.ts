@@ -18,6 +18,10 @@ export class SubmissionLifecycle {
   owns(submission: Submission): boolean {
     return this.active?.submission === submission;
   }
+  cancelPreparing(): boolean {
+    if (this.active?.dispatched) return false;
+    return this.cancel();
+  }
 
   finish(submission: Submission): boolean {
     if (!this.owns(submission)) return false;

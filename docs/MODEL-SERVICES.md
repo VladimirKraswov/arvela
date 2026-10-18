@@ -1,5 +1,99 @@
 # Managed model services
 
+## Hub coordinator — 0.2.75
+
+The normal path for the owner's shared models is now:
+
+```text
+Arvela (Windows / macOS / Linux)
+  → authenticated, pinned HTTPS → Hub catalog + reservations + status
+      → private control API → gateway in VM 5100 → one resident V100 model
+      → health + exact model ID → fixed Flash Next server in VM 5200
+Agent → its existing inference URL / SSH tunnel → streaming model response
+```
+
+Hub coordinates models; it does not proxy token streams, run agents, execute
+commands, move GPUs or implicitly boot VMs. A VM's gateway alone owns unloading,
+loading and health checks of its child engine. Separate physical GPUs have separate
+resource IDs and do not block one another. Two services for one physical GPU must
+share one resource ID. Existing OpenCode/Pi provider URLs and headers are retained.
+
+The shared model catalog has an optional explicit field:
+
+```json
+"control": {
+  "service": "v100",
+  "bindings": { "artemis31-v100": "artemis31-v100" }
+}
+```
+
+It accompanies the provider definitions, so adding a provider cannot silently
+omit its readiness gate again. Clients receive service IDs and model bindings,
+never gateway credentials. Routing discovery is independent of whether the device
+has opted into writing Hub providers to its engine config. A known Hub-managed
+model fails closed when Hub is unavailable or removes its binding. Remote clients
+use the same Hub identity and need no model-control SSH tunnel or control key.
+Their inference transport remains configured in their owning agent.
+
+Only the Hub operator configures `/etc/arvela-hub/model-services.json`, a private
+0600 file readable by the Hub service user. Example:
+
+```json
+{"services":{"v100":{
+  "label":"Tesla V100 · VM 5100",
+  "resource":"tesla-v100",
+  "endpoint":"http://192.168.31.93:8080",
+  "tokenFile":"/etc/arvela-hub/model-services-v100.key"
+}}}
+```
+
+The key file must also be a private regular 0600 file. The existing systemd sandbox
+keeps `/etc` read-only for the service. `ARVELA_MODEL_SERVICES_CONFIG` can override
+the operator path. No HTTP endpoint accepts a gateway URL, shell command or key.
+A fixed service additionally sets `kind: "fixed"`, its exact `model` and `agents`;
+it is checked via `/health` and `/v1/models` without inference or implicit startup.
+
+All coordinator routes require the usual device authentication:
+
+| Route | Request / result |
+|---|---|
+| `GET /api/model-services/catalog` | Public explicit routes for both engines |
+| `POST /api/model-services/inspect` | `{providerID,modelID,agent}`; read-only status |
+| `POST /api/model-services/prepare` | Same IDs + opaque `requestKey`, `mode: select/run`; status with a ticket in `operation_id` |
+| `POST /api/model-services/status` | `{ticket}`; observe progress and renew the reservation |
+| `POST /api/model-services/release` | `{ticket}`; release this device's reservation, without stopping the model |
+
+Prepare is idempotent for a device and request key. After a lost acknowledgement,
+an explicit retry reuses that key; the client does not automatically replay a
+prompt. FIFO reservations are persisted in `model-reservations.sqlite3`, scoped
+to the authenticated device. Same-model clients can share residency. Another
+model waits while an earlier request or an active run owns that GPU, including
+gaps when the agent is running tools rather than generating tokens. A selection
+only warms the model; a run reservation is acquired again at the final dispatch
+boundary after preparing attachments. Manual, queued and scheduled prompts use it.
+
+While waiting/loading, status is polled about every 800 ms. Active agent sessions
+renew every 15 seconds; terminal sessions release on the next renewal tick.
+The UI preserves reservation receipts across reloads and allows startup/POST
+resynchronization. Abandoned reservations expire after 10 minutes without contact;
+this is a bounded network-failure policy, not a promise to protect an offline
+client indefinitely. Hub restart retains reservations without restarting prompts.
+Loader failure or an out-of-Hub model change is terminal, with no automatic
+inference replay. Upgrade older clients to participate: direct legacy controllers
+cannot provide a whole-turn reservation to Hub, though the VM gateway still drains
+their active HTTP streams. Coordination does not grant additional tool permissions.
+
+Progress is scoped to the requesting chat and engine. Checking, waiting, unloading,
+loading and warming show concise Russian status; byte progress is shown only if
+the loader reports it. No invented overall percentage. Ready status disappears.
+Stop/cancel keeps the draft and prevents dispatch; cancelling selection retains
+the previous model. A prompt is sent only after the exact requested model is ready.
+
+Legacy explicitly configured local services remain supported for other deployments.
+Additional providers at an already bound agent API root inherit its control gate
+and require fresh registry authorization for their exact ID; names/prefixes do not
+establish ownership. Hub routes take precedence over these local bindings.
+
 Arvela separates an **agent** (OpenCode or Pi), its provider/model
 selection, and the **inference service** holding weights in VRAM. OpenCode remains
 the default for new projects. Pi settings, histories, credentials and extensions

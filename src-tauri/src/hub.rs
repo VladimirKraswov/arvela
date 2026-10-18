@@ -210,6 +210,44 @@ fn client(c: &Config) -> Result<reqwest::blocking::Client, String> {
     b.build()
         .map_err(|_| "Cannot create Hub HTTPS client".into())
 }
+fn model_control_path(path: &str, body: Option<&Value>) -> bool {
+    if path == "model-services/catalog" {
+        return body.is_none();
+    }
+    let Some(value) = body.and_then(Value::as_object) else {
+        return false;
+    };
+    let text = |key: &str, max: usize| {
+        value.get(key).and_then(Value::as_str).is_some_and(|s| {
+            !s.is_empty()
+                && s.len() <= max
+                && s.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"._:-".contains(&b))
+        })
+    };
+    match path {
+        "model-services/status" | "model-services/release" => {
+            value.len() == 1 && text("ticket", 36)
+        }
+        "model-services/inspect" | "model-services/prepare" => {
+            let prepare = path.ends_with("prepare");
+            value.len() == (if prepare { 5 } else { 3 })
+                && text("providerID", 64)
+                && text("modelID", 128)
+                && value
+                    .get("agent")
+                    .and_then(Value::as_str)
+                    .is_some_and(|a| a == "opencode" || a == "pi")
+                && (!prepare
+                    || (text("requestKey", 128)
+                        && value
+                            .get("mode")
+                            .and_then(Value::as_str)
+                            .is_some_and(|m| m == "run" || m == "select")))
+        }
+        _ => false,
+    }
+}
 fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String> {
     origin(&c.endpoint)?;
     let allowed = path == "me"
@@ -220,11 +258,20 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         || path == "ingest"
         || memory_path(path)
         || path == "memory/retrieve";
-    if !allowed || path.contains(['#', '\\', '\r', '\n']) || path.contains("..") || path.len() > 512
+    let model_control = model_control_path(path, body.as_ref());
+    if !(allowed || model_control)
+        || path.contains(['#', '\\', '\r', '\n'])
+        || path.contains("..")
+        || path.len() > 512
     {
         return Err("Unsupported Hub API path".into());
     }
-    if body.is_some() && path != "ingest" && path != "memory" && path != "memory/retrieve" {
+    if body.is_some()
+        && !model_control
+        && path != "ingest"
+        && path != "memory"
+        && path != "memory/retrieve"
+    {
         return Err("Unsupported Hub write operation".into());
     }
     if path == "memory/retrieve" && !body.as_ref().is_some_and(retrieval::retrieval_input) {
@@ -817,6 +864,41 @@ pub fn cli() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn model_coordinator_paths_accept_only_bounded_catalog_ids_and_ticket_operations() {
+        let prepare = json!({"providerID":"local-artemis","modelID":"artemis31-v100","agent":"opencode","requestKey":"test-1","mode":"run"});
+        assert!(model_control_path("model-services/catalog", None));
+        assert!(model_control_path("model-services/prepare", Some(&prepare)));
+        assert!(!model_control_path("model-services/prepare", None));
+        let mut injected = prepare.clone();
+        injected["endpoint"] = json!("http://attacker");
+        assert!(!model_control_path(
+            "model-services/prepare",
+            Some(&injected)
+        ));
+        injected = prepare.clone();
+        injected["agent"] = json!("admin");
+        assert!(!model_control_path(
+            "model-services/prepare",
+            Some(&injected)
+        ));
+        assert!(!model_control_path(
+            "model-services/status?url=http://attacker",
+            Some(&prepare)
+        ));
+        assert!(!model_control_path(
+            "model-services/../devices",
+            Some(&prepare)
+        ));
+        assert!(model_control_path(
+            "model-services/release",
+            Some(&json!({"ticket":"12345678-1234-1234-1234-123456789012"}))
+        ));
+        assert!(!model_control_path(
+            "model-services/release",
+            Some(&json!({"ticket":"x","device":"another"}))
+        ));
+    }
     #[test]
     fn large_cards_are_uploaded_in_bounded_complete_batches() {
         let check = json!({"name":"漢".repeat(160),"status":"passed","evidence":"漢".repeat(1500)});

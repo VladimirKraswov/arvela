@@ -177,7 +177,7 @@ class ModelCatalog:
         for entry in models:
             if not isinstance(entry, dict):
                 self.error("Каждая модель должна быть объектом.")
-            extra = set(entry) - {"id", "label", "note", "opencode", "pi"}
+            extra = set(entry) - {"id", "label", "note", "opencode", "pi", "control"}
             if extra:
                 self.error(f"Неизвестные поля модели: {sorted(extra)[0]}.")
             model_id = entry.get("id")
@@ -198,10 +198,26 @@ class ModelCatalog:
                     providers[name].add(pid)
             if not any(engines.values()):
                 self.error(f"Модель {model_id} не настроена ни для одного движка.")
+            control = entry.get("control")
+            if control is not None:
+                if (not isinstance(control, dict) or set(control) != {"service", "bindings"} or
+                    not isinstance(control["service"], str) or not MODEL_ID.fullmatch(control["service"]) or
+                    not isinstance(control["bindings"], dict) or not 1 <= len(control["bindings"]) <= 32):
+                    self.error("Нужны service и bindings для управления моделью через Hub.")
+                for source, target in control["bindings"].items():
+                    if (not isinstance(source, str) or not isinstance(target, str) or
+                        not MODEL_ID.fullmatch(source) or not MODEL_ID.fullmatch(target)):
+                        self.error("Некорректная привязка модели к сервису Hub.")
+                for engine in filter(None, engines.values()):
+                    configured = engine["provider"]["models"]
+                    ids = set(configured) if isinstance(configured, dict) else {m["id"] for m in configured}
+                    if not ids <= set(control["bindings"]):
+                        self.error("Каждая модель провайдера должна иметь явную привязку к сервису Hub.")
             result.append(
                 {
                     "id": model_id,
                     "label": entry["label"],
+                    **({"control": control} if control is not None else {}),
                     **({"note": entry["note"]} if "note" in entry else {}),
                     **{k: v for k, v in engines.items() if v},
                 }
@@ -214,6 +230,10 @@ class ModelCatalog:
         models = self.validate(data)
         with self.lock:
             current = self.get()
+            requested = {entry["id"]: entry for entry in data["models"]}
+            for old in current.get("models", []):
+                if old.get("control") and old["id"] in requested and "control" not in requested[old["id"]]:
+                    self.error("Сохраните привязку управления Hub или явно удалите её (control: null). Старый редактор не может убрать её неявно.", 409)
             expected = data.get("expectedVersion")
             if expected is not None:
                 if type(expected) is not int or expected < 0:

@@ -17,6 +17,7 @@ export interface HubModel {
     id: string;
     label: string;
     note?: string;
+    control?: { service: string; bindings: Record<string, string> } | null;
     opencode?: OpencodeEngine;
     pi?: PiEngine;
 }

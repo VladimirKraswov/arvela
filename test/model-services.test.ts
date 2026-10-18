@@ -102,7 +102,7 @@ it("uses registry agent policy, fails closed before discovery, leaves unmanaged 
     "недоступна",
   );
 });
-it("waits for real readiness, exposes byte progress, shares one select and rejects another target", async () => {
+it("waits for real readiness, exposes byte progress and shares one select", async () => {
   vi.useFakeTimers();
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
     if (url.endsWith("catalog")) return response(catalog);
@@ -125,9 +125,6 @@ it("waits for real readiness, exposes byte progress, shares one select and rejec
   await manager.refresh("gpu");
   const first = manager.ensure("volta", "tuned", "pi");
   const second = manager.ensure("volta", "tuned", "pi");
-  await expect(manager.ensure("volta", "base", "pi")).rejects.toThrow(
-    "Дождитесь",
-  );
   await vi.advanceTimersByTimeAsync(0);
   expect(manager.snapshot().states.gpu.loader?.current).toBe(5);
   await vi.advanceTimersByTimeAsync(900);

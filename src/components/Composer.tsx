@@ -1,4 +1,4 @@
-import { modelServices } from "../models/services";
+import { modelServices, isSwitching } from "../models/services";
 import { compactModelName } from "../models/display";
 import { ModelSwitchStatus } from "./ModelSwitchStatus";
 import { ModelSelectionDialog } from "./ModelSelectionDialog";
@@ -52,9 +52,10 @@ export function Composer() {
   const draft = store.getDraft();
   const queueEdit = store.getQueueEdit();
   const choice = store.getModelChoice();
-  const switchState = choice ? modelServices.statusFor(choice.providerID, choice.modelID) : undefined;
-  const switchError = choice ? modelServices.errorFor(choice.providerID, choice.modelID) : undefined;
-  const switching = !!switchState && !switchState.ready && switchState.phase !== "failed" && switchState.phase !== "unloaded";
+  const switchContext = s.activeSessionId ?? `@draft:${s.directory}`;
+  const switchState = choice ? modelServices.statusFor(choice.providerID, choice.modelID, switchContext, store.engineIdFor()) : undefined;
+  const switchError = choice ? modelServices.errorFor(choice.providerID, choice.modelID, switchContext, store.engineIdFor()) : undefined;
+  const switching = isSwitching(switchState);
   const providers = store.configuredProvidersWithModels();
   const session = store.activeSession() ?? null;
   const status = session
@@ -140,11 +141,12 @@ export function Composer() {
   const selectionScopeRef = useRef(selectionScope);
   selectionScopeRef.current = selectionScope;
   const selectionTicket = useRef(0), refreshTicket = useRef(0);
+  const selectionAbort = useRef<AbortController | null>(null);
   const [selection, setSelection] = useState<{ providerID: string; modelID: string; label: string; pending: boolean; error: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState("");
-  useEffect(() => { selectionTicket.current++; refreshTicket.current++; setSelection(null); setRefreshError(""); setRefreshing(false); }, [selectionScope]);
-  useEffect(() => () => { selectionScopeRef.current = ""; selectionTicket.current++; refreshTicket.current++; }, []);
+  useEffect(() => { selectionAbort.current?.abort(); selectionTicket.current++; refreshTicket.current++; setSelection(null); setRefreshError(""); setRefreshing(false); }, [selectionScope]);
+  useEffect(() => () => { selectionAbort.current?.abort(); selectionScopeRef.current = ""; selectionTicket.current++; refreshTicket.current++; }, []);
 
   const modelList = useMemo(() => {
     const out: {
@@ -195,13 +197,15 @@ export function Composer() {
     finally { if (selectionScopeRef.current === expected && ticket === refreshTicket.current) setRefreshing(false); }
   };
   const selectModel = async (providerID: string, modelID: string) => {
+    selectionAbort.current?.abort();
+    const abort = new AbortController(); selectionAbort.current = abort;
     const expected = selectionScope;
     const ticket = ++selectionTicket.current;
     const label = modelList.find(m => m.providerID === providerID && m.modelID === modelID)?.label ?? modelID;
     setSelection({ providerID, modelID, label, pending: true, error: "" });
     try {
       const variants = store.modelInfo(providerID, modelID)?.variants;
-      await store.selectModel(providerID, modelID, variants?.medium ? "medium" : null);
+      await store.selectModel(providerID, modelID, variants?.medium ? "medium" : null, abort.signal);
       if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection(null);
     } catch (error) {
       if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection({ providerID, modelID, label, pending: false, error: error instanceof Error ? error.message : String(error) });
@@ -225,7 +229,7 @@ export function Composer() {
       void store.applyQueueEdit(text, attachments);
       return;
     }
-    if ((!text.trim() && !attachments.length) || s.ui.sending || switching || !connected) return;
+    if ((!text.trim() && !attachments.length) || s.ui.sending || !connected) return;
     if (running) {
       const target = scope;
       setAttachmentError("");
@@ -244,8 +248,8 @@ export function Composer() {
   return (
     <div className="composer-wrap">
       {selection && <ModelSelectionDialog {...selection}
-        status={modelServices.statusFor(selection.providerID, selection.modelID)}
-        onClose={() => setSelection(null)} onRetry={() => void selectModel(selection.providerID, selection.modelID)}/>}
+        status={modelServices.statusFor(selection.providerID, selection.modelID, undefined, engineId)}
+        onClose={() => { selectionAbort.current?.abort(); selectionTicket.current++; setSelection(null); }} onRetry={() => void selectModel(selection.providerID, selection.modelID)}/>}
       {!connected && (
         <div className="offline-banner" role="alert">
           <span>{isPi
@@ -271,10 +275,10 @@ export function Composer() {
         </div>
       )}
       {attachmentError && <div className="composer-error" role="alert">{attachmentError}</div>}
-      {switchState && <ModelSwitchStatus state={switchState}
+      {switchState && (switching || switchState.error) && <ModelSwitchStatus state={switchState}
         modelName={modelList.find(m => m.modelID === (switchState.target_model ?? switchState.active_model))?.label
           ?? compactModelName(switchState.target_model ?? switchState.active_model ?? "Модель")}/>}
-      {switchError && <div className="composer-error" role="alert">{switchError}</div>}
+      {switchError && !switchState?.error && <div className="composer-error" role="alert">{switchError}</div>}
       {attachmentProgress && <div className="workspace-progress" role="status">{attachmentProgress}</div>}
       {store.getQueue().length > 0 && (
         <div className="prompt-queue" aria-label="Очередь запросов">
@@ -477,12 +481,12 @@ export function Composer() {
           </div>
           <div className="composer-actions">
           <VoiceInput disabled={!connected || s.ui.workspacePreparing} onActiveChange={setVoiceActive} />
-          {running && session && (
+          {((running && session) || s.ui.sending) && (
             <button
               className="stop-btn"
-              onClick={() => void store.stopSession(session.id)}
+              onClick={() => running && session ? void store.stopSession(session.id) : store.cancelPreparation()}
               aria-label="Stop generation"
-              title="Остановить ответ"
+              title={running ? "Остановить ответ" : "Отменить подготовку"}
             >
               <Icon name="stop" size={14} />
             </button>
@@ -495,7 +499,6 @@ export function Composer() {
               (!queueEdit && !connected) ||
               (!draft.trim() && !attachments.length) ||
               s.ui.sending ||
-              (!queueEdit && switching) ||
               s.ui.workspacePreparing ||
               s.ui.runtimeLoading
             }

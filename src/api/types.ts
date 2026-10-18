@@ -150,6 +150,7 @@ export interface ModelVariantInfo {
 export interface ModelInfo {
   id: string;
   providerID: string;
+  api?: { id?: string; url?: string; npm?: string };
   name?: string;
   capabilities?: {
     reasoning?: boolean;
@@ -166,6 +167,7 @@ export interface ProviderInfo {
   id: string;
   name?: string;
   source?: string;
+  options?: { baseURL?: string };
   models: Record<string, ModelInfo>;
 }
 

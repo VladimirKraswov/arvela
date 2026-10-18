@@ -14,7 +14,7 @@ export function ModelSelectionDialog({ label, pending, error, status, onClose, o
     return () => dialog?.close();
   }, []);
   return <dialog ref={ref} className="model-selection-dialog" aria-labelledby="model-selection-title"
-    onCancel={event => { event.preventDefault(); if (!pending) onClose(); }}>
+    onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2 id="model-selection-title">{pending ? "Подготовка модели" : "Модель сейчас недоступна"}</h2>
     <p className="model-selection-name">{label}</p>
     {pending ? <>
@@ -25,7 +25,7 @@ export function ModelSelectionDialog({ label, pending, error, status, onClose, o
       <p className="model-selection-error" role="alert">{error}</p>
     </>}
     <div className="btn-row">
-      <button type="button" className="btn" disabled={pending} onClick={onClose}>Закрыть</button>
+      <button type="button" className="btn" onClick={onClose}>{pending ? "Отменить" : "Закрыть"}</button>
       {!pending && <button type="button" className="btn primary" onClick={onRetry}>Проверить снова</button>}
     </div>
   </dialog>;

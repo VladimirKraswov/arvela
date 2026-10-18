@@ -207,3 +207,5 @@ OpenCode; «Общее → Перезапустить» перезагружае
 контекстом исходников и проверенным выпуском в Hub. [Инструкция](docs/SELF-DEVELOPMENT.md).
 
 Мастерская и обычные чаты передают обоим движкам русскоязычную политику ответов при каждом запросе, включая очередь и расписание. Размышления допускаются на английском. Каталог Hub проверяет версию редактирования; конфликт требует обновить черновик. Перезапуск OpenCode доступен только для процесса, запущенного текущей Arvela; внешние серверы не завершаются.
+
+Shared local model loading and multi-client GPU coordination are handled by the authenticated Hub; see [model services and reservations](docs/MODEL-SERVICES.md). Inference streams remain direct.

@@ -17,6 +17,9 @@ _release_spec.loader.exec_module(_release_module)
 _catalog_spec = importlib.util.spec_from_file_location('arvela_model_catalog', Path(__file__).with_name('model_catalog.py'))
 _catalog_module = importlib.util.module_from_spec(_catalog_spec)
 _catalog_spec.loader.exec_module(_catalog_module)
+_services_spec = importlib.util.spec_from_file_location('arvela_model_services', Path(__file__).with_name('model_services.py'))
+_services_module = importlib.util.module_from_spec(_services_spec)
+_services_spec.loader.exec_module(_services_module)
 
 MAX_BODY = 2 * 1024 * 1024
 KINDS = {'skill', 'prompt', 'tool', 'template', 'runbook'}
@@ -191,6 +194,7 @@ class Hub:
         self.memory = _memory_module.Memory(self.connection, self.lock, scrub, Fault)
         self.releases = _release_module.Releases(root, self.lock, Fault)
         self.model_catalog = _catalog_module.ModelCatalog(root, self.lock, Fault)
+        self.model_services = _services_module.ModelServices(root, self.model_catalog, Fault)
 
     @contextlib.contextmanager
     def connection(self):
@@ -427,6 +431,8 @@ class Hub:
             'note':'Категории эвристические. Отказы и отмены не означают поломку. Статус completed не гарантирует успешный exit code; сырые выводы не собираются. Скорость и качество моделей по этим данным не оцениваются.'}
 
     def api(self, method, path, query, actor, data):
+        if path.startswith('/api/model-services/'):
+            return self.model_services.api(method, path.removeprefix('/api/model-services/'), actor, data)
         if path == '/api/updates' or path.startswith('/api/updates/'):
             return self.releases.api(method, path, actor, data)
         if path == '/api/memory/retrieve' and method == 'POST':

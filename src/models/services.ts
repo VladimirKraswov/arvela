@@ -1,5 +1,7 @@
 import { systemCredentials, type CredentialStore } from "./credentials";
 import { ApiError, ConnectionError, isAllowedBaseUrl, OpenCodeClient } from "../api/client";
+import { publicSources, resolveService, type ModelSource } from "./routing";
+import type { HubModelServices } from "./hub";
 
 /** Persisted routing contains no credential and no model-name heuristics. */
 export interface ModelService {
@@ -85,7 +87,7 @@ export function validateServices(services: unknown): string | null {
   return null;
 }
 
-function validStatus(value: SwitchStatus): boolean {
+export function validStatus(value: SwitchStatus): boolean {
   const textOrNull = (v: unknown) => v === null || typeof v === "string";
   const counter = (v: unknown) =>
     typeof v === "number" && Number.isFinite(v) && v >= 0;
@@ -111,6 +113,15 @@ function validStatus(value: SwitchStatus): boolean {
 
 export class ModelServices {
   private services: ModelService[] = [];
+  private sources = new Map<string, ModelSource[]>();
+  private hub?: HubModelServices;
+  attachHub(hub: HubModelServices) {
+    this.hub = hub;
+    return hub.subscribe(() => this.emit());
+  }
+  observeActivity() { this.hub?.observeActivity(); }
+  hubRoutes() { return this.hub?.configuredRoutes() ?? []; }
+  async refreshHub() { await this.hub?.refresh(); }
   private catalogs = new Map<string, ServiceModel[]>();
   private keys = new Map<string, string>();
   private flights = new Map<
@@ -160,12 +171,19 @@ export class ModelServices {
     return this.catalogs.get(id);
   }
   configuredServices(): ModelService[] { return structuredClone(this.services); }
+  setSources(agent: string, models: ModelSource[]): void {
+    const next = publicSources(models);
+    if (JSON.stringify(this.sources.get(agent)) === JSON.stringify(next)) return;
+    this.sources.set(agent, next);
+    this.emit();
+  }
   private displayCatalog(service: ModelService): readonly ServiceModel[] | undefined {
     return this.catalogs.get(service.id) ?? service.catalog?.models;
   }
   /** Visibility and execution authorization intentionally have different lifetimes. */
   visible(providerID: string, modelID: string, agent: string): boolean {
-    const service = this.route(providerID, modelID);
+    if (this.hub?.route(providerID, modelID)) return !!this.hub.route(providerID, modelID, agent);
+    const service = this.route(providerID, modelID, agent);
     if (!service) return this.allowed(providerID, modelID, agent);
     const model = this.displayCatalog(service)?.find(m => m.id === service.bindings[modelID]);
     return model ? model.agents.includes(agent) : true;
@@ -197,6 +215,7 @@ export class ModelServices {
     const error = validateServices(services);
     if (error) throw new Error(error);
     this.generation++;
+    this.flights.clear();
     this.services = structuredClone(services).map((service) => ({
       ...service,
       endpoint: new URL(service.endpoint).origin,
@@ -228,25 +247,29 @@ export class ModelServices {
     if (key) client.headers = { Authorization: `Bearer ${key}` };
     return client;
   }
-  private route(providerID: string, modelID: string) {
-    return this.services.find(
-      (service) =>
-        service.providerID === providerID && service.bindings[modelID],
-    );
+  private route(providerID: string, modelID: string, agent?: string) {
+    return resolveService(this.services, this.sources, providerID, modelID, agent).service;
   }
-  statusFor(providerID: string, modelID: string) {
+  statusFor(providerID: string, modelID: string, context?: string, agent?: string) {
+    if (this.hub?.route(providerID, modelID)) return this.hub.status(providerID, modelID, context, agent);
     const service = this.route(providerID, modelID);
     return service ? this.value.states[service.id] : undefined;
   }
-  errorFor(providerID: string, modelID: string) {
+  errorFor(providerID: string, modelID: string, context?: string, agent?: string) {
+    if (this.hub?.route(providerID, modelID)) return this.hub.status(providerID, modelID, context, agent)?.error;
     const service = this.route(providerID, modelID);
     return service ? this.value.errors[service.id] : undefined;
   }
   manages(providerID: string, modelID: string): boolean {
-    return !!this.route(providerID, modelID);
+    if (this.hub?.route(providerID, modelID)) return true;
+    const route = resolveService(this.services, this.sources, providerID, modelID);
+    return !!route.service || !!route.error;
   }
   allowed(providerID: string, modelID: string, agent: string): boolean {
-    const service = this.route(providerID, modelID);
+    if (this.hub?.route(providerID, modelID)) return !!this.hub.route(providerID, modelID, agent);
+    const resolved = resolveService(this.services, this.sources, providerID, modelID, agent);
+    if (resolved.error) return false;
+    const service = resolved.service;
     if (!service) {
       const providerServices = this.services.filter((s) => s.providerID === providerID);
       if (!providerServices.length) return true;
@@ -303,7 +326,8 @@ export class ModelServices {
   }
   /** Observe readiness only: no select, load, inference or retry of a user prompt. */
   async check(providerID: string, modelID: string, agent: string): Promise<void> {
-    const service = this.route(providerID, modelID);
+    if (this.hub?.route(providerID, modelID)) return this.hub.check(providerID, modelID, agent);
+    const service = this.route(providerID, modelID, agent);
     if (!service) throw new Error("Сервис модели не настроен.");
     const gen = this.generation;
     let serviceFailure = true;
@@ -346,26 +370,37 @@ export class ModelServices {
     providerID: string,
     modelID: string,
     agent: string,
+    options?: {owner?: string; signal?: AbortSignal; context?: string},
   ): Promise<void> {
-    const service = this.route(providerID, modelID);
+    if (this.hub) {
+      await this.hub.refresh().catch(error => {
+        if (this.hub?.route(providerID, modelID) || this.hub?.configured() && this.route(providerID, modelID, agent)) throw error;
+      });
+      if (this.hub.route(providerID, modelID)) return this.hub.ensure(providerID, modelID, agent, options?.owner, options?.signal, options?.context ?? options?.owner);
+    }
+    const resolved = resolveService(this.services, this.sources, providerID, modelID, agent);
+    if (resolved.error) throw new Error(resolved.error);
+    const service = resolved.service;
     if (!service) {
       if (!this.allowed(providerID, modelID, agent)) throw new Error("Для этой модели требуется привязка к сервису и проверка агента.");
       return;
     }
     const gen = this.generation;
-    if (!this.catalogs.has(service.id)) await this.refresh(service.id);
-    if (gen !== this.generation)
-      throw new Error("Настройки сервиса изменились; отправка отменена.");
-    if (!this.allowed(providerID, modelID, agent))
-      throw new Error("Эта модель недоступна выбранному агенту.");
     const target = service.bindings[modelID],
       flight = this.flights.get(service.endpoint);
     if (flight) {
-      if (flight.model !== target)
-        throw new Error("Дождитесь текущего переключения модели.");
-      return flight.promise;
+      if (flight.model === target) {
+        await flight.promise;
+        if (!this.allowed(providerID, modelID, agent)) throw new Error("Эта модель недоступна выбранному агенту.");
+        return;
+      }
+      // Wait behind a local switch instead of sending a premature inference or
+      // issuing a competing select. A failed first switch does not authorize us.
+      await flight.promise.catch(() => {});
+      if (gen !== this.generation) throw new Error("Настройки сервиса изменились; отправка отменена.");
+      return this.ensure(providerID, modelID, agent);
     }
-    const promise = this.switch(service, target, agent);
+    const promise = this.prepare(service, modelID, target, agent, gen);
     this.flights.set(service.endpoint, { model: target, promise });
     try {
       await promise;
@@ -374,10 +409,52 @@ export class ModelServices {
         this.flights.delete(service.endpoint);
     }
   }
+  /** Reserve the ready model for the whole native agent turn, not just its first
+   * HTTP response. Called at the last dispatch boundary after file preparation. */
+  async reserve(providerID: string, modelID: string, agent: string, owner: string, signal?: AbortSignal) {
+    if (this.hub?.route(providerID, modelID)) await this.hub.ensure(providerID, modelID, agent, owner, signal);
+  }
+  private publish(service: ModelService, state: SwitchStatus) {
+    this.emit({ states: { ...this.value.states, ...Object.fromEntries(this.services
+      .filter(s => s.endpoint === service.endpoint).map(s => [s.id, state])) } });
+  }
+  private async prepare(service: ModelService, modelID: string, target: string, agent: string, gen: number) {
+    const started = Date.now();
+    const errors = { ...this.value.errors };
+    for (const item of this.services.filter(s => s.endpoint === service.endpoint)) delete errors[item.id];
+    this.emit({ errors });
+    this.publish(service, { schema: 1, operation_id: null, phase: "checking", ready: false,
+      active_model: null, target_model: target, elapsed_seconds: 0, active_requests: 0, error: null, loader: null });
+    const current = () => {
+      const route = this.route(service.providerID, modelID, agent);
+      if (gen !== this.generation || route?.endpoint !== service.endpoint || route.bindings[modelID] !== target)
+        throw new Error("Настройки сервиса изменились; отправка отменена.");
+    };
+    try {
+      // Cached labels never grant permission, including newly discovered aliases.
+      await this.refresh(service.id);
+      current();
+      if (!this.allowed(service.providerID, modelID, agent)) throw new Error("Эта модель недоступна выбранному агенту.");
+      await this.switch(service, target, agent, current);
+    } catch (error) {
+      if (gen === this.generation) {
+        const detail = error instanceof ApiError ? (error.status === 401 || error.status === 403
+          ? "Нет доступа к сервису модели. Проверьте ключ в настройках." : `Сервис модели вернул HTTP ${error.status}.`)
+          : error instanceof ConnectionError ? "Нет соединения с сервисом модели. Проверьте SSH-туннель."
+          : error instanceof Error ? error.message : "Не удалось подготовить модель.";
+        this.publish(service, { schema: 1, operation_id: null, phase: "failed", ready: false,
+          active_model: null, target_model: target, elapsed_seconds: (Date.now() - started) / 1000,
+          active_requests: 0, error: detail, loader: null });
+        throw new Error(detail);
+      }
+      throw error;
+    }
+  }
   private async switch(
     service: ModelService,
     model: string,
     agent: string,
+    current: () => void,
   ): Promise<void> {
     const client = this.client(service),
       gen = this.generation;
@@ -385,6 +462,7 @@ export class ModelServices {
     for (const item of this.services.filter((s) => s.endpoint === service.endpoint)) delete errors[item.id];
     this.emit({ errors });
     const publish = (state: SwitchStatus) => {
+      current();
       if (gen !== this.generation)
         throw new Error("Настройки сервиса изменились; отправка отменена.");
       if (!validStatus(state))
@@ -412,7 +490,7 @@ export class ModelServices {
         publish(state);
         if (state.error || state.phase === "failed")
           throw new Error(state.error || "Загрузка модели не удалась.");
-        if (state.ready && state.active_model === model) return;
+        if (state.ready && state.phase === "ready" && state.active_model === model) return;
         if (state.operation_id !== operation || state.target_model !== model)
           throw new Error(
             "Модель переключена другим клиентом; запрос не отправлен.",
@@ -443,7 +521,12 @@ export class ModelServices {
   }
 }
 export const modelServices = new ModelServices();
+export const isSwitching = (state?: {phase: string; ready: boolean}) => !!state && !state.ready &&
+  ["checking", "waiting", "draining", "unloading", "loading", "warming"].includes(state.phase);
 export const switchPhaseLabels: Record<string, string> = {
+  checking: "Проверка сервиса модели",
+  waiting: "Ожидание модели: сервис занят другим заданием",
+  cancelled: "Подготовка модели отменена",
   unloaded: "Модель выгружена",
   draining: "Ожидание завершения запросов",
   unloading: "Выгрузка модели",

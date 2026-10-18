@@ -21,6 +21,57 @@ const session = (id: string, directory = "/test/A", agent = "qwen-build") => ({
 const flush = async () => {
   for (let n = 0; n < 12; n++) await Promise.resolve();
 };
+it('Hub readiness holds the original prompt and reserves the model before exactly one engine dispatch', async () => {
+  store.state = {...store.state, activeSessionId: 'ses_a', sessions: [session('ses_a')], connectedProviderIds: ['local-qwen-next']};
+  store.commitModelChoice('local-qwen-next', 'qwen38-flash-next', 'medium'); store.setDraft('write a story');
+  const {HubModelServices} = await import('../src/models/hub');
+  const {modelServices} = await import('../src/models/services');
+  let ready = false;
+  const calls: string[] = [];
+  const route = {service:'gpu',label:'GPU',providerID:'local-qwen-next',modelID:'qwen38-flash-next',target:'qwen38-flash-next',agent:'opencode'};
+  const hub = new HubModelServices({identity:async()=> 'hub-test',request:async(path,body:any)=>{
+    calls.push(path + ':' + (body?.mode ?? ''));
+    if(path==='catalog')return {schema:1,routes:[route]} as any;
+    return {schema:1,operation_id:'12345678-1234-1234-1234-123456789012',phase:ready?'ready':'loading',ready,
+      active_model:ready?route.target:null,target_model:route.target,elapsed_seconds:1,active_requests:0,error:null,loader:null} as any;
+  }});
+  modelServices.attachHub(hub); await hub.refresh();
+  const prompt = vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+  const sending = store.sendPrompt('write a story');
+  await vi.waitFor(()=>expect(calls).toContain('prepare:select'));
+  expect(prompt).not.toHaveBeenCalled(); expect(store.getDraft()).toBe('write a story');
+  ready = true;
+  expect(await sending).toBe(true); expect(prompt).toHaveBeenCalledOnce();
+  expect(calls).toContain('prepare:run');
+  expect(prompt.mock.calls[0][2].parts[0]).toEqual({type:'text',text:'write a story'});
+});
+it('Stop while Hub is loading withdraws preparation, preserves the draft and never sends to the agent', async () => {
+  store.state = {...store.state, activeSessionId:'ses_a',sessions:[session('ses_a')],connectedProviderIds:['local-qwen-next']};
+  store.commitModelChoice('local-qwen-next','qwen38-flash-next','medium'); store.setDraft('keep me');
+  const {HubModelServices} = await import('../src/models/hub');
+  const {modelServices} = await import('../src/models/services');
+  const route = {service:'gpu',label:'GPU',providerID:'local-qwen-next',modelID:'qwen38-flash-next',target:'qwen38-flash-next',agent:'opencode'};
+  const request = vi.fn(async(path:string)=>path==='catalog'?{schema:1,routes:[route]}:{schema:1,operation_id:'12345678-1234-1234-1234-123456789012',phase:'loading',ready:false,
+    active_model:null,target_model:route.target,elapsed_seconds:1,active_requests:0,error:null,loader:null});
+  const hub = new HubModelServices({identity:async()=> 'hub-test',request:request as any});
+  modelServices.attachHub(hub); await hub.refresh();
+  const prompt = vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+  const sending = store.sendPrompt('keep me');
+  await vi.waitFor(()=>expect(request.mock.calls.some(([p])=>p==='prepare')).toBe(true));
+  store.cancelPreparation();
+  expect(await sending).toBe(false); expect(store.getDraft()).toBe('keep me'); expect(prompt).not.toHaveBeenCalled();
+  await vi.waitFor(()=>expect(request.mock.calls.some(([p])=>p==='release')).toBe(true));
+});
+it('a reservation failure after creating the first chat leaves the prompt in that chat draft', async()=>{
+  store.state={...store.state,activeSessionId:null,sessions:[],connectedProviderIds:['local-qwen-next']};
+  store.commitModelChoice('local-qwen-next','qwen38-flash-next','medium');store.setDraft('preserve first prompt');
+  vi.spyOn(store.client,'createSession').mockResolvedValue(session('ses_created'));
+  const {modelServices}=await import('../src/models/services');
+  vi.spyOn(modelServices,'reserve').mockRejectedValue(new Error('Hub offline'));
+  const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+  expect(await store.sendPrompt('preserve first prompt')).toBe(false);
+  expect(store.state.activeSessionId).toBe('ses_created');expect(store.getDraft()).toBe('preserve first prompt');expect(prompt).not.toHaveBeenCalled();
+});
 it('routes access changes to Pi and keeps OpenCode out of its permissions', async () => {
   const piSession = { ...session('pi:access'), permission: [] };
   store.state.activeSessionId = piSession.id;

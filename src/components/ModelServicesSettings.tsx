@@ -43,6 +43,19 @@ export function ModelServicesSettings() {
   };
   return (
     <>
+      <section className="setting-group" aria-label="Координатор моделей Hub">
+        <h2 className="setting-field-heading">Координатор моделей Hub <SettingHelp topic="Координатор моделей Hub" description="Общий сервис согласует загрузку моделей между устройствами. Модель резервируется на время задания, включая выполнение инструментов. Если другая модель на той же видеокарте занята, запрос ждёт. Разные видеокарты работают независимо. После потери связи резерв освобождается через 10 минут. Старые клиенты без координатора нужно обновить."/></h2>
+        <div className="setting-card">
+          <div className="setting-row"><div className="setting-label"><span>Общие модели</span>
+            <small>Переключение и очередь между устройствами</small></div>
+            <button className="btn" onClick={() => void modelServices.refreshHub().catch(e => setError(String(e)))}>Обновить</button></div>
+          {modelServices.hubRoutes().map(route => <div className="setting-row" key={`${route.agent}/${route.providerID}/${route.modelID}`}>
+            <div className="setting-label"><span>{route.label} · {route.agent === "pi" ? "Pi" : "OpenCode"}</span>
+              <small>{route.providerID} / {route.modelID}</small></div>
+          </div>)}
+          {!modelServices.hubRoutes().length && <div className="setting-row">Нет привязок в каталоге Hub</div>}
+        </div>
+      </section>
 
       {services.map((service) => (
         <section

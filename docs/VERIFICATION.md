@@ -1,3 +1,46 @@
+# Arvela 0.2.75 — central Hub model readiness (2026-10-18)
+
+Reproduced the exact owner's Artemis failure: the configured provider had no
+model-control binding; the VM gateway still had Qwen resident and returned 409.
+The owner's failed prompt was not replayed.
+
+Shared catalog v2 now explicitly routes nine engine/model pairs through Hub:
+V100 VM5100 uses its existing switching gateway; RTX5090 VM5200 is monitored as
+an always-resident fixed server. Private gateway registry and credentials live
+only on CT206. Source, gateway processes, inference URLs, model/variant settings
+and physical GPU ownership remain independent. See [architecture and protocol](MODEL-SERVICES.md).
+
+Checks before publication: 939 frontend passed / 6 existing opt-in skipped;
+130 native passed / 3 existing opt-in ignored; 74 Hub passed locally and on the
+actual Debian container. TS/Vite, architecture173, bundle budgets, fmt and strict
+Clippy passed. Canonical publisher repeats the required gates before signing.
+
+Real Hub + isolated Chromium using the production Composer: an actual Qwen run
+reservation held Artemis in waiting; Stop kept the draft with zero engine
+submissions. Releasing it produced real unload/load/ready transitions on V100;
+the isolated stub engine was invoked exactly once only after exact Artemis
+readiness. No inference or owner-history changes were needed for that gate test.
+Flash Next remained ready on the separate GPU. Wide/narrow layout and page errors
+were checked. A second real-Hub test held Artemis while Gemma waited: three
+unrelated-chat lease heartbeats could not overwrite the selected chat's status;
+Stop cleared progress without an error or dispatch. Artemis stayed resident.
+
+Hub restart retained its existing catalog/data. Updated coordinator/catalog code
+passed Linux tests before deployment with private backups; catalog v2 preserved.
+Control metadata cannot be silently stripped by old clients' editors. Expiring
+reservations, explicit idempotent retry after a lost ack, lease scope, failures,
+cancellation races, loader progress, independent GPUs, fixed-server exact model
+checks and draft preservation are covered by tests. No auto prompt replay or
+implicit inference fallback. Old direct clients must upgrade to participate in
+whole-turn coordination. Offline clients lose reservations after ten minutes;
+see the protocol's limits rather than assuming an indefinite lock.
+
+Installed Mac0.2.74, external OpenCode and owner agents were not restarted or
+modified. Test-owned Vite1431 and fixtures were removed. Windows/Linux runtime
+acceptance is separate; cross-platform source is delivered by the signed Hub
+release. Publication receipt and actual served-packet verification are recorded
+in the follow-up release checkpoint. No installation is claimed here.
+
 # Full access consistency — 0.2.49 (2026-10-11)
 
 User explicitly requested Full access across both agents, delegated sessions and

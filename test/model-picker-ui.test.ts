@@ -32,7 +32,7 @@ it("keeps offline rows selectable and refresh accessible, including an empty cat
   } finally { act(() => root.unmount()); }
 });
 
-it("uses a modal warning with retry, then blocks dismissal during the actual readiness check", () => {
+it("uses a modal warning with retry, allows cancelling the pending readiness check", () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   HTMLDialogElement.prototype.showModal = vi.fn(function(this: HTMLDialogElement) { this.open = true; });
   HTMLDialogElement.prototype.close = vi.fn(function(this: HTMLDialogElement) { this.open = false; });
@@ -48,13 +48,13 @@ it("uses a modal warning with retry, then blocks dismissal during the actual rea
     expect(retry).toHaveBeenCalledTimes(1);
     act(() => root.render(createElement(ModelSelectionDialog, { ...props, pending: true, error: "" })));
     expect(node.textContent).toContain("Подготовка модели");
-    expect(node.querySelector("button")?.disabled).toBe(true);
+    expect(node.querySelector("button")?.disabled).toBe(false);
     const cancel = new Event("cancel", { cancelable: true });
     act(() => node.querySelector("dialog")!.dispatchEvent(cancel));
     expect(cancel.defaultPrevented).toBe(true);
-    expect(close).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
     act(() => root.render(createElement(ModelSelectionDialog, props)));
     act(() => node.querySelector("dialog")!.dispatchEvent(new Event("cancel", { cancelable: true })));
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(2);
   } finally { act(() => root.unmount()); }
 });

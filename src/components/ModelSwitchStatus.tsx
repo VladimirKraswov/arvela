@@ -1,4 +1,4 @@
-import { switchPhaseLabels } from "../models/services";
+import { isSwitching, switchPhaseLabels } from "../models/services";
 import { Icon } from "./Icon";
 
 export function ModelSwitchStatus({ state, modelName }: {
@@ -6,10 +6,11 @@ export function ModelSwitchStatus({ state, modelName }: {
     loader?: { unit?: string | null; total: number; current: number } | null };
   modelName: string;
 }) {
-  const loading = !state.ready && state.phase !== "failed" && state.phase !== "unloaded";
+  const loading = isSwitching(state);
   return <div className={`model-switch-status ${state.ready ? "is-ready" : ""}`} role="status" aria-live="polite">
     <div className="model-switch-summary">
       {state.ready && <Icon name="check" size={14}/>}
+      {loading && <span className="tool-spinner" aria-hidden="true"/>}
       <span>{state.ready ? "Готова" : switchPhaseLabels[state.phase] ?? "Подготовка модели"}</span>
       <span className="model-switch-name" title={modelName}>{modelName}</span>
       {loading && <span className="model-switch-time">{Math.max(0, Math.floor(state.elapsed_seconds))} с</span>}

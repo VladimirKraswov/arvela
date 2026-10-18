@@ -104,6 +104,23 @@ class ModelCatalog(unittest.TestCase):
         self.assertEqual(r["version"], 2)
         self.assertEqual(self.get()["models"], [])
 
+    def test_control_binding_survives_older_editors_and_requires_explicit_removal(self):
+        control = {"service": "v100", "bindings": {"artemis31-v100": "artemis31-v100"}}
+        self.put({"models": [entry(control=control)]})
+        with self.assertRaises(m.Fault) as error:
+            self.put({"models": [entry()]})
+        self.assertEqual(error.exception.status, 409)
+        self.assertEqual(self.get()["models"][0]["control"], control)
+        self.put({"models": [entry(control=None)]})
+        self.assertNotIn("control", self.get()["models"][0])
+
+    def test_control_rejects_urls_unknown_fields_and_unbound_engine_models(self):
+        for control in ({"service": "http://attacker", "bindings": {"artemis31-v100": "artemis31-v100"}},
+            {"service": "v100", "bindings": {}}, {"service": "v100", "bindings": {"other": "artemis31-v100"}},
+            {"service": "v100", "bindings": {"artemis31-v100": "artemis31-v100"}, "token": "private"}):
+            with self.assertRaises(m.Fault):
+                self.put({"models": [entry(control=control)]})
+
     def test_admin_required(self):
         with self.assertRaises(m.Fault) as e:
             self.put({"models": [entry()]}, self.a)

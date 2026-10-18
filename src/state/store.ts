@@ -15,6 +15,7 @@ export type { AppState, UiState, ConnectionState, ConnectionPhase } from './type
 import { chooseOpenCodeModel, choosePiModel, parseModelId, piModelInfo, type ModelChoice } from './modelChoice';
 import {configureShared} from "../capabilities/integration";
 import { modelServices, type ModelService } from "../models/services";
+import { HubModelServices } from "../models/hub";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
 import { chatBlocker, liveModelProblem, modelProblem } from "../schedules/preflight";
 import { untilAborted } from "../util/abort";
@@ -745,6 +746,11 @@ class Store {
   ): void {
     const p = typeof patch === "function" ? patch(this.state) : patch;
     this.state = { ...this.state, ...p, rev: this.state.rev + 1 };
+    if (p.providers) modelServices.setSources("opencode", (isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()) ? p.providers : []).flatMap(provider =>
+      Object.values(provider.models).map(model => ({ providerID: provider.id, modelID: model.id,
+        remoteID: model.api?.id, baseURL: model.api?.url || provider.options?.baseURL }))));
+    if ("piHealth" in p) modelServices.setSources(PI_BACKEND_ID, (p.piHealth?.models ?? []).map(model =>
+      ({ providerID: model.provider, modelID: model.id, baseURL: model.baseUrl })));
     if (p.sessions || p.archivedSessions) {
       const managed = new Set(this.state.prefs.projectlessDirectories ?? []);
       const index = new Map(
@@ -759,6 +765,7 @@ class Store {
       };
       this.persistPrefs();
     }
+    modelServices.observeActivity();
     this.notifications.notify();
   }
 
@@ -1999,13 +2006,14 @@ class Store {
    * see whether the provider answers. A configured model proves nothing about
    * credentials, endpoint or entitlement.
    */
-  async checkPiModelAccess(modelId?: string): Promise<{ ok: boolean; detail: string }> {
+  async checkPiModelAccess(modelId?: string, signal?: AbortSignal): Promise<{ ok: boolean; detail: string }> {
     const choice = modelId ? parseModelId(modelId) : this.getModelChoice(PI_BACKEND_ID);
     if (!choice)
       return { ok: false, detail: "Модель для Pi не выбрана." };
     const id = `${choice.providerID}/${choice.modelID}`;
     try {
-      await modelServices.ensure(choice.providerID, choice.modelID, PI_BACKEND_ID);
+      await modelServices.ensure(choice.providerID, choice.modelID, PI_BACKEND_ID, {signal});
+      signal?.throwIfAborted();
       const detail = await this.pi().checkAccess(
         await piBridge().probeDirectory().catch(() => ""),
         choice,
@@ -2054,14 +2062,14 @@ class Store {
 
   private modelSelectionRevision = 0;
   /** Do not write the choice until the selected target passes its readiness check. */
-  async selectModel(providerID: string, modelID: string, variant?: string | null): Promise<boolean> {
+  async selectModel(providerID: string, modelID: string, variant?: string | null, signal?: AbortSignal): Promise<boolean> {
     const revision = ++this.modelSelectionRevision;
     const engine = this.engineIdFor(), directory = this.state.directory, session = this.state.activeSessionId;
     const generation = this.directoryGeneration, backend = this.backend;
-    const current = () => revision === this.modelSelectionRevision && generation === this.directoryGeneration &&
+    const current = () => !signal?.aborted && revision === this.modelSelectionRevision && generation === this.directoryGeneration &&
       engine === this.engineIdFor() && directory === this.state.directory && session === this.state.activeSessionId && backend === this.backend;
     if (engine === PI_BACKEND_ID) {
-      const result = await this.checkPiModelAccess(`${providerID}/${modelID}`);
+      const result = await this.checkPiModelAccess(`${providerID}/${modelID}`, signal);
       if (!current()) return false;
       if (!result.ok) throw new Error(result.detail);
     } else {
@@ -2072,7 +2080,7 @@ class Store {
       if (!health.healthy) throw new Error("Нет связи с OpenCode.");
       if (!modelServices.manages(providerID, modelID) && !this.state.connectedProviderIds.includes(providerID))
         throw new Error("Провайдер сейчас недоступен. Проверьте его настройки подключения.");
-      await modelServices.ensure(providerID, modelID, engine);
+      await modelServices.ensure(providerID, modelID, engine, {signal});
       if (!current()) return false;
     }
     this.commitModelChoice(providerID, modelID, variant);
@@ -2335,7 +2343,7 @@ class Store {
       }
       // Browser setup can take time. Re-check authoritative interaction state before dispatch.
       if (!pi) await untilAborted(this.configureSharedTools(task.directory), signal);
-      await untilAborted(modelServices.ensure(task.model.providerID, task.model.modelID, task.engine), signal);
+      await untilAborted(modelServices.ensure(task.model.providerID, task.model.modelID, task.engine, {signal, context: task.sessionID}), signal);
       const [freshStatus, freshPermissions, freshQuestions] = await untilAborted(Promise.all([
         backend.sessionStatuses(task.directory, signal), backend.pendingPermissions(task.directory, signal), backend.pendingQuestions(task.directory, signal),
       ]), signal);
@@ -2347,6 +2355,8 @@ class Store {
       // No signal: a prompt that may have been delivered is never abandoned as if it was not.
       const seq = this.statusSequence;
       try {
+        await untilAborted(modelServices.reserve(task.model.providerID, task.model.modelID, task.engine, task.sessionID, signal), signal);
+        if (!current() || signal.aborted || (this.queueStops.get(task.sessionID) ?? 0) !== stopped) return { kind: "cancelled" };
         const messageID = newMessageId(), dispatchAt = Date.now();
         (this.state.chat.sessions[task.sessionID] ??= emptySessionChat()).pendingTiming = {
           ...(pi ? {} : {messageID}), dispatchAt, preparationMs: dispatchAt - preparationStarted, queueMs: null,
@@ -2454,7 +2464,7 @@ class Store {
     try {
       if (attachments.length) attachments = await attachmentDrafts.selected(initialScope, attachments.map(file => file.id));
       if (!text.trim() && !attachments.length) return false;
-      if (modelServices.manages(model.providerID, model.modelID)) await modelServices.ensure(model.providerID, model.modelID, engineId);
+      await untilAborted(modelServices.ensure(model.providerID, model.modelID, engineId, {signal: operation.signal, context: selected ?? `@draft:${directory}`}), operation.signal);
       if (!sameContext() || this.state.activeSessionId !== selected) return false;
       if (attachments.length && scope !== initialScope) await attachmentDrafts.move(initialScope, scope);
       // Do not submit the first prompt before its directory's MCP is attached.
@@ -2493,19 +2503,24 @@ class Store {
         sessionId = created.id;
         operation.sessionID = created.id;
         this.rememberActivitySession(created);
-        this.mutate((s) => ({
-          sessions: [created, ...s.sessions.filter((x) => x.id !== created.id)],
-          activeSessionId: created.id,
-          prefs: {
-            ...s.prefs,
-            // The chat's engine is pinned at creation and survives restarts.
-            sessionEngine: { ...s.prefs.sessionEngine, [created.id]: engineId },
-            lastSessionByDir: {
-              ...s.prefs.lastSessionByDir,
-              [directory]: created.id,
+        this.mutate((s) => {
+          const drafts = { ...s.prefs.drafts };
+          if (drafts[slotKey] !== undefined) { drafts[created.id] = drafts[slotKey]; delete drafts[slotKey]; }
+          return {
+            sessions: [created, ...s.sessions.filter((x) => x.id !== created.id)],
+            activeSessionId: created.id,
+            prefs: {
+              ...s.prefs,
+              drafts,
+              // The chat's engine is pinned at creation and survives restarts.
+              sessionEngine: { ...s.prefs.sessionEngine, [created.id]: engineId },
+              lastSessionByDir: {
+                ...s.prefs.lastSessionByDir,
+                [directory]: created.id,
+              },
             },
-          },
-        }));
+          };
+        });
         this.persistPrefs();
         if (attachments.length) {
           const nextScope = attachmentScope(this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, directory, created.id);
@@ -2515,6 +2530,8 @@ class Store {
       }
       if (!sameContext() || this.state.activeSessionId !== sessionId) return false;
       const target = sessionId;
+      await untilAborted(modelServices.reserve(model.providerID, model.modelID, engineId, target, operation.signal), operation.signal);
+      if (!sameContext() || operation.signal.aborted || this.state.activeSessionId !== target) return false;
       const messageID = newMessageId();
       const dispatchAt = Date.now();
       (this.state.chat.sessions[target] ??= emptySessionChat()).pendingTiming = {
@@ -2544,6 +2561,7 @@ class Store {
       this.mutate((s) => {
         const drafts = { ...s.prefs.drafts };
         if (drafts[slotKey] === text) delete drafts[slotKey];
+        if (!selected && drafts[target] === text) delete drafts[target];
         if (
           this.isProjectlessDirectory(directory) &&
           drafts[draftKey(null, null)] === text
@@ -2654,6 +2672,9 @@ class Store {
     } catch (e) {
       this.patchUi({ toast: `Stop failed: ${errText(e)}` });
     }
+  }
+  cancelPreparation(): void {
+    if (this.submissions.cancelPreparing()) this.patchUi({ sending: false });
   }
 
   async compactSession(sessionId: string): Promise<void> {
@@ -2937,7 +2958,7 @@ class Store {
       if (!flushPrefs()) throw new Error("Не удалось сохранить состояние очереди. Запрос не отправлен.");
       // OpenCode persists a new user message, then joins the existing run loop.
       // No abort: the correction is seen at the next model/tool boundary.
-      await modelServices.ensure(item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory));
+      await modelServices.ensure(item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory), {context: sid});
       if (!current()) throw new Error("Чат изменился; запрос не отправлен.");
       const parts: Awaited<ReturnType<typeof prepareAttachments>> = [];
       if (item.attachments?.files.length) {
@@ -2963,6 +2984,8 @@ class Store {
         preparationMs: dispatchAt - preparationStarted,
         queueMs: typeof item.queuedAt === 'number' && preparationStarted >= item.queuedAt ? preparationStarted - item.queuedAt : null,
       };
+      await modelServices.reserve(item.model.providerID, item.model.modelID, engineId, sid);
+      if (!current() || (this.queueStops.get(sid) ?? 0) !== stopped) throw new Error("Отправка отменена.");
       const submit = steer && backend.steer ? backend.steer.bind(backend) : backend.prompt.bind(backend);
       await operationJournal.dispatch({ id: messageID, workspace: this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, engine: engineId, sessionId: sid, directory: item.directory, source: "queue", sourceId: item.id, text: item.text, model: `${item.model.providerID}/${item.model.modelID}`, attachments: item.attachments ?? null },
         () => current() && (this.queueStops.get(sid) ?? 0) === stopped, async () => {
@@ -3535,6 +3558,11 @@ export { errText } from "./errors";
 
 export const store = new Store();
 const stopCatalogPersistence = modelServices.subscribe(() => store.syncModelServiceCatalogs());
+const hubModels = isNative() ? new HubModelServices(undefined, id => store.isRunning(id)) : undefined;
+const stopHubModels = hubModels && modelServices.attachHub(hubModels);
+hubModels?.start();
+const refreshHubModels = () => { hubModels?.connectionChanged(); void hubModels?.refresh().catch(() => {}); };
+if (typeof window !== "undefined") window.addEventListener("arvela-hub-config-changed", refreshHubModels);
 try {
   modelServices.configure(store.state.prefs.modelServices ?? []);
 } catch (error) {
@@ -3543,7 +3571,7 @@ try {
 // Both engines live in the registry, so `listBackendDescriptors()` is the honest
 // list of what this build can drive.
 registerBackendDescriptor(piDescriptor(() => store.pi()));
-import.meta.hot?.dispose(() => { stopCatalogPersistence(); store.dispose(); });
+import.meta.hot?.dispose(() => { stopCatalogPersistence(); stopHubModels?.(); hubModels?.dispose(); window.removeEventListener("arvela-hub-config-changed", refreshHubModels); store.dispose(); });
 
 export function useAppSelector<T extends object>(select: (state: AppState) => T): T {
   const snapshot=useMemo(()=>selectedSnapshot(store.getSnapshot,select,shallowEqual),[select]);
