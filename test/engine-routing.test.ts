@@ -1,3 +1,4 @@
+import {toolWorkflowReminder} from "../src/agent/toolWorkflow";
 import {languageReminder} from "../src/agent/promptPolicy";
 // Store-level routing: the right engine must receive each prompt, and choosing
 // an engine must never disturb another chat or the global defaults.
@@ -164,7 +165,7 @@ it("creates a projectless Pi chat without needing a live OpenCode server", async
   expect(await store.sendPrompt("PI_PROJECTLESS_OK")).toBe(true);
   expect(store.state.directory).toBe("/tmp/pi-chat-test");
   expect(store.engineIdFor()).toBe("pi");
-  expect(piPrompts.at(-1)?.message).toBe("PI_PROJECTLESS_OK\n\n"+languageReminder(store.state.activeSessionId!));
+  expect(piPrompts.at(-1)?.message).toBe("PI_PROJECTLESS_OK\n\n"+languageReminder(store.state.activeSessionId!)+"\n\n"+toolWorkflowReminder(store.state.activeSessionId!));
   expect(store.state.ui.sending).toBe(false);
 });
 
@@ -189,7 +190,7 @@ it("routes a folder set to Pi through the Pi engine only", async () => {
   const openCodeCreate = vi.spyOn(store.client, "createSession");
   expect(await store.sendPrompt("посчитай")).toBe(true);
   expect(piPrompts).toHaveLength(1);
-  expect(piPrompts[0].message).toBe("посчитай\n\n"+languageReminder(store.state.activeSessionId!));
+  expect(piPrompts[0].message).toBe("посчитай\n\n"+languageReminder(store.state.activeSessionId!)+"\n\n"+toolWorkflowReminder(store.state.activeSessionId!));
   expect(store.state.ui.sending).toBe(false);
   // OpenCode must not see the prompt at all.
   expect(openCodePrompt).not.toHaveBeenCalled();

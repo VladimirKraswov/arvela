@@ -40,6 +40,20 @@ describe('shared resilient search',()=>{
   const s=createSearch({providers:['bing'],fetcher:async()=>new Response(rss)});
   const result=await s.search({query:'curl-impersonate official documentation'});expect(result.isError).toBe(true);expect(result.failures[0].reason).toBe('irrelevant_results');
  });
+ it('a query-specific relevance miss does not disable the provider for a better query',async()=>{
+  let calls=0;
+  const s=createSearch({providers:['bing'],now:()=>1000,fetcher:async()=>{calls++;return new Response(rss);}});
+  const miss=await s.search({query:'"quake2" free 2023 source github "quake2data" OR "q2rtx"',scope:'web'});
+  expect(miss.isError).toBe(true);expect(miss.failures[0]).toMatchObject({reason:'irrelevant_results',retryAt:0});
+  expect(s.status()[0].state).toBe('available');
+  const hit=await s.search({query:'Node documentation',scope:'web'});
+  expect(hit.provider).toBe('bing');expect(hit.results[0].url).toBe('https://nodejs.org/');expect(calls).toBe(2);
+ });
+ it('unverifiable query terms still reject output but do not poison provider health',async()=>{
+  let calls=0;const s=createSearch({providers:['bing'],fetcher:async()=>{calls++;return new Response(rss);}});
+  expect((await s.search({query:'site:example.org docs'})).failures[0].reason).toBe('unverified_results');
+  expect((await s.search({query:'Node'})).provider).toBe('bing');expect(calls).toBe(2);
+ });
  it('uses explicitly limited GitHub repository fallback after bad RSS',async()=>{
   const calls:string[]=[];const s=createSearch({providers:['bing','github'],fetcher:async(url:string)=>{calls.push(url);return url.includes('bing')?new Response(rss):Response.json({items:[{full_name:'lwthiker/curl-impersonate',html_url:'https://github.com/lwthiker/curl-impersonate',description:'curl-impersonate'}]});}});
   const result=await s.search({query:'curl-impersonate official github documentation'});expect(result.provider).toBe('github');expect(result.scope).toBe('github-repositories');expect(result.queryUsed).toBe('curl-impersonate');expect(calls[1]).toContain('q=curl-impersonate');

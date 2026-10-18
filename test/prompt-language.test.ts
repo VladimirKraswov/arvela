@@ -2,16 +2,29 @@ import { expect, it } from 'vitest';
 import { agentParts, languageReminder, visiblePromptText } from '../src/agent/promptPolicy';
 import { entriesToHistory, PiStreamTranslator } from '../src/agent/pi/translate';
 import type { PiEntry } from '../src/agent/pi/protocol';
+import { toolWorkflowReminder } from '../src/agent/toolWorkflow';
 it('adds one hidden Russian-language policy without altering user text or files', () => {
     const parts = [{ type: 'text' as const, text: 'request' }, { type: 'file' as const, mime: 'image/png', url: 'data:image/png;base64,AAAA' }];
     const sent = agentParts(undefined, 's', '/work', parts);
     expect(sent.slice(0, 2)).toEqual(parts);
     expect(parts).toHaveLength(2);
     expect(sent[2]).toMatchObject({ type: 'text', synthetic: true, text: languageReminder('s') });
+    expect(sent[3]).toMatchObject({ type: 'text', synthetic: true, text: toolWorkflowReminder('s') });
     expect(languageReminder('s')).toContain('на русском');
     expect(languageReminder('s')).toContain('на английском');
     expect(languageReminder('s')).toContain('Не переходи на украинский');
     expect(agentParts(undefined, 's', '/work', sent)).toBe(sent);
+});
+it('both engines receive guidance, while Pi renders only the unchanged user text and files', () => {
+    const parts = [{ type: 'text' as const, text: 'исправь игру' }, { type: 'file' as const, mime: 'application/zip', url: 'file:///owned/input.zip' }];
+    const sent = agentParts(undefined, 'own', '/work', parts);
+    expect(sent.filter(p => p.type === 'file')).toEqual([parts[1]]);
+    const flattened = sent.filter(p => p.type === 'text').map(p => p.text).join('\n\n');
+    expect(visiblePromptText(flattened, 'own')).toBe('исправь игру');
+    const attached = flattened + '\n\n<attached_file name="x">\n\n' + toolWorkflowReminder('own') + '\n\n</attached_file>';
+    expect(visiblePromptText(attached, 'own')).toBe('исправь игру\n\n<attached_file name="x">\n\n' + toolWorkflowReminder('own') + '\n\n</attached_file>');
+    expect(visiblePromptText(flattened, 'foreign')).toBe(flattened);
+    expect(visiblePromptText('quoted:' + toolWorkflowReminder('own'), 'own')).toBe('quoted:' + toolWorkflowReminder('own'));
 });
 it('Pi hides the policy in live and durable user entries only', () => {
     const text = 'задание\n\n' + languageReminder('s');

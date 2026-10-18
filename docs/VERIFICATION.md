@@ -1,3 +1,25 @@
+# Arvela 0.2.76 — session-guided tool reliability (2026-10-18)
+
+Prepublication gates: **943 frontend / 133 native passed**, 6 frontend and
+3 native existing opt-in skips. TypeScript/Vite, architecture174, raw/gzip bundle
+budgets (main1,398,016/397,894B), format and strict Clippy passed. Both changed
+skills validated. Existing publisher and Hub tests run again in the canonical
+release gate. No active owner app, model, external engine or game project changed.
+
+Reviewed full2,127-message snapshot and all60 actual tool failures; no private
+history is published. Reproduced the principal Cua implicit-session failure on
+the installed0.28.2 driver, then verified a separate source proxy through real
+MCP discovery/own-session reads/end/start (22tools). Explicit session works,
+missing session fails before forwarding, closed session stays refused until an
+intentional start. No GUI input, screenshots or model inference in acceptance.
+See [findings and boundaries](TOOL-RELIABILITY-REVIEW.md).
+
+Publication receipt and offered update remain pending at this checkpoint.
+Installing/reconnecting the current owner's native tools is a separate action;
+working sessions are preserved.
+
+---
+
 # Arvela 0.2.75 — central Hub model readiness (2026-10-18)
 
 Published to Hub/stable from runtime `d129e31` (feature `53dd2a5`). Canonical final

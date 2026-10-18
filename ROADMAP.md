@@ -757,3 +757,12 @@ Progressive dictation in 0.2.74: no total time limit, observed silence60s, indep
 - [x] Live Hub/Chromium waiting → unload → load → ready and Stop acceptance without owner inference.
 
 See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform limits are recorded in verification.
+
+## Session-guided tool reliability (0.2.76)
+
+- [x] Audit complete session snapshot; distinguish engine/tool, script/compiler and expected probe failures.
+- [x] Explicit task-owned Cua sessions in schema and runtime; preserve background/exact-window/disabled gates, no implicit revival or replay.
+- [x] Actionable stale-window/output-path/session hints with original failures preserved; updated portable computer/search skills.
+- [x] Query-specific relevance rejection no longer poisons provider health; genuine access/rate-limit cooldown retained.
+- [x] Shared OpenCode/Pi execution guidance at existing dispatch boundary, exact user-history hiding and attachment preservation.
+- [ ] Final release gates and verified Hub receipt; no active-agent/native-app restart.

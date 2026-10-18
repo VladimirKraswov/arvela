@@ -79,10 +79,13 @@ export function createSearch({fetcher=fetch, now=Date.now, providers=['parallel'
         signal?.throwIfAborted();
         const reason=/^(http_\d{3}|provider_error|invalid_response|response_too_large|irrelevant_results|unverified_results)$/.test(e.message)?e.message:abort.aborted?'timeout':'network_error';
         const delay=e.delay||(/http_(401|403)/.test(reason)?600000:60000);
-        const state={state:'unavailable',reason,retryAt:now()+delay};health.set(provider,state);failures.push({provider,reason,retryAt:state.retryAt});
+        // Relevance belongs to this query, not provider health. A narrower query
+        // must remain usable immediately; transport/access failures still cool down.
+        const queryFailure=['irrelevant_results','unverified_results'].includes(reason);
+        const state={state:queryFailure?'available':'unavailable',reason,retryAt:queryFailure?0:now()+delay};health.set(provider,state);failures.push({provider,reason,retryAt:state.retryAt});
       }
     }
-    return {isError:true,failures,message:'No usable search response; inspect failures (no_results means an empty response, not a service outage). Do not retry unavailable providers until retryAt. Open known official URLs directly or ask for a configured search provider. Never treat failure as zero search results.'};
+    return {isError:true,failures,message:'No usable search response; inspect failures. irrelevant_results/unverified_results are query-specific: simplify terms or use scope github for repository discovery; no_results means an empty response, not a service outage. Do not retry unavailable providers until retryAt. Open known official URLs directly or ask for a configured search provider. Never treat failure as zero search results.'};
   }
   return {search,status};
 }

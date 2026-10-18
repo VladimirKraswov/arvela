@@ -389,7 +389,7 @@ const scheduledSetup = () => {
 it("scheduled prompts preserve drafts, attachments and the saved reasoning model", async()=>{
  scheduledSetup();store.setDraft("user typing");const prompt=vi.spyOn(store.client,"prompt").mockResolvedValue(undefined);
  expect(await store.runScheduledTask(scheduled())).toEqual({kind:"sent"});expect(store.getDraft()).toBe("user typing");
- expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"},expect.objectContaining({synthetic:true,metadata:{arvelaResponseLanguage:1}})]}));
+ expect(prompt).toHaveBeenCalledWith("ses_a","/test/A",expect.objectContaining({model:{providerID:"local-qwen-next",modelID:"qwen38-flash-next"},variant:"medium",parts:[{type:"text",text:"check"},expect.objectContaining({synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({synthetic:true,metadata:{arvelaToolWorkflow:1}})]}));
 });
 it('scheduled workshop prompts also retain permanent release authorization',async()=>{
  scheduledSetup();const s=session('ses_a');store.state.prefs.workshop={directory:s.directory,sourceDirectory:'/source',session:s};
