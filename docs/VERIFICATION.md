@@ -1,10 +1,9 @@
 # Arvela 0.2.76 — session-guided tool reliability (2026-10-18)
 
-Prepublication gates: **943 frontend / 133 native passed**, 6 frontend and
+Published to Hub/stable from runtime `33724a7`. Canonical gates: **943 frontend / 133 native passed**, 6 frontend and
 3 native existing opt-in skips. TypeScript/Vite, architecture174, raw/gzip bundle
 budgets (main1,398,016/397,894B), format and strict Clippy passed. Both changed
-skills validated. Existing publisher and Hub tests run again in the canonical
-release gate. No active owner app, model, external engine or game project changed.
+skills validated. Canonical publisher9 and Hub74 tests also passed. No active owner app, model, external engine or game project changed.
 
 Reviewed full2,127-message snapshot and all60 actual tool failures; no private
 history is published. Reproduced the principal Cua implicit-session failure on
@@ -14,9 +13,14 @@ missing session fails before forwarding, closed session stays refused until an
 intentional start. No GUI input, screenshots or model inference in acceptance.
 See [findings and boundaries](TOOL-RELIABILITY-REVIEW.md).
 
-Publication receipt and offered update remain pending at this checkpoint.
-Installing/reconnecting the current owner's native tools is a separate action;
-working sessions are preserved.
+Canonical receipt `.local/releases/0.2.76-stable.json` and served head verified.
+Both actual signed packets passed the native pinned-key verifier, including
+negative tamper/version checks. Source1,130files/14,239,713B, hot14files/6,535,359B;
+all23 changed source files match runtime Git and all hot files match `dist`.
+Installed native client reports connected/available/source0.2.76. No installation
+or working-agent interruption. Installing/reconnecting the owner's native tools
+is a separate action. This documentation follow-up does not replace the signed
+runtime revision or require another empty release.
 
 ---
 

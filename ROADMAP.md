@@ -765,4 +765,4 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Actionable stale-window/output-path/session hints with original failures preserved; updated portable computer/search skills.
 - [x] Query-specific relevance rejection no longer poisons provider health; genuine access/rate-limit cooldown retained.
 - [x] Shared OpenCode/Pi execution guidance at existing dispatch boundary, exact user-history hiding and attachment preservation.
-- [ ] Final release gates and verified Hub receipt; no active-agent/native-app restart.
+- [x] Canonical release gates, served head/both downloaded packets/native signature verification and installed-client source update offer; no active-agent/native-app restart.
