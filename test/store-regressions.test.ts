@@ -661,3 +661,39 @@ it('delivers dictation to its original workspace even after navigation',()=>{
  expect(store.state.prefs.endpointState.old.drafts.voice).toBe('Old сохранено');
  expect(store.state.prefs.drafts.voice).toBeUndefined();expect(store.state.prefs.workspaceKey??store.state.prefs.endpoint).toBe(current);
 });
+
+it('compaction uses the selected session only and never resumes it automatically',async()=>{
+ const {modelServices}=await import('../src/models/services');
+ vi.spyOn(modelServices,'ensure').mockResolvedValue(undefined);
+ const summarize=vi.spyOn(store.client,'summarize').mockResolvedValue(undefined);
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ store.state={...store.state,activeSessionId:'ses_a',sessions:[session('ses_a')],statuses:{},connectedProviderIds:['local-qwen-next']};
+ store.setModelChoice('local-qwen-next','qwen38-flash-next','medium');
+ await store.compactSession('another');expect(summarize).not.toHaveBeenCalled();
+ await store.compactSession('ses_a');expect(summarize).toHaveBeenCalledExactlyOnceWith('ses_a','/test/A','local-qwen-next','qwen38-flash-next');
+ expect(prompt).not.toHaveBeenCalled();
+});
+it('navigation or a new busy turn during compaction preparation prevents a late summary request',async()=>{
+ const {modelServices}=await import('../src/models/services');
+ let release!:()=>void;vi.spyOn(modelServices,'ensure').mockImplementation(()=>new Promise<void>(r=>release=r));
+ const summarize=vi.spyOn(store.client,'summarize').mockResolvedValue(undefined);
+ store.state={...store.state,activeSessionId:'ses_a',sessions:[session('ses_a')],statuses:{},connectedProviderIds:['local-qwen-next']};
+ store.setModelChoice('local-qwen-next','qwen38-flash-next','medium');
+ const first=store.compactSession('ses_a');await vi.waitFor(()=>expect(release).toBeTypeOf('function'));
+ store.state={...store.state,activeSessionId:'ses_b'};release();await first;expect(summarize).not.toHaveBeenCalled();
+ store.state={...store.state,activeSessionId:'ses_a'};
+ const next=store.compactSession('ses_a');await vi.waitFor(()=>expect(release).toBeTypeOf('function'));
+ store.observeSessionStatus('ses_a',{type:'busy'},'/test/A');release();await next;
+ expect(summarize).not.toHaveBeenCalled();
+});
+
+it('a pending compaction blocks a racing manual prompt without clearing its draft',async()=>{
+ const {modelServices}=await import('../src/models/services');vi.spyOn(modelServices,'ensure').mockResolvedValue(undefined);
+ let finish!:()=>void;vi.spyOn(store.client,'summarize').mockImplementation(()=>new Promise<void>(r=>finish=r));
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ store.state={...store.state,activeSessionId:'ses_a',sessions:[session('ses_a')],statuses:{},connectedProviderIds:['local-qwen-next']};
+ store.setModelChoice('local-qwen-next','qwen38-flash-next','medium');store.setDraft('keep my task');
+ const pending=store.compactSession('ses_a');await vi.waitFor(()=>expect(finish).toBeTypeOf('function'));
+ expect(await store.sendPrompt('keep my task')).toBe(false);expect(store.getDraft()).toBe('keep my task');expect(prompt).not.toHaveBeenCalled();
+ finish();await pending;
+});

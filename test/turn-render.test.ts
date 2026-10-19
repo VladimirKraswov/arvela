@@ -3,7 +3,7 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {createElement,act} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import type {AssistantMessage,MessagePart} from '../src/api/types';
-const data=vi.hoisted(()=>({parts:{} as Record<string,MessagePart>,partsByMessage:{} as Record<string,string[]>,status:"busy",connected:true}));
+const data=vi.hoisted(()=>({parts:{} as Record<string,MessagePart>,partsByMessage:{} as Record<string,string[]>,messageOrder:[] as string[],status:"busy",connected:true}));
 vi.mock('../src/state/store',()=>({useAppState:()=>({chat:{sessions:{s:data}},connection:{phase:'connected',streamState:data.connected?'open':'closed'}}),store:{activityStatus:()=>({type:data.status}),isPiSession:()=>false}}));
 import {AssistantTurnView} from '../src/components/render';
 let root:Root|undefined;

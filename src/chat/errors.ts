@@ -21,7 +21,7 @@ export function isModelConnectionError(error: unknown): boolean {
 export function describeMessageError(error: unknown): string {
   if (!error) return "";
   const e = record(error);
-  if (e.name === "MessageOutputLengthError") return "Output budget exhausted for this step (output length limit).";
+  if (e.name === "MessageOutputLengthError") return "Достигнут лимит ответа модели. Можно сжать контекст и продолжить работу.";
   if (e.name === "MessageAbortedError") return "The response was aborted.";
   if (e.name === "ContextOverflowError") return "Context window overflowed — consider compaction or a new session.";
   if (isModelConnectionError(error)) {

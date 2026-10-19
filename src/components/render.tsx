@@ -1,5 +1,5 @@
 import { executionEvidence, executionLabel, type ExecutionEvidence } from '../chat/execution';
-import { memo, useEffect, useId, useState } from "react";
+import { lazy, Suspense, memo, useEffect, useId, useState } from "react";
 import { attachmentParts } from '../attachments/archive';
 import type {
   AssistantMessage,
@@ -20,6 +20,7 @@ import { exactTime, messageTime } from "../chat/time";
 import { describeMessageError, isModelConnectionError } from "../chat/errors";
 import { ModelConnectionCheck } from "./ModelConnectionCheck";
 export { Markdown } from "./Markdown";
+const OutputLimitNotice = lazy(() => import("./OutputLimitNotice"));
 
 function MessageTimestamp({value}:{value:number}) {
  return value>0?<time dateTime={new Date(value).toISOString()} title={exactTime(value)}>{messageTime(value)}</time>:null;
@@ -219,13 +220,12 @@ export const AssistantMessageView = memo(function AssistantMessageView({
             <ModelConnectionCheck providerID={message.providerID} modelID={message.modelID} agent={store.isPiSession(sessionId) ? "pi" : "opencode"} />}
         </div>
       )}
-      {(finishBad || message.finish === "length") && (
-        <div className="msg-meta finish-note" role="status">
-          {message.finish === "length"
-            ? "Stopped: output budget exhausted for this step. You can ask to continue."
-            : `Finished with status: ${message.finish}`}
-        </div>
-      )}
+      {(message.finish === "length" || (message.error as {name?:string} | undefined)?.name === "MessageOutputLengthError")
+        ? <Suspense fallback={<div className="msg-meta finish-note" role="status">Достигнут лимит ответа модели.</div>}>
+          <OutputLimitNotice sessionId={sessionId} message={message} parts={parts}/>
+        </Suspense>
+        : finishBad && <div className="msg-meta finish-note" role="status">Завершено со статусом: {message.finish}</div>}
+
 
     </div>
   );

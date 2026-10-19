@@ -272,3 +272,17 @@ it("decodes nested OpenCode errors without dumping their payload or losing the r
     status: 500, detail: "Unexpected server error. (err_abc123)", filesystemDenied: false,
   });
 });
+
+it('waits for long local compaction without replaying the request after the old three-minute limit',async()=>{
+ vi.useFakeTimers();
+ try {
+  let finish!:()=>void;let signal!:AbortSignal;
+  const fetcher=vi.fn((_url:string,options:RequestInit)=>new Promise<Response>((resolve,reject)=>{
+   signal=options.signal as AbortSignal;signal.addEventListener('abort',()=>reject(signal.reason),{once:true});finish=()=>resolve(jsonResponse(200,true));
+  }));vi.stubGlobal('fetch',fetcher);
+  const pending=new OpenCodeClient().summarize('ses_own','/owned','p','m');
+  await vi.advanceTimersByTimeAsync(240000);expect(signal.aborted).toBe(false);expect(fetcher).toHaveBeenCalledOnce();
+  expect(new URL(fetcher.mock.calls[0][0]).searchParams.get('directory')).toBe('/owned');
+  finish();await pending;expect(fetcher).toHaveBeenCalledOnce();
+ } finally {vi.useRealTimers();}
+});

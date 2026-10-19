@@ -2401,6 +2401,10 @@ class Store {
       this.state.ui.runtimeLoading
     )
       return false;
+    if (this.compactLocks.has(this.state.activeSessionId ?? "")) {
+      this.patchUi({ sendError: "Дождитесь завершения сжатия контекста. Черновик сохранён." });
+      return false;
+    }
     if (this.scheduledLocks.has(this.state.activeSessionId ?? "")) {
       // Never interleave with a scheduled prompt for the same chat; the draft stays as typed.
       this.patchUi({ sendError: "Сейчас проверяется или отправляется запланированное задание этого чата. Черновик сохранён — отправьте его через несколько секунд." });
@@ -2682,6 +2686,8 @@ class Store {
     const model = this.getModelChoice();
     if (
       !directory ||
+      sessionId !== this.state.activeSessionId ||
+      this.state.ui.sending ||
       !model ||
       !this.conversation().capabilities.compaction ||
       this.isRunning(sessionId) ||
@@ -2689,21 +2695,24 @@ class Store {
     )
       return;
     this.compactLocks.add(sessionId);
+    const generation = this.connectionGeneration;
     try {
-      const engine = this.engineIdFor(sessionId, directory);
-      if (modelServices.manages(model.providerID, model.modelID))
-        await modelServices.ensure(model.providerID, model.modelID, engine);
-      if (directory !== this.state.directory || engine !== this.engineIdFor(sessionId, directory))
-        throw new Error("Рабочее пространство изменилось; сжатие отменено.");
-      await this.conversation().summarize(
+      const engine = this.engineIdFor(sessionId, directory), backend = this.conversation();
+      await modelServices.ensure(model.providerID, model.modelID, engine, { context: sessionId });
+      const current = this.getModelChoice();
+      if (generation !== this.connectionGeneration || current?.providerID !== model.providerID || current?.modelID !== model.modelID
+        || directory !== this.state.directory || sessionId !== this.state.activeSessionId
+        || engine !== this.engineIdFor(sessionId, directory) || this.isRunning(sessionId) || this.state.ui.sending)
+        throw new Error("Состояние сессии изменилось; сжатие отменено.");
+      await backend.summarize(
         sessionId,
         directory,
         model.providerID,
         model.modelID,
       );
-      this.patchUi({ toast: "Compaction requested" });
+      this.patchUi({ toast: "Запрос на сжатие контекста отправлен." });
     } catch (e) {
-      this.patchUi({ toast: `Compaction failed: ${errText(e)}` });
+      this.patchUi({ toast: `Не удалось сжать контекст: ${errText(e)}` });
     } finally {
       this.compactLocks.delete(sessionId);
     }

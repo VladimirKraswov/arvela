@@ -1,3 +1,24 @@
+# Arvela 0.2.77 — output-limit recovery (2026-10-19)
+
+Incident: two real `finish:length` stops at16,384 output tokens, with repetitive
+reasoning tails; no transport error. Private history saved (2,928messages),
+authoritative idle checked, one normal manual compaction completed with
+`auto:false` (about250sec); one authorized corrective task sent through the
+normal native control/send path, same Qwen/engine/session, Medium, no automatic
+continuations. Resumed agent completed six actual tool calls across five model steps (checkpoint,
+source search and scenario inspection), with no new errors or length stops at
+the checkpoint. It continues without duplicate prompts. No game code, shared
+model/sampling configuration, engine process or GPU ownership changed by repair.
+
+Prepublication:950frontend passed/6existing skips before the final additional
+manual-prompt/compaction race regression; TypeScript/Vite,
+architecture176/bundle budgets passed. Real isolated Chromium380/1000px keyboard,
+one compaction/zero agent dispatches/no overflow/page errors passed. See
+[behavior and constraints](OUTPUT-LIMIT-RECOVERY.md). Canonical Hub publication
+and final progress receipt pending; working app and browser are preserved.
+
+---
+
 # Arvela 0.2.76 — session-guided tool reliability (2026-10-18)
 
 Published to Hub/stable from runtime `33724a7`. Canonical gates: **943 frontend / 133 native passed**, 6 frontend and

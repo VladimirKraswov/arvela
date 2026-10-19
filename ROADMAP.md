@@ -766,3 +766,11 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Query-specific relevance rejection no longer poisons provider health; genuine access/rate-limit cooldown retained.
 - [x] Shared OpenCode/Pi execution guidance at existing dispatch boundary, exact user-history hiding and attachment preservation.
 - [x] Canonical release gates, served head/both downloaded packets/native signature verification and installed-client source update offer; no active-agent/native-app restart.
+
+## Repetitive output-limit recovery (0.2.77)
+
+- [x] Diagnose real length stops versus network failure; preserve history and request one scoped engine compaction, then one authorized corrective continuation.
+- [x] Russian limit/repetition notice and explicit latest-session compaction action; no automatic prompt/tool replay.
+- [x] Compaction session/host/model/activity race guards and a bounded deadline suitable for large local contexts.
+- [x] Regression and isolated Chromium narrow/wide keyboard/scope/no-dispatch checks.
+- [ ] Verified Hub publication and real resumed-agent progress receipt.
