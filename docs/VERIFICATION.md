@@ -10,12 +10,27 @@ source search and scenario inspection), with no new errors or length stops at
 the checkpoint. It continues without duplicate prompts. No game code, shared
 model/sampling configuration, engine process or GPU ownership changed by repair.
 
-Prepublication:950frontend passed/6existing skips before the final additional
-manual-prompt/compaction race regression; TypeScript/Vite,
-architecture176/bundle budgets passed. Real isolated Chromium380/1000px keyboard,
-one compaction/zero agent dispatches/no overflow/page errors passed. See
-[behavior and constraints](OUTPUT-LIMIT-RECOVERY.md). Canonical Hub publication
-and final progress receipt pending; working app and browser are preserved.
+Published to Hub/stable from runtime `5199f6d`. Canonical gates: **951frontend,
+133native,74Hub,9publisher passed**, with6frontend/3native existing opt-in skips.
+TypeScript/Vite, architecture176, unchanged bundle budgets (main1,398,946B /
+gzip398,087B), fmt and strict Clippy passed. Real isolated Chromium380/1000px
+keyboard/one compaction/zero agent dispatches/no overflow/page errors passed.
+The extra regression preserves the draft and blocks a racing manual prompt
+while compaction is pending.
+
+Canonical receipt `.local/releases/0.2.77-stable.json`, served head and both
+actual downloaded packets verified. All20 changed source files match runtime
+Git; all15 hot files match `dist`. Both actual packets also passed the native
+pinned-key verifier, including tamper/version and source fingerprint checks.
+Native fingerprint unchanged from0.2.76. The installed client reports an
+available **hot**0.2.77 update; no compilation/app restart/application of update
+was forced. Source1,135files/14,263,208B; hot6,538,581B.
+
+Final live recovery check:12 completed tool calls across12 assistant steps,
+zero tool-status errors and zero new length stops; same session/model remains
+busy on Medium. This proves resumed execution, not completion of the game port.
+See [behavior and constraints](OUTPUT-LIMIT-RECOVERY.md). Source/docs are pushed
+only after verified Hub delivery; no owner app/browser/engine restart.
 
 ---
 

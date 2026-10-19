@@ -773,4 +773,4 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Russian limit/repetition notice and explicit latest-session compaction action; no automatic prompt/tool replay.
 - [x] Compaction session/host/model/activity race guards and a bounded deadline suitable for large local contexts.
 - [x] Regression and isolated Chromium narrow/wide keyboard/scope/no-dispatch checks.
-- [ ] Verified Hub publication and real resumed-agent progress receipt.
+- [x] Verified Hub receipt, served head/both actual signed packets/native verification; installed client offers hot0.2.77. Real resumed agent completed12tool calls, no new length/tool-status failures; no app restart.
