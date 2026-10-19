@@ -1,0 +1,14 @@
+[Unit]
+Description=Check owned Strata API/process liveness without inference
+After=strata-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/strata/venv/bin/python /opt/strata/ops/watchdog.py
+StateDirectory=strata-control
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectSystem=strict
+PrivateTmp=yes
+TimeoutStartSec=12min

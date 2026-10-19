@@ -170,8 +170,17 @@ class ModelServices:
         try:
             connection.request("GET", "/health", headers={"Authorization": "Bearer " + key})
             health = connection.getresponse()
-            health.read(MAX_RESPONSE + 1)
-            healthy = health.status == 200
+            health_raw = health.read(MAX_RESPONSE + 1)
+            try:
+                doc = json.loads(health_raw) if len(health_raw) <= MAX_RESPONSE else None
+            except ValueError:
+                doc = None
+            # A model can stay advertised while its weights are unloaded or its
+            # engine is draining. HTTP200 alone must not open the dispatch gate.
+            healthy = (health.status == 200 and isinstance(doc, dict) and doc.get("status") == "ok"
+                       and ("loaded" not in doc or doc["loaded"] is True)
+                       and doc.get("maintenance", "serving") == "serving"
+                       and doc.get("model", model) == model)
             connection.request("GET", "/v1/models", headers={"Authorization": "Bearer " + key})
             response = connection.getresponse()
             raw = response.read(MAX_RESPONSE + 1)

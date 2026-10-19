@@ -1,0 +1,10 @@
+[Unit]
+Description=Bounded Strata liveness recovery
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=30s
+AccuracySec=2s
+
+[Install]
+WantedBy=timers.target

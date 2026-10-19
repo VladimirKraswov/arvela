@@ -1,0 +1,42 @@
+[Unit]
+Description=Strata Qwen Flash Next NVFP4 (RTX 5090)
+After=network.target nvidia-power-limit.service
+Wants=nvidia-power-limit.service
+StartLimitIntervalSec=1800
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=strata
+Group=strata
+WorkingDirectory=/var/lib/strata
+EnvironmentFile=/etc/strata/api.env
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=HOME=/var/lib/strata
+ExecStart=/opt/strata/venv/bin/python -u /opt/strata/app/serve/server.py --engine strata --config /etc/strata/model.json --host 127.0.0.1 --port 1920 --ready-file /run/strata/ready.json
+ExecStartPost=/opt/strata/venv/bin/python /opt/strata/ops/ready.py
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=10min
+TimeoutStopSec=90
+KillMode=control-group
+OOMPolicy=stop
+LimitMEMLOCK=infinity
+RuntimeDirectory=strata
+RuntimeDirectoryMode=0700
+StateDirectory=strata
+StateDirectoryMode=0700
+LogsDirectory=strata
+LogsDirectoryMode=0700
+PrivateTmp=yes
+TemporaryFileSystem=/dev/shm:size=80G,mode=1777
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/strata /var/log/strata /run/strata
+MemoryAccounting=yes
+
+[Install]
+WantedBy=multi-user.target

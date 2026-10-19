@@ -60,6 +60,7 @@ jobs:
       - run: node --test src-tauri/resources/browser/test/evaluate-result.test.mjs
       - run: npm run eval:check
       - run: python -m unittest discover -s services/hub/tests
+      - run: python -m unittest discover -s services/strata -p 'test_*.py'
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets
       - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings

@@ -774,3 +774,11 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Compaction session/host/model/activity race guards and a bounded deadline suitable for large local contexts.
 - [x] Regression and isolated Chromium narrow/wide keyboard/scope/no-dispatch checks.
 - [x] Verified Hub receipt, served head/both actual signed packets/native verification; installed client offers hot0.2.77. Real resumed agent completed12tool calls, no new length/tool-status failures; no app restart.
+
+## RTX 5090 inference migration — 2026-10-19
+
+- [x] Tune pinned Strata on the existing PCIe 3 / DDR4 host; retain native 262144 context and GPU Vision.
+- [x] Independent runtime, inference-only authenticated gateway, exact readiness and bounded watchdog; preserve OpenCode/Pi URLs and Hub reservations.
+- [x] Publish Hub model catalog v3 and Pi 262144 metadata; real client tools, cancellation, long input, coding and Vision acceptance.
+- [x] Remove FreeToken services/runtime/cache after verified private backup; cold VM boot restores Strata and both clients.
+- [x] Operator source/tests/docs and CI checks. This is a server migration; no desktop binary or empty hot UI release is required. See [Strata operations](services/strata/README.md).

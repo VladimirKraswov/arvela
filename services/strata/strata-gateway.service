@@ -1,0 +1,32 @@
+[Unit]
+Description=Private inference-only Strata gateway (legacy model URL)
+After=network-online.target
+Wants=network-online.target strata-api.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=strata-gateway
+Group=strata-gateway
+ExecStartPre=/usr/sbin/nginx -t -q -c /etc/strata/gateway.conf
+ExecStart=/usr/sbin/nginx -c /etc/strata/gateway.conf -g "daemon off;"
+ExecReload=/usr/sbin/nginx -s reload -c /etc/strata/gateway.conf
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+KillSignal=SIGQUIT
+KillMode=mixed
+RuntimeDirectory=strata-gateway
+RuntimeDirectoryMode=0700
+CacheDirectory=strata-gateway
+CacheDirectoryMode=0700
+LogsDirectory=strata-gateway
+LogsDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectSystem=strict
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

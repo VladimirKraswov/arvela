@@ -8,7 +8,7 @@ The normal path for the owner's shared models is now:
 Arvela (Windows / macOS / Linux)
   → authenticated, pinned HTTPS → Hub catalog + reservations + status
       → private control API → gateway in VM 5100 → one resident V100 model
-      → health + exact model ID → fixed Flash Next server in VM 5200
+      → truthy loaded health + exact model ID → fixed Strata gateway in VM 5200
 Agent → its existing inference URL / SSH tunnel → streaming model response
 ```
 
@@ -299,3 +299,18 @@ Secret Service session; Windows/Linux vault acceptance has not been run on Mac.
 The actual Pi RPC comparison of the two V100 checkpoints, Medium/XHigh, independent
 checks and timing limitations are recorded in [the comparison report](PI-MODEL-COMPARISON-20261007.md).
 Pi is an additional checkpoint choice, not a general speedup claim.
+
+## RTX5090: Strata — 2026-10-19
+
+Сохранены service/resource `rtx5090`, served ID и прежние URL OpenCode/Pi.
+НаVM5200 работает независимый Strata и inference-only gateway; полный
+сервер доступен только через loopback с отдельным закрытым ключом.
+Каталог Hub обновляет название и исправляет Pi contextWindow до262144;
+провайдеры, ключи клиентов и V100-привязки сохранены. Отдельной версии
+Desktop для смены этого серверного движка не требуется.
+
+Fixed-проверка теперь читает JSON health: HTTP200 не открывает gate при
+loaded=false, status=loading/error, maintenance!=serving или чужом model.
+Рекламируемое наличие модели в `/v1/models` само по себе не доказывает готовность.
+Ни inspect, ни watchdog не запускают inference и не повторяют промпт.
+См. [инструкцию Strata](../services/strata/README.md).

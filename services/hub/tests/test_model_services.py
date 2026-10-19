@@ -205,11 +205,12 @@ class Coordination(unittest.TestCase):
         seen = []
         class Handler(BaseHTTPRequestHandler):
             model = "qwen"
+            health = {"status": "ok"}
             def log_message(self, *_):
                 pass
             def do_GET(self):
                 seen.append(self.path)
-                body = json.dumps({"data": [{"id": self.model}]} if self.path == "/v1/models" else {"status": "ok"}).encode()
+                body = json.dumps({"data": [{"id": self.model}]} if self.path == "/v1/models" else self.health).encode()
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
@@ -225,6 +226,20 @@ class Coordination(unittest.TestCase):
             self.broker.transport = self.broker._request
             self.assertTrue(self.prepare("qwen", "fixed")["ready"])
             self.assertEqual(seen, ["/health", "/v1/models"])
+            for health in ({"status": "ok", "loaded": False}, {"status": "loading"},
+                           {"status": "error", "message": "private engine detail"},
+                           {"status": "ok", "maintenance": "draining"},
+                           {"status": "ok", "model": "another-model"},
+                           {"status": "ok", "loaded": "true"}, {}):
+                with self.subTest(health=health):
+                    Handler.health = health
+                    state = self.broker.state(service)
+                    self.assertFalse(state["ready"])
+                    self.assertNotIn("private engine detail", json.dumps(state))
+            Handler.health = {"status": "ok", "loaded": True, "model": "qwen"}
+            self.assertTrue(self.broker.state(service)["ready"])
+            Handler.health = {"status": "ok", "maintenance": "serving", "model": "qwen"}
+            self.assertTrue(self.broker.state(service)["ready"])
             Handler.model = "another-model"
             state = self.broker.state(service)
             self.assertFalse(state["ready"])
