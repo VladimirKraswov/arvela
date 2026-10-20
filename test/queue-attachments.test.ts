@@ -36,7 +36,7 @@ it('removing a queued attachment sends only the remaining text when steering now
   await store.removeQueuedAttachment(queued.id,file.id);
   await store.steerQueued(queued.id);
   expect(store.client.prompt).toHaveBeenCalledTimes(1);
-  expect(store.client.prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'correction'},expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]);
+  expect(store.client.prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'correction',metadata:{arvelaSteering:1}},expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaSteeringContext:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]);
   expect(drafts.snapshot(queued.attachments.scope)).toHaveLength(0);
 });
 it('steering an edited entry applies removed files and edited text before sending, once',async()=>{
@@ -46,7 +46,7 @@ it('steering an edited entry applies removed files and edited text before sendin
   await drafts.remove(scope,staleFiles.map(file=>file.id));store.setDraft('new text');
   await Promise.all([store.steerQueued(queued.id),store.steerQueued(queued.id)]);
   expect(store.client.prompt).toHaveBeenCalledTimes(1);
-  expect(store.client.prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'new text'},expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]);
+  expect(store.client.prompt.mock.calls[0][2].parts).toEqual([{type:'text',text:'new text',metadata:{arvelaSteering:1}},expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaSteeringContext:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]);
   expect(store.getQueueEdit()).toBeUndefined();expect(store.getQueue()).toHaveLength(0);
 });
 it('does not queue a removed file from a stale composer snapshot',async()=>{
