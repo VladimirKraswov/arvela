@@ -117,7 +117,7 @@ export function PromptQueue({attachments, removeFile, focusEditor, switching}: {
                       title={queueEdit?.id === item.id ? "Применить изменения и передать уточнение" : "Передать уточнение на следующий шаг агента без остановки инструмента"}
                       onClick={() => void store.steerQueued(item.id)}
                     >
-                      Сейчас
+                      Скорректировать
                     </button>
                     <button
                       disabled={!!queueEdit || store.isQueueLocked() || !!draft.trim() || attachments.length > 0 || s.ui.sending}

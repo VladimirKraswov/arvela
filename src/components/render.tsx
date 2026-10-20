@@ -302,7 +302,9 @@ export function UserMessageView({ message }: { message: UserMessage }) {
     .join("\n")
     .trim();
   if (!text && !files.length) return null;
-  return <div className="user-message" data-scroll-anchor={`message:${message.id}`}>
+  const steering = parts.some(p => p.metadata?.arvelaSteering === 1);
+  return <div className={`user-message ${steering ? "user-message-steering" : ""}`} data-scroll-anchor={`message:${message.id}`}>
+    {steering && <span className="steering-label">↳ Уточнение</span>}
     {text && <div className="msg-user">{text}</div>}
     {files.length > 0 && <div className="message-file-list">{files.map(file => <button className="message-file" key={file.id} onClick={()=>setViewedFile(file.id)}><AttachmentThumbnail file={{key:file.id,name:file.filename||"Вложение",mime:file.mime,url:file.url}}/>{file.filename || "Вложение"}</button>)}</div>}
     {viewedFile && <AttachmentViewer files={sessionContext(s.chat.sessions[message.sessionID]).sources} initialKey={viewedFile} onClose={()=>setViewedFile(null)}/>}

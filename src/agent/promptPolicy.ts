@@ -21,7 +21,7 @@ export function agentParts(record: WorkshopRecord | undefined, sessionId: string
 /** Pi flattens text parts. Hide only the exact app-owned, same-session block
  * before attachments; never strip quoted text, assistant output or file data. */
 export function visiblePromptText(text: string, sessionId: string): string {
-    for (const reminder of [toolWorkflowReminder(sessionId), languageReminder(sessionId)]) {
+    for (const reminder of [toolWorkflowReminder(sessionId), languageReminder(sessionId), steeringReminder(sessionId)]) {
         const position = text.indexOf(reminder);
         const attachment = text.indexOf('<attached_file ');
         const end = position + reminder.length;
@@ -32,4 +32,16 @@ export function visiblePromptText(text: string, sessionId: string): string {
                 + text.slice(end + (position === 0 && text.slice(end, end + 2) === '\n\n' ? 2 : 0))).trim();
     }
     return workshopVisibleText(text, sessionId);
+}
+
+export const steeringReminder = (sessionId: string) => `<arvela-steering-v1 session="${encodeURIComponent(sessionId)}">\nЭто уточнение текущего задания. Продолжай текущую работу и учти уточнение на следующем шаге. Не начинай независимое задание.\n</arvela-steering-v1>`;
+export function steeringParts(sessionId: string, parts: PromptRequest['parts']): PromptRequest['parts'] {
+    const marked = parts.map(p => p.type === 'text' && !p.synthetic ? {...p, metadata: {...p.metadata, arvelaSteering: 1}} : p);
+    const text = steeringReminder(sessionId);
+    return marked.some(p => p.type === 'text' && p.synthetic && p.text === text) ? marked
+        : [...marked, {type: 'text', text, synthetic: true, metadata: {arvelaSteeringContext: 1}}];
+}
+export function isSteeringText(text: string, sessionId: string): boolean {
+    const attachment = text.indexOf('<attached_file ');
+    return (attachment < 0 ? text : text.slice(0, attachment)).split('\n\n').includes(steeringReminder(sessionId));
 }

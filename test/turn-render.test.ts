@@ -4,8 +4,8 @@ import {createElement,act} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import type {AssistantMessage,MessagePart} from '../src/api/types';
 const data=vi.hoisted(()=>({parts:{} as Record<string,MessagePart>,partsByMessage:{} as Record<string,string[]>,messageOrder:[] as string[],status:"busy",connected:true}));
-vi.mock('../src/state/store',()=>({useAppState:()=>({chat:{sessions:{s:data}},connection:{phase:'connected',streamState:data.connected?'open':'closed'}}),store:{activityStatus:()=>({type:data.status}),isPiSession:()=>false}}));
-import {AssistantTurnView} from '../src/components/render';
+vi.mock('../src/state/store',()=>({useAppState:()=>({chat:{sessions:{s:data}},connection:{phase:'connected',streamState:data.connected?'open':'closed'}}),store:{isRunning:()=>true,activityStatus:()=>({type:data.status}),isPiSession:()=>false}}));
+import {AssistantTurnView,UserMessageView} from '../src/components/render';
 let root:Root|undefined;
 afterEach(()=>{if(root)act(()=>root!.unmount());root=undefined;document.body.innerHTML='';data.parts={};data.partsByMessage={};data.status='busy';data.connected=true;vi.unstubAllGlobals();});
 const message=(id:string,finish='tool-calls'):AssistantMessage=>({id,sessionID:'s',role:'assistant',parentID:'u',finish,time:{created:1000,completed:2000},modelID:'local',tokens:{output:10}});
@@ -83,4 +83,15 @@ it('unfinished historical tools require both a busy server and live connection',
  expect(document.body.textContent).toContain('выполнение не подтверждено сервером');
  data.status='busy';data.connected=false;mount([{...unfinished}],true);expect(document.querySelector('.tool-spinner')).toBeNull();
  expect(document.body.textContent).toContain('статус не подтверждён: нет связи');
+});
+
+it('a correction renders as a labelled compact note, ordinary user messages stay ordinary',()=>{
+ vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
+ parts('u',[{text:'Учитывай Windows',metadata:{arvelaSteering:1}},{text:'hidden guidance',synthetic:true}]);
+ const el=document.createElement('div');document.body.append(el);root=createRoot(el);
+ const message={id:'u',sessionID:'s',role:'user' as const,time:{created:1000}};
+ act(()=>root!.render(createElement(UserMessageView,{message})));
+ expect(el.querySelector('.user-message-steering')).not.toBeNull();expect(el.textContent).toContain('Уточнение');expect(el.textContent).not.toContain('hidden guidance');
+ parts('u',[{text:'Новая задача'}]);act(()=>root!.render(createElement(UserMessageView,{message})));
+ expect(el.querySelector('.user-message-steering')).toBeNull();expect(el.textContent).not.toContain('Уточнение');
 });

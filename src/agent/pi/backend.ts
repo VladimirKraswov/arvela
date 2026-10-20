@@ -1,3 +1,4 @@
+import { steeringParts } from "../promptPolicy";
 import { PI_BACKEND_ID } from "../ids";
 // Pi as a real second `AgentBackend`.
 //
@@ -512,6 +513,7 @@ export class PiBackend implements AgentBackend {
     return this.submitPrompt(sessionID, directory, body, 'steer');
   }
   private async submitPrompt(sessionID: string, directory: string, body: PromptRequest, streamingBehavior: 'followUp' | 'steer'): Promise<void> {
+    if (streamingBehavior === 'steer') body = {...body, parts: steeringParts(sessionID, body.parts)};
     const key = await this.ensureSession(directory, sessionID, body);
     await this.synchronizeSelection(key, sessionID, directory, body.model, body.variant);
     let text = body.parts

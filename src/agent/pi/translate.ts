@@ -1,4 +1,4 @@
-import { visiblePromptText } from "../promptPolicy";
+import { visiblePromptText, isSteeringText } from "../promptPolicy";
 // Pure translation from Pi's RPC vocabulary into the application's own event and
 // message model, so the existing stream reducer, renderer and scroll logic work
 // for Pi exactly as they do for OpenCode — without a second agent loop.
@@ -149,6 +149,7 @@ export function entriesToHistory(
             messageID: id,
             type: "text",
             text: split.text,
+            ...(isSteeringText(String(block.text),sessionID) ? {metadata:{arvelaSteering:1}} : {}),
           });
           split.references.forEach((ref, n) => parts.push({...archivePart(ref), id: `${partId(id, index)}-archive-${n}`, sessionID, messageID: id}));
         } else if (block.type === "image") {
@@ -406,6 +407,7 @@ export class PiStreamTranslator {
                   messageID: id,
                   type: "text",
                   text: split.text,
+                  ...(isSteeringText(textOf(blocks),this.sessionID) ? {metadata:{arvelaSteering:1}} : {}),
                 }),
               ]
             : []),

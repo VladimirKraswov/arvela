@@ -806,3 +806,9 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 
 - [x] Dragged request follows the pointer as a raised card, with its text and file count. Neighbouring rows animate into place around a reserved slot, using stable layout coordinates for hit testing.
 - [x] Preserve durable drop ordering, cancellation and edge scrolling; respect reduced-motion preferences. Existing dispatch guards unchanged.
+
+## Corrections within the running task (0.2.81)
+
+- [x] Rename queued «Сейчас» to «Скорректировать». Keep the same session and safe-boundary steering, without abort/clear or disturbing the remaining queue.
+- [x] Render corrections as compact «Уточнение» notes, with durable OpenCode part metadata and scoped Pi live/history markers. Send explicit continuation guidance; hide only exact app-owned same-session guidance.
+- [x] Verify duplicate-click/queue preservation and Pi process/model/thinking preservation, live/history classification and ordinary-message distinction.

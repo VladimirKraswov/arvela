@@ -332,3 +332,14 @@ it('reordering retains a paused queue and rolls back when durable storage fails'
  vi.spyOn(localStorage,'setItem').mockImplementation(()=>{throw Error('quota');});
  expect(store.reorderQueued(a.id,b.id)).toBe(false);expect(store.getQueue()).toEqual([b,a]);
 });
+
+it('a correction keeps the running session and remaining queue intact without aborting',async()=>{
+ const abort=vi.spyOn(store.client,'abort');
+ store.enqueuePrompt('later first');store.enqueuePrompt('clarification');store.enqueuePrompt('later second');
+ const [a,b,c]=store.getQueue();
+ await Promise.all([store.steerQueued(b.id),store.steerQueued(b.id)]);
+ expect(abort).not.toHaveBeenCalled();expect(store.client.prompt).toHaveBeenCalledTimes(1);
+ expect(store.client.prompt.mock.calls[0][0]).toBe('ses_a');
+ expect(store.client.prompt.mock.calls[0][2].parts[0]).toMatchObject({text:'clarification',metadata:{arvelaSteering:1}});
+ expect(store.isRunning()).toBe(true);expect(store.getQueue()).toEqual([a,c]);
+});

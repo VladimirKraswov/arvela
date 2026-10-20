@@ -580,3 +580,15 @@ it('reattaches native Pi after interface reload without open or prompt, restorin
   expect(await backend.sessionStatuses('/test')).toEqual({'chat-running':{type:'busy'}});
   delete bridge.resumeSessions;
 });
+
+it('a busy Pi correction reuses the process and does not abort, clear work or change selection',async()=>{
+ const sent:any[]=[];
+ respond=command=>{sent.push(command);return {success:true,data:{model:{provider:'p',id:'m'},thinkingLevel:'medium',isStreaming:true}};};
+ const pi=new PiBackend(host());const chat=await pi.createSession({directory:'/work'});
+ const body={model:{providerID:'p',modelID:'m'},variant:'medium',parts:[{type:'text',text:'continue'}]} as any;
+ await pi.prompt(chat.id,'/work',body);const count=opened.length;sent.length=0;
+ await pi.steer(chat.id,'/work',{...body,parts:[{type:'text',text:'clarification'}]});
+ expect(opened).toHaveLength(count);expect(closed).toHaveLength(0);
+ expect(sent.some(c=>['abort','clear_queue','set_model','set_thinking_level'].includes(c.type))).toBe(false);
+ expect(sent.find(c=>c.type==='prompt')).toMatchObject({streamingBehavior:'steer'});
+});

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { agentParts, languageReminder, visiblePromptText } from '../src/agent/promptPolicy';
+import { agentParts, languageReminder, visiblePromptText, steeringParts, steeringReminder, isSteeringText } from '../src/agent/promptPolicy';
 import { entriesToHistory, PiStreamTranslator } from '../src/agent/pi/translate';
 import type { PiEntry } from '../src/agent/pi/protocol';
 import { toolWorkflowReminder } from '../src/agent/toolWorkflow';
@@ -41,4 +41,19 @@ it('does not remove foreign-session, quoted or attached content', () => {
     for (const text of ['quoted:' + marker, '<attached_file name="x">\n\n' + marker + '\n\n</attached_file>'])
         expect(visiblePromptText(text, 's')).toBe(text);
     expect(visiblePromptText('request\n\n' + marker, 'other')).toContain(marker);
+});
+
+it('corrections keep visible text, gain durable metadata, and survive Pi live/history translation',()=>{
+ const parts=agentParts(undefined,'s','/work',steeringParts('s',[{type:'text',text:'Учитывай Windows'}]));
+ expect(parts[0]).toMatchObject({text:'Учитывай Windows',metadata:{arvelaSteering:1}});
+ expect(steeringParts('s',parts)).toHaveLength(parts.length);
+ const text=parts.filter(p=>p.type==='text').map(p=>p.text).join('\n\n');
+ expect(isSteeringText(text,'s')).toBe(true);expect(isSteeringText(text,'other')).toBe(false);
+ expect(visiblePromptText(text,'s')).toBe('Учитывай Windows');
+ const message={role:'user' as const,content:[{type:'text' as const,text}]};
+ const entries=[{id:'u',parentId:null,type:'message' as const,timestamp:'2026-10-20T00:00:00Z',message}];
+ expect(entriesToHistory('s',entries)[0].parts[0]).toMatchObject({text:'Учитывай Windows',metadata:{arvelaSteering:1}});
+ const live=new PiStreamTranslator('s').translate({type:'message_start',message});
+ expect(live.events.find(e=>e.type==='message.part.updated')?.properties.part).toMatchObject({text:'Учитывай Windows',metadata:{arvelaSteering:1}});
+ expect(isSteeringText('<attached_file name="x">\n\n'+steeringReminder('s'),'s')).toBe(false);
 });

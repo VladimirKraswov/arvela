@@ -3103,3 +3103,8 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 .queue-drag-preview > small { display: flex; align-items: center; gap: 4px; color: var(--text-dim); }
 @media (prefers-reduced-motion: reduce) { .queue-sorting .queued-prompt { transition: none; } }
 .queue-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.user-message-steering { align-items: stretch; max-width: 86%; margin-left: auto; padding: 5px 12px; border-left: 2px solid var(--border); }
+.user-message-steering .steering-label { color: var(--text-dim); font-size: .785714rem; }
+.user-message-steering .msg-user { align-self: stretch; max-width: 100%; padding: 0; border-radius: 0; background: transparent; font-size: .928571rem; }
+.user-message-steering .message-footer { align-self: flex-end; }

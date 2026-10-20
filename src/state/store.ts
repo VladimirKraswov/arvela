@@ -1,4 +1,4 @@
-import { agentParts } from "../agent/promptPolicy";
+import { agentParts, steeringParts } from "../agent/promptPolicy";
 import { prepareWorkshop, resolveWorkshop, isWorkshopSession, type WorkshopRecord } from "../workshop/workspace";
 import { ownWork } from "../operations/ownership";
 import { StreamNotifications, selectedSnapshot, shallowEqual } from "./notifications";
@@ -3022,7 +3022,7 @@ class Store {
         },
         agent: item.agent,
         variant: item.model.variant ?? undefined,
-        parts: agentParts(this.state.prefs.workshop, sid, item.directory, [{ type: "text", text: item.text }, ...parts]),
+        parts: agentParts(this.state.prefs.workshop, sid, item.directory, steer ? steeringParts(sid, [{ type: "text", text: item.text }, ...parts]) : [{ type: "text", text: item.text }, ...parts]),
       });
       });
       if (workspaceBackend !== this.backend) return;
