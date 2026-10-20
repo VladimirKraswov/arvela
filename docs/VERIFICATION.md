@@ -14,6 +14,12 @@ no global approval or automatic request retry is installed.
 Focused regression: 41 tests pass (adapter events/reconnect/deduplication, access/inheritance, queue access, child routing); 108 earlier store/Pi/capability checks pass.
 The running local engine schema confirms both official permission reply routes.
 No UI layout changes; backend event handling also supports an already-running engine.
+Canonical release: 986 frontend tests pass / 6 existing skips; 144 native tests /
+3 existing skips; 77 Hub tests; publisher/build/architecture/bundle/fmt/strict Clippy pass.
+Hub stable 0.2.85 receipt `.local/releases/0.2.85-stable.json`; served head and
+both signed packets checked, 13 changed source files / 19 hot files byte-match
+reviewed runtime `2d9cd1a288d439e33c4f641eaa89573c93a7bda4`, pushed to main.
+
 Owner game/desktop tools and inference were not replayed. No app restart or
 externally managed engine restart. Live owner-session acceptance after updating
 is separate from isolated policy tests.
