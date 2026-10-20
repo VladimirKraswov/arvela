@@ -21,7 +21,14 @@ shared MCP runtime is absent. Missing Pi diagnostic helper cannot grant approval
 success unchanged, no model calls. Original Quake session/game/engine/processes
 untouched. No owner update activation/restart; runtime hooks require native
 update and a subsequently loaded engine instance. Windows/Linux live acceptance
-and future model behavior remain unverified. Canonical release verification pending.
+and future model behavior remain unverified.
+
+Canonical release0.2.90/runtime50a8ee5 passed1005 frontend tests (6 optional
+skips),147 native tests (3 optional skips),77 Hub tests, publisher tests,
+build/architecture/bundle/fmt/strict Clippy. Receipt
+`.local/releases/0.2.90-stable.json`; served canonical head and both signed
+packets verified,16 changed source/19 hot files byte-exact. Native resources
+changed, so this is a source/native update. No owner activation or server restart.
 
 # Optional MCP resilience / Node alias launch (0.2.89)
 

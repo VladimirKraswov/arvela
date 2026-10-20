@@ -5,7 +5,7 @@
 - [x] Shared timeout interpretation for OpenCode and Pi, based on terminal executor markers; original output and permissions preserved. OpenCode title/metadata and Pi error feedback distinguish incomplete checks from successful execution.
 - [x] Every-dispatch guidance covers observable completion, GUI/server lifecycle, env vs arguments, redirected logs, exit status and diagnosis before retry. Existing v1/v2 Pi history stays hidden only in its own session.
 - [x] Synthetic hook/approval/history regressions and actual installed Pi executor isolated timeout/success checks, without inference or owner process actions.
-- [ ] Canonical release and served packet verification.
+- [x] Canonical release and served packet verification:0.2.90/runtime50a8ee5,16 source/19 hot files byte-exact;1005 frontend/147 native/77 Hub tests, build/architecture/bundle/fmt/strict Clippy pass.
 
 ## Optional MCP resilience and Node aliases (0.2.89)
 
