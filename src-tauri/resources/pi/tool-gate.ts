@@ -23,6 +23,7 @@
  *   "full"           — no prompts; only when the user chose it in settings
  */
 
+import { pathToFileURL } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 /** Tools that can change files, run commands or reach the network. */
@@ -90,6 +91,19 @@ function describe(toolName: string, input: Record<string, unknown>): string {
 }
 
 export default function (pi: ExtensionAPI) {
+  // Native-managed absolute module path; diagnostics cannot change approval decisions.
+  const modulePath = process.env.ENKI_EXECUTION_FEEDBACK_MODULE;
+  const feedbackModule = modulePath
+    ? import(/* @vite-ignore */ pathToFileURL(modulePath).href).catch(() => undefined)
+    : Promise.resolve(undefined);
+  pi.on("tool_result", async event => {
+    if (event.toolName !== "bash") return;
+    const helper = await feedbackModule;
+    const text = event.content.filter(part => part.type === "text").map(part => part.text).join("\n");
+    const feedback = helper?.executionFeedback("pi", event.toolName, text, event.isError);
+    if (!feedback) return;
+    return { content: [...event.content, { type: "text" as const, text: feedback.message }], isError: true };
+  });
   pi.on("tool_call", async (event, ctx) => {
     if (policy() === "full") return;
     const toolName = String(event.toolName ?? "");

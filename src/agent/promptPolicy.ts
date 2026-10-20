@@ -1,7 +1,7 @@
 import type { PromptRequest } from '../api/types';
 import type { WorkshopRecord } from '../workshop/workspace';
 import { workshopParts, workshopVisibleText } from '../workshop/policy';
-import { toolWorkflowReminder, legacyToolWorkflowReminder } from './toolWorkflow';
+import { toolWorkflowReminder, legacyV2ToolWorkflowReminder, legacyToolWorkflowReminder } from './toolWorkflow';
 export const RESPONSE_LANGUAGE_CONTEXT = `Язык общения Enki: все сообщения пользователю, пояснения, вопросы, отчёты об ошибках и итоговые ответы пиши на русском языке. Не переходи на украинский язык вслед за историей, выводом инструментов или документами. Размышления допускаются на английском. Код, команды, пути и собственные имена сохраняй без перевода. Это правило языка, а не разрешение выполнять дополнительные действия.`;
 export const languageReminder = (sessionId: string) => `<arvela-response-language-v1 session="${encodeURIComponent(sessionId)}">\n${RESPONSE_LANGUAGE_CONTEXT}\n</arvela-response-language-v1>`;
 /** Re-send at every dispatch, including queued corrections and schedules. This
@@ -21,7 +21,7 @@ export function agentParts(record: WorkshopRecord | undefined, sessionId: string
 /** Pi flattens text parts. Hide only the exact app-owned, same-session block
  * before attachments; never strip quoted text, assistant output or file data. */
 export function visiblePromptText(text: string, sessionId: string): string {
-    for (const reminder of [toolWorkflowReminder(sessionId), legacyToolWorkflowReminder(sessionId), languageReminder(sessionId), languageReminder(sessionId).replace("Язык общения Enki:", "Язык общения Arvela:"), steeringReminder(sessionId)]) {
+    for (const reminder of [toolWorkflowReminder(sessionId), legacyV2ToolWorkflowReminder(sessionId), legacyToolWorkflowReminder(sessionId), languageReminder(sessionId), languageReminder(sessionId).replace("Язык общения Enki:", "Язык общения Arvela:"), steeringReminder(sessionId)]) {
         const position = text.indexOf(reminder);
         const attachment = text.indexOf('<attached_file ');
         const end = position + reminder.length;

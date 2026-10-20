@@ -523,6 +523,11 @@ fn runnable(program: &Path) -> bool {
 /// Materialized on every session start so a stale copy can never be loaded.
 fn write_tool_gate() -> Result<PathBuf, String> {
     let path = pi_support_dir()?.join("tool-gate.ts");
+    std::fs::write(
+        pi_support_dir()?.join("execution-feedback.mjs"),
+        include_str!("../resources/browser/execution-feedback.mjs"),
+    )
+    .map_err(|e| e.to_string())?;
     std::fs::write(&path, TOOL_GATE).map_err(|e| e.to_string())?;
     Ok(path)
 }
@@ -912,6 +917,10 @@ pub async fn pi_open(
                 pi_support_dir()?.join("lsp-config.json"),
             );
         }
+        command.env(
+            "ENKI_EXECUTION_FEEDBACK_MODULE",
+            pi_support_dir()?.join("execution-feedback.mjs"),
+        );
         // Default-deny unless the user explicitly chose full access in settings.
         command.env(
             "OCDESKTOP_PI_TOOL_POLICY",

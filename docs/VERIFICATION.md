@@ -1,3 +1,28 @@
+# Generic command execution feedback (0.2.90)
+
+OpenCode can mark a tool call completed while its terminal shell metadata reports
+process timeout. A shared, bounded terminal-marker classifier now adds explicit
+unsuccessful-check feedback and diagnosis guidance to OpenCode/Pi shell results.
+OpenCode retains the actual output/exit metadata and adds an outcome/title; Pi
+preserves original content/images and its error flag. No new process manager,
+command rewrite, automatic retry/kill, timeout cap or approval bypass is added.
+Ordinary log mentions of timeout do not trigger feedback. This is advisory
+execution evidence, not a security boundary or a guarantee of model compliance.
+
+Per-dispatch workflow v3 covers supported launch options, env vs arguments,
+observable success, GUI/server readiness vs lifetime, bounded log inspection,
+exit status and diagnosis before retry. Exact same-session v1/v2 Pi history blocks
+remain hidden, while quotes/attachments/foreign-session text remain intact.
+Native resources materialize the common helper for both agents, including when
+shared MCP runtime is absent. Missing Pi diagnostic helper cannot grant approval.
+
+27 focused tests pass. Actual installed Pi bash executor ran only isolated
+`sleep 2` with0.1s deadline and `echo fixture-ready` in /tmp: timeout classified,
+success unchanged, no model calls. Original Quake session/game/engine/processes
+untouched. No owner update activation/restart; runtime hooks require native
+update and a subsequently loaded engine instance. Windows/Linux live acceptance
+and future model behavior remain unverified. Canonical release verification pending.
+
 # Optional MCP resilience / Node alias launch (0.2.89)
 
 Diagnosis: Web Compass HTTP/API credentials and OpenAPI were healthy, but its MCP

@@ -45,6 +45,10 @@ const FILES: &[(&str, &str)] = &[
         include_str!("../resources/shared/package-lock.json"),
     ),
     (
+        "execution-feedback.mjs",
+        include_str!("../resources/browser/execution-feedback.mjs"),
+    ),
+    (
         "access-policy.mjs",
         include_str!("../resources/browser/access-policy.mjs"),
     ),
@@ -479,29 +483,39 @@ fn ensure_access_policy(root: &Path) -> Result<(), String> {
         .map_err(|_| "Блокировка недоступна")?;
     lock.try_lock_exclusive()
         .map_err(|_| "Обновление инструментов уже выполняется")?;
-    let target = root.join("access-policy.mjs");
-    if let Ok(meta) = fs::symlink_metadata(&target) {
-        if !meta.is_file() || meta.file_type().is_symlink() {
-            return Err("Политика доступа повреждена".into());
+    for (name, content) in [
+        (
+            "execution-feedback.mjs",
+            include_str!("../resources/browser/execution-feedback.mjs"),
+        ),
+        (
+            "access-policy.mjs",
+            include_str!("../resources/browser/access-policy.mjs"),
+        ),
+    ] {
+        let target = root.join(name);
+        if let Ok(meta) = fs::symlink_metadata(&target) {
+            if !meta.is_file() || meta.file_type().is_symlink() {
+                return Err("Политика доступа повреждена".into());
+            }
         }
-    }
-    let content = include_str!("../resources/browser/access-policy.mjs");
-    if fs::read_to_string(&target).ok().as_deref() != Some(content) {
-        let temp = root.join(format!(
-            "access-policy-{}.tmp",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|_| "Часы недоступны")?
-                .as_nanos()
-        ));
-        use std::io::Write;
-        fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&temp)
-            .and_then(|mut file| file.write_all(content.as_bytes()))
-            .map_err(|_| "Политика доступа не сохранена")?;
-        fs::rename(&temp, &target).map_err(|_| "Политика доступа не обновлена")?;
+        if fs::read_to_string(&target).ok().as_deref() != Some(content) {
+            let temp = root.join(format!(
+                "{name}-{}.tmp",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|_| "Часы недоступны")?
+                    .as_nanos()
+            ));
+            use std::io::Write;
+            fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&temp)
+                .and_then(|mut file| file.write_all(content.as_bytes()))
+                .map_err(|_| "Политика доступа не сохранена")?;
+            fs::rename(&temp, &target).map_err(|_| "Политика доступа не обновлена")?;
+        }
     }
     Ok(())
 }
@@ -902,6 +916,40 @@ pub fn mcp_main() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn access_policy_installs_its_feedback_dependency_without_shared_runtime() {
+        let root = std::env::temp_dir().join(format!(
+            "enki-policy-feedback-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        ensure_access_policy(&root).unwrap();
+        ensure_access_policy(&root).unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("execution-feedback.mjs")).unwrap(),
+            include_str!("../resources/browser/execution-feedback.mjs")
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("access-policy.mjs")).unwrap(),
+            include_str!("../resources/browser/access-policy.mjs")
+        );
+        #[cfg(unix)]
+        {
+            let helper = root.join("execution-feedback.mjs");
+            fs::remove_file(&helper).unwrap();
+            fs::write(root.join("foreign.mjs"), "foreign").unwrap();
+            std::os::unix::fs::symlink(root.join("foreign.mjs"), helper).unwrap();
+            assert!(ensure_access_policy(&root).is_err());
+            assert_eq!(
+                fs::read_to_string(root.join("foreign.mjs")).unwrap(),
+                "foreign"
+            );
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn validates_scope_and_no_shell_or_secret_url() {
         assert!(valid_key("global"));

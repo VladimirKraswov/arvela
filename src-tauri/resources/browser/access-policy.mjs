@@ -1,3 +1,4 @@
+import { executionFeedback } from './execution-feedback.mjs';
 // User-selected full access is a session policy, including its delegated work.
 // Role prompts remain intact; loop-guard compatibility is handled by the client adapter.
 export const fullRules = () => [
@@ -31,6 +32,13 @@ export async function sessionAccess(client, directory, sessionID) {
 }
 export default async function accessPolicy({ client, directory }) {
   return {
+    'tool.execute.after': async (input, output) => {
+      const feedback = executionFeedback('opencode', input.tool, output.output);
+      if (!feedback) return;
+      output.output += `\n\n${feedback.message}`;
+      output.title = 'Команда остановлена по таймауту';
+      output.metadata = { ...output.metadata, enkiExecution: { outcome: feedback.outcome } };
+    },
     'chat.message': async input => {
       const { full, current, root } = await sessionAccess(client, directory, input.sessionID);
       if ((!current.parentID && !full) || (full
