@@ -217,7 +217,7 @@ it("live attachment is scoped, confirmed once and changed specs reconnect", asyn
   await configureShared(o, invoke as any);
   expect(request.mock.calls.filter((c) => c[0] === "POST")).toHaveLength(2);
 });
-it("missing runtime and unconfirmed connection never become ready", async () => {
+it("missing runtime reports tools unavailable without claiming a connection or blocking chat", async () => {
   const c = catalog();
   c.registry.sources = [];
   c.runtimeReady = false;
@@ -231,12 +231,11 @@ it("missing runtime and unconfirmed connection never become ready", async () => 
         : c,
   );
   const request = vi.fn(async () => ({}));
-  await expect(
-    configureShared(
-      { endpoint: "local", directory: "/work", current: () => true, request },
-      invoke as any,
-    ),
-  ).rejects.toThrow(/Установите/);
+  const report=await configureShared(
+    { endpoint: "local", directory: "/work", current: () => true, request },
+    invoke as any,
+  );
+  expect(report.unavailable).toEqual([{id:server.id,name:server.name}]);
   expect(request).not.toHaveBeenCalled();
 });
 
@@ -314,4 +313,38 @@ it('migrates legacy shared wrappers to Enki only with the exact scope and server
  expect(()=>sharedOpenCodeConfig(entry('foreign-scope',server.id),c)).toThrow('занято');
  expect(()=>sharedOpenCodeConfig(entry(c.key,'foreign-server'),c)).toThrow('занято');
  expect(()=>sharedOpenCodeConfig(entry(c.key,server.id,'/foreign/other'),c)).toThrow('занято');
+});
+it('reports an unavailable optional MCP, continues attaching others and bounds reconnect attempts',async()=>{
+ const c=catalog();c.registry.sources=[];
+ c.registry.servers=[{...server,id:'failing',name:'Unavailable service'},{...server,id:'working',name:'Working service'}];
+ const invoke=vi.fn(async(name:string,args:any)=>name==='shared_catalog'?(args.scope==='global'?c:{...c,registry:emptyRegistry()}):name==='read_opencode_config'?{content:'{}'}:c);
+ let recovered=false;
+ const request=vi.fn(async(method:string,_route:string,opts:any)=>method==='POST'?{[opts.body.name]:{status:opts.body.name==='mesh_failing'&&!recovered?'failed':'connected'}}:{});
+ const options={endpoint:'optional-fixture',directory:'/work',current:()=>true,request:request as any};
+ const first=await configureShared(options,invoke as any);
+ expect(first?.unavailable).toEqual([{id:'failing',name:'Unavailable service'}]);
+ expect(request.mock.calls.filter(call=>call[0]==='POST').map(call=>(call[2] as any).body.name)).toEqual(['mesh_failing','mesh_working']);
+ await configureShared(options,invoke as any);
+ expect(request.mock.calls.filter(call=>call[0]==='POST')).toHaveLength(2);
+ c.registry.servers[0]={...c.registry.servers[0],args:['/changed-script.mjs']};recovered=true;
+ expect((await configureShared(options,invoke as any)).unavailable).toEqual([]);
+ expect(request.mock.calls.filter(call=>call[0]==='POST')).toHaveLength(3);
+ invalidateCapabilities();await configureShared(options,invoke as any);
+ expect(request.mock.calls.filter(call=>call[0]==='POST')).toHaveLength(5);
+});
+
+it('still blocks unsafe config writes and never softens a changed workspace into optional failure',async()=>{
+ const c=catalog();c.registry.sources=[];
+ let current=true;
+ const invoke=vi.fn(async(name:string,args:any)=>{
+  if(name==='shared_catalog')return args.scope==='global'?c:{...c,registry:emptyRegistry()};
+  if(name==='read_opencode_config')return {content:'{}'};
+  if(name==='write_opencode_config')throw Error('stale config');return c;
+ });
+ const request=vi.fn(async()=>({}));
+ await expect(configureShared({endpoint:'critical-write',directory:'/work',current:()=>true,request},invoke as any)).rejects.toThrow('stale config');
+ expect(request).not.toHaveBeenCalled();
+ invoke.mockImplementation(async(name:string,args:any)=>name==='shared_catalog'?(args.scope==='global'?c:{...c,registry:emptyRegistry()}):name==='read_opencode_config'?{content:'{}'}:c);
+ request.mockImplementation(async(method:string)=>{if(method==='POST'){current=false;throw Error('transport');}return {};});
+ await expect(configureShared({endpoint:'changed-workspace',directory:'/work',current:()=>current,request},invoke as any)).rejects.toThrow('Рабочее пространство изменилось');
 });

@@ -13,10 +13,13 @@ type Request = (
   path: string,
   options: { query: { directory: string }; body?: unknown; timeoutMs: number },
 ) => Promise<Record<string, { status?: string; error?: string }>>;
+export interface SharedSetupReport { unavailable: { id: string; name: string }[] }
 const connected = new Map<string, string>(),
-  flights = new Map<string, Promise<void>>();
+  unavailable = new Map<string, { fingerprint: string; retryAt: number }>(),
+  flights = new Map<string, Promise<SharedSetupReport>>();
 export function invalidateCapabilities() {
   connected.clear();
+  unavailable.clear();
 }
 export async function synchronizeSources(
   catalog: Catalog,
@@ -59,10 +62,11 @@ export async function configureShared(
   },
   invoke = capabilityNative,
 ) {
-  if (invoke === capabilityNative && !isNative()) return;
+  if (invoke === capabilityNative && !isNative()) return { unavailable: [] };
   const key = JSON.stringify([o.endpoint, o.directory]);
-  if (flights.has(key)) return flights.get(key);
+  if (flights.has(key)) return flights.get(key)!;
   const work = (async () => {
+    const issues = new Map<string, {id: string; name: string}>();
     // Refresh the scoped policy before attaching any global MCP connections.
     for (const scope of ["project", "global"] as const) {
       if (!o.current()) throw new Error("Рабочее пространство изменилось.");
@@ -117,8 +121,19 @@ export async function configureShared(
           connected.set(cache, fingerprint);
           continue;
         }
-        if (!catalog.runtimeReady)
-          throw new Error("Установите общие MCP-инструменты в настройках.");
+        if (!catalog.runtimeReady) {
+          issues.set(s.id, {id:s.id,name:s.name});
+          continue;
+        }
+        const failed = unavailable.get(cache);
+        if (failed?.fingerprint === fingerprint && failed.retryAt > Date.now()) {
+          issues.set(s.id, {id:s.id,name:s.name});
+          continue;
+        }
+        const noteUnavailable = () => {
+          issues.set(s.id, {id:s.id,name:s.name});
+          unavailable.set(cache, {fingerprint,retryAt:Date.now()+30000});
+        };
         const existing = await o.request("GET", "/mcp", {
           query: { directory: o.directory },
           timeoutMs: 10000,
@@ -129,23 +144,29 @@ export async function configureShared(
           existing[name]?.status !== "connected" ||
           connected.get(cache) !== fingerprint
         ) {
-          const result = await o.request("POST", "/mcp", {
-            query: { directory: o.directory },
-            body: { name, config },
-            timeoutMs: 45000,
-          });
-          if (result[name]?.status !== "connected")
-            throw new Error(
-              `MCP ${s.name} не подтвердил подключение. Проверьте настройки.`,
-            );
+          let result;
+          try {
+            result = await o.request("POST", "/mcp", {
+              query: { directory: o.directory }, body: { name, config }, timeoutMs: 45000,
+            });
+          } catch {
+            if (!o.current()) throw new Error("Рабочее пространство изменилось.");
+            noteUnavailable(); continue;
+          }
+          if (!o.current()) throw new Error("Рабочее пространство изменилось.");
+          if (result[name]?.status !== "connected") {
+            noteUnavailable(); continue;
+          }
         }
+        unavailable.delete(cache);
         if (o.current()) connected.set(cache, fingerprint);
       }
     }
+    return {unavailable:[...issues.values()]};
   })();
   flights.set(key, work);
   try {
-    await work;
+    return await work;
   } finally {
     if (flights.get(key) === work) flights.delete(key);
   }

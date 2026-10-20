@@ -5,6 +5,7 @@ import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { remoteUrl, toolName } from "./registry.mjs";
+import { nodeScriptArgs } from "./stdio-command.mjs";
 export async function connectServer(spec, cwd, token, signal) {
   if (!path.isAbsolute(cwd)) throw new Error("Absolute workspace required");
   const client = new Client(
@@ -29,7 +30,7 @@ export async function connectServer(spec, cwd, token, signal) {
     }
     transport = new StdioClientTransport({
       command: spec.command,
-      args: spec.args || [],
+      args: await nodeScriptArgs(spec.command, spec.args || []),
       cwd,
       env,
       stderr: "ignore",

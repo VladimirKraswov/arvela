@@ -1,3 +1,28 @@
+# Optional MCP resilience / Node alias launch (0.2.89)
+
+Diagnosis: Web Compass HTTP/API credentials and OpenAPI were healthy, but its MCP
+Node entrypoint compared import.meta.url (resolved target) with argv[1] (legacy
+root alias), then exited0 with no output. Actual shared SDK discovery failed with
+connection closed; canonical entrypoint discovery succeeds with27 tools and no
+tool calls. A synthetic isolated script reproduces both outcomes. Shared stdio
+launch now canonicalizes only an absolute Node JS main script, preserving other
+arguments/cwd and non-Node commands; missing scripts retain their startup error.
+
+Shared MCP preflight also blocked ordinary prompts on any optional server failure.
+It now reports unavailable tools, continues other connections and applies30s
+fingerprint-scoped reconnect cooldown. Explicit invalidation/revision changes can
+recover. Missing optional runtime is reported honestly with no connection call;
+that test expectation changed with the explicit nonblocking product contract.
+Configuration ownership/CAS, access-policy loading, disabled-tool disconnects and
+changed contexts remain fatal. Store reports a warning without setting sendError.
+71 focused tests pass. New Node helper is included in embedded runtime resources.
+
+Current owner Web Compass args[0] was normalized under registry.lock/CAS/atomic
+replace with a private backup; whole registry verified equal except that argument.
+Only the failed scoped MCP was reconnected via official API; connected confirmed.
+No model prompt, queued task, game action, inference or shared engine restart.
+Windows native GUI/alias acceptance remains separate from Unix synthetic tests.
+
 # Built-in skill path migration (0.2.88)
 
 Read-only inspection confirmed that the authoring source's retained legacy path

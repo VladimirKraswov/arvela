@@ -519,7 +519,9 @@ class Store {
   async configureSharedTools(directory = this.state.directory): Promise<void> {
     if (!directory || !isNative() || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
     const endpoint=this.state.prefs.endpoint, client=this.client, generation=this.connectionGeneration;
-    await configureShared({endpoint,directory,current:()=>generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && !this.currentHost(),request:(method,path,options)=>client.request(method,path,options)});
+    const report = await configureShared({endpoint,directory,current:()=>generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && !this.currentHost(),request:(method,path,options)=>client.request(method,path,options)});
+    if (generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && report.unavailable.length)
+      this.patchUi({toast:`Недоступны MCP: ${report.unavailable.map(s=>s.name).join(", ")}. Отправка доступна; проверьте подключение в настройках.`});
   }
   browserTaskActive(): boolean {
     const id = this.state.activeSessionId;

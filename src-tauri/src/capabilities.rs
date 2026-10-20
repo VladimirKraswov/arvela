@@ -53,6 +53,10 @@ const FILES: &[(&str, &str)] = &[
         include_str!("../resources/shared/registry.mjs"),
     ),
     ("client.mjs", include_str!("../resources/shared/client.mjs")),
+    (
+        "stdio-command.mjs",
+        include_str!("../resources/shared/stdio-command.mjs"),
+    ),
     ("proxy.mjs", include_str!("../resources/shared/proxy.mjs")),
     (
         "web-search-core.mjs",

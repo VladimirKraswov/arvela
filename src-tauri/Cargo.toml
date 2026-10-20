@@ -1,6 +1,6 @@
 [package]
 name = "enki"
-version = "0.2.88"
+version = "0.2.89"
 description = "Desktop client for OpenCode and Pi"
 authors = ["Enki contributors"]
 edition = "2021"
