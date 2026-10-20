@@ -1,0 +1,82 @@
+--- a/src/serve/http_transport.cpp
++++ b/src/serve/http_transport.cpp
+@@ -82,6 +82,8 @@
+     httplib::default_socket_options(socket);
+ #if defined(__linux__)
+     const int enabled = 1;
++    // Preserve immediate TIME_WAIT handoff with llama.cpp (SO_REUSEADDR listeners).
++    set_socket_option(socket, SOL_SOCKET, SO_REUSEADDR, enabled);
+     set_socket_option(socket, SOL_SOCKET, SO_KEEPALIVE, enabled);
+     set_socket_option(socket, IPPROTO_TCP, TCP_KEEPIDLE, kKeepAliveIdleSeconds);
+     set_socket_option(socket, IPPROTO_TCP, TCP_KEEPINTVL, kKeepAliveIntervalSeconds);
+--- a/tests/test_http_transport.cpp
++++ b/tests/test_http_transport.cpp
+@@ -161,6 +161,60 @@
+     socklen_t size = sizeof(actual);
+     return ::getsockopt(socket, level, option, &actual, &size) == 0 && size == sizeof(actual) &&
+            actual == expected;
++}
++
++int test_listener_handoff(bool native_first) {
++    sockaddr_in address{};
++    address.sin_family      = AF_INET;
++    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
++    auto configure = [](int fd, bool native) {
++        if (native) {
++            ninfer::serve::configure_http_server_socket(fd);
++            return true;
++        }
++        const int enabled = 1;
++        return ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled)) == 0;
++    };
++    auto bounded_receive = [](int fd) {
++        const timeval deadline{2, 0};
++        return ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &deadline, sizeof(deadline)) == 0;
++    };
++    {
++        Socket listener(::socket(AF_INET, SOCK_STREAM, 0));
++        if (listener.get() < 0 || !configure(listener.get(), native_first) ||
++            ::bind(listener.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0 ||
++            ::listen(listener.get(), 1) != 0) {
++            return check(false, "handoff fixture cannot listen");
++        }
++        socklen_t size = sizeof(address);
++        if (::getsockname(listener.get(), reinterpret_cast<sockaddr*>(&address), &size) != 0) {
++            return check(false, "handoff fixture cannot inspect its port");
++        }
++        Socket client(::socket(AF_INET, SOCK_STREAM, 0));
++        if (client.get() < 0 || !bounded_receive(client.get()) ||
++            ::connect(client.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
++            return check(false, "handoff fixture cannot connect");
++        }
++        Socket accepted(::accept(listener.get(), nullptr, nullptr));
++        if (accepted.get() < 0 || !bounded_receive(accepted.get())) {
++            return check(false, "handoff fixture cannot accept");
++        }
++        // Server sends FIN first, then reads the peer FIN, leaving the server in TIME_WAIT.
++        char byte;
++        if (::shutdown(accepted.get(), SHUT_WR) != 0 || ::recv(client.get(), &byte, 1, 0) != 0) {
++            return check(false, "handoff fixture missing server FIN");
++        }
++        if (::shutdown(client.get(), SHUT_WR) != 0 || ::recv(accepted.get(), &byte, 1, 0) != 0) {
++            return check(false, "handoff fixture missing client FIN");
++        }
++    }
++    Socket next(::socket(AF_INET, SOCK_STREAM, 0));
++    if (next.get() < 0 || !configure(next.get(), !native_first)) {
++        return check(false, "handoff fixture cannot create replacement listener");
++    }
++    return check(::bind(next.get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address)) == 0,
++                 native_first ? "NInfer -> SO_REUSEADDR listener handoff blocked by TIME_WAIT"
++                              : "SO_REUSEADDR listener -> NInfer handoff blocked by TIME_WAIT");
+ }
+ 
+ int test_inherited_socket_liveness() {
+@@ -212,6 +266,7 @@
+         test_sse_transport() + test_sse_response_headers() + test_prompt_json_member_order();
+ #if defined(__linux__)
+     failures += test_inherited_socket_liveness();
++    failures += test_listener_handoff(true) + test_listener_handoff(false);
+ #endif
+     if (failures == 0) { std::cout << "ok\n"; }
+     return failures == 0 ? 0 : 1;

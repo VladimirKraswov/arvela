@@ -7,3 +7,5 @@
 *.exe binary
 *.zip binary
 *.xlsx binary
+# Unified patches encode an empty context line as one literal space.
+/services/v100/*.patch whitespace=-blank-at-eol

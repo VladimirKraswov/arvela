@@ -1,0 +1,98 @@
+--- a/examples/server/server.cpp
++++ b/examples/server/server.cpp
+@@ -1,5 +1,6 @@
+ #pragma warning(disable : 4996)
+ #include "server-context.h"
++#include "server-socket.h"
+ #include "server-common.h"
+ #include "server-chat.h"
+ #include "server-cors-proxy.h"
+@@ -581,6 +582,8 @@
+     // set timeouts and change hostname and port
+     svr->set_read_timeout (params.timeout_read);
+     svr->set_write_timeout(params.timeout_write);
++
++    svr->set_socket_options(configure_server_socket);
+ 
+     if (!svr->bind_to_port(params.hostname, params.port)) {
+         fprintf(stderr, "\ncouldn't bind to server socket: hostname=%s port=%d\n\n", params.hostname.c_str(), params.port);
+--- a/examples/server/CMakeLists.txt
++++ b/examples/server/CMakeLists.txt
+@@ -103,3 +103,12 @@
+ endif()
+ 
+ target_compile_features(${TARGET} PRIVATE cxx_std_17)
++
++if (LLAMA_BUILD_TESTS)
++    add_executable(llama-server-socket-test socket-handoff-test.cpp)
++    target_include_directories(llama-server-socket-test PRIVATE ${CMAKE_SOURCE_DIR})
++    target_compile_features(llama-server-socket-test PRIVATE cxx_std_17)
++    target_link_libraries(llama-server-socket-test PRIVATE cpp-httplib)
++    add_test(NAME llama_server_socket_handoff COMMAND llama-server-socket-test)
++    set_tests_properties(llama_server_socket_handoff PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 15)
++endif()
+--- /dev/null
++++ b/examples/server/server-socket.h
+@@ -0,0 +1,14 @@
++#pragma once
++#include "vendor/cpp-httplib/httplib.h"
++#if defined(__linux__)
++#include <sys/socket.h>
++#endif
++
++inline void configure_server_socket(socket_t sock) {
++    httplib::default_socket_options(sock);
++#if defined(__linux__)
++    // Match SO_REUSEADDR peers when a previous HTTP connection is in TIME_WAIT.
++    const int enabled = 1;
++    (void)::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
++#endif
++}
+--- /dev/null
++++ b/examples/server/socket-handoff-test.cpp
+@@ -0,0 +1,45 @@
++#include <iostream>
++#if defined(__linux__)
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <unistd.h>
++#include "server-socket.h"
++struct Socket {
++    int fd;
++    explicit Socket(int value) : fd(value) {}
++    ~Socket() { if (fd >= 0) ::close(fd); }
++    Socket(const Socket&) = delete;
++};
++void native_options(int fd) { configure_server_socket(fd); }
++bool configure(int fd, bool native) {
++    if (fd < 0) return false;
++    if (native) native_options(fd);
++    else { const int enabled=1; if (::setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&enabled,sizeof(enabled))) return false; }
++    const timeval wait{2,0};
++    return ::setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&wait,sizeof(wait))==0;
++}
++bool handoff(bool native_first) {
++    sockaddr_in a{};a.sin_family=AF_INET;a.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
++    {
++        Socket listener(::socket(AF_INET,SOCK_STREAM,0));
++        if (!configure(listener.fd,native_first) || ::bind(listener.fd,reinterpret_cast<sockaddr*>(&a),sizeof(a)) || ::listen(listener.fd,1)) return false;
++        socklen_t size=sizeof(a);if (::getsockname(listener.fd,reinterpret_cast<sockaddr*>(&a),&size)) return false;
++        Socket client(::socket(AF_INET,SOCK_STREAM,0));
++        if (!configure(client.fd,false) || ::connect(client.fd,reinterpret_cast<sockaddr*>(&a),sizeof(a))) return false;
++        Socket accepted(::accept(listener.fd,nullptr,nullptr));if (!configure(accepted.fd,native_first)) return false;
++        char byte;
++        if (::shutdown(accepted.fd,SHUT_WR) || ::recv(client.fd,&byte,1,0)!=0) return false;
++        if (::shutdown(client.fd,SHUT_WR) || ::recv(accepted.fd,&byte,1,0)!=0) return false;
++    }
++    Socket next(::socket(AF_INET,SOCK_STREAM,0));
++    return configure(next.fd,!native_first) && ::bind(next.fd,reinterpret_cast<sockaddr*>(&a),sizeof(a))==0;
++}
++int main() {
++    bool forward=handoff(true),reverse=handoff(false);
++    std::cout << "IK->SO_REUSEADDR=" << forward << " SO_REUSEADDR->IK=" << reverse << '\n';
++    return forward && reverse ? 0 : 1;
++}
++
++#else
++int main() { std::cout << "SKIP: Linux TCP listener handoff test\n"; return 77; }
++#endif

@@ -1,0 +1,293 @@
+{
+  "date": "2026-10-20",
+  "hardware": "one V100-SXM2-32GB, sm70, CUDA12.9, E5-2698v4/16vCPU/DDR4",
+  "sampling": "Medium, original8192 thinking budget; short768output/temp1/seed42; long4096output/temp0; coding16384output/temp0; original top-k20(Qwen)/64(GGUF), top-p.95",
+  "limits": "A bounded regression suite, not universal quality equivalence. Existing failures remain visible. No checkpoint/requantization/context reduction. Active language weights/KV/compute GPU; inactive host snapshots and CPU Vision permitted.",
+  "models": {
+    "qwen-v100": {
+      "context": 262144,
+      "engine": "NInfer 7e626a68 + socket fix",
+      "mtp": 4,
+      "agents": [
+        "opencode",
+        "pi"
+      ],
+      "vision": "GPU",
+      "baseline": {
+        "quality": {
+          "cases_passed": 8,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 20,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 226108,
+          "completion_tokens": 336,
+          "ttft_s": 415.1481,
+          "decode_tps": 42.7386
+        }
+      },
+      "selected": {
+        "quality": {
+          "cases_passed": 8,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 20,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 226108,
+          "completion_tokens": 336,
+          "ttft_s": 415.1481,
+          "decode_tps": 42.7386
+        },
+        "short": {
+          "ru": {
+            "decode_tps": 61.5448,
+            "ttft_s": 0.4147,
+            "completion_tokens": 768
+          },
+          "code": {
+            "decode_tps": 68.524,
+            "ttft_s": 0.4347,
+            "completion_tokens": 768
+          },
+          "story": {
+            "decode_tps": 55.0363,
+            "ttft_s": 0.4296,
+            "completion_tokens": 768
+          }
+        },
+        "note": "Same original computational binary/profile, only Linux socket option fixed before baseline. No separate before/after speed gain claimed."
+      }
+    },
+    "qwen-v100-pi": {
+      "context": 262144,
+      "engine": "NInfer 7e626a68 + socket fix",
+      "mtp": 4,
+      "agents": [
+        "pi"
+      ],
+      "vision": "GPU",
+      "baseline": {
+        "quality": {
+          "cases_passed": 8,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 20,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 226108,
+          "completion_tokens": 426,
+          "ttft_s": 412.0957,
+          "decode_tps": 35.5789
+        }
+      },
+      "selected": {
+        "quality": {
+          "cases_passed": 8,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 20,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 226108,
+          "completion_tokens": 426,
+          "ttft_s": 412.0957,
+          "decode_tps": 35.5789
+        },
+        "short": {
+          "ru": {
+            "decode_tps": 42.2736,
+            "ttft_s": 0.3899,
+            "completion_tokens": 768
+          },
+          "code": {
+            "decode_tps": 49.8378,
+            "ttft_s": 0.4839,
+            "completion_tokens": 768
+          },
+          "story": {
+            "decode_tps": 38.357,
+            "ttft_s": 0.4833,
+            "completion_tokens": 768
+          }
+        },
+        "note": "Same original computational binary/profile, only Linux socket option fixed before baseline. No separate before/after speed gain claimed."
+      }
+    },
+    "gemma31-v100": {
+      "context": 131072,
+      "engine": "llama.cpp f916130",
+      "mtp": 4,
+      "agents": [
+        "opencode",
+        "pi"
+      ],
+      "vision": "CPU",
+      "baseline": {
+        "quality": {
+          "cases_passed": 8,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 15,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 117909,
+          "completion_tokens": 392,
+          "ttft_s": 437.3475,
+          "decode_tps": 36.4228
+        },
+        "short": {
+          "ru": {
+            "decode_tps": 71.8609,
+            "ttft_s": 0.4855,
+            "completion_tokens": 768
+          },
+          "code": {
+            "decode_tps": 74.6459,
+            "ttft_s": 1.0258,
+            "completion_tokens": 768
+          },
+          "story": {
+            "decode_tps": 61.2745,
+            "ttft_s": 1.0146,
+            "completion_tokens": 768
+          }
+        }
+      },
+      "selected": {
+        "quality": {
+          "cases_passed": 8,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 15,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 117909,
+          "completion_tokens": 392,
+          "ttft_s": 373.4678,
+          "decode_tps": 37.3986
+        },
+        "short": {
+          "ru": {
+            "decode_tps": 71.8786,
+            "ttft_s": 0.4696,
+            "completion_tokens": 768
+          },
+          "code": {
+            "decode_tps": 74.6378,
+            "ttft_s": 1.0196,
+            "completion_tokens": 768
+          },
+          "story": {
+            "decode_tps": 61.3398,
+            "ttft_s": 1.0253,
+            "completion_tokens": 768
+          }
+        }
+      }
+    },
+    "artemis31-v100": {
+      "context": 196608,
+      "engine": "llama.cpp f916130",
+      "mtp": 2,
+      "agents": [
+        "opencode",
+        "pi"
+      ],
+      "vision": "disabled",
+      "baseline": {
+        "quality": {
+          "cases_passed": 9,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 20,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 173727,
+          "completion_tokens": 365,
+          "ttft_s": 732.8922,
+          "decode_tps": 16.5638
+        },
+        "short": {
+          "ru": {
+            "decode_tps": 48.4437,
+            "ttft_s": 0.6074,
+            "completion_tokens": 768
+          },
+          "code": {
+            "decode_tps": 51.5823,
+            "ttft_s": 0.7128,
+            "completion_tokens": 768
+          },
+          "story": {
+            "decode_tps": 41.8164,
+            "ttft_s": 0.7675,
+            "completion_tokens": 768
+          }
+        }
+      },
+      "selected": {
+        "quality": {
+          "cases_passed": 9,
+          "cases_total": 9
+        },
+        "coding": {
+          "assertions_passed": 20,
+          "assertions_total": 20
+        },
+        "long": {
+          "passed": true,
+          "prompt_tokens": 173727,
+          "completion_tokens": 352,
+          "ttft_s": 757.759,
+          "decode_tps": 16.1466,
+          "warm": {
+            "passed": true,
+            "prompt_tokens": 173764,
+            "ttft_s": 2.259,
+            "decode_tps": 16.2243
+          }
+        },
+        "short": {
+          "ru": {
+            "decode_tps": 51.8893,
+            "ttft_s": 1.0375,
+            "completion_tokens": 768
+          },
+          "code": {
+            "decode_tps": 57.1028,
+            "ttft_s": 0.6751,
+            "completion_tokens": 768
+          },
+          "story": {
+            "decode_tps": 44.9181,
+            "ttft_s": 0.7162,
+            "completion_tokens": 768
+          }
+        }
+      }
+    }
+  }
+}

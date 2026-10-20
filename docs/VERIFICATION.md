@@ -1,3 +1,61 @@
+# V100 — квалификация профилей и шлюза (2026-10-20)
+
+Server-only rollout in VM5100: original four checkpoints/quants, contexts,
+Medium/native budgets and OpenCode/Pi policies retained. GPU stays in VM5100;
+RTX5090/Strata unaffected. Canonical source and primary-source research:
+[services/v100](../services/v100/README.md); aggregate synthetic results:
+[qualification.json](../services/v100/qualification.json).
+
+Selected: old NInfer7e626a68 + Linux SO_REUSEADDR for both Qwens, original
+llama.cpp f916130 with both target/draft embeddings on CUDA for Gemma/Artemis.
+MTP4 for Qwens/Gemma, MTP2 for Artemis; original native contexts262144/131072/
+196608 and inactive host-cache limits. Native graph audit found0CPU text nodes
+(21917CUDA Gemma/26864CUDA Artemis); CPU Vision allowed, Gemma uses it.
+
+Quality: unchanged8/9 functional cases for Qwens/Gemma,9/9 Artemis. Coding:
+20/20 assertions for both Qwens/Artemis, unchanged15/20 Gemma (existing invalid
+JSON escape prevents execution of one five-assertion task). Cold long retrieval
+passed at226108Qwen/117909Gemma+OCR and173727Artemis text tokens; Artemis warm
+prefix also passed with2.259sTTFT. Short CPU-free768-token Medium runs: Huihui
+55.04–68.52, Pi38.36–49.84, Gemma61.34–74.64, Artemis44.92–57.10tok/s. Gemma
+retains speed after full GPU placement; Artemis short gains7–11% versus paired
+original runs, with long decode16.15 versus16.56tok/s. Small regression suites
+cannot prove universal model quality.
+
+Rejected candidates remain explicit: IK6.48/5.21tok/s pilots; new NInfer Gemma
+sampling cap20 versus native64, Artemis unsupported Q4_1; both new Qwens fail a
+fair226108-token/full-resolution test by exhausting4096tokens in reasoning;
+expanded Volta flash fails an independent65K-key FP64 oracle with unchanged
+thresholds. Early CPU-Vision256-token image probes were not equivalent and
+are excluded from quality conclusions. Tokenizer3032parity cases and13CUDA
+oracles alone were insufficient for release. Workspace/tokenizer patches are
+retained for reproducibility, not used to authorize the rejected runtime.
+
+13gateway HTTP/startup/TCP tests passed on Mac and Linux. Silent-prefill client
+cancellation regression failed original code before the fix; normal SSE,
+keep-alive/follow-up, model gate, legacy/new startup enums and blocked native
+management routes pass. Socket-handoff regression reproduced both TIME_WAIT
+directions before the fix. Full app TS/Vite build, architecture176 and unchanged
+bundle budgets passed; Rust unchanged. Existing Vite warnings retained.
+
+Deployment used idle/GPU-empty checks, CAS against original registry/source,
+verified24immutable llama release files and Qwen binary44ea4ad416ba0085f0356190dd1b111cdd1fba0171742cf5a902263a96faa1c7.
+Live registry8a837cf4e698d95bd71ec694302494a50ce7e77a898cab5967af2f1d9120a3b5,
+gateway5421a6e8b1e49b4d242cbc0284adcb6702d75c50a1e7c4de0c78a6674a170588.
+Production healthy on VM and existing Mac forwards; seven real isolated read-tool
+turns passed (3OpenCode/4Pi, Medium, random JSON marker), only completed read
+calls observed. Own OpenCode test sessions removed; Pi used no persisted session.
+[Live acceptance receipt](../services/v100/acceptance.json): all four models
+passed actual GPU-prefill and decode cancellation plus distinct follow-up JSON.
+Gateway lease released in0.405–0.454s; next native first token0.188–3.035s.
+Pi-only model refused OpenCode with403 before inference. DefaultQwen ready,
+0active requests and one GPU compute process confirmed. Own maintenance leases/
+test device released/revoked, private forward closed, metrics/fallback timer
+stopped; existing18021/18008 forwards remain healthy. Removed only the unused
+own converted Gemma artifact(19083598848B); original weights retained.
+No empty desktop package is needed to activate server-only profiles; Windows/
+Linux desktop interaction was not separately exercised.
+
 # Arvela 0.2.77 — output-limit recovery (2026-10-19)
 
 Incident: two real `finish:length` stops at16,384 output tokens, with repetitive

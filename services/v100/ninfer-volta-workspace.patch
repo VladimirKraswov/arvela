@@ -1,0 +1,93 @@
+diff --git a/src/ops/softmax_attention/dense/causal_cache/causal_softmax_attention.cpp b/src/ops/softmax_attention/dense/causal_cache/causal_softmax_attention.cpp
+index 462e8e9..a75f9e5 100644
+--- a/src/ops/softmax_attention/dense/causal_cache/causal_softmax_attention.cpp
++++ b/src/ops/softmax_attention/dense/causal_cache/causal_softmax_attention.cpp
+@@ -723,11 +723,17 @@ std::size_t causal_softmax_attention_workspace_capacity_bytes(
+     // Any width in [min_width, max_width] at or past the flash route's first Q-block can select
+     // it, so the reservation has to be accounted whenever the range reaches that width -- the
+     // gather planes do not depend on the width, so one reservation covers the whole range.
+-    if (max_width >= detail::causal_attention_volta_flash_q_block_tokens() &&
++    // The flash route has an upper visible-key gate. A long-context envelope
++    // still crosses eligible shorter prefixes, so checking only its upper end
++    // misses their gather workspace (e.g. 262144 capacity, 24576 visible keys).
++    const auto flash_keys = std::min<std::uint32_t>(
++        envelope.max_visible_keys, detail::causal_attention_volta_flash_maximum_visible_keys());
++    if (envelope.min_visible_keys <= flash_keys &&
++        max_width >= detail::causal_attention_volta_flash_q_block_tokens() &&
+         detail::causal_attention_volta_flash_applies(q_heads, max_width, batch_size, cache_storage,
+-                                                     kHeadDim, envelope.max_visible_keys)) {
++                                                     kHeadDim, flash_keys)) {
+         WorkspaceLayoutBuilder layout;
+-        (void)allocate_volta_flash_workspace(layout, q_heads, envelope.max_visible_keys);
++        (void)allocate_volta_flash_workspace(layout, q_heads, flash_keys);
+         maximum = std::max(maximum, layout.peak_bytes(1));
+     }
+ #endif
+diff --git a/tests/ops/tests.cmake b/tests/ops/tests.cmake
+index d29a587..1cfb3b1 100644
+--- a/tests/ops/tests.cmake
++++ b/tests/ops/tests.cmake
+@@ -56,6 +56,11 @@ ninfer_add_op_test(ninfer_candidate_selector_test
+   SOURCES "${CMAKE_CURRENT_LIST_DIR}/test_candidate_selector.cpp"
+   LIBRARIES ninfer_ops)
+ 
++ninfer_add_op_test(ninfer_volta_workspace_test
++  SOURCES "${CMAKE_CURRENT_LIST_DIR}/softmax_attention/test_volta_workspace.cpp"
++  LIBRARIES ninfer_ops)
++set_tests_properties(ninfer_volta_workspace_test PROPERTIES SKIP_RETURN_CODE 77)
++
+ ninfer_add_op_test(ninfer_softmax_attention_test
+   SOURCES "${CMAKE_CURRENT_LIST_DIR}/softmax_attention/main.cpp"
+           "${CMAKE_CURRENT_LIST_DIR}/softmax_attention/causal_cache.cpp"
+diff --git a/tests/ops/softmax_attention/test_volta_workspace.cpp b/tests/ops/softmax_attention/test_volta_workspace.cpp
+new file mode 100644
+index 0000000..41cbc0a
+--- /dev/null
++++ b/tests/ops/softmax_attention/test_volta_workspace.cpp
+@@ -0,0 +1,46 @@
++#include "ninfer/ops/softmax_attention.h"
++#include <algorithm>
++#include <cstdlib>
++#include <iostream>
++
++int main() {
++#if defined(NINFER_SM70)
++#ifdef _WIN32
++    _putenv_s("NINFER_ATTN_VOLTA_FLASH", "1");
++    _putenv_s("NINFER_ATTN_VOLTA_FLASH_INT8", "1");
++#else
++    setenv("NINFER_ATTN_VOLTA_FLASH", "1", 1);
++    setenv("NINFER_ATTN_VOLTA_FLASH_INT8", "1", 1);
++#endif
++    int failures = 0;
++    using namespace ninfer;
++    for (const auto storage : {KvCacheStorage::BFloat16, KvCacheStorage::Int8Group64}) {
++        for (const auto heads : {ops::AttentionHeadGeometry{256,24,4},
++                                ops::AttentionHeadGeometry{256,16,2}}) {
++            for (const int width : {512,1920,2048}) {
++                for (const unsigned capacity : {32769U,65536U,262144U}) {
++                    const ops::CausalAttentionExecutionEnvelope whole{1,capacity,false,false,true};
++                    const auto budget = ops::causal_softmax_attention_workspace_capacity_bytes(
++                        heads,storage,whole,1,1,width);
++                    for (const unsigned visible : {16384U,24576U,32768U}) {
++                        const ops::CausalAttentionExecutionEnvelope point{visible,visible,false,false,true};
++                        const auto needed = ops::causal_softmax_attention_workspace_capacity_bytes(
++                            heads,storage,point,1,width,width);
++                        if (budget < needed) {
++                            std::cerr << "Workspace envelope misses prefix: width=" << width
++                                      << " capacity=" << capacity << " visible=" << visible
++                                      << " reserved=" << budget << " needed=" << needed << '\n';
++                            ++failures;
++                        }
++                    }
++                }
++            }
++        }
++    }
++    std::cout << "Volta workspace interval failures=" << failures << '\n';
++    return failures ? 1 : 0;
++#else
++    std::cout << "SKIP: Volta-specific route contract\n";
++    return 77;
++#endif
++}

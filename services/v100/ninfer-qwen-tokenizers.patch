@@ -1,0 +1,300 @@
+diff --git a/src/models/qwen3_5/frontend/frontend.cpp b/src/models/qwen3_5/frontend/frontend.cpp
+index 36b9b7d..9ca616f 100644
+--- a/src/models/qwen3_5/frontend/frontend.cpp
++++ b/src/models/qwen3_5/frontend/frontend.cpp
+@@ -235,7 +235,11 @@ fi::GemmaMediaOptions gemma_media_options(const FrontendResources& resources) {
+ void validate_tokenizer_config(const FrontendResources& resources) {
+     const Json tokenizer_config =
+         parse_resource_json(resources.tokenizer_config_json, "tokenizer_config.json");
+-    if (tokenizer_config.value("add_bos_token", true) ||
++    // Qwen2 has no implicit BOS. Modern tokenizers configs omit add_bos_token
++    // when bos_token is null; do not invent a prefix absent from the artifact.
++    const bool ambiguous_bos = !tokenizer_config.contains("add_bos_token") &&
++        tokenizer_config.contains("bos_token") && !tokenizer_config["bos_token"].is_null();
++    if (tokenizer_config.value("add_bos_token", false) || ambiguous_bos ||
+         tokenizer_config.value("add_prefix_space", true)) {
+         throw std::invalid_argument(
+             "tokenizer_config.json does not match Qwen3.5 tokenizer prefix semantics");
+diff --git a/src/models/qwen3_5/frontend/tokenizer.cpp b/src/models/qwen3_5/frontend/tokenizer.cpp
+index ffbc03b..9d9bcde 100644
+--- a/src/models/qwen3_5/frontend/tokenizer.cpp
++++ b/src/models/qwen3_5/frontend/tokenizer.cpp
+@@ -31,7 +31,13 @@ constexpr std::int64_t kMaxTokenId = 1'000'000;
+ constexpr std::string_view kQwenSplitPattern =
+     R"qwen((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?[\p{L}\p{M}]+|\p{N}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+)qwen";
+ 
+-void validate_pipeline(const Json& root, const Json& model) {
++// Older Qwen releases treat combining marks as punctuation. Respect the
++// declared Split pattern rather than guessing from a model name.
++constexpr std::string_view kLegacyQwenSplitPattern =
++    R"qwen((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+)qwen";
++
++bool validate_pipeline(const Json& root, const Json& model) {
++    bool marks_in_words = true;
+     const auto require = [](bool valid, const char* field) {
+         if (!valid) {
+             throw std::invalid_argument(std::string("tokenizer.json ") + field +
+@@ -52,10 +58,12 @@ void validate_pipeline(const Json& root, const Json& model) {
+         const auto& split = pre["pretokenizers"][0];
+         const auto& bytes = pre["pretokenizers"][1];
+         require(type(split, "Split") && split.contains("pattern") && split["pattern"].is_object() &&
+-                    split["pattern"].value("Regex", std::string{}) == kQwenSplitPattern &&
++                    (split["pattern"].value("Regex", std::string{}) == kQwenSplitPattern ||
++                     split["pattern"].value("Regex", std::string{}) == kLegacyQwenSplitPattern) &&
+                     split.value("behavior", std::string{}) == "Isolated" &&
+                     split.value("invert", Json(false)) == false,
+                 "pre_tokenizer.Split");
++        marks_in_words = split["pattern"]["Regex"] == kQwenSplitPattern;
+         require(type(bytes, "ByteLevel") && bytes.value("add_prefix_space", Json(true)) == false &&
+                     bytes.value("use_regex", Json(true)) == false,
+                 "pre_tokenizer.ByteLevel");
+@@ -71,6 +79,7 @@ void validate_pipeline(const Json& root, const Json& model) {
+         require(!model.contains(field) || model[field].is_null() || model[field] == "", field);
+     }
+     require(model.value("ignore_merges", Json(false)) == false, "model.ignore_merges");
++    return marks_in_words;
+ }
+ 
+ struct VocabMetadata {
+@@ -287,6 +296,10 @@ void merge_added_tokens_decoder(const Json& root, std::string_view label,
+                                 const std::unordered_set<int>& occupied_vocab_ids,
+                                 const std::unordered_map<std::string, int>& occupied_vocab_tokens,
+                                 std::vector<AddedToken>& tokens) {
++    // Modern tokenizer_config.json may omit this redundant map. The canonical
++    // tokenizer.json added_tokens were already validated; explicit maps still
++    // undergo strict type, conflict and ID checks below.
++    if (!root.contains("added_tokens_decoder")) { return; }
+     const Json& decoder = require_object_field(root, "added_tokens_decoder", label);
+     std::unordered_map<int, std::size_t> token_by_id;
+     std::unordered_map<std::string, int> token_by_content;
+@@ -463,17 +476,17 @@ std::array<std::string, 256> build_byte_level_encoder() {
+ 
+ bool is_newline(std::int32_t codepoint) noexcept { return codepoint == '\r' || codepoint == '\n'; }
+ 
+-bool is_letter_or_mark(std::int32_t codepoint) noexcept {
+-    return uni::is_letter(codepoint) || uni::is_mark(codepoint);
++bool is_word_letter(std::int32_t codepoint, bool marks_in_words) noexcept {
++    return uni::is_letter(codepoint) || (marks_in_words && uni::is_mark(codepoint));
+ }
+ 
+ bool is_non_newline_non_letter_non_number(std::int32_t codepoint) noexcept {
+     return !is_newline(codepoint) && !uni::is_letter(codepoint) && !uni::is_number(codepoint);
+ }
+ 
+-bool is_non_space_non_letter_mark_number(std::int32_t codepoint) noexcept {
++bool is_word_punctuation(std::int32_t codepoint, bool marks_in_words) noexcept {
+     return !uni::is_whitespace(codepoint) && !uni::is_letter(codepoint) &&
+-           !uni::is_mark(codepoint) && !uni::is_number(codepoint);
++           (!marks_in_words || !uni::is_mark(codepoint)) && !uni::is_number(codepoint);
+ }
+ 
+ bool ascii_ci_matches(std::string_view text, std::size_t offset, std::string_view suffix) {
+@@ -490,7 +503,7 @@ uni::CodepointSpan qwen_codepoint_at(std::string_view text, std::size_t offset)
+     return uni::utf8_codepoint_at(text, offset, "Tokenizer::encode input");
+ }
+ 
+-std::size_t qwen_word_end(std::string_view text, std::size_t begin) {
++std::size_t qwen_word_end(std::string_view text, std::size_t begin, bool marks_in_words) {
+     const uni::CodepointSpan first = qwen_codepoint_at(text, begin);
+     const std::size_t after_first  = begin + first.length;
+     const std::int32_t cp          = first.value;
+@@ -504,12 +517,12 @@ std::size_t qwen_word_end(std::string_view text, std::size_t begin) {
+ 
+     const bool has_next     = after_first < text.size();
+     const std::int32_t next = has_next ? qwen_codepoint_at(text, after_first).value : 0;
+-    if (is_letter_or_mark(cp) ||
+-        (is_non_newline_non_letter_non_number(cp) && has_next && is_letter_or_mark(next))) {
+-        std::size_t end = is_letter_or_mark(cp) ? begin : after_first;
++    if (is_word_letter(cp, marks_in_words) ||
++        (is_non_newline_non_letter_non_number(cp) && has_next && is_word_letter(next, marks_in_words))) {
++        std::size_t end = is_word_letter(cp, marks_in_words) ? begin : after_first;
+         while (end < text.size()) {
+             const uni::CodepointSpan value = qwen_codepoint_at(text, end);
+-            if (!is_letter_or_mark(value.value)) { break; }
++            if (!is_word_letter(value.value, marks_in_words)) { break; }
+             end += value.length;
+         }
+         return end;
+@@ -517,12 +530,12 @@ std::size_t qwen_word_end(std::string_view text, std::size_t begin) {
+ 
+     if (uni::is_number(cp)) { return after_first; }
+ 
+-    if ((cp == ' ' && has_next && is_non_space_non_letter_mark_number(next)) ||
+-        is_non_space_non_letter_mark_number(cp)) {
++    if ((cp == ' ' && has_next && is_word_punctuation(next, marks_in_words)) ||
++        is_word_punctuation(cp, marks_in_words)) {
+         std::size_t end = cp == ' ' ? after_first : begin;
+         while (end < text.size()) {
+             const uni::CodepointSpan value = qwen_codepoint_at(text, end);
+-            if (!is_non_space_non_letter_mark_number(value.value)) { break; }
++            if (!is_word_punctuation(value.value, marks_in_words)) { break; }
+             end += value.length;
+         }
+         while (end < text.size()) {
+@@ -602,13 +615,14 @@ std::array<int, 256> load_byte_token_ids(const std::unordered_map<std::string, i
+ bool append_normalized_bpe_ids(std::vector<int>& ids, std::string_view normalized,
+                                const BpeMergeTable& merge_rules,
+                                const std::array<int, 256>& byte_token_ids, std::size_t max_tokens,
++                               bool marks_in_words,
+                                std::vector<std::size_t>* token_ends = nullptr,
+                                std::vector<BpeWordEnd>* word_ends   = nullptr) {
+     if (normalized.empty()) { return true; }
+     if (ids.size() == max_tokens) { return false; }
+ 
+     for (std::size_t begin = 0; begin < normalized.size();) {
+-        const std::size_t end = qwen_word_end(normalized, begin);
++        const std::size_t end = qwen_word_end(normalized, begin, marks_in_words);
+         const std::string_view word(normalized.data() + begin, end - begin);
+         std::vector<BpeNode> nodes(word.size());
+         for (std::size_t index = 0; index < word.size(); ++index) {
+@@ -858,7 +872,8 @@ bool append_sentencepiece_text(BoundaryEncodedText& encoded, std::string_view te
+ bool append_ordinary_text(BoundaryEncodedText& encoded, std::string_view text,
+                           std::size_t text_offset, std::span<const IndexedByteBoundary> boundaries,
+                           const BpeMergeTable& merge_rules,
+-                          const std::array<int, 256>& byte_token_ids, std::size_t max_tokens) {
++                          const std::array<int, 256>& byte_token_ids, std::size_t max_tokens,
++                          bool marks_in_words) {
+     const std::size_t token_base = encoded.input_ids.size();
+     if (text.empty()) {
+         for (const IndexedByteBoundary boundary : boundaries) {
+@@ -878,7 +893,7 @@ bool append_ordinary_text(BoundaryEncodedText& encoded, std::string_view text,
+     std::vector<BpeWordEnd> word_ends;
+     if (has_internal_boundary) { token_ends.reserve(normalized.size()); }
+     if (!append_normalized_bpe_ids(encoded.input_ids, normalized, merge_rules, byte_token_ids,
+-                                   max_tokens, has_internal_boundary ? &token_ends : nullptr,
++                                   max_tokens, marks_in_words, has_internal_boundary ? &token_ends : nullptr,
+                                    has_internal_boundary ? &word_ends : nullptr)) {
+         return false;
+     }
+@@ -968,7 +983,7 @@ Tokenizer::Tokenizer(TokenizerResources resources) {
+         load_sentencepiece(root, tokenizer_config, model, resources);
+         return;
+     }
+-    validate_pipeline(root, model);
++    marks_in_words_ = validate_pipeline(root, model);
+ 
+     VocabMetadata vocab_metadata = load_vocab(model, tokenizer_label);
+     decoded_token_bytes_         = std::move(vocab_metadata.id_to_token);
+@@ -1118,7 +1133,7 @@ BoundaryEncodedText Tokenizer::encode_with_boundaries(
+                                             requests, bpe_merge_rules_, vocab_token_to_id_,
+                                             byte_token_ids_, options.max_tokens)
+                 : append_ordinary_text(encoded, text.substr(begin, end - begin), begin, requests,
+-                                       bpe_merge_rules_, byte_token_ids_, options.max_tokens);
++                                       bpe_merge_rules_, byte_token_ids_, options.max_tokens, marks_in_words_);
+         boundary_cursor = request_end;
+         return complete;
+     };
+diff --git a/src/models/qwen3_5/frontend/tokenizer.h b/src/models/qwen3_5/frontend/tokenizer.h
+index a4cd552..9c7f984 100644
+--- a/src/models/qwen3_5/frontend/tokenizer.h
++++ b/src/models/qwen3_5/frontend/tokenizer.h
+@@ -164,6 +164,7 @@ private:
+                             const nlohmann::json& model, TokenizerResources resources);
+ 
+     bool sentencepiece_ = false;
++    bool marks_in_words_ = true;
+     std::vector<std::string> decoded_token_bytes_;
+     std::vector<bool> valid_token_ids_;
+     std::vector<bool> special_token_ids_;
+diff --git a/tests/models/qwen3_5/test_frontend.cpp b/tests/models/qwen3_5/test_frontend.cpp
+index 989d3cb..3ffc7ba 100644
+--- a/tests/models/qwen3_5/test_frontend.cpp
++++ b/tests/models/qwen3_5/test_frontend.cpp
+@@ -437,6 +437,88 @@ bool throws_context_length(Callable&& callable) {
+     return false;
+ }
+ 
++int test_qwen_split_variants() {
++    auto source = resources();
++    auto root = nlohmann::json::parse(source.tokenizer_json);
++    const auto mark = byte_level_symbol(0xcd) + byte_level_symbol(0x98); // U+0358
++    root["model"]["vocab"][mark] = 3000;
++    root["model"]["vocab"]["a" + mark] = 3001;
++    root["model"]["vocab"]["!!"] = 3002;
++    root["model"]["vocab"]["!!" + mark] = 3003;
++    root["model"]["merges"] = nlohmann::json::array({
++        nlohmann::json::array({byte_level_symbol(0xcd), byte_level_symbol(0x98)}),
++        nlohmann::json::array({"a", mark}),
++        nlohmann::json::array({"!", "!"}),
++        nlohmann::json::array({"!!", mark})});
++    root["normalizer"] = {{"type", "NFC"}};
++    const std::string modern = R"qwen((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?[\p{L}\p{M}]+|\p{N}| ?[^\s\p{L}\p{M}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+)qwen";
++    const std::string legacy = R"qwen((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?!\S)|\s+)qwen";
++    int failures = 0;
++    auto config = nlohmann::json::parse(source.tokenizer_config_json);
++    // An absent redundant map is valid, but a present malformed map is not.
++    for (const auto& invalid : {nlohmann::json(nullptr), nlohmann::json::array()}) {
++        auto malformed = config; malformed["added_tokens_decoder"] = invalid;
++        const auto raw = malformed.dump();
++        failures += check(throws_invalid_argument([&] {
++            (void)fi::Tokenizer({source.tokenizer_json, raw, source.generation_config_json});
++        }), "malformed explicit added_tokens_decoder was accepted");
++    }
++    config.erase("added_tokens_decoder");
++    source.tokenizer_config_json = config.dump();
++    for (bool include_marks : {true, false}) {
++        root["pre_tokenizer"] = {{"type", "Sequence"}, {"pretokenizers", {
++            {{"type", "Split"}, {"pattern", {{"Regex", include_marks ? modern : legacy}}},
++             {"behavior", "Isolated"}, {"invert", false}},
++            {{"type", "ByteLevel"}, {"add_prefix_space", false}, {"use_regex", false}}}}};
++        source.tokenizer_json = root.dump();
++        const fi::Tokenizer tokenizer({source.tokenizer_json, source.tokenizer_config_json,
++                                       source.generation_config_json});
++        failures += check(tokenizer.encode("a\xcd\x98") == (include_marks ? std::vector<int>{3001} : std::vector<int>{fixture_byte_token('a'), 3000}),
++                          "combining mark word merge disagrees with declared Split pattern");
++        failures += check(tokenizer.encode("!!\xcd\x98") == (include_marks ? std::vector<int>{3002, 3000} : std::vector<int>{3003}),
++                          "combining mark punctuation merge disagrees with declared Split pattern");
++        const std::array<std::size_t, 1> boundary{1};
++        const auto encoded = tokenizer.encode_with_boundaries("a\xcd\x98", boundary);
++        failures += check(encoded.input_ids == tokenizer.encode("a\xcd\x98"),
++                          "boundary-aware path changed token IDs");
++        failures += check(encoded.boundaries[0].exact_frontier == (include_marks ? std::optional<std::size_t>{} : std::optional<std::size_t>{1}),
++                          "byte boundary does not reflect declared word merge");
++        failures += check(tokenizer.encode("a\xcd\x98", {.max_tokens = 1}) == (include_marks ? std::vector<int>{3001} : std::vector<int>{fixture_byte_token('a')}),
++                          "bounded encoding ignored tokenizer variant");
++    }
++    return failures;
++}
++
++int test_implicit_qwen_bos() {
++    auto source = resources();
++    auto config = nlohmann::json::parse(source.tokenizer_config_json);
++    const Frontend baseline = make_frontend(source, false);
++    ninfer::ChatMessage message;
++    message.role = ninfer::ChatRole::User;
++    message.parts.push_back(ninfer::MessagePart{
++        .kind = ninfer::MessagePartKind::Text, .text = "Привет a\xcd\x98", .media = {}});
++    ninfer::PromptInput input;
++    input.messages.push_back(std::move(message));
++    config.erase("add_bos_token");
++    config["bos_token"] = nullptr;
++    source.tokenizer_config_json = config.dump();
++    const Frontend modern = make_frontend(source, false);
++    const auto old_prompt = baseline.prepare(input);
++    const auto new_prompt = modern.prepare(input);
++    int failures = check(FrontendFactory::inspect(old_prompt).token_ids ==
++                         FrontendFactory::inspect(new_prompt).token_ids,
++                         "omitted disabled BOS changed rendered prompt token IDs");
++    for (auto [field, value] : std::vector<std::pair<const char*, nlohmann::json>>{
++             {"add_bos_token", true}, {"bos_token", "<|endoftext|>"},
++             {"add_prefix_space", true}}) {
++        auto invalid = config; invalid[field] = value;
++        source.tokenizer_config_json = invalid.dump();
++        failures += check(throws_invalid_argument([&] { (void)make_frontend(source, false); }),
++                          "unsupported or ambiguous implicit tokenizer prefix accepted");
++    }
++    return failures;
++}
++
+ int test_declared_frontend_semantics() {
+     auto source                = resources();
+     auto tokenizer             = nlohmann::json::parse(source.tokenizer_json);
+@@ -3409,6 +3491,8 @@ int main() {
+     const FrontendResources owned = resources();
+     const Frontend frontend       = make_frontend(owned);
+     int failures                  = 0;
++    failures += test_implicit_qwen_bos();
++    failures += test_qwen_split_variants();
+     failures += test_declared_frontend_semantics();
+     failures += test_ngram_proposal_only_sources();
+     failures += test_tokenizer_config_merge();

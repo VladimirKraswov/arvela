@@ -1,0 +1,84 @@
+{
+  "libggml.so.0.25.3": {
+    "sha256": "50e16d8a71d9846b9364561e412d47ff2a8db0ffefff6dbca533d05da900caef",
+    "bytes": 60360
+  },
+  "libggml.so.0": {
+    "symlink": "libggml.so.0.25.3"
+  },
+  "libmtmd.so.0.5.0": {
+    "sha256": "0b84bcec0ea2aac4a4be832c2586413e6b16b5abb6a1ff767bbb419531f65d24",
+    "bytes": 1978992
+  },
+  "libllama.so.0": {
+    "symlink": "libllama.so.0.5.0"
+  },
+  "libggml-cpu.so.0.25.3": {
+    "sha256": "ebf617f384c5577f0f56d1ef3ec0dd06eca249e01ea2375b00070467b381c708",
+    "bytes": 1389640
+  },
+  "libggml-base.so": {
+    "symlink": "libggml-base.so.0"
+  },
+  "libmtmd.so.0": {
+    "symlink": "libmtmd.so.0.5.0"
+  },
+  "libnccl.so.2": {
+    "sha256": "1d9c10322efacde695cf640db1f29fc1586c929f1087f0e1202d2d5e70fb7168",
+    "bytes": 429628328
+  },
+  "libllama.so.0.5.0": {
+    "sha256": "fa9a865491fcc8289b6b5b930ca217ee1a00d677752df0526126bfbd20fee4f9",
+    "bytes": 4744584
+  },
+  "llama-server": {
+    "sha256": "aba675476d4cdee2b6c5e8afc377518db463d14568aaa9f097f6c840dbf0455e",
+    "bytes": 17888
+  },
+  "libllama-server-impl.so": {
+    "sha256": "a63502d5d254f5b97002b462f228e5c490cfa2603c7a1716879a3a54273f1b42",
+    "bytes": 7069808
+  },
+  "libllama.so": {
+    "symlink": "libllama.so.0"
+  },
+  "libggml-cuda.so.0.25.3": {
+    "sha256": "3b7733abaa7422222c9a57131332b2e8ddaaafc10996b56a61a6c4ef6cd4b08c",
+    "bytes": 59432264
+  },
+  "libggml-cuda.so.0": {
+    "symlink": "libggml-cuda.so.0.25.3"
+  },
+  "libllama-common.so.0": {
+    "symlink": "libllama-common.so.0.5.0"
+  },
+  "libggml.so": {
+    "symlink": "libggml.so.0"
+  },
+  "libllama-common.so.0.5.0": {
+    "sha256": "c9c506573e82a6014219c33cf0bbd948bed09865fd1a662846211bf6372fc7c4",
+    "bytes": 6233736
+  },
+  "libmtmd.so": {
+    "symlink": "libmtmd.so.0"
+  },
+  "libggml-base.so.0": {
+    "symlink": "libggml-base.so.0.25.3"
+  },
+  "libggml-cuda.so": {
+    "symlink": "libggml-cuda.so.0"
+  },
+  "libllama-common.so": {
+    "symlink": "libllama-common.so.0"
+  },
+  "libggml-cpu.so.0": {
+    "symlink": "libggml-cpu.so.0.25.3"
+  },
+  "libggml-cpu.so": {
+    "symlink": "libggml-cpu.so.0"
+  },
+  "libggml-base.so.0.25.3": {
+    "sha256": "4a14e111dd880d94cc290fa0c6255fd3ddd1f881a51d84d6ada37b5abec16746",
+    "bytes": 948848
+  }
+}

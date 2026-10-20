@@ -1,5 +1,12 @@
 # Arvela roadmap
 
+## V100: проверенные профили и переключение — 2026-10-20
+
+- [x] Research and sequential same-checkpoint/native-context qualification for all four V100 profiles; reject faster candidates with long-context/numerical regressions.
+- [x] Full GPU target/draft text placement for Gemma/Artemis; immutable runtimes, original contexts/policies/budgets and inactive caches retained; Artemis MTP2 qualified.
+- [x] Linux TIME_WAIT handoff fix, explicit gateway route/startup boundaries and silent-prefill disconnect propagation with failing-before TCP regression.
+- [x] Seven actual OpenCode/Pi tool turns, all four prefill/decode cancellations and Pi-only403 gate; final defaultQwen/oneGPU process, own test infrastructure cleaned. See [operator report](services/v100/README.md).
+
 ## Обязательный выпуск в мастерской — 0.2.64
 
 - [x] Permanent owner authorization repeated as hidden scoped context for manual, queued/steer and scheduled prompts; shared OpenCode/Pi contract and Pi history preservation.
