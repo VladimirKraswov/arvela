@@ -66,6 +66,9 @@ jobs:
       - run: cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets
       - run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Verify isolated Debian rename
+        if: matrix.platform == 'linux'
+        run: python3 scripts/test-package-migration.py
       - name: Build platform package
         run: npm run build:${{ matrix.platform }}
       - run: npm run check:bundle

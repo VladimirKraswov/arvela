@@ -185,7 +185,7 @@ async fn perform(
             }
             *state.release.lock().map_err(|e| e.to_string())? = None;
             *state.bytes.lock().map_err(|e| e.to_string())? = None;
-            let url=format!("https://raw.githubusercontent.com/VladimirKraswov/arvela/main/updates/{channel}.json");
+            let url=format!("https://raw.githubusercontent.com/VladimirKraswov/enki/main/updates/{channel}.json");
             let update = app
                 .updater_builder()
                 .endpoints(vec![url.parse().map_err(|_| "Invalid feed")?])
@@ -199,10 +199,12 @@ async fn perform(
             if let Some(ref u) = update {
                 if u.download_url.scheme() != "https"
                     || u.download_url.host_str() != Some("github.com")
-                    || !u
-                        .download_url
-                        .path()
-                        .starts_with("/VladimirKraswov/arvela/releases/download/")
+                    || ![
+                        "/VladimirKraswov/enki/releases/download/",
+                        "/VladimirKraswov/arvela/releases/download/",
+                    ]
+                    .iter()
+                    .any(|prefix| u.download_url.path().starts_with(prefix))
                 {
                     return Err("Неизвестный источник обновления".into());
                 }

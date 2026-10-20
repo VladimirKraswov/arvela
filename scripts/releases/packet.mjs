@@ -36,5 +36,5 @@ export function validateVersions(root,version){
   const npm=read('package.json'),lock=read('package-lock.json'),config=read('src-tauri/tauri.conf.json');
   const cargo=fs.readFileSync(path.join(root,'src-tauri/Cargo.toml'),'utf8').match(/\[package\][\s\S]*?\nversion = "([^"]+)"/);
   const locked=fs.readFileSync(path.join(root,'src-tauri/Cargo.lock'),'utf8').match(/\[\[package\]\]\nname = "(?:arvela|enki)"\nversion = "([^"]+)"/);
-  if([npm.version,lock.version,lock.packages?.['']?.version,config.version,cargo?.[1],locked?.[1]].some(v=>v!==version)||config.identifier!=='dev.local.opencodedesktop'||!['Arvela','Enki'].includes(config.productName))throw Error('Release manifest versions or application identity disagree');
+  if([npm.version,lock.version,lock.packages?.['']?.version,config.version,cargo?.[1],locked?.[1]].some(v=>v!==version)||config.identifier!=='dev.local.opencodedesktop'||config.productName!=='Enki')throw Error('Release manifest versions or application identity disagree');
 }

@@ -5,7 +5,7 @@ it('Enki package keeps the profile ABI while the signed bridge supports installe
  const config=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json','utf8'));
  const version=JSON.parse(fs.readFileSync('package.json','utf8')).version;
  expect(()=>validateVersions(process.cwd(),version)).not.toThrow();
- expect(config.identifier).toBe('dev.local.opencodedesktop');expect(config.productName).toBe('Arvela');
+ expect(config.identifier).toBe('dev.local.opencodedesktop');expect(config.productName).toBe('Enki');
  expect(config.app.windows[0].title).toBe('Enki');expect(config.mainBinaryName).toBe('enki');
  expect(JSON.parse(fs.readFileSync('package.json','utf8')).name).toBe('enki');
  const plist=fs.readFileSync('src-tauri/Info.plist','utf8');
@@ -19,4 +19,11 @@ it('bundled operator guidance uses Enki while old protocol readers remain explic
   const text=fs.readFileSync(name,'utf8');expect(text).not.toContain('Arvela');
  }
  expect(fs.readFileSync('src-tauri/resources/computer/SKILL.md','utf8')).toContain('name: enki-computer');
+});
+
+it('Linux packages replace only the previous application package, keeping the independent engine',()=>{
+ const linux=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json','utf8')).bundle.linux;
+ expect(linux.deb.replaces).toEqual(['arvela']);expect(linux.deb.conflicts).toEqual(['arvela']);
+ expect(linux.rpm.obsoletes).toEqual(['arvela']);
+ expect(JSON.stringify(linux)).not.toContain('opencode');
 });
