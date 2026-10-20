@@ -1,5 +1,6 @@
 import { parseConfig, updateConfig, remoteMcpUrl } from "../state/configEditor";
-import { isAbsoluteLocalPath, pathBasename } from "../util/paths";
+import { isAbsoluteLocalPath } from "../util/paths";
+import { sameAppExecutable } from "../util/appExecutable";
 export type Scope = "global" | "project";
 export interface SkillSource {
   id: string;
@@ -123,10 +124,7 @@ function owned(value: unknown, key: string, id: string, executable: string) {
     !isAbsoluteLocalPath(v.command[0])
   )
     return false;
-  return (
-    pathBasename(v.command[0]).toLowerCase() ===
-    pathBasename(executable).toLowerCase()
-  );
+  return sameAppExecutable(v.command[0], executable);
 }
 export function accessPluginUri(path: string) {
   const normalized = path.replace(/\\/g, "/");

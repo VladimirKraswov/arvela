@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { isNative } from "../native/platform";
-import { isAbsoluteLocalPath, pathBasename } from "../util/paths";
+import { isAbsoluteLocalPath } from "../util/paths";
+import { sameAppExecutable } from "../util/appExecutable";
 import { parseConfig, updateConfig } from "../state/configEditor";
 import { isLocalComputer } from "../state/computer";
 import { browserEnabled, browserNodeProgram } from "./preferences";
@@ -50,8 +51,8 @@ const message = (error: unknown) => error instanceof Error ? error.message : Str
 /**
  * Whether an existing reserved entry was written by this application. The
  * executable may live elsewhere after the app bundle was moved or reinstalled,
- * so the same executable name with the private flag is still ours; any other
- * program is a collision and is never overwritten.
+ * so a matching executable identity (including the legacy CLI) with the private
+ * flag is ours; any other program is a collision and is never overwritten.
  */
 function ownedEntry(existing: unknown, command: string): boolean {
   if (!existing || typeof existing !== "object" || Array.isArray(existing)) return false;
@@ -61,10 +62,7 @@ function ownedEntry(existing: unknown, command: string): boolean {
   const previous = entry.command[0];
   if (typeof previous !== "string" || !isAbsoluteLocalPath(previous)) return false;
   if (previous === command) return true;
-  // Drive-letter and UNC file systems compare names without case.
-  const caseless = /^(?:[A-Za-z]:[\\/]|[\\/]{2})/u.test(command);
-  const name = (path: string) => caseless ? pathBasename(path).toLowerCase() : pathBasename(path);
-  return name(previous) === name(command);
+  return sameAppExecutable(previous, command);
 }
 
 /** Reserved entry only; JSONC, other MCPs and all engine permissions remain intact. */

@@ -1,5 +1,11 @@
 # Enki roadmap
 
+## Enki MCP wrapper migration (0.2.87)
+
+- [x] Browser and shared MCP reserved entries recognize both shipped executable identities across the rename, retaining private flags and exact scope/server checks. Foreign and malformed entries remain protected.
+- [x] POSIX case sensitivity and Windows drive/UNC comparison; idempotent wrapper rewrite preserves JSONC, unrelated tools and permissions. Four migration regressions fail before the fix.
+- [ ] Canonical Hub publication and exact packet verification; hot-compatible with0.2.86.
+
 ## Web discovery recovery (0.2.86)
 
 - [x] Reject generic software/GitHub RSS results when the query names an actual project; preserve query-specific misses and GitHub repository fallback.

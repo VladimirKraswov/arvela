@@ -1,3 +1,24 @@
+# Enki MCP identity migration (0.2.87)
+
+Read-only installed-client inspection: Enki0.2.86 uses primary CLI enki, while
+its browser MCP entry retained the previous opencode-desktop executable. The
+browser adapter and shared registry checked basename equality only, incorrectly
+classifying the shipped legacy identity as foreign after the rename.
+A common executable-identity helper now recognizes exactly enki/opencode-desktop
+(and their Windows.exe variants) across absolute paths. Callers still require the
+private browser/shared mode flag; shared entries also require exact scope and
+server IDs. POSIX names remain case sensitive, Windows drive/UNC paths fold case;
+foreign or malformed entries remain protected. Migration preserves JSONC comments,
+permissions, other tools and repeat configuration without further changes.
+
+Four migration regressions fail before the fix; 68 browser/shared/Pi/helper tests pass
+after it. A full browser setup regression verifies configuration CAS and successful attach.
+Additional helper tests cover reverse migration, UNC, relative paths,
+foreign names and case/platform mismatches. No owner config was manually rewritten,
+no engine/agent/browser restart or game action performed. Native inputs other
+than normalized version metadata are unchanged from0.2.86 (hot update compatible).
+Windows/Linux real GUI qualification remains separate from portable policy tests.
+
 # Web discovery recovery (0.2.86)
 
 Read-only inspection identified repeated webfetch HTTP404s from guessed repository

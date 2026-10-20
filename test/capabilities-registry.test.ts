@@ -306,3 +306,12 @@ it('refreshes only an idle project to load access policy and never interrupts bu
     expect(request.mock.calls.filter(c=>c[1]==='/instance/dispose')).toHaveLength(busy ? 0 : 1);
   }
 });
+it('migrates legacy shared wrappers to Enki only with the exact scope and server identity',()=>{
+ const c={...catalog(),command:'/Applications/Enki.app/Contents/MacOS/enki'};
+ const entry=(key:string,id:string,program='/Applications/Arvela.app/Contents/MacOS/opencode-desktop')=>JSON.stringify({mcp:{mesh_project_search:{type:'local',command:[program,'--shared-mcp',key,id]}}});
+ const updated=sharedOpenCodeConfig(entry(c.key,server.id),c);
+ expect(JSON.parse(updated.content).mcp.mesh_project_search.command).toEqual([c.command,'--shared-mcp',c.key,server.id]);
+ expect(()=>sharedOpenCodeConfig(entry('foreign-scope',server.id),c)).toThrow('занято');
+ expect(()=>sharedOpenCodeConfig(entry(c.key,'foreign-server'),c)).toThrow('занято');
+ expect(()=>sharedOpenCodeConfig(entry(c.key,server.id,'/foreign/other'),c)).toThrow('занято');
+});

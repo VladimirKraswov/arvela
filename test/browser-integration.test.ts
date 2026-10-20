@@ -295,3 +295,27 @@ it("applies the persisted interaction mode before attaching agent tools", async 
   expect(f.invoke).toHaveBeenCalledWith("browser_input", { action: "mode", args: { mode: "human" } });
   expect(f.invoke.mock.invocationCallOrder[f.invoke.mock.calls.findIndex(([name]) => name === "browser_input")]).toBeLessThan(f.request.mock.invocationCallOrder[0]);
 });
+it.each([
+ ['/Applications/Arvela.app/Contents/MacOS/opencode-desktop','/Applications/Enki.app/Contents/MacOS/enki'],
+ ['/opt/arvela/opencode-desktop','/opt/enki/enki'],
+ ['C:\\Apps\\Arvela\\OPENCODE-DESKTOP.EXE','D:\\Apps\\Enki\\enki.exe'],
+])('migrates its reserved browser wrapper across the Enki executable rename: %s', (old,current) => {
+ const source='// preserved\n'+JSON.stringify({permission:{bash:'ask'},mcp:{desktop_browser:{type:'local',command:[old,'--browser-mcp']},foreign:{type:'remote',url:'https://example.test/mcp'}}});
+ const result=integration.browserConfig(source,{...installed,command:current},true);
+ const config=parseConfig(result.content);
+ expect((config.mcp as any).desktop_browser.command).toEqual([current,'--browser-mcp']);
+ expect((config.mcp as any).foreign).toEqual({type:'remote',url:'https://example.test/mcp'});
+ expect(config.permission).toEqual({bash:'ask'});expect(result.content).toContain('// preserved');
+ expect(integration.browserConfig(result.content,{...installed,command:current},true).content).toBe(result.content);
+});
+it('completes browser setup after rename without a false collision or replacing foreign settings',async()=>{
+ const renamed={...installed,command:'/Applications/Enki.app/Contents/MacOS/enki'};
+ const source=JSON.stringify({mcp:{desktop_browser:{type:'local',command:['/Applications/Arvela.app/Contents/MacOS/opencode-desktop','--browser-mcp']},foreign:{type:'remote',url:'https://example.test/mcp'}}});
+ const f=fixture({source,status:renamed,override:command=>command==='browser_start'?renamed:undefined});
+ await f.run();
+ expect(integration.browserSetupSnapshot().phase).toBe('ready');
+ const write=f.calls('write_opencode_config')[0][1] as {expected:string;content:string};
+ expect(write.expected).toBe(source);
+ expect((parseConfig(write.content).mcp as any).foreign).toEqual({type:'remote',url:'https://example.test/mcp'});
+ expect(f.request).toHaveBeenCalledWith('POST','/mcp',expect.objectContaining({body:{name:'desktop_browser',config:{type:'local',command:[renamed.command,'--browser-mcp'],enabled:true,timeout:45000}}}));
+});
