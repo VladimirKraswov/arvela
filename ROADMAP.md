@@ -795,3 +795,9 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Busy/permission races before POST wait without disarming automatic execution; recheck after model reservation and durable journal preparation.
 - [x] Legacy idle and interaction-reply events drain the armed queue once. Stop, terminal failures and uncertain delivery still require explicit recovery.
 - [x] Explicit resume durably acknowledges stale item errors without changing the captured model. Queue controls remain outside the scrolling rows, including narrow layouts.
+
+## Queue drag ordering (0.2.79)
+
+- [x] Left grip reorders ready requests by pointer with insertion marker, edge scrolling and Escape cancellation; arrow keys move a focused grip and announce its new position.
+- [x] Save the complete reordered entries durably without changing paused/armed state. Reject changes during submission/editing or uncertain delivery; cancel stale drags after navigation or queue changes.
+- [x] Queue UI loads as its own component, preserving the main bundle budget and existing file/edit/steer controls.

@@ -10,7 +10,7 @@ import { Icon } from "./Icon";
 import { engineOptions } from "../state/engines";
 import { PI_BACKEND_ID } from "../agent/pi/backend";
 import { SelectMenu } from "./SelectMenu";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { store, useAppState } from "../state/store";
 import { attachmentDrafts, attachmentScope, type DraftAttachment } from "../attachments/drafts";
 import { LARGE_PASTE_THRESHOLD, pastedTextFile } from "../attachments/prepare";
@@ -20,6 +20,8 @@ import { openFileInput, registerComposer } from "../attachments/composerBridge";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { readFile, stat } from "@tauri-apps/plugin-fs";
+
+const PromptQueue = lazy(() => import("./PromptQueue").then(m => ({default: m.PromptQueue})));
 
 function AttachmentChip({ file, onRemove, disabled }: { file: DraftAttachment; onRemove: () => void; disabled: boolean }) {
   const [preview, setPreview] = useState("");
@@ -46,7 +48,6 @@ export function Composer() {
   const [attachmentProgress, setAttachmentProgress] = useState("");
   const [dragging, setDragging] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
-  const [queueFiles, setQueueFiles] = useState<string | null>(null);
   const scope = attachmentScope(s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId);
   const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
@@ -70,7 +71,6 @@ export function Composer() {
   useEffect(() => {
     let cancelled = false;
     setAttachmentError(""); setAttachmentProgress("");
-    setQueueFiles(null);
     void attachmentDrafts.ensure(scope).catch(error => { if (!cancelled) setAttachmentError(String(error)); });
     return () => { cancelled = true; };
   }, [scope]);
@@ -281,74 +281,7 @@ export function Composer() {
       {switchError && !switchState?.error && <div className="composer-error" role="alert">{switchError}</div>}
       {attachmentProgress && <div className="workspace-progress" role="status">{attachmentProgress}</div>}
       {store.getQueue().length > 0 && (
-        <div className="prompt-queue" aria-label="Очередь запросов">
-          <div className="queue-heading">
-            <b>В очереди · {store.getQueue().length}</b>
-            <span>
-              {store.isQueueArmed()
-                ? "После текущего ответа"
-                : "Приостановлена"}
-            </span>
-            {!store.isQueueArmed() && (
-              <button disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue()}>
-                Продолжить очередь
-              </button>
-            )}
-          </div>
-          {!store.isQueueArmed() && store.queueRecoveryReason() && <p className="queue-recovery" role="status">{store.queueRecoveryReason()}</p>}
-          {!store.isQueueArmed() && store.queueHasDifferentModel() && <button className="queue-model-recovery" disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue(true)}>Продолжить на выбранной модели</button>}
-          <div className="queued-prompts">
-          {store.getQueue().map((item) => {
-            const itemFiles = queueEdit?.id === item.id ? attachments : item.attachments?.files ?? [];
-            return (
-            <div className={`queued-prompt ${queueEdit?.id === item.id ? "queued-prompt-editing" : ""}`} key={item.id}>
-              <p className="queued-summary" title={item.text}>{item.text.replace(/\s+/g, " ").trim()}</p>
-              {!!itemFiles.length && <button type="button" className="queued-file-count" aria-label="Вложения в очереди" aria-expanded={queueFiles === item.id} title={itemFiles.map(file => file.name).join("\n")} onClick={() => setQueueFiles(queueFiles === item.id ? null : item.id)}><Icon name="file" size={14}/>{itemFiles.length}</button>}
-              {item.error && <span className="queued-error" role="alert" title={item.error}><span aria-hidden="true">!</span><span>{item.error}</span></span>}
-              <div className="queue-actions">
-                {item.state === "ready" ? (
-                  <>
-                    <button
-                      disabled={(!!queueEdit && queueEdit.id !== item.id) || (!queueEdit && store.isQueueLocked()) || !connected || switching || s.ui.sending}
-                      title={queueEdit?.id === item.id ? "Применить изменения и передать уточнение" : "Передать уточнение на следующий шаг агента без остановки инструмента"}
-                      onClick={() => void store.steerQueued(item.id)}
-                    >
-                      Сейчас
-                    </button>
-                    <button
-                      disabled={!!queueEdit || store.isQueueLocked() || !!draft.trim() || attachments.length > 0 || s.ui.sending}
-                      title={draft.trim() || attachments.length ? "Сначала отправьте или очистите черновик" : "Редактировать в поле ввода"}
-                      onClick={() => void store.editQueued(item.id).then(opened => { if (opened) textareaRef.current?.focus(); })}
-                    >
-                      Изменить
-                    </button>
-                  </>
-                ) : (
-                  <span>
-                    {item.state === "sending"
-                      ? "Отправляется…"
-                      : "Отправка не подтверждена. Проверьте историю перед повтором."}
-                  </span>
-                )}
-                <button
-                  disabled={!!queueEdit || store.isQueueLocked() || item.state === "sending"}
-                  aria-label="Убрать из очереди"
-                  onClick={() => void store.removeQueued(item.id)}
-                >
-                  <Icon name="close" size={14} />
-                </button>
-              </div>
-              {queueFiles === item.id && <div className="queued-attachments" aria-label="Файлы запроса в очереди">
-                {itemFiles.map(file => <div className="queued-attachment" key={file.id}>
-                  <Icon name="file" size={14}/><span title={file.name}>{file.name}</span>
-                  <button type="button" aria-label={`Убрать из запроса ${file.name}`} disabled={item.state !== 'ready' || s.ui.sending || (store.isQueueLocked() && queueEdit?.id !== item.id)}
-                    onClick={() => { if (queueEdit?.id === item.id) removeFile(file.id); else void store.removeQueuedAttachment(item.id, file.id); }}><Icon name="close" size={14}/></button>
-                </div>)}
-              </div>}
-            </div>
-          ); })}
-          </div>
-        </div>
+        <Suspense fallback={null}><PromptQueue attachments={attachments} removeFile={removeFile} focusEditor={() => textareaRef.current?.focus()} switching={switching}/></Suspense>
       )}
       {s.ui.workspacePreparing && (
         <div className="workspace-progress" role="status">

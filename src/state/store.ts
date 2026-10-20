@@ -2843,6 +2843,7 @@ class Store {
     return this.promptQueue.enqueuePrompt(text, attachments, captured);
   }
   enqueueWithAttachments(text: string, files: DraftAttachment[]): Promise<boolean> { return this.promptQueue.enqueueWithAttachments(text, files); }
+  reorderQueued(id: string, before: string | null): boolean { return this.promptQueue.reorderQueued(id, before); }
   removeQueued(id: string): Promise<void> { return this.promptQueue.removeQueued(id); }
   isQueueLocked(): boolean { return this.promptQueue.isQueueLocked(); }
   removeQueuedAttachment(id: string, fileID: string): Promise<void> { return this.promptQueue.removeQueuedAttachment(id, fileID); }

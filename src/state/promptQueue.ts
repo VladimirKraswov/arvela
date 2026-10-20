@@ -63,6 +63,16 @@ export class PromptQueueController {
     this.host.persistPrefs();
     return true;
   }
+  reorderQueued(id: string, before: string | null): boolean {
+    const sid = this.state.activeSessionId, queue = this.getQueue();
+    if (!sid || this.state.ui.sending || this.isQueueLocked() || this.getQueueEdit() || queue.some(item => item.state !== "ready")) return false;
+    const item = queue.find(item => item.id === id);
+    if (!item || before === id || (before !== null && !queue.some(item => item.id === before))) return false;
+    const reordered = queue.filter(item => item.id !== id);
+    reordered.splice(before === null ? reordered.length : reordered.findIndex(item => item.id === before), 0, item);
+    if (reordered.every((item, i) => item === queue[i])) return false;
+    return this.writeQueue(sid, reordered, true);
+  }
   enqueuePrompt(text: string, attachments?: QueuedPrompt["attachments"], captured?: Pick<QueuedPrompt, "model" | "agent">): boolean {
     const id = this.state.activeSessionId,
       directory = this.state.directory,

@@ -21,6 +21,7 @@ async function archiveComposer() {
  await attachmentDrafts.add(scope,[new NodeFile(['PK\x03\x04zip'],'project.zip',{type:'application/zip'}) as unknown as File]);
  await store.enqueueWithAttachments('read project',attachmentDrafts.snapshot(scope));
  const node=document.createElement('div');document.body.append(node);root=createRoot(node);await act(async()=>root!.render(createElement(Composer)));
+ await vi.waitFor(async()=>{await act(async()=>{});expect(document.querySelector(".queued-prompt")).not.toBeNull();});
  return {store,attachmentDrafts,scope,prompt};
 }
 afterEach(()=>{if(root)act(()=>root!.unmount());root=undefined;vi.restoreAllMocks();vi.unstubAllGlobals();document.body.innerHTML='';});
@@ -85,4 +86,18 @@ it('five queued prompts stay as single-line summaries and edit/apply uses the co
  await act(async()=>store.setDraft('Уточнённая задача'));
  await act(async()=>{(document.querySelector('[aria-label="Применить изменения"]') as HTMLButtonElement).click();await vi.waitFor(()=>expect(store.getQueueEdit()).toBeUndefined());});
  expect(store.getQueue().map(q=>q.id)).toEqual(original);expect(store.getQueue()[0].text).toBe('Уточнённая задача');expect(document.querySelector('textarea')!.value).toBe('');
+});
+
+it('queue handles move saved entries with the keyboard and keep row actions usable',async()=>{
+ const {store}=await archiveComposer();
+ await act(async()=>{store.enqueuePrompt('second');store.enqueuePrompt('third');});
+ const handle=document.querySelector('[aria-label="Переместить задание 3"]') as HTMLButtonElement;
+ handle.focus();
+ await act(async()=>{handle.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));});
+ expect(store.getQueue().map((item:any)=>item.text)).toEqual(['read project','third','second']);
+ expect(document.activeElement).toBe(handle);
+ expect(document.querySelector('[role="status"][aria-live]')?.textContent).toContain('позицию 2');
+ await act(async()=>{await store.editQueued(store.getQueue()[0].id);});
+ expect((document.querySelector('.queue-drag-handle') as HTMLButtonElement).disabled).toBe(true);
+ expect(store.reorderQueued(store.getQueue()[2].id,null)).toBe(false);
 });

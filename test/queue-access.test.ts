@@ -306,3 +306,29 @@ it('failed durable acknowledgement of a saved error does not resume the queue',(
  expect(store.isQueueArmed()).toBe(false);expect(store.getQueue()[0].error).toBe('old preparation error');
  expect(store.client.prompt).not.toHaveBeenCalled();
 });
+
+it('reordering persists complete queue items and dispatches the new head once',async()=>{
+ store.enqueuePrompt('first');store.enqueuePrompt('second');store.enqueuePrompt('third');
+ const [a,b,c]=store.getQueue();b.error='saved warning';
+ expect(store.reorderQueued(c.id,a.id)).toBe(true);
+ expect(store.getQueue()).toEqual([c,a,b]);expect(store.isQueueArmed()).toBe(true);
+ const {loadPrefs}=await import('../src/state/prefs');
+ expect(loadPrefs().queues.ses_a.map((item:any)=>item.id)).toEqual([c.id,a.id,b.id]);
+ expect(store.reorderQueued(c.id,null)).toBe(true);expect(store.getQueue()).toEqual([a,b,c]);
+ expect(store.reorderQueued(b.id,a.id)).toBe(true);
+ status('idle');await flush();
+ expect(store.client.prompt).toHaveBeenCalledTimes(1);expect(store.client.prompt.mock.calls[0][2].parts[0].text).toBe('second');
+});
+it('reordering cannot bypass sending, uncertain delivery, missing IDs or locks',async()=>{
+ store.enqueuePrompt('a');store.enqueuePrompt('b');const [a,b]=store.getQueue();
+ expect(store.reorderQueued(a.id,a.id)).toBe(false);expect(store.reorderQueued('missing',a.id)).toBe(false);expect(store.reorderQueued(a.id,'missing')).toBe(false);
+ store.queueLocks.add('ses_a');expect(store.reorderQueued(b.id,a.id)).toBe(false);store.queueLocks.clear();
+ a.state='uncertain';expect(store.reorderQueued(b.id,a.id)).toBe(false);a.state='sending';expect(store.reorderQueued(b.id,a.id)).toBe(false);a.state='ready';
+ store.state.ui.sending=true;expect(store.reorderQueued(b.id,a.id)).toBe(false);
+});
+it('reordering retains a paused queue and rolls back when durable storage fails',()=>{
+ store.enqueuePrompt('a');store.enqueuePrompt('b');store.queueArmed.clear();const [a,b]=store.getQueue();
+ expect(store.reorderQueued(b.id,a.id)).toBe(true);expect(store.isQueueArmed()).toBe(false);
+ vi.spyOn(localStorage,'setItem').mockImplementation(()=>{throw Error('quota');});
+ expect(store.reorderQueued(a.id,b.id)).toBe(false);expect(store.getQueue()).toEqual([b,a]);
+});
