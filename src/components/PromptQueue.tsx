@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { store, useAppState } from "../state/store";
 import type { DraftAttachment } from "../attachments/drafts";
 import { Icon } from "./Icon";
@@ -8,12 +9,13 @@ export function PromptQueue({attachments, removeFile, focusEditor, switching}: {
 }) {
   const s = useAppState(), queueEdit = store.getQueueEdit(), draft = store.getDraft(), connected = store.engineReady();
   const [queueFiles, setQueueFiles] = useState<string | null>(null);
-  const [drag, setDrag] = useState<{id: string; before: string | null} | null>(null);
+  const [drag, setDrag] = useState<{id: string; before: string | null; box: {left: number; top: number; width: number; height: number}} | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const list = useRef<HTMLDivElement>(null);
+  const preview = useRef<HTMLDivElement>(null);
   const context = JSON.stringify([s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId]);
   const current = useRef(context); current.current = context;
-  const gesture = useRef<{id: string; context: string; ids: string; pointer: number; startY: number; y: number; active: boolean; before: string | null} | null>(null);
+  const gesture = useRef<{id: string; context: string; ids: string; pointer: number; startX: number; x: number; startY: number; y: number; active: boolean; before: string | null; box: {left: number; top: number; width: number; height: number}} | null>(null);
   const queue = store.getQueue();
   const disabled = !!queueEdit || s.ui.sending || store.isQueueLocked() || queue.some(item => item.state !== "ready");
   useEffect(() => { gesture.current = null; setDrag(null); setQueueFiles(null); setAnnouncement(""); }, [context]);
@@ -26,8 +28,9 @@ export function PromptQueue({attachments, removeFile, focusEditor, switching}: {
     const g = gesture.current, el = list.current;
     if (!g || !el || !g.active) return;
     const rows = [...el.querySelectorAll<HTMLElement>("[data-queue-id]")].filter(row => row.dataset.queueId !== g.id);
-    const before = rows.find(row => { const r = row.getBoundingClientRect(); return g.y < r.top + r.height / 2; })?.dataset.queueId ?? null;
-    if (before !== g.before) { g.before = before; setDrag({id: g.id, before}); }
+    const before = rows.find(row => { return g.y < el.getBoundingClientRect().top + row.offsetTop - el.scrollTop + row.offsetHeight / 2; })?.dataset.queueId ?? null;
+    if (preview.current) preview.current.style.transform = `translate3d(${g.x - g.startX}px, ${g.y - g.startY}px, 0) scale(1.015)`;
+    if (before !== g.before) { g.before = before; setDrag({id: g.id, before, box: g.box}); }
   };
   useEffect(() => {
     if (!drag) return;
@@ -46,16 +49,31 @@ export function PromptQueue({attachments, removeFile, focusEditor, switching}: {
   const pointerDown = (e: PointerEvent<HTMLButtonElement>, id: string) => {
     if (!e.isPrimary || e.button !== 0 || disabled) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    gesture.current = {id, context, ids: queue.map(item => item.id).join(), pointer: e.pointerId, startY: e.clientY, y: e.clientY, active: false, before: id};
+    const box = e.currentTarget.closest<HTMLElement>("[data-queue-id]")!.getBoundingClientRect();
+    gesture.current = {id, context, ids: queue.map(item => item.id).join(), pointer: e.pointerId, startX: e.clientX, x: e.clientX, startY: e.clientY, y: e.clientY, active: false, before: id, box: {left: box.left, top: box.top, width: box.width, height: box.height}};
   };
   const pointerMove = (e: PointerEvent<HTMLButtonElement>) => {
     const g = gesture.current; if (!g || g.pointer !== e.pointerId) return;
-    g.y = e.clientY;
-    if (!g.active && Math.abs(g.y - g.startY) >= 5) { g.active = true; setDrag({id: g.id, before: g.before}); }
+    g.y = e.clientY; g.x = e.clientX;
+    if (!g.active && Math.abs(g.y - g.startY) >= 5) { g.active = true; setDrag({id: g.id, before: g.before, box: g.box}); }
     if (g.active) { e.preventDefault(); update(); }
   };
+  const source = drag ? queue.findIndex(item => item.id === drag.id) : -1;
+  const remaining = queue.filter(item => item.id !== drag?.id);
+  const destination = drag?.before === null ? remaining.length : remaining.findIndex(item => item.id === drag?.before);
+  const rowStyle = (index: number): CSSProperties | undefined => {
+    if (!drag || source < 0 || destination < 0) return;
+    let offset = 0;
+    if (index === source) {
+      const rows = list.current?.querySelectorAll<HTMLElement>("[data-queue-id]");
+      const target = rows?.[destination], origin = rows?.[source];
+      if (target && origin) offset = target.offsetTop - origin.offsetTop + (destination > source ? target.offsetHeight - drag.box.height : 0);
+    } else if (source < index && index <= destination) offset = -drag.box.height;
+    else if (destination <= index && index < source) offset = drag.box.height;
+    return {transform: `translateY(${offset}px)`, ...(index === source ? {height: drag.box.height} : {})};
+  };
   return (
-        <div className="prompt-queue" aria-label="Очередь запросов">
+        <div className={`prompt-queue ${drag ? "queue-sorting" : ""}`} aria-label="Очередь запросов">
           <div className="queue-heading">
             <b>В очереди · {store.getQueue().length}</b>
             <span>
@@ -71,12 +89,12 @@ export function PromptQueue({attachments, removeFile, focusEditor, switching}: {
           </div>
           {!store.isQueueArmed() && store.queueRecoveryReason() && <p className="queue-recovery" role="status">{store.queueRecoveryReason()}</p>}
           {!store.isQueueArmed() && store.queueHasDifferentModel() && <button className="queue-model-recovery" disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue(true)}>Продолжить на выбранной модели</button>}
-          <div className={`queued-prompts ${drag?.before === null ? "queue-drop-end" : ""}`} ref={list}>
+          <div className="queued-prompts" ref={list}>
           <span className="queue-announcement" role="status" aria-live="polite">{announcement}</span>
           {queue.map((item, index) => {
             const itemFiles = queueEdit?.id === item.id ? attachments : item.attachments?.files ?? [];
             return (
-            <div className={`queued-prompt ${queueEdit?.id === item.id ? "queued-prompt-editing" : ""} ${drag?.id === item.id ? "queue-dragging" : ""} ${drag?.before === item.id ? "queue-drop-before" : ""}`} key={item.id} data-queue-id={item.id}>
+            <div className={`queued-prompt ${queueEdit?.id === item.id ? "queued-prompt-editing" : ""} ${drag?.id === item.id ? "queue-dragging" : ""}`} key={item.id} data-queue-id={item.id} style={rowStyle(index)}>
               <button type="button" className="queue-drag-handle" disabled={disabled || queue.length < 2}
                 aria-label={`Переместить задание ${index + 1}`} title="Перетащите для изменения порядка. Стрелки ↑ и ↓ — переместить с клавиатуры"
                 onPointerDown={e => pointerDown(e, item.id)} onPointerMove={pointerMove}
@@ -134,6 +152,12 @@ export function PromptQueue({attachments, removeFile, focusEditor, switching}: {
             </div>
           ); })}
           </div>
+          {drag && source >= 0 && createPortal(<div ref={preview} className="queue-drag-preview" aria-hidden="true"
+            style={{left: drag.box.left, top: drag.box.top, width: drag.box.width, height: drag.box.height,
+              transform: `translate3d(${(gesture.current?.x ?? 0) - (gesture.current?.startX ?? 0)}px, ${(gesture.current?.y ?? 0) - (gesture.current?.startY ?? 0)}px, 0) scale(1.015)`}}>
+            <Icon name="grip" size={14}/><span>{queue[source].text.replace(/\s+/g, " ").trim()}</span>
+            {!!queue[source].attachments?.files.length && <small><Icon name="file" size={14}/>{queue[source].attachments.files.length}</small>}
+          </div>, document.body)}
         </div>
   );
 }

@@ -801,3 +801,8 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Left grip reorders ready requests by pointer with insertion marker, edge scrolling and Escape cancellation; arrow keys move a focused grip and announce its new position.
 - [x] Save the complete reordered entries durably without changing paused/armed state. Reject changes during submission/editing or uncertain delivery; cancel stale drags after navigation or queue changes.
 - [x] Queue UI loads as its own component, preserving the main bundle budget and existing file/edit/steer controls.
+
+## Visible queue dragging (0.2.80)
+
+- [x] Dragged request follows the pointer as a raised card, with its text and file count. Neighbouring rows animate into place around a reserved slot, using stable layout coordinates for hit testing.
+- [x] Preserve durable drop ordering, cancellation and edge scrolling; respect reduced-motion preferences. Existing dispatch guards unchanged.
