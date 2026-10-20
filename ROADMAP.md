@@ -1,5 +1,12 @@
 # Enki roadmap
 
+## Built-in skill path migration (0.2.88)
+
+- [x] Authoring source ownership uses canonical direct-child bundle identity, accepting the retained legacy root alias while rejecting redirected, missing and foreign sources. Disabled choice and other registry entries remain intact.
+- [x] Native regression reproduces the migration failure before the fix; real rename/alias/idempotency/foreign registry preservation checks.
+- [x] Current owner registry repaired under its lifecycle lock with a private backup/CAS and verification that only one source path changed; no prompt replay or restart.
+- [ ] Canonical release and exact Hub packet verification.
+
 ## Enki MCP wrapper migration (0.2.87)
 
 - [x] Browser and shared MCP reserved entries recognize both shipped executable identities across the rename, retaining private flags and exact scope/server checks. Foreign and malformed entries remain protected.

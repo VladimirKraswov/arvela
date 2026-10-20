@@ -1,3 +1,23 @@
+# Built-in skill path migration (0.2.88)
+
+Read-only inspection confirmed that the authoring source's retained legacy path
+and current Enki root resolve to the same installed bundle. Lexical starts_with
+incorrectly classified it as a user source. The permanent ownership check now
+compares canonical locations, requires a direct bundle child with the shipped
+64-character hash identity and rejects leaf links/missing/foreign locations.
+The retained root alias is accepted without relaxing the built-in bundle guard.
+Existing disabled choice, foreign sources, immutable content checks and CAS remain.
+
+A real rename plus legacy symlink regression fails before the fix, then passes;
+four focused native authoring tests cover idempotency, disabled/foreign source
+preservation, changed built-in files and redirected directories. The current
+owner registry was repaired under the actual registry lock, with a private backup,
+expected-content check, atomic replace and verification that only one source path
+changed. No prompt or game action was sent and no engine/agent/browser restarted.
+Other inspected registry path checks already canonicalize; no further confirmed
+registry defect was found. Live Windows junction/GUI acceptance remains separate
+from the Unix migration regression.
+
 # Enki MCP identity migration (0.2.87)
 
 Read-only installed-client inspection: Enki0.2.86 uses primary CLI enki, while
