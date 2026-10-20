@@ -30,6 +30,8 @@ export function accessRules(mode: AccessMode): PermissionRule[] {
       // OpenCode propagates explicit external_directory rules to subagents,
       // but discards wildcard allow rules when creating a child session.
       { permission: "external_directory", pattern: "*", action: "allow" },
+      // Explicit for engines that evaluate loop guards against session rules.
+      { permission: "doom_loop", pattern: "*", action: "allow" },
     ];
   return [
     { permission: "*", pattern: "*", action: mode === "read" ? "deny" : "ask" },
@@ -42,7 +44,11 @@ export function accessMode(
   rules: PermissionRule[] | undefined,
 ): AccessMode | "custom" {
   if (!rules?.length) return "inherit";
-  // Existing chats used the original full-access representation.
+  // Recognize both previously shipped full-access representations.
+  if (JSON.stringify(rules.slice(-2)) === JSON.stringify([
+    { permission: "*", pattern: "*", action: "allow" },
+    { permission: "external_directory", pattern: "*", action: "allow" },
+  ])) return "full";
   if (JSON.stringify(rules.slice(-2)) === JSON.stringify([
     { permission: "*", pattern: "*", action: "allow" },
     { permission: "doom_loop", pattern: "*", action: "ask" },

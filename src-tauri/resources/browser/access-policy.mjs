@@ -1,12 +1,14 @@
 // User-selected full access is a session policy, including its delegated work.
-// Role prompts remain intact; no approval requests are answered by this plugin.
+// Role prompts remain intact; loop-guard compatibility is handled by the client adapter.
 export const fullRules = () => [
   { permission: '*', pattern: '*', action: 'allow' },
   { permission: 'external_directory', pattern: '*', action: 'allow' },
+  { permission: 'doom_loop', pattern: '*', action: 'allow' },
 ];
 export function isFull(rules) {
   const tail = Array.isArray(rules) ? rules.slice(-2) : [];
-  return JSON.stringify(tail) === JSON.stringify(fullRules()) ||
+  return JSON.stringify(rules?.slice(-fullRules().length)) === JSON.stringify(fullRules()) ||
+    JSON.stringify(tail) === JSON.stringify(fullRules().slice(0, 2)) ||
     JSON.stringify(tail) === JSON.stringify([
       { permission: '*', pattern: '*', action: 'allow' },
       { permission: 'doom_loop', pattern: '*', action: 'ask' },
@@ -32,7 +34,7 @@ export default async function accessPolicy({ client, directory }) {
     'chat.message': async input => {
       const { full, current, root } = await sessionAccess(client, directory, input.sessionID);
       if ((!current.parentID && !full) || (full
-        ? JSON.stringify(current.permission?.slice(-2)) === JSON.stringify(fullRules())
+        ? JSON.stringify(current.permission?.slice(-fullRules().length)) === JSON.stringify(fullRules())
         : !isFull(current.permission))) return;
       const permission = full ? fullRules() : root.permission?.length ? root.permission : [
         { permission: '*', pattern: '*', action: 'ask' },

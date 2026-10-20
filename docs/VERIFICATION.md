@@ -1,3 +1,23 @@
+# Full access / doom_loop (0.2.85)
+
+Screenshot diagnosis: OpenCode 1.18.18 processor asks doom_loop with only
+`agent.permission`, ignoring the invoking session policy. Source checked against
+[tagged processor](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/processor.ts#L347)
+and permission evaluator. Full session rules now include an explicit loop allow;
+both legacy signatures migrate via the scoped plugin before the next prompt.
+The client adapter handles this engine exception using a one-time official permission API response
+only after validating the exact session/root directory and explicit full mode.
+Other permissions, inherit/ask/read and foreign sessions retain manual handling.
+A missing context, API error or ambiguous timeout leaves the prompt available;
+no global approval or automatic request retry is installed.
+
+Focused regression: 41 tests pass (adapter events/reconnect/deduplication, access/inheritance, queue access, child routing); 108 earlier store/Pi/capability checks pass.
+The running local engine schema confirms both official permission reply routes.
+No UI layout changes; backend event handling also supports an already-running engine.
+Owner game/desktop tools and inference were not replayed. No app restart or
+externally managed engine restart. Live owner-session acceptance after updating
+is separate from isolated policy tests.
+
 # V100 — квалификация профилей и шлюза (2026-10-20)
 
 Reviewed runtime `e8c04d03401a9de75790984232540b413498f085` pushed to `main`; server profiles already active.

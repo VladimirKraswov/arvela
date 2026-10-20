@@ -1,3 +1,4 @@
+import { FullAccessLoop } from "./fullAccessLoop";
 import { OPENCODE_BACKEND_ID } from "./ids";
 // The OpenCode agent backend: the default and, today, the only implementation of
 // `AgentBackend`. It owns the loopback HTTP client and both SSE subscriptions so
@@ -46,9 +47,11 @@ export class OpenCodeBackend implements AgentBackend {
    * the JSONC config editor and the `/mcp` inventory.
    */
   readonly client: OpenCodeClient;
+  private fullAccessLoop: FullAccessLoop;
 
   constructor(endpoint: string) {
     this.client = new OpenCodeClient(endpoint);
+    this.fullAccessLoop = new FullAccessLoop(this.client);
   }
 
   get endpoint(): string {
@@ -129,8 +132,10 @@ export class OpenCodeBackend implements AgentBackend {
   }
 
   // ---- interaction ----
-  pendingPermissions(...args: Parameters<OpenCodeClient["pendingPermissions"]>) {
-    return this.client.pendingPermissions(...args);
+  async pendingPermissions(...args: Parameters<OpenCodeClient["pendingPermissions"]>) {
+    const requests = await this.client.pendingPermissions(...args);
+    const resolved = await Promise.all(requests.map(request => this.fullAccessLoop.resolve(request, args[0], args[1])));
+    return requests.filter((_, index) => !resolved[index]);
   }
   replyPermission(...args: Parameters<OpenCodeClient["replyPermission"]>) {
     return this.client.replyPermission(...args);
@@ -153,7 +158,11 @@ export class OpenCodeBackend implements AgentBackend {
       url: eventStreamUrl(this.client.baseUrl, directory),
       headers: this.client.headers,
       signal: subscription.signal,
-      onEvent: subscription.onEvent,
+      onEvent: event => {
+        subscription.onEvent(event);
+        if (event.type === 'permission.asked' || event.type === 'permission.v2.asked')
+          void this.fullAccessLoop.resolve(event.properties as unknown as import('../api/types').PermissionRequest, directory, subscription.signal);
+      },
       onState: subscription.onState,
     });
   }
@@ -163,7 +172,12 @@ export class OpenCodeBackend implements AgentBackend {
       url: globalEventStreamUrl(this.client.baseUrl),
       headers: this.client.headers,
       signal: subscription.signal,
-      onEvent: subscription.onEvent,
+      onEvent: envelope => {
+        subscription.onEvent(envelope);
+        const event = envelope.payload;
+        if (event && (event.type === 'permission.asked' || event.type === 'permission.v2.asked'))
+          void this.fullAccessLoop.resolve(event.properties as unknown as import('../api/types').PermissionRequest, envelope.directory ?? null, subscription.signal);
+      },
       onState: subscription.onState,
     });
   }

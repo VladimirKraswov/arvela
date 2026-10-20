@@ -1,5 +1,12 @@
 # Enki roadmap
 
+## Full-access loop guard consistency (0.2.85)
+
+- [x] Explicit loop permission in full session rules; migrate both legacy representations before the next prompt, including delegated work.
+- [x] OpenCode 1.18.18 loop checks use only agent permissions: the client adapter answers only doom_loop, once, after checking the actual session ancestry and selected full mode. No global Always allow or UI autoapproval.
+- [x] Fail closed on unavailable/foreign/cyclic context; preserve ask/read/inherit and manual approval after API failure; deduplicate ambiguous replies.
+- [ ] Canonical Hub publication and exact signed packet verification.
+
 ## V100: проверенные профили и переключение — 2026-10-20
 
 - [x] Research and sequential same-checkpoint/native-context qualification for all four V100 profiles; reject faster candidates with long-context/numerical regressions.
