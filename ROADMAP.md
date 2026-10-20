@@ -5,7 +5,7 @@
 - [x] Canonicalize only an absolute Node JS entrypoint at stdio spawn, preserving flags/config/output args, cwd and non-Node commands; ship the helper with the shared runtime.
 - [x] Optional server connection/missing-runtime failures produce an explicit unavailable report instead of blocking every prompt; continue other attachments,30s revision-scoped cooldown, explicit invalidation. Critical config/CAS/policy/context failures remain fatal.
 - [x] Current Web Compass script argument repaired under registry lock/CAS/private backup; scoped failed MCP reconnected and27 tools discovered without tool calls or prompt replay.
-- [ ] Canonical Hub publication and exact packet verification.
+- [x] Canonical Hub publication and exact packet verification:0.2.89/runtimeac032a9,15 source/19 hot files.
 
 ## Built-in skill path migration (0.2.88)
 

@@ -21,7 +21,12 @@ Current owner Web Compass args[0] was normalized under registry.lock/CAS/atomic
 replace with a private backup; whole registry verified equal except that argument.
 Only the failed scoped MCP was reconnected via official API; connected confirmed.
 No model prompt, queued task, game action, inference or shared engine restart.
-Windows native GUI/alias acceptance remains separate from Unix synthetic tests.
+Canonical release:999 frontend pass/6 existing skips,146 native pass/3 existing
+skips,77 Hub tests; publisher/build/180-module architecture/budget/fmt/strict Clippy
+pass. Receipt `.local/releases/0.2.89-stable.json`; served head and both signed
+packets verified,15 changed source/19 hot files byte-match runtimeac032a9.
+Owner app activation was not performed. Windows native GUI/alias acceptance remains
+separate from Unix synthetic tests.
 
 # Built-in skill path migration (0.2.88)
 
