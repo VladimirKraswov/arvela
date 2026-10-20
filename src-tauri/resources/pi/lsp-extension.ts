@@ -1,5 +1,5 @@
 /**
- * Arvela — language-server tools for Pi.
+ * Enki — language-server tools for Pi.
  *
  * Why this exists instead of an off-the-shelf extension: the reviewed candidate
  * (`samfoy/pi-lsp-extension` @ f2433d1) is ~8.4k lines, pulls in web-tree-sitter

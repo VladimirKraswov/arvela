@@ -1,11 +1,11 @@
 [Unit]
-Description=Arvela private catalog and session observability
+Description=Enki private catalog and session observability
 After=network-online.target
 Wants=network-online.target
 [Service]
-User=arvela-hub
-Group=arvela-hub
-ExecStart=/usr/bin/python3 /opt/arvela-hub/server.py --data /var/lib/arvela-hub --cert /etc/arvela-hub/server.crt --key /etc/arvela-hub/server.key
+User=enki-hub
+Group=enki-hub
+ExecStart=/usr/bin/python3 /opt/enki-hub/server.py --data /var/lib/enki-hub --cert /etc/enki-hub/server.crt --key /etc/enki-hub/server.key
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=20
@@ -14,7 +14,7 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/var/lib/arvela-hub
+ReadWritePaths=/var/lib/enki-hub
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 CapabilityBoundingSet=
 LockPersonality=yes

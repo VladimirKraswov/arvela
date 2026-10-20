@@ -8,9 +8,13 @@ const platform = process.argv[2];
 const kinds = { macos: ['dmg', '.dmg'], linux: ['deb', '.deb'], windows: ['nsis', '-setup.exe'] };
 if (!Object.hasOwn(kinds, platform)) throw Error('Expected macos, linux or windows');
 const { version } = JSON.parse(await readFile('package.json', 'utf8'));
+let product='Enki';
+try { product=JSON.parse(await readFile('src-tauri/tauri.conf.json','utf8')).productName; }
+catch(error) { if(error.code!=='ENOENT')throw error; }
+if(!['Enki','Arvela'].includes(product))throw Error('Unexpected application product');
 const [folder, suffix] = kinds[platform];
 const directory = join('src-tauri', 'target', 'release', 'bundle', folder);
-const candidates = (await readdir(directory)).filter(n => n.startsWith(`Arvela_${version}_`) && n.endsWith(suffix));
+const candidates = (await readdir(directory)).filter(n => n.toLowerCase().startsWith(`${product}_${version}_`.toLowerCase()) && n.endsWith(suffix));
 if (candidates.length !== 1) throw Error(`Expected exactly one current ${platform} package; found ${candidates.length}`);
 const file = join(directory, candidates[0]);
 const bytes = await readFile(file);

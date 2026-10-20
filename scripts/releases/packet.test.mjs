@@ -2,12 +2,12 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import path from 'node:path';import os from 'node:os';
 import {nativeFingerprint,safePath,snapshot} from './packet.mjs';
-test('native compatibility ignores only release metadata, catches code/config/dependency changes',()=>{
+for(const packageName of ['arvela','enki'])test(`native compatibility ignores version for ${packageName}, catches code/config/dependency changes`,()=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'arvela-fingerprint-'));
  try{
  const write=(name,text)=>fs.writeFileSync(path.join(root,name),text);
- write('Cargo.toml','[package]\nname = "arvela"\nversion = "1.0.0"\n[dependencies]\nx = "1"\n');
- write('Cargo.lock','[[package]]\nname = "arvela"\nversion = "1.0.0"\n[[package]]\nname = "other"\nversion = "1.0.0"\n');
+ write('Cargo.toml',`[package]\nname = "${packageName}"\nversion = "1.0.0"\n[dependencies]\nx = "1"\n`);
+ write('Cargo.lock',`[[package]]\nname = "${packageName}"\nversion = "1.0.0"\n[[package]]\nname = "other"\nversion = "1.0.0"\n`);
  write('tauri.conf.json',JSON.stringify({identifier:'dev.local.opencodedesktop',version:'1.0.0',app:{security:{csp:"'self'"}}}));
  const initial=nativeFingerprint(root);
  for(const name of ['Cargo.toml','Cargo.lock','tauri.conf.json'])write(name,fs.readFileSync(path.join(root,name),'utf8').replace('1.0.0','1.0.1'));

@@ -28,7 +28,7 @@ class ModelServices:
     def __init__(self, root, catalog, fault, config=None, transport=None, clock=time.time):
         self.path = root / "model-reservations.sqlite3"
         self.catalog, self.fault, self.clock = catalog, fault, clock
-        self.config = Path(config or os.environ.get("ARVELA_MODEL_SERVICES_CONFIG", "/etc/arvela-hub/model-services.json"))
+        self.config = Path(config or os.environ.get("ENKI_MODEL_SERVICES_CONFIG") or os.environ.get("ARVELA_MODEL_SERVICES_CONFIG") or ("/etc/enki-hub/model-services.json" if Path("/etc/enki-hub").exists() or not Path("/etc/arvela-hub").exists() else "/etc/arvela-hub/model-services.json"))
         self.transport = transport or self._request
         self.lock = threading.RLock()
         self.locks = {}

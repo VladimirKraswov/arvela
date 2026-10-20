@@ -71,7 +71,7 @@ jobs:
       - run: npm run check:bundle
       - name: Verify signed Mac permissions
         if: matrix.platform == 'macos'
-        run: python3 scripts/verify-macos.py src-tauri/target/release/bundle/macos/Arvela.app
+        run: python3 scripts/verify-macos.py "src-tauri/target/release/bundle/macos/$(node -p 'require("./src-tauri/tauri.conf.json").productName').app"
       - name: Verify Windows installer
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -81,7 +81,7 @@ jobs:
         run: node scripts/ci-artifacts.mjs ${{ matrix.platform }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: arvela-${{ matrix.platform }}-${{ runner.arch }}-${{ github.sha }}
+          name: enki-${{ matrix.platform }}-${{ runner.arch }}-${{ github.sha }}
           path: |
             ${{ steps.receipt.outputs.artifact }}
             .local/ci-artifacts.json

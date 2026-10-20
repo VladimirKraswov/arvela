@@ -14,7 +14,7 @@ pub(super) fn command() -> Result<PathBuf, String> {
             .join("bridge")
             .join(env!("CARGO_PKG_VERSION"));
         super::files::private_dir(&directory)?;
-        let destination = directory.join("opencode-desktop.exe");
+        let destination = directory.join("enki.exe");
         if executable == destination {
             return Ok(destination);
         }

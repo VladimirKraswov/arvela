@@ -78,7 +78,12 @@ pub fn root_dir() -> Result<PathBuf, String> {
     // MSIX redirects AppData independently for the Desktop and an external
     // engine. Their transport and persistent profile must have one owner/path.
     #[cfg(target_os = "windows")]
-    return Ok(crate::paths::user_home()?.join(".opencode-desktop/browser-runtime"));
+    return Ok(crate::migration::resolve_named(
+        &crate::paths::user_home()?,
+        ".opencode-desktop",
+        ".enki",
+    )?
+    .join("browser-runtime"));
     #[cfg(not(target_os = "windows"))]
     Ok(crate::paths::app_data_dir()?.join("browser-runtime"))
 }

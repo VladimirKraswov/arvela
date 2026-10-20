@@ -15,7 +15,7 @@ export function nativeFingerprint(root){
     if(name==='tauri.conf.json'){const c=JSON.parse(data);delete c.version;data=Buffer.from(JSON.stringify(sorted(c)));}
     else if(Buffer.from(data.toString('utf8')).equals(data)){
       let text=data.toString('utf8').replaceAll('\r\n','\n');
-      if(['Cargo.toml','Cargo.lock'].includes(name)){let own=false;text=text.replace(/\n$/,'').split('\n').filter(line=>{if(line.startsWith('['))own=false;if(line==='name = "arvela"')own=true;return !(own&&line.startsWith('version = '));}).join('\n');}
+      if(['Cargo.toml','Cargo.lock'].includes(name)){let own=false;text=text.replace(/\n$/,'').split('\n').filter(line=>{if(line.startsWith('['))own=false;if(['name = "arvela"','name = "enki"'].includes(line))own=true;return !(own&&line.startsWith('version = '));}).join('\n');}
       data=Buffer.from(text);
     }
     return name+'\0'+hash(data)+'\n';
@@ -35,6 +35,6 @@ export function validateVersions(root,version){
   const read=name=>JSON.parse(fs.readFileSync(path.join(root,name),'utf8'));
   const npm=read('package.json'),lock=read('package-lock.json'),config=read('src-tauri/tauri.conf.json');
   const cargo=fs.readFileSync(path.join(root,'src-tauri/Cargo.toml'),'utf8').match(/\[package\][\s\S]*?\nversion = "([^"]+)"/);
-  const locked=fs.readFileSync(path.join(root,'src-tauri/Cargo.lock'),'utf8').match(/\[\[package\]\]\nname = "arvela"\nversion = "([^"]+)"/);
-  if([npm.version,lock.version,lock.packages?.['']?.version,config.version,cargo?.[1],locked?.[1]].some(v=>v!==version)||config.identifier!=='dev.local.opencodedesktop'||config.productName!=='Arvela')throw Error('Release manifest versions or application identity disagree');
+  const locked=fs.readFileSync(path.join(root,'src-tauri/Cargo.lock'),'utf8').match(/\[\[package\]\]\nname = "(?:arvela|enki)"\nversion = "([^"]+)"/);
+  if([npm.version,lock.version,lock.packages?.['']?.version,config.version,cargo?.[1],locked?.[1]].some(v=>v!==version)||config.identifier!=='dev.local.opencodedesktop'||!['Arvela','Enki'].includes(config.productName))throw Error('Release manifest versions or application identity disagree');
 }

@@ -23,6 +23,8 @@ pub fn cli() -> Result<(), String> {
 pub struct Workspace {
     pub directory: String,
     pub source_directory: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_directory: Option<String>,
 }
 fn read(path: &Path) -> Result<Option<String>, String> {
     let meta = match fs::symlink_metadata(path) {
@@ -72,8 +74,14 @@ fn source(path: &Path) -> Option<String> {
         serde_json::from_str(&read(&path.join("package.json")).ok()??).ok()?;
     let config: serde_json::Value =
         serde_json::from_str(&read(&path.join("src-tauri/tauri.conf.json")).ok()??).ok()?;
-    (package["name"] == "arvela" && config["identifier"] == "dev.local.opencodedesktop")
-        .then(|| path.to_string_lossy().to_string())
+    (matches!(package["name"].as_str(), Some("enki" | "arvela"))
+        && config["identifier"] == "dev.local.opencodedesktop")
+        .then(|| {
+            fs::canonicalize(path)
+                .unwrap_or_else(|_| path.to_path_buf())
+                .to_string_lossy()
+                .to_string()
+        })
 }
 fn prepare(root: &Path, candidate: Option<&str>) -> Result<Workspace, String> {
     if fs::symlink_metadata(root).is_ok_and(|m| m.file_type().is_symlink()) {
@@ -88,7 +96,7 @@ fn prepare(root: &Path, candidate: Option<&str>) -> Result<Workspace, String> {
     let previous = read(&root.join("WORKSPACE.json"))?
         .and_then(|v| serde_json::from_str::<Workspace>(&v).ok());
     let source_directory = if let Some(c) = candidate {
-        Some(source(Path::new(c)).ok_or("В папке нет исходников Arvela с правильным identifier.")?)
+        Some(source(Path::new(c)).ok_or("В папке нет исходников Enki с правильным identifier.")?)
     } else {
         previous
             .and_then(|v| v.source_directory)
@@ -104,7 +112,19 @@ fn prepare(root: &Path, candidate: Option<&str>) -> Result<Workspace, String> {
     if read(&root.join("AGENTS.md"))?.is_none() {
         write(&root.join("AGENTS.md"), PROMPT)?;
     }
+    let legacy_directory = root
+        .parent()
+        .filter(|p| p.file_name().is_some_and(|n| n == "enki"))
+        .map(|p| p.with_file_name("opencode-desktop").join("workshop"))
+        .filter(|p| {
+            fs::canonicalize(p)
+                .ok()
+                .zip(fs::canonicalize(root).ok())
+                .is_some_and(|(a, b)| a == b)
+        })
+        .map(|p| p.to_string_lossy().to_string());
     let workspace = Workspace {
+        legacy_directory,
         directory: root.to_string_lossy().to_string(),
         source_directory,
     };
@@ -140,11 +160,13 @@ pub async fn workshop_prepare(
 #[cfg(test)]
 mod tests {
     use super::*;
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     struct Temp(std::path::PathBuf);
     impl Temp {
         fn new() -> Self {
             let p = std::env::temp_dir().join(format!(
-                "arvela-workshop-{}-{}",
+                "enki-workshop-{}-{}-{}",
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -164,6 +186,25 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn legacy_workshop_alias_is_returned_only_for_the_same_real_directory() {
+        let temp = Temp::new();
+        let canonical = temp.path().join("enki/workshop");
+        fs::create_dir_all(&canonical).unwrap();
+        let legacy = temp.path().join("opencode-desktop");
+        std::os::unix::fs::symlink(temp.path().join("enki"), &legacy).unwrap();
+        assert_eq!(
+            prepare(&canonical, None).unwrap().legacy_directory,
+            Some(legacy.join("workshop").to_string_lossy().to_string())
+        );
+        fs::remove_file(&legacy).unwrap();
+        fs::create_dir_all(legacy.join("workshop")).unwrap();
+        assert!(prepare(&canonical, None)
+            .unwrap()
+            .legacy_directory
+            .is_none());
+    }
     #[tokio::test]
     async fn remote_filesystem_is_rejected_before_workspace_preparation() {
         let temp = Temp::new();

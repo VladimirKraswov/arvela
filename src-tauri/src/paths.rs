@@ -16,7 +16,7 @@
 //! every verified 0.2.x build used.
 //!
 //! On Windows OpenCode itself still reports `%USERPROFILE%\.config\opencode`,
-//! while Desktop-owned state belongs under `%LOCALAPPDATA%\opencode-desktop`.
+//! while Desktop-owned state belongs under `%LOCALAPPDATA%\enki` (legacy root is migrated at startup).
 
 use std::path::PathBuf;
 

@@ -19,7 +19,7 @@ configuration was changed for this repair.
 Saved private session history, rechecked authoritative idle, and requested the
 engine's normal directory-scoped manual compaction (`auto:false`). It completed
 successfully, without deleting history. Then sent one explicit corrective task
-through Arvela's normal control/send pipeline (readiness and durable dispatch),
+through Enki's normal control/send pipeline (readiness and durable dispatch),
 same session/engine/Qwen model, Medium, zero automatic continuations. It directs
 the agent to reread its checkpoint, test one concrete hypothesis, and avoid
 reusing degenerate reasoning. This is continuation of the owner's task, not a

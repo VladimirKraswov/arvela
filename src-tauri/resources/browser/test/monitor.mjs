@@ -22,7 +22,7 @@ assert(!before.busy && before.tabs.length === 0, 'Acceptance requires an idle br
 const workspace = await fs.mkdtemp(path.join(os.tmpdir(), 'arvela-monitor-'));
 const fixture = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html' });
-  res.end(`<!doctype html><meta charset="utf-8"><title>Arvela monitor verification</title><style>body{font:24px sans-serif;margin:32px;height:2000px}input,button{font:22px sans-serif}</style><h1>Наблюдение за браузером</h1><p>Кадр <span id="clock">0</span></p><input id="input" aria-label="Monitor input"><p><button onclick="window.clicks++;document.querySelector('#result').textContent=document.querySelector('#input').value">Проверить ввод</button></p><p id="result">Ожидаю ввод</p><script>window.clicks=0;let tick=0;setInterval(()=>document.querySelector('#clock').textContent=++tick,1000)</script>`);
+  res.end(`<!doctype html><meta charset="utf-8"><title>Enki monitor verification</title><style>body{font:24px sans-serif;margin:32px;height:2000px}input,button{font:22px sans-serif}</style><h1>Наблюдение за браузером</h1><p>Кадр <span id="clock">0</span></p><input id="input" aria-label="Monitor input"><p><button onclick="window.clicks++;document.querySelector('#result').textContent=document.querySelector('#input').value">Проверить ввод</button></p><p id="result">Ожидаю ввод</p><script>window.clicks=0;let tick=0;setInterval(()=>document.querySelector('#clock').textContent=++tick,1000)</script>`);
 });
 await new Promise(resolve => fixture.listen(0, '127.0.0.1', resolve));
 const client = new Client({ name: 'browser-monitor-acceptance', version: '1' });
@@ -67,7 +67,7 @@ try {
   lines.close();process.off('SIGTERM',closeLines);process.off('SIGINT',closeLines);
   if(opened){
     const v=await frame().catch(()=>undefined);
-    if(v?.tabs.length===1 && v.title==='Arvela monitor verification'){
+    if(v?.tabs.length===1 && v.title==='Enki monitor verification'){
       const r=await client.callTool({name:'browser_tabs',arguments:{action:'close',index:0}});
       assert(!r.isError);console.log('FIXTURE_CLOSED');
     }

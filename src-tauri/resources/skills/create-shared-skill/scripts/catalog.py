@@ -77,7 +77,9 @@ def main():
     args = parser.parse_args()
     home = Path.home()
     default = Path(os.environ.get('LOCALAPPDATA', home / 'AppData/Local')) if os.name == 'nt' else Path(os.environ.get('XDG_DATA_HOME', home / '.local/share'))
-    registry = args.registry or Path(os.environ.get('MESH_CAPABILITIES_ROOT', default / 'opencode-desktop/capabilities'))
+    registry = args.registry or Path(os.environ.get('MESH_CAPABILITIES_ROOT', default / 'enki/capabilities'))
+    if not args.registry and not registry.exists() and 'MESH_CAPABILITIES_ROOT' not in os.environ:
+        registry = default / 'opencode-desktop/capabilities'  # read-only legacy discovery before migration
     try:
         roots = [home / '.agents/skills']
         if args.project:

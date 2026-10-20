@@ -1,4 +1,4 @@
-# Arvela 0.2.57
+# Enki 0.2.57
 
 Installed on macOS Apple Silicon and published to Hub stable. Browser environment
 profiles are shared by OpenCode/Pi: Chromium/installed Chrome, normal-window mode,
@@ -37,5 +37,5 @@ privacy; that is not claimed as a successful live old-native test. Windows/Linux
 installation and tray/active-agent hot-update acceptance remain separate. Existing
 external agent servers, models, GPU and other chats were not restarted or prompted.
 
-[Bootstrap installer](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.57)
+[Bootstrap installer](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.57)
 for clients predating Hub updates; subsequent releases use their configured Hub.

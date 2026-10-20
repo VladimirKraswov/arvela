@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Arvela NAS snapshot
+Description=Daily Enki NAS snapshot
 [Timer]
 OnCalendar=*-*-* 05:00:00 UTC
 Persistent=true

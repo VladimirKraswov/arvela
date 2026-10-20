@@ -3,7 +3,7 @@
 ## Separation
 
 ```text
-Arvela (Tauri + React; independent app version)
+Enki (Tauri + React; independent app version)
   store facade → normalized AgentBackend → OpenCode HTTP/SSE (loopback / strict SSH)
                                     └──→ Pi JSONL RPC (app-owned local process)
   shared capability registry → OpenCode config adapter / Pi extension → same MCP/skills

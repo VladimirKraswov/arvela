@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {releaseWithOperator,operatorEnvironment,privateFile} from './operator.mjs';
+import {releaseWithOperator,operatorEnvironment,privateFile,operatorFile} from './operator.mjs';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 test('all gates precede credentials and canonical publication; failed tests cannot publish',()=>{
  const calls=[];let secrets=0;
@@ -19,5 +19,17 @@ test('operator reads only private files and does not turn metadata into shell co
   assert.equal(operatorEnvironment(config).ARVELA_HUB_ADMIN_TOKEN,'fixture-secret');
   assert.throws(()=>privateFile('relative'));
   if(process.platform!=='win32'){fs.chmodSync(config,0o644);assert.throws(()=>operatorEnvironment(config));}
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('operator migration preserves private bytes and old absolute credential paths, and refuses split stores',()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'enki-operator-migration-'));
+ try{
+  const old=path.join(root,'arvela-release');fs.mkdirSync(old,{mode:0o700});
+  fs.writeFileSync(path.join(old,'operator.json'),'fixture',{mode:0o600});
+  const current=operatorFile(root);assert.equal(fs.readFileSync(current,'utf8'),'fixture');
+  assert.equal(fs.realpathSync(old),fs.realpathSync(path.join(root,'enki-release')));assert.equal(operatorFile(root),current);
+  fs.unlinkSync(old);fs.mkdirSync(old);fs.writeFileSync(path.join(old,'operator.json'),'other');
+  assert.throws(()=>operatorFile(root));assert.equal(fs.readFileSync(current,'utf8'),'fixture');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });

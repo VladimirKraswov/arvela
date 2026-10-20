@@ -11,7 +11,21 @@ export function privateFile(file) {
     throw Error('Operator credential must be a small private regular file (0600 on Unix)');
   return fs.readFileSync(file,'utf8');
 }
-export function operatorEnvironment(file=path.join(os.homedir(),'.config','arvela-release','operator.json')) {
+// Compatibility alias preserves private config's absolute credential paths.
+export function operatorFile(parent=path.join(os.homedir(),'.config')) {
+  const old=path.join(parent,'arvela-release'),current=path.join(parent,'enki-release');
+  if(fs.existsSync(old)&&fs.existsSync(current)&&fs.realpathSync(old)!==fs.realpathSync(current))throw Error('Conflicting release operator directories; preserved both');
+  if(fs.existsSync(old)&&!fs.existsSync(current)) {
+    if(fs.lstatSync(old).isSymbolicLink()||!fs.lstatSync(old).isDirectory())throw Error('Unsafe legacy operator directory');
+    fs.renameSync(old,current);
+    try{fs.symlinkSync(current,old,process.platform==='win32'?'junction':'dir');}
+    catch(error){fs.renameSync(current,old);throw error;}
+  }else if(fs.existsSync(current)&&!fs.existsSync(old)) {
+    fs.symlinkSync(current,old,process.platform==='win32'?'junction':'dir');
+  }
+  return path.join(current,'operator.json');
+}
+export function operatorEnvironment(file=operatorFile()) {
   const config=JSON.parse(privateFile(file));
   const url=new URL(config.hubUrl);
   if(url.protocol!=='https:'||url.pathname!=='/'||url.search||url.hash||url.username||url.password)throw Error('Operator Hub must be an HTTPS origin');
@@ -19,7 +33,8 @@ export function operatorEnvironment(file=path.join(os.homedir(),'.config','arvel
   const token=privateFile(config.adminTokenFile).trim();
   if(!token||/[\r\n]/.test(token))throw Error('Operator admin token is invalid');
   privateFile(config.signingKeyFile);
-  return {ARVELA_HUB_URL:url.origin,ARVELA_HUB_CA_FILE:config.caFile,ARVELA_HUB_ADMIN_TOKEN:token,
+  return {ENKI_HUB_URL:url.origin,ENKI_HUB_CA_FILE:config.caFile,ENKI_HUB_ADMIN_TOKEN:token,
+    ARVELA_HUB_URL:url.origin,ARVELA_HUB_CA_FILE:config.caFile,ARVELA_HUB_ADMIN_TOKEN:token,
     TAURI_SIGNING_PRIVATE_KEY_PATH:config.signingKeyFile,
     TAURI_SIGNING_PRIVATE_KEY_PASSWORD:config.signingPasswordFile?privateFile(config.signingPasswordFile).trimEnd():''};
 }
@@ -35,7 +50,7 @@ export function releaseWithOperator(channel,run,credentials) {
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const root=path.resolve(import.meta.dirname,'../..');
-  const file=process.env.ARVELA_RELEASE_OPERATOR||undefined;
+  const file=process.env.ENKI_RELEASE_OPERATOR||process.env.ARVELA_RELEASE_OPERATOR||undefined;
   try {
     if(process.argv[2]==='--check') { operatorEnvironment(file); console.log('Local release operator configured; credentials withheld.'); }
     else {

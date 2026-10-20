@@ -1,4 +1,4 @@
-# Arvela synthetic evaluation 2.0.1
+# Enki synthetic evaluation 2.0.1
 
 Model: deepseek-flash; requested effort: medium; effective provider effort: high. Memory: off.
 

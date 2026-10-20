@@ -74,3 +74,17 @@ it('renames the legacy workshop without duplicating or changing its identity',as
  expect(api.createSession).not.toHaveBeenCalled();expect(api.updateSession).toHaveBeenCalledWith('protected',{title:'Мастерская'},'/workshop');
  expect(record.session.id).toBe('protected');expect(record.session.title).toBe('Мастерская');
 });
+
+it('reopens the original protected id through a verified migrated directory alias',async()=>{
+ const api=backend();const migrated={...workspace,directory:'/enki/workshop',legacyDirectory:'/legacy/workshop'};
+ const original={...session,directory:'/legacy/workshop'};vi.mocked(api.getSession).mockResolvedValue(original);
+ const record=await resolveWorkshop(api,migrated,{...workspace,directory:original.directory,session:original});
+ expect(api.getSession).toHaveBeenCalledWith(original.id,original.directory);expect(api.createSession).not.toHaveBeenCalled();
+ expect(record.directory).toBe(original.directory);expect(record.session.id).toBe(original.id);
+});
+it('recovers missing preferences from the legacy directory without creating another workshop',async()=>{
+ const api=backend();const original={...session,directory:'/legacy/workshop'};
+ vi.mocked(api.listSessions).mockImplementation(async directory=>directory===original.directory?[original]:[]);
+ const record=await resolveWorkshop(api,{...workspace,directory:'/enki/workshop',legacyDirectory:original.directory});
+ expect(api.createSession).not.toHaveBeenCalled();expect(record.session.id).toBe(original.id);expect(record.directory).toBe(original.directory);
+});

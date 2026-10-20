@@ -1,4 +1,4 @@
-# Платформы и сборки Arvela
+# Платформы и сборки Enki
 
 Текущий номер берётся из `package.json`; `bundle-config.test.ts` проверяет его
 совпадение с Cargo/Tauri. Стабильные идентификатор `dev.local.opencodedesktop`,
@@ -67,7 +67,7 @@ cargo test --locked --manifest-path src-tauri/Cargo.toml
 ```
 
 macOS: Xcode Command Line Tools, `npm run build:macos`, затем
-`python3 scripts/verify-macos.py src-tauri/target/release/bundle/macos/Arvela.app`.
+`python3 scripts/verify-macos.py src-tauri/target/release/bundle/macos/Enki.app`.
 Локальный DMG подписан ad-hoc; notarization/сертификат издателя не настроены.
 
 Windows: Visual Studio C++ Build Tools, Rust stable-msvc, WebView2, Node 24.
@@ -86,7 +86,7 @@ libsoup-3.0-dev, librsvg2-dev, libssl-dev. `npm run check:linux-prereqs` тол�
 
 OpenCode конфиг: macOS `$HOME/.config/opencode`, Linux абсолютный
 `$XDG_CONFIG_HOME` или `$HOME/.config/opencode`, Windows `%USERPROFILE%\.config\opencode`.
-Данные Arvela: macOS `$HOME/.local/share`, Linux абсолютный `$XDG_DATA_HOME` или
+Данные Enki: macOS `$HOME/.local/share`, Linux абсолютный `$XDG_DATA_HOME` или
 `$HOME/.local/share`, Windows `%LOCALAPPDATA%\opencode-desktop`. Точные подкаталоги
 разрешает `src-tauri/src/paths.rs`; изменение названия продукта их не мигрирует.
 

@@ -50,7 +50,7 @@ npm run eval:live -- --repeats 2 --timeout 120 --total-timeout 1800 \
 
 Playwright can be a separate existing installation. Only the executable is
 reused: a new temporary browser profile is created and removed for each trial.
-There is no connection to Arvela's live browser. The fixture has no network origin
+There is no connection to Enki's live browser. The fixture has no network origin
 and all page requests are blocked. These trials use reference-based fast actions;
 they do not establish mouse-emulation or packaged UI acceptance.
 
@@ -201,7 +201,7 @@ provider request/usage totals. Unreported usage/response timestamps remain unkno
 Compare agents on identical new tasks/repetitions. Do not compare their absolute
 medians with M39's single-function fixtures and claim a regression or acceleration.
 The browser workflow uses real isolated Chromium and semantic refs, not installed
-Arvela mouse-emulation acceptance. No production model or owner project is tested.
+Enki mouse-emulation acceptance. No production model or owner project is tested.
 
 ## M45 optional project map (suite 2.1.0)
 

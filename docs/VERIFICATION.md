@@ -58,7 +58,7 @@ own converted Gemma artifact(19083598848B); original weights retained.
 No empty desktop package is needed to activate server-only profiles; Windows/
 Linux desktop interaction was not separately exercised.
 
-# Arvela 0.2.77 — output-limit recovery (2026-10-19)
+# Enki 0.2.77 — output-limit recovery (2026-10-19)
 
 Incident: two real `finish:length` stops at16,384 output tokens, with repetitive
 reasoning tails; no transport error. Private history saved (2,928messages),
@@ -94,7 +94,7 @@ only after verified Hub delivery; no owner app/browser/engine restart.
 
 ---
 
-# Arvela 0.2.76 — session-guided tool reliability (2026-10-18)
+# Enki 0.2.76 — session-guided tool reliability (2026-10-18)
 
 Published to Hub/stable from runtime `33724a7`. Canonical gates: **943 frontend / 133 native passed**, 6 frontend and
 3 native existing opt-in skips. TypeScript/Vite, architecture174, raw/gzip bundle
@@ -120,7 +120,7 @@ runtime revision or require another empty release.
 
 ---
 
-# Arvela 0.2.75 — central Hub model readiness (2026-10-18)
+# Enki 0.2.75 — central Hub model readiness (2026-10-18)
 
 Published to Hub/stable from runtime `d129e31` (feature `53dd2a5`). Canonical final
 gates: **940 frontend / 130 native / 74 Hub / 9 publisher tests passed**, with
@@ -221,7 +221,7 @@ See [repair evidence and limits](SESSION-RECOVERY-0.2.36.md).
 
 # Windows 0.2.35 archive integration — 2026-10-09
 
-Reviewed `Arvela-0.2.35-Windows-installed-20261009.zip`: all 26 payload sizes
+Reviewed `Enki-0.2.35-Windows-installed-20261009.zip`: all 26 payload sizes
 and SHA256 hashes match the supplied manifest; all 957 tracked source files
 match bundled HEAD `4842d2c7501063ca645da158941b7e65321c2e1f`. Its exact
 ancestor is main `0705a1491494a03115a1da20b9e4c77753dc4e34`; the three source
@@ -248,7 +248,7 @@ The unsigned Windows installer is retained locally with its verified manifest;
 it is not a new build from the Mac and is not placed in Git. Existing release
 tags/assets are unchanged; importing source does not requalify old binaries.
 
-# Arvela 0.2.35 — configured model discovery (2026-10-09)
+# Enki 0.2.35 — configured model discovery (2026-10-09)
 
 Configured model rows are independent of transient readiness. The picker adds
 read-only refresh, last-known public service metadata and agent policy, and an
@@ -281,9 +281,9 @@ benchmark or Windows/Linux live test was run for this UI fix.
 The installed executable matches the signed build SHA256
 `712a6fe79aadb3ac69407e735722b9c14d37da4b9cfc33df2b75a0f2a3b43622`.
 DMG SHA256: `d1f8567456b2d9607d22e4f18a3d731720ce76fbee42e1cb7322afca495fd421`.
-The prior app bundle is retained privately. Source commit `2ef6c81edebdd5fa517e38f7b9efc58a5ce0dd36` is pushed to main. Release [v0.2.35](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.35) targets that exact commit; its downloaded DMG matches the build and GitHub digest/size. The read-only mounted release app matches installed version, signature and executable. The Downloads copy matches too.
+The prior app bundle is retained privately. Source commit `2ef6c81edebdd5fa517e38f7b9efc58a5ce0dd36` is pushed to main. Release [v0.2.35](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.35) targets that exact commit; its downloaded DMG matches the build and GitHub digest/size. The read-only mounted release app matches installed version, signature and executable. The Downloads copy matches too.
 
-# Arvela 0.2.34 — M43/M44/M45 and selected Mac acceptance (2026-10-08)
+# Enki 0.2.34 — M43/M44/M45 and selected Mac acceptance (2026-10-08)
 
 The combined release adds passive per-request timing diagnostics, realistic miniature-project/browser evaluations and an optional shared read-only project map. No inference engine, GPU, provider defaults, existing histories or native agent permissions changed.
 
@@ -291,7 +291,7 @@ Mac ARM64: final frontend640/6 existing opt-in skips; Hub37; Rust94/1 existing O
 
 Actual isolated Chromium: M43 diagnostics measured/missing values and M45 preview/enable/disable,320/480/760px geometry pass. Actual signed native binary with officialSDK: map query,UTF8 budget,input refusal,wrongCWD,disable/re-enable oldconnection refusal pass. InstalledPi0.85.1 loads/calls the common tool; isolated officialOpenCode1.18.18 reports MCP connected with no inference. A separate native budget check verifies20 calls then refusal. Early fixture-only failures (copying a resource directory; fixture incorrectly insideGitignored.local) were diagnosed and corrected without changing assertions or production ignore rules.
 
-Installed `/Applications/Arvela.app` visibly shows0.2.34,OpenCode1.18.18 andPi0.85.1. Owner chat/history/Medium restored, shared scripts match source byte-for-byte, externalOpenCode remainshealthy; no prompt,stop or model/GPU change was issued. Installed native Context preview searches this repository, reports partial coverage and heuristic symbols, and project toggle enables/disables correctly. Existing stopped history displaysunknown elapsed/first-response fields honestly and separates tool/reasoning phases from result acceptance. Previous0.2.33 bundle retained privately. Current GUI is left onAbout.
+Installed `/Applications/Enki.app` visibly shows0.2.34,OpenCode1.18.18 andPi0.85.1. Owner chat/history/Medium restored, shared scripts match source byte-for-byte, externalOpenCode remainshealthy; no prompt,stop or model/GPU change was issued. Installed native Context preview searches this repository, reports partial coverage and heuristic symbols, and project toggle enables/disables correctly. Existing stopped history displaysunknown elapsed/first-response fields honestly and separates tool/reasoning phases from result acceptance. Previous0.2.33 bundle retained privately. Current GUI is left onAbout.
 
 Installed/build executable SHA256: `33108c7a159a74ad18d21c4d45fb2148d407a404ccd823057d0011804e390597`.
 Built/Downloads DMG SHA256: `35f0791592957ff7f0d30498df1f24d72c5e5c74920fbb404fba2fe79eadcbd5`.
@@ -302,9 +302,9 @@ M45:24 paired same-budget trials. OpenCodeoff/tools2/6each;Pi off3/6/tools0/6. N
 
 HubCT206: additive numeric task-diagnostics table/API/Web deployed,37actual tests/sourcehashmatch/integrityok,all10314historyrecords preserved. One postdeploymentSQLquoting error in the verification helper was corrected with independent typedPython; no redeployment needed. FullNASarchive0.2.34 bytecmp/zstd and extractedSQLite history/schema/integrity pass; ownSSDarchive removed. SHA256 `d2e38eb08854da1abe51325be1ced10f298beb5e170bab04c5309bbf3e1ab4f2`. This checks archived contents, not a newly booted restore. Private .local receipts hold logs/oldbundle/backup metadata; none published.
 
-Source commit `5fc71376befd08fb783c096c90e2dc2a25f47fcd` pushed to public main; release [v0.2.34](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.34) targets that exact source. Fresh downloaded GitHub asset matches built/Downloads SHA256, API digest and size; DMGCRC/read-only mounted signature/version/audio/installed-executable equality pass. Initial release creation rejected the abbreviated commit target; full verified GitHub commit SHA succeeded. Final follow-up is documentation only. Installed Hub catalog6packages/3installedskills/queue0 also verified through GUI, app leftAbout. Existing automatedCI status is separate and no new Windows/Linux live claim follows. At final status capture, native workflow37828107691 was still running; its Windows job failed and was not investigated because Windows/Linux work was explicitly excluded. The separate synthetic workflow37828107664 passed. Local Mac build/acceptance above is completed; no three-platform green CI claim is made. No delegation, new automation, localGPU benchmarks or Windows/Linux live tasks.
+Source commit `5fc71376befd08fb783c096c90e2dc2a25f47fcd` pushed to public main; release [v0.2.34](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.34) targets that exact source. Fresh downloaded GitHub asset matches built/Downloads SHA256, API digest and size; DMGCRC/read-only mounted signature/version/audio/installed-executable equality pass. Initial release creation rejected the abbreviated commit target; full verified GitHub commit SHA succeeded. Final follow-up is documentation only. Installed Hub catalog6packages/3installedskills/queue0 also verified through GUI, app leftAbout. Existing automatedCI status is separate and no new Windows/Linux live claim follows. At final status capture, native workflow37828107691 was still running; its Windows job failed and was not investigated because Windows/Linux work was explicitly excluded. The separate synthetic workflow37828107664 passed. Local Mac build/acceptance above is completed; no three-platform green CI claim is made. No delegation, new automation, localGPU benchmarks or Windows/Linux live tasks.
 
-# Arvela 0.2.33 — engineering foundations (2026-10-08)
+# Enki 0.2.33 — engineering foundations (2026-10-08)
 
 M42 extracts state schema, fresh startup construction and pure OpenCode/Pi model
 selection from the central store (3510→3222 lines). Existing facade/type exports,
@@ -360,7 +360,7 @@ microphone and live agent scenarios remain unrun; use the separate
 or model quality improvement is claimed by this engineering release.
 
 Source published in main as `53b7baa69111a49c1fc61e193c02b37df157106c`;
-[v0.2.33](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.33) targets
+[v0.2.33](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.33) targets
 that exact commit and contains three native packages plus three public build
 receipts. All six freshly downloaded assets equal the prepared bytes, sizes and
 GitHub SHA256 digest. Published DMG CRC passes; a read-only temporary mount
@@ -377,7 +377,7 @@ CI Mac DMG is a separate build with SHA256:
 its downloaded CRC and exact receipt binding pass, but the release/installed Mac
 DMG is the local build listed above. Completion receipt commits change docs only.
 
-# Arvela 0.2.32 — shared project-memory retrieval (2026-10-08)
+# Enki 0.2.32 — shared project-memory retrieval (2026-10-08)
 
 M41 adds explicit local project grants for a read-only memory MCP through the
 existing shared OpenCode/Pi adapters. Approved, unexpired, latest-known accepted
@@ -425,7 +425,7 @@ removed. External OpenCode PID3714 remains healthy1.18.18; externally owned
 browser MCP processes and user chats preserved.
 
 Source `3d6b080ab35ae58555f6d8a83b7e852d6687455e` pushed to main;
-public [v0.2.32](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.32)
+public [v0.2.32](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.32)
 targets that exact source. CI Synthetic evaluation contracts run37772620531
 passed. Fresh downloaded release DMG matches build, Downloads and GitHub digest;
 hdiutil verifies it. Final installed package includes offline grant revocation;
@@ -433,7 +433,7 @@ About and both agent status checks pass. Own fixture listeners/tabs/key material
 removed; production memory unchanged.
 
 
-# Arvela 0.2.31 — curated project memory (2026-10-08)
+# Enki 0.2.31 — curated project memory (2026-10-08)
 
 M40 adds explicit UUID project binding shared by OpenCode/Pi, accepted-result
 proposals with editable fact/runbook text, separate owner approval, source
@@ -466,7 +466,7 @@ Strict signature/microphone/hdiutil pass; ad-hoc signed, not notarized.
 Final native About shows0.2.31/OpenCode1.18.18/Pi0.85.1; source/release round-trip
 passed: sourcec8512204754444b0463b8a267f0dd65a144f4ba2 is the publicv0.2.31
 target, freshly downloaded asset equals build/Downloads/GitHub digest and passes
-hdiutil. GitHub CI [contracts run37763498470](https://github.com/VladimirKraswov/arvela/actions/runs/37763498470) succeeds.
+hdiutil. GitHub CI [contracts run37763498470](https://github.com/VladimirKraswov/enki/actions/runs/37763498470) succeeds.
 
 Full private NAS CT206 archive0.2.31 SHA256:
 `bdc9d9e9e79506409fccde847bad7d966d5290f491c2b7d27f508c7ed34e56f0`.
@@ -477,7 +477,7 @@ versions persist separately from chat retention. Stale source detection requires
 the originating device to reconnect/sync; offline changes cannot be known instantly.
 Windows/Linux live checks and model-quality/speed comparisons remain unrun.
 
-# Arvela 0.2.30 — full-card Hub batching follow-up (2026-10-08)
+# Enki 0.2.30 — full-card Hub batching follow-up (2026-10-08)
 
 Final boundary review found the old native 64KB record cap could reject a valid
 long Unicode assessment attached to a user request. Assessed records now allow
@@ -503,7 +503,7 @@ was byte/zstd verified and restored to isolated unstarted207 with integrityok,
 Windows/Linux live tests and model-quality/speed A/B remain unrun. M38 complete;
 M39–42 are roadmap work, not implemented or silently scheduled.
 
-# Arvela 0.2.29 — task result cards (2026-10-08)
+# Enki 0.2.29 — task result cards (2026-10-08)
 
 M38 adds request-anchored owner assessments for OpenCode/Pi in the context panel,
 atomic IndexedDB revision checks and durable optional Hub delivery. Agent idle,
@@ -539,7 +539,7 @@ privately. Main publication, release round-trip and NAS archive verification
 are recorded in the final checkpoint below once complete. M39–42 remain future
 work; this release does not implement project memory or automatic training.
 
-# Arvela 0.2.26 — balanced settings and new icon (2026-10-08)
+# Enki 0.2.26 — balanced settings and new icon (2026-10-08)
 
 Common app/capability settings are separate from equal OpenCode/Pi sidebar
 entries. Agent-owned settings have their own wrapping navigation. OpenCode
@@ -558,7 +558,7 @@ New icon generated using built-in imagegen, copied to repository and converted
 with the official Tauri icon CLI. Full source/alpha and native32px preview
 visually inspected, PNG/ICO/ICNS formats verified. Installed native About shows
 the new mark and0.2.26. Same image source is used for sidebar/favicon/resources.
-See [icon source and prompt](ARVELA-ICON.md).
+See [icon source and prompt](ENKI-ICON.md).
 
 Actual installed Mac: equal sidebar entries and common-only General page,
 OpenCode connection/tabs/diagnostics, Pi tabs/0.85.1 discovery, draft retained
@@ -579,7 +579,7 @@ is pushed to main; public v0.2.26 targets that exact source. Published DMG
 downloaded back, matches built/Downloads SHA256 and passes hdiutil verification.
 Final checkpoint changes documentation only.
 
-# Arvela 0.2.25 — passive browser monitor and scroll recovery (2026-10-07)
+# Enki 0.2.25 — passive browser monitor and scroll recovery (2026-10-07)
 
 Separate fixed420×308 native JPEG viewer, restore/hide controls and native close
 handling; one existing Chromium, no page input/resize or extra agent/control/
@@ -595,7 +595,7 @@ new manual-wheel invalidation of both agent and panel coordinates, fresh recover
 images and interrupted composed actions with no replay. The same-JPEG edge case
 is tested: new decoded frame revision unlocks the panel even if pixels are unchanged.
 
-Installed `/Applications/Arvela.app`0.2.25: actual separate native viewer shows
+Installed `/Applications/Enki.app`0.2.25: actual separate native viewer shows
 live own-fixture frames; passive click/keyboard cannot edit the page. Detached
 viewport706×698/page/tab preserved; restore returns the same page, full-panel
 manual typing and click confirmed by actual DOM. Hide retains page/tab/form and
@@ -621,11 +621,11 @@ external OpenCode PID3714 remains healthy1.18.18; models, GPU services, owner
 history/providers/permissions preserved. Source e6c5bb4 is pushed to main; public v0.2.25 targets that exact source.
 Downloaded release DMG matches local SHA256 and passes hdiutil verification.
 
-# Arvela 0.2.24 — product rename, Mac installed (2026-10-07)
+# Enki 0.2.24 — product rename, Mac installed (2026-10-07)
 
-Public product name is **Arvela**: window/menu/settings/messages, bundle/installer
+Public product name is **Enki**: window/menu/settings/messages, bundle/installer
 names, README/current documentation, npm/Rust package and GitHub repository
-`VladimirKraswov/arvela`. New SVG mark produces Mac/Windows/Linux icons; old
+`VladimirKraswov/enki`. New SVG mark produces Mac/Windows/Linux icons; old
 default icon is replaced. Existing application ID, executable `opencode-desktop`,
 preference/data/vault/skill/tool identities stay compatible. Dated reports and
 published historical files below keep their actual names. See [branding](BRANDING.md).
@@ -637,27 +637,27 @@ installation selector includes all three names and retains ambiguous-version
 rejection; its expanded10-case PowerShell fixture was not run on Mac (pwsh absent).
 Live Windows/Linux rename upgrades are pending.
 
-Installed `/Applications/Arvela.app` 0.2.24 executable matches the build:
+Installed `/Applications/Enki.app` 0.2.24 executable matches the build:
 `56247a585b50bff78a2d7985468a4f6369abbfae0c1cac57bd1689ebb620b3b6`.
 DMG `2f49a0ede8d9819f62ceb96414c25407f64ba49507e9cb6bba247095e481a283`
 matches the Downloads copy; strict/deep signature, microphone entitlement,
 application ID/version/name and `hdiutil verify` pass. Ad-hoc signed, not notarized.
 Private0.2.23 backup retained; prior app moved across volumes, legacy application
-path resolves to Arvela through a hidden symlink. User Applications/Desktop
+path resolves to Enki through a hidden symlink. User Applications/Desktop
 launchers use the new name. No second data store or concurrent legacy app.
 
-Native window/menu/About visibly show Arvela0.2.24 and healthy OpenCode1.18.18.
+Native window/menu/About visibly show Enki0.2.24 and healthy OpenCode1.18.18.
 Existing browser remains ready; renamed shared SDK refreshed through its official
 locked installer. Browser/shared scripts match source. Installed CLI and real
 Pi0.85.1 loader/validator acceptance pass: discovery, aliases, scoped cwd,
 upstream errors without replay, disabled service rejection and disposable
 OpenCode MCP attachment/disconnect. No model calls; test-owned registries removed.
 Original external OpenCode PID3714, conversations, global providers, permissions
-and inference services preserved. Public [v0.2.24](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.24)
+and inference services preserved. Public [v0.2.24](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.24)
 targets pushed runtime source `c072a82b5a72d01e830fdb7a1bafcb35cead86ff`.
 Published DMG downloaded back: SHA256 matches the built/Downloads image and
 GitHub asset digest; `hdiutil verify` passes on the downloaded artifact. Final
-checkpoint changes documentation only. Arvela remains open on About.
+checkpoint changes documentation only. Enki remains open on About.
 
 # AgentMesh 0.2.23 — shared capabilities, Mac verified (2026-10-07)
 
@@ -695,7 +695,7 @@ Final installed `/Applications/AgentMesh Desktop.app` executable matches the bui
 Strict/deep signature, bundle version and microphone entitlement pass. Mac DMG:
 `804084d1817735732aa328da482448c4bd492f9309de65226d14c7f6fea0e35e`;
 `hdiutil verify` passes. Ad-hoc signed, not notarized. Old0.2.22 bundle retained
-privately. Public release [v0.2.23](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.23)
+privately. Public release [v0.2.23](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.23)
 targets pushed source `8082ec6df4e0b8571eff5b8dfd8ae960370bab55`. Its DMG was
 downloaded back: SHA256 equals the built/Downloads image and GitHub asset digest;
 `hdiutil verify` also passes on the downloaded image. A final Windows-only main
@@ -893,7 +893,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   the timeout appears specific to Desktop's probe path. No claim is made that
   this part of Pi is repaired.
 - Private main source commit `5acaab80f00512c77268cb24909822b4d694545a`
-  is the target of [release v0.2.14](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.14).
+  is the target of [release v0.2.14](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.14).
   GitHub's reported asset digest and a downloaded copy both match the verified
   DMG SHA256 above. Installed 0.2.13 is retained while the TinyCAD chat is busy
   (confirmed from `/Applications/OpenCode Desktop.app/Contents/Info.plist`).
@@ -929,7 +929,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   The owner’s TinyCAD session remained busy, so the installed app was untouched.
   GitHub publication and eventual installation are recorded separately.
 - Private main has the release source at
-  `c94eadecf417a7252de0d55144c9d02e66f47dbc`. [Release v0.2.13](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.13)
+  `c94eadecf417a7252de0d55144c9d02e66f47dbc`. [Release v0.2.13](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.13)
   targets that commit; its downloaded DMG and GitHub asset digest both match
   SHA256 `234b560fb0330181dae61359971af5110de2f1021321d58385ca12d7f7713912`.
   Installed 0.2.12 is retained while the TinyCAD session is busy.
@@ -938,7 +938,7 @@ original installer. Integration fixes and their separate checks are recorded abo
 
 - Private main contains the source, tests and updated documentation at
   `540a587ef8adca6f9ca2d05600124d3e6283e0e1`.
-- [Release v0.2.12](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.12)
+- [Release v0.2.12](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.12)
   targets that commit and contains the macOS Apple Silicon DMG. GitHub's asset
   SHA256 equals the verified local/Downloads artifact:
   `2008936781b68ee0de5dab781ca938942601dc7c1826e502563aee1ed6723733`.
@@ -983,7 +983,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   The matching DMG was copied to Downloads. The owner authorized interrupting
   the one active TinyCAD session for installation. Only that session was
   aborted; the API then showed no active jobs. Previous app backup:
-  `~/.local/share/opencode-desktop/backups/0.2.11-before-0.2.12-20260930-184828`.
+  `~/.local/share/enki/backups/0.2.11-before-0.2.12-20260930-184828`.
   Installed executable matched the candidate SHA256. Native UI showed Desktop
   0.2.12 connected to the unchanged OpenCode 1.18.18 server, OpenCode CLI
   installed, and Pi 0.85.1 installed. The original TinyCAD chat was resumed
@@ -996,7 +996,7 @@ original installer. Integration fixes and their separate checks are recorded abo
 
 - Current source and the completed AI-environment documentation were pushed to
   private `main` at `ce5c595d0ca7339837205b7f22b8e2f80897ace5`.
-- [Release v0.2.11](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.11)
+- [Release v0.2.11](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.11)
   is published in that private repository and its tag points to the same commit.
   The release contains the macOS Apple Silicon DMG only; Linux remains at v0.2.10.
 - The uploaded asset was downloaded again and matched the verified local DMG:
@@ -1054,7 +1054,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   DMG SHA256:
   `241b0c059d4ea440c3c22315e8608146d8cdc90a7b6fdd2acdc13848c4cc7f75`.
   Previous installed build is recoverable at
-  `~/.local/share/opencode-desktop/backups/0.2.11-agent-factory-stopfix-before-20260927`;
+  `~/.local/share/enki/backups/0.2.11-agent-factory-stopfix-before-20260927`;
   earlier candidates remain in the adjacent Agent Factory backups.
   The external OpenCode server and unrelated sessions were not restarted,
   stopped or repurposed.
@@ -1089,7 +1089,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   final DMG SHA256 is
   `57171a61a767b3048853cb5acaf3d0350fb5072df45f0227e3d0a1ff7ef2c415`.
   Previous app backup:
-  `~/.local/share/opencode-desktop/backups/0.2.11-before-tool-recovery-20260927`.
+  `~/.local/share/enki/backups/0.2.11-before-tool-recovery-20260927`.
   The independent OpenCode server and user sessions were preserved. The final
   candidate was not installed over an actively running unrelated tiny-cad task;
   it differs only by clearing managed recovery state after explicit stop or a
@@ -1119,7 +1119,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   DMG SHA256 is
   `548a2441cdfff53807c373592e19970fb56a786b92c6c01cdb003566f0ea206e`;
   the identical file is in Downloads. Previous 0.2.9 app backup:
-  `~/.local/share/opencode-desktop/backups/0.2.9-before-0.2.10-20260925-112515/`.
+  `~/.local/share/enki/backups/0.2.9-before-0.2.10-20260925-112515/`.
 - Linux Ubuntu 24.04 x86_64 used a test-owned copy of source commit `54fe7a3`:
   **281 frontend tests passed / 6 opt-in live skipped**, **31 Rust tests passed**,
   `npm run build:linux` produced package `open-code-desktop` version `0.2.10`
@@ -1135,7 +1135,7 @@ original installer. Integration fixes and their separate checks are recorded abo
   `local-qwen38/qwen-v100` in the actual user message and assistant response;
   the screenshot also displays V100. This evidence does not establish a
   different picker selection immediately before that send.
-- Source fix `54fe7a3` was pushed to main. [Release v0.2.10](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.10)
+- Source fix `54fe7a3` was pushed to main. [Release v0.2.10](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.10)
   contains the Mac DMG and Linux DEB with the digests above. macOS remains
   ad-hoc signed without Developer ID notarization; Windows is unbuilt.
 
@@ -1178,12 +1178,12 @@ original installer. Integration fixes and their separate checks are recorded abo
   `4f67e7b0344b3466173d237aa8657314d54480ce4034b4e3f0b800f3292a0d98`.
   `/Applications/OpenCode Desktop.app` now reports 0.2.9 and its executable hash
   matches the candidate. The previous 0.2.8 app is backed up at
-  `~/.local/share/opencode-desktop/backups/0.2.8-before-0.2.9-20260925-015339/`.
+  `~/.local/share/enki/backups/0.2.8-before-0.2.9-20260925-015339/`.
   The identical DMG is in Downloads. The installed UI reopened with OpenCode
   1.18.18 healthy and local Pi settings intact; three coordinator test chats
   were deleted, while user chats and the independent OpenCode server remained.
 - Source commits `6b5d05e` (Igor/Claude direct CLI refactor) and `91f19b2`
-  (coordinator native acceptance) are on main. [Release v0.2.9](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.9)
+  (coordinator native acceptance) are on main. [Release v0.2.9](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.9)
   contains both OS packages: GitHub reports exactly the two SHA256 digests
   above, and the tag resolves to `91f19b2`. Igor's marker-verified clean test
   checkout and the isolated DeepSeek test key were removed after publication.
@@ -1276,7 +1276,7 @@ tested here; Windows does not exist as a variant.**
   work unchanged — there is no second agent loop. Both engines are registered in
   the backend registry.
 - **Installed on Igor** into an app-owned location:
-  `~/.local/share/opencode-desktop/pi-runtime` with the version pinned exactly to
+  `~/.local/share/enki/pi-runtime` with the version pinned exactly to
   0.85.1 (matching the owner's Mac). Nothing global was changed; `~/.pi` was
   created by Pi itself and is never written to by this app.
 - **Live acceptance** (`test/pi-live.test.ts`, opt-in, real CLI + real model):
@@ -1380,9 +1380,9 @@ Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review chec
 - Desktop routes attachments according to the selected model's actual `/provider` input capabilities. Both configured local Qwen models advertise image input, not native PDF/audio/video input. The composer supports file picker, drag/drop, clipboard files and large-text paste, with per-chat IndexedDB drafts and explicit 12-file/50-MiB limits. Converted PDF/video frames go to Vision; sound goes through GigaAM. The helper address and health are visible under Settings → Services; MCP servers remain separately configurable. CT205 currently has no MCP endpoint.
 - Full frontend suite **184/184** passed (single worker under high system load); TypeScript/Vite production build and `cargo check` passed. Final app+DMG build, strict local ad-hoc signature/entitlement verification and `hdiutil verify` passed. Browser UI connected to the real OpenCode server: picker attached a PDF, reload restored the unsent attachment, and removal worked. A separate one-shot live PDF test passed through CT205 and local Qwen: OpenCode stored `sample.pdf.описание.txt` plus `sample.pdf.page-1.jpg` and answered **«Контрольная фраза — HELLO, число — 42.»** The disposable test session was archived; no existing user conversation was modified.
 - Installed `/Applications/OpenCode Desktop.app` 0.2.8 and copied the verified DMG to Downloads. Native Settings showed helper **«Работает · версия 0.1.0»** and all three services. The native file picker opened and an attachment chip was created; native selection of the intended fixture was not reliably completed by the macOS computer-control tool, so native end-to-end PDF sending is not claimed. A mistakenly selected unrelated file was removed from the unsent draft without transmission. The native UI was reopened after the automation dialog stopped responding. After the owner reported that Finder/Desktop drag did not work, the installed app was rebuilt with Tauri WebView native drag/drop events and narrowly scoped `fs:allow-stat`/`fs:allow-read-file` permissions. Native file preflight rejects folders, symlinks, oversize and changed files; 3 regression tests pass. The owner confirmed that dragging files from the Desktop now works in the installed build. No model request was sent for this regression check.
-- Pre-install check found all 27 remembered OpenCode scopes idle. The independent OpenCode PID 27982 remains alive; the model server and user MCP processes were not restarted. The installed app retained all prior preference fields except the selected directory/new-chat mode changed during acceptance; the user's previous HyperMQ conversation remains intact and unread. New `helperEndpoint` is `http://127.0.0.1:18107`. Original bundle backup: `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.7-before-0.2.8-20260924-202206`. Private receipts are in `.local/attachments-0.2.8/`.
-- Final installed executable SHA256: `f18f492d8683b5b80b1222b0ed03de38fd84ef7a5e1a64c77783cdcd8d15b535`; final Downloads DMG SHA256: `d4f0d3caab31a8ca0ddc6d9479171a39bdbab922e3db42e8d7d22da95ec87378`. The previous 0.2.8 bundle was backed up under `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.8-before-dragfix-20260924-214747`. Apple Silicon local ad-hoc signature; no Developer ID/notarization.
-- Source commits `5bfe2d2` and `9ae9ad2f35a9f84397e2412faff74da2c3b427b7` were pushed. [Release v0.2.8](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.8) points to the latter commit; the remote asset SHA256 matches the installed/Downloads DMG. The later overloaded-host test repeat timed out one unrelated project-switching test; that test and the new native-drop tests passed together, 8/8, when rerun separately.
+- Pre-install check found all 27 remembered OpenCode scopes idle. The independent OpenCode PID 27982 remains alive; the model server and user MCP processes were not restarted. The installed app retained all prior preference fields except the selected directory/new-chat mode changed during acceptance; the user's previous HyperMQ conversation remains intact and unread. New `helperEndpoint` is `http://127.0.0.1:18107`. Original bundle backup: `/Users/vladimirkrasov/.local/share/enki/backups/0.2.7-before-0.2.8-20260924-202206`. Private receipts are in `.local/attachments-0.2.8/`.
+- Final installed executable SHA256: `f18f492d8683b5b80b1222b0ed03de38fd84ef7a5e1a64c77783cdcd8d15b535`; final Downloads DMG SHA256: `d4f0d3caab31a8ca0ddc6d9479171a39bdbab922e3db42e8d7d22da95ec87378`. The previous 0.2.8 bundle was backed up under `/Users/vladimirkrasov/.local/share/enki/backups/0.2.8-before-dragfix-20260924-214747`. Apple Silicon local ad-hoc signature; no Developer ID/notarization.
+- Source commits `5bfe2d2` and `9ae9ad2f35a9f84397e2412faff74da2c3b427b7` were pushed. [Release v0.2.8](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.8) points to the latter commit; the remote asset SHA256 matches the installed/Downloads DMG. The later overloaded-host test repeat timed out one unrelated project-switching test; that test and the new native-drop tests passed together, 8/8, when rerun separately.
 
 ## Microphone permission repair — 0.2.7, 2026-09-24
 
@@ -1391,9 +1391,9 @@ Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review chec
 - 171/171 frontend tests pass, including 4 new capture/cancellation regressions. TypeScript/Vite production build passes. New `scripts/verify-macos.py` checks the actual bundle's strict signature, signed audio-input entitlement and microphone usage description; rejects the installed 0.2.6 artifact as expected. Final Tauri app+DMG build, strict codesign, signed-entitlement check and hdiutil verification passed.
 
 - Installed `/Applications/OpenCode Desktop.app` 0.2.7. Native microphone click produced a running timer and sound-level canvas; cancel returned to the microphone button without error or ASR submission. The existing microphone grant was usable. This verifies actual capture/start/cancel; speech-to-transcript was not repeated in this fix.
-- All 26 preferences categories, drafts and global OpenCode configuration compared unchanged. All 26 remembered scopes were idle before installation. External OpenCode PID 27982 and the four pre-existing MCP processes remained alive; engine 1.18.18 healthy. Backup: `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.6-before-0.2.7-20260924-173755`. Private receipts: `.local/microphone-0.2.7/`.
+- All 26 preferences categories, drafts and global OpenCode configuration compared unchanged. All 26 remembered scopes were idle before installation. External OpenCode PID 27982 and the four pre-existing MCP processes remained alive; engine 1.18.18 healthy. Backup: `/Users/vladimirkrasov/.local/share/enki/backups/0.2.6-before-0.2.7-20260924-173755`. Private receipts: `.local/microphone-0.2.7/`.
 - Installed executable SHA256: `c68e60ce6b9eb8563732f3085eaca6b6203173878db498dbc0c0434ba460d666`. Downloads DMG SHA256: `143b48f24f9d47dbf9cd33e85f9b4e40b0186b3667e652dd34f2af8c0cdc1602`. Hardened Runtime remains enabled; local ad-hoc signature, no Developer ID/notarization.
-- Source `c04f053b2fc7a67c937689a8363418b62e913ef3` pushed; [v0.2.7](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.7) published. Remote tag and DMG digest match the verified local artifact.
+- Source `c04f053b2fc7a67c937689a8363418b62e913ef3` pushed; [v0.2.7](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.7) published. Remote tag and DMG digest match the verified local artifact.
 
 ## Settings and appearance — 0.2.6, 2026-09-24
 
@@ -1403,9 +1403,9 @@ Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review chec
 - Full frontend tests **167/167**, `npm test -- --maxWorkers=2`. TypeScript/Vite passed. Tests cover preference migration, validation/CSS input rejection, remote workspace return, accent contrast, DOM application, search, independent saves, dirty exit/navigation and unread completion behind settings.
 - Browser acceptance through private local API fixture, no inference: both themes; default and maximum fonts at1280×720/900×620; no horizontal content overflow, sidebar remains scrollable. Actual chat computed sizes18pxUI/24pxchat/22pxcode and composer24px, width1060px, relaxed line height44.4px confirmed. Settings reload retained all values; return retained the exact test draft; discarded ASR edit restored GigaAM; search reached appearance. Private receipts `.local/settings-0.2.6/`.
 - Native installed acceptance: settings search/Cmd+, separate font changes and blue accent, live preview, actual SQLite persistence, reset to original neutral/dark defaults. Staged bash permission stayed pending across Appearance navigation and exit protection; discarded without writing the config (hash unchanged). Existing GigaAM endpoint/model/language retained. Cua Driver0.28.2 remains enabled, connected, with both grants. About confirms Desktop0.2.6 and OpenCode1.18.18 connected/open. Original Compute Mesh and empty composer restored; final screen intentionally shows Appearance.
-- Final Tauri app+DMG build, strict ad-hoc codesign and hdiutil checksum verification passed. Installed `/Applications/OpenCode Desktop.app`, executable SHA256 `87bd0855e095b0354d7f4174c5b713336221e760aac8c07ac4ee59e7eba934f1`. Downloads DMG SHA256 `7ad462b508845224d828c6c0589949efea868f7d16a0e830a65b5487e1c291e9`. Backup: `/Users/vladimirkrasov/.local/share/opencode-desktop/backups/0.2.5-before-0.2.6-20260924-165520`. Not Developer ID signed/notarized.
+- Final Tauri app+DMG build, strict ad-hoc codesign and hdiutil checksum verification passed. Installed `/Applications/OpenCode Desktop.app`, executable SHA256 `87bd0855e095b0354d7f4174c5b713336221e760aac8c07ac4ee59e7eba934f1`. Downloads DMG SHA256 `7ad462b508845224d828c6c0589949efea868f7d16a0e830a65b5487e1c291e9`. Backup: `/Users/vladimirkrasov/.local/share/enki/backups/0.2.5-before-0.2.6-20260924-165520`. Not Developer ID signed/notarized.
 - All25scopes idle before replacement. OpenCode27982 and all four existing MCP processes unchanged. Fourteen preference categories including all5drafts, models/agents/ASR/hosts/layout/selection/theme compared unchanged; only the new default appearance field was added. No prompts/inference or server restart. Owned fixture4314/Vite1425 and browser14 closed.
-- Source/tag `e0b2324f9dfe2a508e3f629afd286012c8061f82` pushed and [v0.2.6](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.6) published; remote asset digest matches the verified Downloads/installed receipt.
+- Source/tag `e0b2324f9dfe2a508e3f629afd286012c8061f82` pushed and [v0.2.6](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.6) published; remote asset digest matches the verified Downloads/installed receipt.
 
 
 ## Cohesive assistant output — 0.2.5, 2026-09-24
@@ -1417,7 +1417,7 @@ Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review chec
 - Final full frontend suite: **157/157**, `npm test -- --maxWorkers=2`; TypeScript/Vite production build passed. Regression coverage includes request boundaries, pagination-stable group identity, final/error/compaction classification, exact copy, retained live folds and navigation state. No Rust implementation changed. Native candidate verified the real Compute Mesh history with29/19tool actions, distinct finals and actual error states; connected/open, engine1.18.18, app0.2.5. The final installed build also confirms «Сжатие контекста» starts collapsed and offers «Копировать сводку».
 
 - Final Tauri app+DMG build passed, app `codesign --verify --deep --strict` and DMG `hdiutil verify` passed. Installed `/Applications/OpenCode Desktop.app`; executable SHA256 `83190f6c007f363cf631c51c5282e0f39a46225f101f154db6a85bda83b59bf4`. Downloads DMG SHA256 `ce4fbdf9d899906418ccdfd15ad126f0ee721c40c8cf43867c582cc775cc5edb`. Local ad-hoc signing only; no Developer ID/notarization.
-- All25remembered directory scopes were idle before both installations. Original0.2.4 backup: `~/.local/share/opencode-desktop/backups/0.2.4-before-0.2.5-20260924-161613`; the intermediate candidate is separately backed up. OpenCode PID27982 and existing MCP processes retained. Model/agent/ASR/host/access/theme, all drafts, selected Compute Mesh conversation, expanded projects and globalconfig were compared unchanged. No prompts or GPU requests were sent. Private receipts: `.local/turns-0.2.5/`; owned fixture/Vite/browser closed.
+- All25remembered directory scopes were idle before both installations. Original0.2.4 backup: `~/.local/share/enki/backups/0.2.4-before-0.2.5-20260924-161613`; the intermediate candidate is separately backed up. OpenCode PID27982 and existing MCP processes retained. Model/agent/ASR/host/access/theme, all drafts, selected Compute Mesh conversation, expanded projects and globalconfig were compared unchanged. No prompts or GPU requests were sent. Private receipts: `.local/turns-0.2.5/`; owned fixture/Vite/browser closed.
 
 
 ## Chat reading and attention — 0.2.4, 2026-09-24
@@ -1430,7 +1430,7 @@ Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review chec
 - Native installed acceptance: settings reports **0.2.4**, engine **1.18.18**, connected/open; actual user history renders date/time and code controls. Code copy reports success. Manual upward scrolling exposes «Вниз» and the button returns to the tail. GPU Mesh collapses without phantom attention; persisted hidden-child mark is gone. A separate owned session was edited through native UI: the branch contains exactly the earlier control message, source history is unchanged, deny-all rules and Qwen/Medium/agent are retained, correction is in its draft and no inference ran. Test sessions were archived, temporary project hidden, original user chat/empty draft and project expansion restored.
 - Original model/agent selections, ASR, hosts, access, theme and global OpenCode config were independently compared and preserved. External OpenCode PID27982 and existing MCP processes were not restarted. All 24 inspected directory scopes were idle before installation. Prior app backed up locally.
 - Initial bundle carried only a linker signature and failed strict resource verification. Re-bundled the same compiled release using an explicit ad-hoc macOS identity (`tauri bundle --bundles app,dmg --config '{"bundle":{"macOS":{"signingIdentity":"-"}}}'`). Final app passes `codesign --verify --deep --strict`; final DMG passes `hdiutil verify`. README build command includes the signing option. No Developer ID/notarization claim.
-- Installed `/Applications/OpenCode Desktop.app`; executable SHA256 `1e6225c0508f52b7567e86a50915871b4c1cab13604a097b8840fe378aee6fc5`. Downloads/release DMG SHA256 `80738a55250510020a17fc671b51b2bbd47126914501ac9c6af7a0ba2633285b`. Private acceptance/backup receipts are under `.local/scroll-0.2.4/`. Release: [v0.2.4](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.4).
+- Installed `/Applications/OpenCode Desktop.app`; executable SHA256 `1e6225c0508f52b7567e86a50915871b4c1cab13604a097b8840fe378aee6fc5`. Downloads/release DMG SHA256 `80738a55250510020a17fc671b51b2bbd47126914501ac9c6af7a0ba2633285b`. Private acceptance/backup receipts are under `.local/scroll-0.2.4/`. Release: [v0.2.4](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.4).
 
 
 ## Background computer control — 0.2.3, 2026-09-23
@@ -1450,7 +1450,7 @@ Performed on the owner's Ubuntu 24.04 x86_64 machine, in a temporary review chec
 - Installed executable matches the built candidate: SHA256 `4c1b9eeaa22e5e991ff3c990e4d60c6df46bc73f78069fb96e9bd2a5fd84354d`. `hdiutil verify` passed; the same DMG is in Downloads: SHA256 `3c304fcaf1334db32ca68012ee6f966ceb1d23d843a100e48732e68bea0ab34c`.
 - Final native settings correctly showed the revoked driver as **Не готово**. Explicit Connect recovered it and displayed **Включено / Подключён**, Accessibility and Screen Recording **Разрешена**. A separate MCP handshake against the installed binary verified 22 tools, required exact-window schemas, permission checks under `com.trycua.driver`, and model-visible structured results. No additional inference was needed.
 - Settings fit the native window; IgorPC was restored with an empty composer. ASR, model/provider/default/permission fields and chat history were preserved. Existing session/PTY scopes were checked idle before replacement; external OpenCode PID27982 stayed healthy at 1.18.18 without restart.
-- Desktop remains an Apple Silicon ad-hoc local build; the separately installed Cua Driver has its own Developer ID signature. No Desktop notarization claim. Published release: [v0.2.3](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.3).
+- Desktop remains an Apple Silicon ad-hoc local build; the separately installed Cua Driver has its own Developer ID signature. No Desktop notarization claim. Published release: [v0.2.3](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.3).
 
 - Release tag `v0.2.3` points to source commit `abf4e2e7b846f261d7aa4cc9d4f18b6ab5215f0c`; GitHub asset digest matches the local DMG SHA256 above. Subsequent checkpoint-only documentation commit records publication and does not alter the packaged source.
 
@@ -1514,7 +1514,7 @@ old aggregate quality figures also had scorer/seed/retry methodology problems.
 - The final rebuilt native app repeated that scenario: after a second V100 read-tool response (`dark`), the project row showed unread; returning through that row restored the answer and cleared the dot without a separate session click. No duplicate GPU jobs were run.
 - Final `npm run tauri -- build --bundles app,dmg` completed for the fixed source; `hdiutil verify` reported **VALID**. DMG SHA256: `387826b644f8d199024b9e6e2716364852f167b3387f8d00eceaddaa977ae4c2`; executable SHA256: `c7cc170b52d6c6c859ee492bb47c3e615045fbf59df5d1e4b7383d910977b497`.
 - Backed up installed 0.2.0 locally, installed 0.2.1 to `/Applications/OpenCode Desktop.app`, and copied the same DMG to `~/Downloads`. Installed executable hash matches the bundle. The `~/Applications` and Desktop aliases still resolve to it; `Qwen OpenCode.app` remains present. The installed app displayed **0.2.1**, OpenCode **1.18.18**, connection **connected**, SSE **open**, and the configured GigaAM endpoint. The pre-existing benchmark conversation and context meter survived installation. The OpenCode server remained healthy on `127.0.0.1:4096`.
-- Source commit `471e78082072ee152c931e61e8617f16573b18d9` was pushed. [GitHub release v0.2.1](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.1) points at that commit; GitHub reports the uploaded DMG SHA256 matching the local artifact.
+- Source commit `471e78082072ee152c931e61e8617f16573b18d9` was pushed. [GitHub release v0.2.1](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.1) points at that commit; GitHub reports the uploaded DMG SHA256 matching the local artifact.
 
 
 ## Optional projects and SSH execution — 0.2.0, 2026-09-22
@@ -1528,7 +1528,7 @@ old aggregate quality figures also had scorer/seed/retry methodology problems.
 - Executable SHA256: `2564a5754e5f2b0cd077d2aa71c264848abd43336ef3489b65e6da358445c194`.
 - DMG SHA256: `752dab42bb118d9f0591a801257ab2281c0e767c0f1d298fb22962a1d166d26c`. A matching copy is in Downloads.
 
-- Delivery: source commit `452df23e18cfacb21a2c62578524c330d555b5e2` pushed to the existing private repository. [Release v0.2.0](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.0) has the DMG; GitHub reports the same SHA256 as the local artifact.
+- Delivery: source commit `452df23e18cfacb21a2c62578524c330d555b5e2` pushed to the existing private repository. [Release v0.2.0](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.0) has the DMG; GitHub reports the same SHA256 as the local artifact.
 
 ### Real native acceptance
 
@@ -1749,7 +1749,7 @@ Final release acceptance completed:
   longer waits for the complete download. Windows shutdown copy correctly
   distinguishes the Desktop gate from unrelated driver sessions.
 
-Published release: [v0.2.15](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.15).
+Published release: [v0.2.15](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.15).
 
 
 ## 0.2.16 — browser/SSH refactor, verified on Mac (2026-10-05)
@@ -1904,7 +1904,7 @@ Private transcripts, profiles, credentials and transfer receipts are outside Git
 
 Publication receipt: main source `cc1fc0b13f51c67a3e1b90f627b88750c15879b9`
 was fast-forwarded from the preserved earlier main and pushed; remote SHA matched.
-Release [v0.2.17](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.17)
+Release [v0.2.17](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.17)
 targets that source and contains the final Mac DMG. GitHub asset digest and a fresh
 authenticated download both match the DMG SHA256 above; downloaded image passed
 `hdiutil verify`. Subsequent publication checkpoint changes are documentation only.
@@ -1960,7 +1960,7 @@ Binary SHA256:47f1b3eb61f97574a3e2605881a94a5e0b56eba4973460913b511c70d076935e.
 DMG SHA256:fcd34d9a9dec84b114044198fdd876bd0ea53ba180c7013fa43101a19adcdc0f.
 Publication receipt: runtime source `7485a140950109474f489dff4e23c95137b1e6a0`
 was pushed to GitHub main. Release
-[v0.2.21](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.21)
+[v0.2.21](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.21)
 targets that source. Published `AgentMesh.Desktop_0.2.21_aarch64.dmg`
 was downloaded into a fresh private directory; its SHA256 equals the local DMG,
 the uploaded checksum manifest and GitHub asset digest above. The downloaded
@@ -1979,7 +1979,7 @@ Windows report explicitly separates compiled CLI from installed UI and retains
 pending real upgrade/legacy NSIS-key inspection. No speculative uninstall or
 registry migration was accepted.
 
-[PR #1](https://github.com/VladimirKraswov/opencode-desktop/pull/1) was merged
+[PR #1](https://github.com/VladimirKraswov/enki/pull/1) was merged
 with matched reviewed head. Merge source:
 `212c2f451b9241e6407a18d43d7a0feb1213c835`, fetched into local main.
 Mac checks: 488 frontend passed /6 opt-in skipped; 80 Rust passed /1 unchanged
@@ -2037,7 +2037,7 @@ No percentage speedup or quality comparison is claimed without task-based A/B.
 ### Publication
 
 Reviewed source `47bd91a8fe5582afa001cd1cbe26c2c4a9024fb3` pushed to main;
-[v0.2.22](https://github.com/VladimirKraswov/opencode-desktop/releases/tag/v0.2.22)
+[v0.2.22](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.22)
 targets that exact commit. Published DMG was downloaded back: SHA256 equals the
 qualified local DMG above and GitHub's asset digest; `hdiutil verify` passed.
 Final installed app remains0.2.22 and external OpenCode remains healthy1.18.18.
@@ -2065,9 +2065,9 @@ Mac0.2.28 installed/open; strict signature/microphone checks passed. Installed e
 
 Hub source/Web updated; latest full NAS archive byte/hash verified and restored to an isolated, unstarted CT. SQLite integrity, catalog and source hashes matched, TLS key mode600. Test clone and redundant own SSD archives removed only after proof. Three portable skill revisions validated/published; first apply correctly refused while busy. Updated Mac vault access and idle application still require the owner's OS confirmation; no ACL bypass or permission weakening. External OpenCode, owner sessions and inference services preserved; no model benchmark or automatic training ran.
 
-Publication: source `0dbfd0a25131e117f8e162ab44ead51a9e257460` pushed to main; [v0.2.28](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.28) targets it. Fresh published DMG downloaded, byte-compared and hdiutil-verified; GitHub asset digest matches the qualified SHA256 above. Subsequent documentation-only checkpoint preserves the pending owner vault/idle-skill acceptance rather than marking it complete.
+Publication: source `0dbfd0a25131e117f8e162ab44ead51a9e257460` pushed to main; [v0.2.28](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.28) targets it. Fresh published DMG downloaded, byte-compared and hdiutil-verified; GitHub asset digest matches the qualified SHA256 above. Subsequent documentation-only checkpoint preserves the pending owner vault/idle-skill acceptance rather than marking it complete.
 
-Final owner-confirmed Mac acceptance (2026-10-08): installed GUI loaded the six-item HTTPS catalog and displayed all three new skill revisions as installed; repeated installed CLI status returned connected=true. First CLI attempt had a transient connection failure; subsequent GUI and CLI passed without OS ACL/TLS bypass. Actual Pi0.85.1 loader read3/3 current shared skill roots with zero diagnostics. An isolated OpenCode1.18.18 --pure instance on an ephemeral loopback port read3/3 exact current-revision paths through its real skill API and was terminated afterwards. No model requests were needed; owner's instruction to use DeepSeek for any necessary inference was respected, local GPUs untouched. Active owner OpenCode global configuration/sessions remained unchanged; normal shared-source synchronization occurs before the next Arvela OpenCode prompt, rather than forcing a reload during the busy turn. Native queue drained99→0, dropped0. Prior pending vault/skill acceptance is resolved.
+Final owner-confirmed Mac acceptance (2026-10-08): installed GUI loaded the six-item HTTPS catalog and displayed all three new skill revisions as installed; repeated installed CLI status returned connected=true. First CLI attempt had a transient connection failure; subsequent GUI and CLI passed without OS ACL/TLS bypass. Actual Pi0.85.1 loader read3/3 current shared skill roots with zero diagnostics. An isolated OpenCode1.18.18 --pure instance on an ephemeral loopback port read3/3 exact current-revision paths through its real skill API and was terminated afterwards. No model requests were needed; owner's instruction to use DeepSeek for any necessary inference was respected, local GPUs untouched. Active owner OpenCode global configuration/sessions remained unchanged; normal shared-source synchronization occurs before the next Enki OpenCode prompt, rather than forcing a reload during the busy turn. Native queue drained99→0, dropped0. Prior pending vault/skill acceptance is resolved.
 
 ## 0.2.74 — Workshop review and progressive dictation (2026-10-18)
 

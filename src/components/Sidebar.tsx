@@ -1,6 +1,6 @@
 import { UpdateBadge } from "../updates/runtime";
 import { InformationDialog } from "./InformationDialog";
-import arvelaMark from "../assets/arvela-icon.png";
+import enkiMark from "../assets/enki-icon.png";
 import { modKeyLabel } from "../native/platform";
 import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
@@ -146,7 +146,7 @@ export function Sidebar() {
     >
       {information&&<InformationDialog directory={information.directory} session={information} onClose={()=>setInformation(null)}/>}
       <div className="sidebar-brand" data-tauri-drag-region="deep">
-        <img src={arvelaMark} width={24} height={24} alt="" />
+        <img src={enkiMark} width={24} height={24} alt="" />
         <strong>Enki</strong>
         <span className="spacer" />
         <button

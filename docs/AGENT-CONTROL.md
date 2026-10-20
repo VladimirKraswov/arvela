@@ -1,13 +1,13 @@
-# Управление Arvela через MCP
+# Управление Enki через MCP
 
-Arvela предоставляет локальный control plane для Codex, OpenCode и
+Enki предоставляет локальный control plane для Codex, OpenCode и
 других MCP-клиентов. Агенту не требуется двигать физическую мышь, распознавать
 интерфейс по снимку или редактировать `localStorage` приложения.
 
 ## Подключение
 
-1. Запустите установленный Arvela. При старте он создаёт Unix-сокет и
-   descriptor `~/.local/share/opencode-desktop/agent-control/control.json` (на
+1. Запустите установленный Enki. При старте он создаёт Unix-сокет и
+   descriptor `~/.local/share/enki/agent-control/control.json` (на
    Linux учитывается `XDG_DATA_HOME`). Каталог имеет режим `0700`, сокет и файл —
    `0600`; descriptor содержит случайный токен текущего процесса.
 2. В приложении откройте **Настройки → API для агентов → Подключить MCP**. Desktop
@@ -22,7 +22,7 @@ Arvela предоставляет локальный control plane для Codex,
    {
      "mcpServers": {
        "opencode_desktop": {
-         "command": "/Applications/Arvela.app/Contents/MacOS/opencode-desktop",
+         "command": "/Applications/Enki.app/Contents/MacOS/enki",
          "args": ["--agent-mcp"]
        }
      }
@@ -90,7 +90,7 @@ Arvela предоставляет локальный control plane для Codex,
 
 ## Диагностика
 
-- `Arvela control endpoint was not found` — приложение не запущено.
+- `Enki control endpoint was not found` — приложение не запущено.
 - `still starting` — WebView ещё не установил обработчик; повторите через секунду.
 - `cannot connect` — descriptor остался от аварийно завершённого процесса;
   перезапустите Desktop.

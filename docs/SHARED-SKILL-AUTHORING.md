@@ -1,6 +1,6 @@
 # Shared skill authoring — 0.2.38
 
-Arvela supplies `create-shared-skill` as a versioned common source, consumed by the existing OpenCode `skills.paths` and Pi `--skill` adapters. It appears in shared settings, can be disabled, and preserves that choice across updates. It does not run an agent, capture private history, override engine approvals or force a model to select the skill. Existing live agent contexts may require reopening/reloading to see changed skill lists.
+Enki supplies `create-shared-skill` as a versioned common source, consumed by the existing OpenCode `skills.paths` and Pi `--skill` adapters. It appears in shared settings, can be disabled, and preserves that choice across updates. It does not run an agent, capture private history, override engine approvals or force a model to select the skill. Existing live agent contexts may require reopening/reloading to see changed skill lists.
 
 The chat Context panel offers **Подготовить создание навыка**. It appends a request to that selected chat's existing draft; it does not send, replay old tools or replace the draft. Both engines receive the same request. The skill tells the agent to analyse goals, verified successes, errors and recovery, obtain earlier history through supported interfaces where available, and disclose inaccessible history. The Desktop does not fabricate a complete transcript or claim an engine history API is available when it is not.
 

@@ -1,9 +1,9 @@
 ---
-name: opencode-desktop-computer
-description: Work with native applications on this computer (macOS or Windows) using Arvela's background computer-control tools. Use when the user asks to see or operate an app, click controls, type into a window, or verify a GUI task.
+name: enki-computer
+description: Work with native applications on this computer (macOS or Windows) using Enki's background computer-control tools. Use when the user asks to see or operate an app, click controls, type into a window, or verify a GUI task.
 ---
 
-# Управление компьютером через Arvela
+# Управление компьютером через Enki
 
 Используй инструменты `cua_desktop_*` для задач в реальном интерфейсе macOS или Windows. Они подключены к отдельно установленному Cua Driver; другой агент, облачный сервис или API-ключ не требуется. Скриншоты обрабатывает текущая модель.
 
@@ -20,6 +20,6 @@ description: Work with native applications on this computer (macOS or Windows) u
 11. Скриншот обычно уже возвращается как изображение — screenshot_out_file не нужен. Когда файл действительно требуется, используй существующий реальный каталог и своё имя файла. На macOS /tmp — ссылка на /private/tmp; защищённый драйвер может отклонить путь через ссылку. После ошибки сохранения не вызывай read несуществующего файла. Для бинарного изображения используй поддерживаемое средство просмотра, а не чтение текста.
 12. Не записывай экран или текст окон в файлы без необходимости задачи. При остановке/отказе доступа не повторяй действие автоматически. Отчёт должен говорить, что действительно проверено, и какой шаг остался заблокирован.
 
-Если инструментов нет или они выключены: Настройки Arvela → Управление компьютером → Подключить. На macOS при отсутствии разрешений открой помощник Cua Driver для Accessibility/Screen Recording, затем Проверить. На Windows запусти диагностику UI Automation и проверь интерактивный сеанс. Не пытайся сам нажимать системные переключатели.
+Если инструментов нет или они выключены: Настройки Enki → Управление компьютером → Подключить. На macOS при отсутствии разрешений открой помощник Cua Driver для Accessibility/Screen Recording, затем Проверить. На Windows запусти диагностику UI Automation и проверь интерактивный сеанс. Не пытайся сам нажимать системные переключатели.
 
 Основа: Cua Driver 0.28.2, https://github.com/trycua/cua (MIT). Схемы инструментов берутся из установленного драйвера; не придумывай параметры по памяти.

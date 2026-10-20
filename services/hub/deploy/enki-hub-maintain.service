@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply Enki history retention
+[Service]
+Type=oneshot
+User=enki-hub
+Group=enki-hub
+ExecStart=/usr/bin/python3 /opt/enki-hub/server.py --data /var/lib/enki-hub --maintain
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/enki-hub

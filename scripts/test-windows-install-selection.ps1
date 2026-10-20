@@ -13,7 +13,7 @@ function Expect-Failure([object[]]$Entries, [string]$Message) {
   throw "Expected failure containing $Message"
 }
 
-$current = Entry 'Arvela' '0.2.21'
+$current = Entry 'Enki' '0.2.21'
 $previous = Entry 'AgentMesh Desktop' '0.2.21'
 $legacy = Entry 'OpenCode Desktop' '0.2.21'
 $stale = Entry 'OpenCode Desktop' '0.2.18'

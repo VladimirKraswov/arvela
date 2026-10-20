@@ -67,7 +67,7 @@ class ReleaseTests(unittest.TestCase):
         manifest,kind,name=self.h.releases.download('/downloads/latest')
         self.assertTrue(kind.startswith('application/json'));self.assertIsNone(name)
         archive,kind,name=self.h.releases.download('/downloads/latest/source.zip')
-        self.assertEqual(kind,'application/zip');self.assertEqual(name,'Arvela-1.0.0-source.zip')
+        self.assertEqual(kind,'application/zip');self.assertEqual(name,'Enki-1.0.0-source.zip')
         self.assertEqual(hashlib.sha256(archive).hexdigest(),manifest['source']['sha256'])
         self.assertEqual(len(archive),manifest['source']['bytes'])
         with zipfile.ZipFile(io.BytesIO(archive)) as z:

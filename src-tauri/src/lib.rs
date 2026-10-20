@@ -5,6 +5,7 @@ pub mod capabilities;
 pub mod computer;
 mod config;
 pub mod control;
+pub mod entry;
 mod hosts;
 pub mod hub;
 pub mod hub_updates;
@@ -26,6 +27,19 @@ pub fn run() {
     paths::app_data_parent()
         .and_then(|p| migration::initialize(&p))
         .expect("Не удалось безопасно перенести данные Enki");
+    #[cfg(windows)]
+    migration::initialize_named(
+        &paths::user_home().expect("USERPROFILE"),
+        ".opencode-desktop",
+        ".enki",
+    )
+    .expect("Не удалось перенести профиль браузера Enki");
+    if let Err(error) = migration::installation_alias() {
+        eprintln!("Совместимость старых MCP-команд: {error}");
+    }
+    if let Err(error) = paths::app_data_dir().and_then(|p| migration::bundled_defaults(&p)) {
+        eprintln!("Обновление стандартных инструкций Enki: {error}");
+    }
     let hot = hub_updates::assets::HotAssets::load();
     let mut context = tauri::generate_context!();
     let embedded = std::mem::replace(&mut context.assets, Box::new(hub_updates::assets::Empty));

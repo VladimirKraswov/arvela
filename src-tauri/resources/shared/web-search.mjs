@@ -3,7 +3,7 @@ import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {ListToolsRequestSchema,CallToolRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 import {createSearch} from './web-search-core.mjs';
 const search=createSearch();
-const server=new Server({name:'arvela-web-search',version:'1.0.0'},{capabilities:{tools:{}}});
+const server=new Server({name:'enki-web-search',version:'1.0.0'},{capabilities:{tools:{}}});
 server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:[
  {name:'search',description:'Preferred shared web search for OpenCode and Pi. Automatic independent-provider fallback and cooldown on HTTP403/429/timeouts. Use before builtin websearch. Returns real source links or explicit failure; never retry blocked providers in a loop.',inputSchema:{type:'object',properties:{query:{type:'string',maxLength:2000},scope:{type:'string',enum:['auto','web','github'],description:'auto uses GitHub repository fallback only for queries explicitly mentioning GitHub; github searches repositories directly'},numResults:{type:'integer',minimum:1,maximum:10}},required:['query'],additionalProperties:false}},
  {name:'status',description:'Read search provider availability and retry timestamps without making network requests.',inputSchema:{type:'object',properties:{},additionalProperties:false}}

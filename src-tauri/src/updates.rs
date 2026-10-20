@@ -287,7 +287,7 @@ async fn perform(
                     .ok_or("Установка доступна из пакета приложения")?;
                 let status = std::process::Command::new("/usr/bin/ditto")
                     .arg(bundle)
-                    .arg(saved_path(&id)?.join("Arvela.app"))
+                    .arg(saved_path(&id)?.join("Enki.app"))
                     .status()
                     .map_err(|e| e.to_string())?;
                 if !status.success() {

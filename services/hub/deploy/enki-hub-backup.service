@@ -1,0 +1,7 @@
+[Unit]
+Description=Enki SQLite snapshot to NAS
+RequiresMountsFor=/mnt/nas-storage
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/enki-hub-backup 206 /mnt/nas-storage/enki-hub
+UMask=0077

@@ -1,6 +1,6 @@
 import { applyEdits, createScanner, modify, parseTree, stripComments as removeComments, type Node, type ParseError } from "jsonc-parser";
 /**
- * Shared model catalog received from Arvela Hub and merged into the local engine
+ * Shared model catalog received from Enki Hub and merged into the local engine
  * configuration. The catalog is the source of truth for common models; the local
  * machine keeps only its choice (selection, exclusions) and its own extra providers.
  */

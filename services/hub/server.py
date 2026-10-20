@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Arvela's private, single-account LAN catalog and observability store.
+"""Enki's private, single-account LAN catalog and observability store.
 No agent loop, inference, execution of uploaded files, or external reporting.
 """
 from __future__ import annotations
@@ -8,16 +8,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path, PurePosixPath
 from urllib.parse import parse_qs, urlsplit
 import importlib.util
-_memory_spec = importlib.util.spec_from_file_location('arvela_memory', Path(__file__).with_name('memory.py'))
+_memory_spec = importlib.util.spec_from_file_location('enki_memory', Path(__file__).with_name('memory.py'))
 _memory_module = importlib.util.module_from_spec(_memory_spec)
 _memory_spec.loader.exec_module(_memory_module)
-_release_spec = importlib.util.spec_from_file_location('arvela_releases', Path(__file__).with_name('releases.py'))
+_release_spec = importlib.util.spec_from_file_location('enki_releases', Path(__file__).with_name('releases.py'))
 _release_module = importlib.util.module_from_spec(_release_spec)
 _release_spec.loader.exec_module(_release_module)
-_catalog_spec = importlib.util.spec_from_file_location('arvela_model_catalog', Path(__file__).with_name('model_catalog.py'))
+_catalog_spec = importlib.util.spec_from_file_location('enki_model_catalog', Path(__file__).with_name('model_catalog.py'))
 _catalog_module = importlib.util.module_from_spec(_catalog_spec)
 _catalog_spec.loader.exec_module(_catalog_module)
-_services_spec = importlib.util.spec_from_file_location('arvela_model_services', Path(__file__).with_name('model_services.py'))
+_services_spec = importlib.util.spec_from_file_location('enki_model_services', Path(__file__).with_name('model_services.py'))
 _services_module = importlib.util.module_from_spec(_services_spec)
 _services_spec.loader.exec_module(_services_module)
 
@@ -580,7 +580,7 @@ class Server(ThreadingHTTPServer):
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version='HTTP/1.1'
-    server_version='ArvelaHub'
+    server_version='EnkiHub'
     def setup(self):
         super().setup();self.connection.settimeout(15)
         if isinstance(self.connection, ssl.SSLSocket): self.connection.do_handshake()
@@ -598,14 +598,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         for k,v in [('Content-Type',kind),('Content-Length',str(len(raw))),('Cache-Control','no-store'),('X-Content-Type-Options','nosniff'),('Referrer-Policy','no-referrer'),('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")]:self.send_header(k,v)
         if self.close_connection:self.send_header('Connection','close')
-        if cookie:self.send_header('Set-Cookie',cookie)
+        if cookie:
+            for value in ([cookie] if isinstance(cookie,str) else cookie):self.send_header('Set-Cookie',value)
         if filename:self.send_header('Content-Disposition','attachment; filename="'+filename+'"')
         self.end_headers();self.wfile.write(raw)
     def actor(self):
         auth=self.headers.get('Authorization','')
         if auth.startswith('Bearer '):return self.server.hub.authenticate(auth[7:])
         cookies=http.cookies.SimpleCookie(self.headers.get('Cookie',''))
-        sid=cookies.get('arvela_session')
+        sid=cookies.get('enki_session') or cookies.get('arvela_session')
         entry=self.server.hub.cookies.get(sid.value if sid else '')
         if entry and entry[1]>time.time():return self.server.hub.authenticate(entry[0])
         raise Fault(401,'Войдите по ключу.')
@@ -618,7 +619,7 @@ class Handler(BaseHTTPRequestHandler):
             origin=self.headers.get('Origin')
             if origin and urlsplit(origin).netloc != self.headers.get('Host'):
                 raise Fault(403,'Запрос с другого сайта отклонён.')
-            if self.command=='GET' and path=='/health':return self.respond(200,{'service':'arvela-hub','apiVersion':1})
+            if self.command=='GET' and path=='/health':return self.respond(200,{'service':'enki-hub','apiVersion':1})
             if path.startswith('/downloads/'):
                 self.close_connection=True
                 if self.command!='GET':raise Fault(405,'Скачивание доступно только через GET.')
@@ -653,11 +654,13 @@ class Handler(BaseHTTPRequestHandler):
                     self.server.hub.cookies={k:v for k,v in self.server.hub.cookies.items() if v[1]>time.time()}
                     if len(self.server.hub.cookies)>1000:raise Fault(429,'Слишком много входов.')
                     self.server.hub.cookies[sid]=(data['token'],time.time()+1800)
-                return self.respond(200,{'name':actor['name'],'admin':actor['admin']},cookie='arvela_session='+sid+'; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=1800')
+                return self.respond(200,{'name':actor['name'],'admin':actor['admin']},cookie='enki_session='+sid+'; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=1800')
             if self.command=='POST' and path=='/api/logout':
-                cookie=http.cookies.SimpleCookie(self.headers.get('Cookie',''));sid=cookie.get('arvela_session')
-                if sid:self.server.hub.cookies.pop(sid.value,None)
-                return self.respond(200,{'ok':True},cookie='arvela_session=; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=0')
+                cookie=http.cookies.SimpleCookie(self.headers.get('Cookie',''))
+                with self.server.hub.lock:
+                    for name in ('enki_session','arvela_session'):
+                        if cookie.get(name):self.server.hub.cookies.pop(cookie[name].value,None)
+                return self.respond(200,{'ok':True},cookie=[name+'=; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=0' for name in ('enki_session','arvela_session')])
             if path.startswith('/api/'):
                 return self.respond(200,self.server.hub.api(self.command,path,parse_qs(parsed.query),self.actor(),data))
             if self.command=='GET' and path in {'/','/app.js','/style.css'}:
@@ -681,7 +684,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
-    parser.add_argument('--data',default='/var/lib/arvela-hub')
+    parser.add_argument('--data',default=str(Path('/var/lib/enki-hub') if Path('/var/lib/enki-hub').exists() or not Path('/var/lib/arvela-hub').exists() else Path('/var/lib/arvela-hub')))
     parser.add_argument('--listen',default='0.0.0.0')
     parser.add_argument('--port',type=int,default=8443)
     parser.add_argument('--cert');parser.add_argument('--key')

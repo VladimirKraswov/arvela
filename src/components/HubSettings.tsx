@@ -31,7 +31,7 @@ export function HubSettings({onDirtyChange}:{onDirtyChange?:(v:boolean)=>void}){
  }
  return <div className="hub-settings">
  <section className="settings-group"><h2>Подключение</h2><div className="settings-card hub-card">
- <SettingField label="Адрес сервиса HTTPS"><input aria-label="Адрес библиотеки" placeholder="https://arvela-hub.local:8443" value={value.endpoint} onChange={e=>setValue({...value,endpoint:e.target.value})}/></SettingField>
+ <SettingField label="Адрес сервиса HTTPS"><input aria-label="Адрес библиотеки" placeholder="https://enki-hub.local:8443" value={value.endpoint} onChange={e=>setValue({...value,endpoint:e.target.value})}/></SettingField>
  <SettingField label="Публичный сертификат PEM"><textarea aria-label="Сертификат библиотеки" spellCheck={false} placeholder="-----BEGIN CERTIFICATE-----" value={value.certificate} onChange={e=>setValue({...value,certificate:e.target.value})}/></SettingField>
  <p className="settings-muted">Импортируйте публичный сертификат сервиса.</p>
  <SettingField label="Ключ этого устройства"><input aria-label="Ключ библиотеки" type="password" autoComplete="off" value={key} placeholder="Пусто — сохранить существующий ключ" onChange={e=>setKey(e.target.value)}/></SettingField>

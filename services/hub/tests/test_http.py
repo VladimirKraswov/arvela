@@ -15,6 +15,12 @@ class HTTP(unittest.TestCase):
   self.assertEqual(self.req('/health')[0],200);self.assertEqual(self.req('/api/metrics')[0],401);code,h,b=self.req('/api/me',headers={'Authorization':'Bearer '+self.key});self.assertEqual(code,200);self.assertNotIn(self.key,b.decode());self.assertIn("frame-ancestors 'none'",h['Content-Security-Policy']);self.assertEqual(self.req('/api/login','POST',{'token':self.key}, {'Origin':'https://other.site'})[0],403)
  def test_cookie_login_and_safe_static(self):
   code,h,_=self.req('/api/login','POST',{'token':self.key});self.assertEqual(code,200);self.assertIn('HttpOnly',h['Set-Cookie']);self.assertIn('Secure',h['Set-Cookie']);cookie=h['Set-Cookie'].split(';')[0];self.assertEqual(self.req('/api/catalog',headers={'Cookie':cookie})[0],200);self.assertEqual(self.req('/../server.py')[0],404);self.assertEqual(self.req('/')[0],200)
+ def test_legacy_cookie_stays_usable_but_logout_revokes_both_names(self):
+  _,h,_=self.req('/api/login','POST',{'token':self.key});old=h['Set-Cookie'].split(';')[0].replace('enki_session=','arvela_session=')
+  self.assertEqual(self.req('/api/catalog',headers={'Cookie':old})[0],200)
+  _,h,_=self.req('/api/login','POST',{'token':self.key});new=h['Set-Cookie'].split(';')[0]
+  self.assertEqual(self.req('/api/logout','POST',{}, {'Cookie':old+'; '+new})[0],200)
+  for cookie in [old,new]:self.assertEqual(self.req('/api/catalog',headers={'Cookie':cookie})[0],401)
  def test_wrong_ca_rejected(self):
   c=http.client.HTTPSConnection('localhost',self.server.server_port,context=ssl.create_default_context(),timeout=5)
   with self.assertRaises(ssl.SSLCertVerificationError):c.request('GET','/health')

@@ -22,7 +22,7 @@ export function TaskDiagnostics({chat}:{chat?: SessionChatState}) {
       ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <button className="btn small" onClick={()=>{
         const url=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
-        const link=document.createElement('a');link.href=url;link.download='arvela-task-diagnostics.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        const link=document.createElement('a');link.href=url;link.download='enki-task-diagnostics.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
       }}>Экспортировать числовую сводку</button>
       {!d.usageComplete && <p className="context-note">Неполные данные о токенах.</p>}
     </>}

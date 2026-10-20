@@ -1,4 +1,4 @@
-# Session recovery and isolation — Arvela 0.2.36 (2026-10-09)
+# Session recovery and isolation — Enki 0.2.36 (2026-10-09)
 
 The owner initially requested source/unit work only, then explicitly authorized
 stopping stalled processes and deploying the repair. Source publication was not

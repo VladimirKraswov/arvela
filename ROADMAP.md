@@ -1,4 +1,4 @@
-# Arvela roadmap
+# Enki roadmap
 
 ## V100: проверенные профили и переключение — 2026-10-20
 
@@ -24,7 +24,7 @@
 - [x] Full browser value/tradeoff explanations, on-demand loading, keyboard focus/return and Escape isolated from settings; no settings mutation or secret copying.
 - [x] Full858 frontend/126 native/48 Hub/9 publisher tests,22 real Chromium settings surfaces, verified signed Hub0.2.62 and actual installed0.2.61 hot-update offer. No activation while owner works; Windows/Linux native acceptance separate.
 
-## Мастерская Arvela — 0.2.61
+## Мастерская — 0.2.61
 
 - [x] One protected development chat above projects, app-owned workspace and shared OpenCode/Pi project instructions, source detection and no-key disclosure.
 - [x] Store-level delete/archive/rename/project-hide guards, per-server identity and reconciliation before creation.
@@ -34,7 +34,7 @@
 
 ## Footer update indicator — 0.2.59
 
-- [x] Update circle placed inside the Arvela/connection/settings footer; narrow240/304px and settings navigation verified.
+- [x] Update circle placed inside the Enki/connection/settings footer; narrow240/304px and settings navigation verified.
 
 ## Hot update visibility — 0.2.58
 
@@ -282,7 +282,7 @@ The goal is a full daily-use desktop coding client with the familiar workspace s
 ## M0 — Bootstrap (provided)
 
 - [x] Official Tauri 2 + React + TypeScript starter.
-- [x] Product name Arvela; independent engine boundary documented.
+- [x] Product name Enki; independent engine boundary documented.
 - [x] Product specification, architecture, agent instructions and API snapshot.
 - [x] Dependency installation, starter frontend build and Rust check verified; see docs/VERIFICATION.md.
 - [x] Initial Git checkpoint prepared and committed before worker dispatch.
@@ -533,7 +533,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 - [ ] Installed Windows 0.2.18 normal/MSIX acceptance and real-profile migration. Mac 0.2.18 installation and Linux runtime acceptance are not claimed.
 
 
-## Arvela 0.2.19 — Mac release verified
+## Enki 0.2.19 — Mac release verified
 
 - [x] Neutral product name and equal agent overview/badges; stable identity and data paths.
 - [x] Pi native model/effort confirmation, unopened-session compaction, prepared text attachments and durable message branching.
@@ -545,7 +545,7 @@ Maintain `docs/VERIFICATION.md` with date, commit, installed OpenCode version, c
 
 See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linux new release acceptance remains pending.
 
-## Arvela 0.2.20 — responsive composer
+## Enki 0.2.20 — responsive composer
 
 - [x] Short model labels with full-name details; routing unchanged.
 - [x] Container-based wrapping and separate send/voice actions.
@@ -586,9 +586,9 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Regression/real isolated MCP/Pi acceptance; Mac build/install and publication.
 - [ ] Live Windows/Linux acceptance.
 
-## M33 — Arvela identity (0.2.24)
+## M33 — Enki identity (0.2.24)
 
-- [x] Public product/repository/UI/docs use Arvela; stable data, vault and MCP identities preserved.
+- [x] Public product/repository/UI/docs use Enki; stable data, vault and MCP identities preserved.
 - [x] Windows verifier recognizes current and both legacy product names.
 - [x] Regression/build, verified Mac replacement and publication.
 - [ ] Live Windows/Linux rename upgrade acceptance.
@@ -600,7 +600,7 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 - [x] Regression/security checks and real Mac window/Chromium acceptance.
 - [x] Verified Mac replacement and publication; Windows/Linux live acceptance pending.
 
-## M35 — Balanced agent settings and Arvela icon (0.2.26)
+## M35 — Balanced agent settings and Enki icon (0.2.26)
 
 - [x] Common settings separated; equal OpenCode/Pi entries with owned navigation.
 - [x] Pi drafts retained and covered by the settings exit guard.
@@ -610,7 +610,7 @@ See [model services and capability matrix](docs/MODEL-SERVICES.md). Windows/Linu
 ## M36 — Private LAN knowledge and telemetry hub (0.2.27)
 
 - [x] Small isolated Proxmox LXC, authenticated HTTPS API, catalog/versioning and Web UI.
-- [x] Cross-device Arvela pull through existing shared skills/tools adapters.
+- [x] Cross-device Enki pull through existing shared skills/tools adapters.
 - [x] Redacted texts/steps/errors/usage, durable retry/dedup and per-device/global metrics.
 - [x] Private issue candidates, reviewed dataset export and bounded NAS backups.
 - [x] Regression/security/real API/UI checks, Mac package/install and publication.
@@ -825,3 +825,10 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Переходный подписанный маршрут обновлений для старых клиентов; новые нативные клиенты принимают Enki.
 - [x] Атомарный перенос собственных данных в enki, сохранение абсолютных путей, блокировка/журнал/восстановление; OpenCode/Pi остаются независимыми.
 - [ ] Полное переименование пакета и исходной папки в следующем релизе Enki после публикации перехода.
+
+## Enki: завершение переименования — 0.2.83–0.2.84
+
+- [x] Совместимость отпечатка обоих имён Rust-пакета, подписанный переход для прежних клиентов.
+- [x] Enki UI/документация/основной CLI/иконки; сохранён прежний CLI для зарегистрированных MCP.
+- [x] Hub каталоги/служба и NAS резервные копии переведены на enki; ключи/TLS/данные и старые указатели сохранены.
+- [ ] Финальный пакет enki и каноническая папка/репозиторий Enki; проверенный выпуск 0.2.84.

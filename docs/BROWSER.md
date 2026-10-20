@@ -16,7 +16,7 @@ The shared plugin is registered independently of browser installation. An alread
 cached OpenCode project is refreshed only while its scoped sessions are idle;
 other projects and the external engine process are not restarted.
 
-# In-app browser in Arvela 0.2.25
+# In-app browser in Enki 0.2.25
 
 Desktop owns installation and browser lifecycle. The independently installed OpenCode owns inference, sessions, permissions and its agent loop. Pi 0.85.1 uses a thin extension that exposes the same 32 official MCP tools plus four bounded Desktop adapters (keyboard input, observe, action and sequence); there is no second agent loop or copied browser implementation.
 
@@ -58,13 +58,13 @@ Stopping browser control disables automatic setup and stops the owned service; t
 
 ## Paths and troubleshooting
 
-macOS: `~/.local/share/opencode-desktop/browser-runtime`.
+macOS: `~/.local/share/enki/browser-runtime`.
 Linux: existing app data directory or absolute `XDG_DATA_HOME/opencode-desktop`.
 Windows: `%USERPROFILE%/.opencode-desktop/browser-runtime` (0.2.18).
 This deliberately avoids per-process MSIX AppData redirection. Desktop and an
 independently running engine use the same readiness record, runtime and profile.
 The MCP executable is an exact, versioned copy of Desktop under
-`browser-runtime/bridge/<version>/opencode-desktop.exe`, also outside AppData,
+`browser-runtime/bridge/<version>/enki.exe`, also outside AppData,
 so the engine cannot accidentally launch a shadowed older Desktop binary.
 Normal Desktop installation imports its own legacy AppData browser profile,
 packages and Chromium cache by copying, not moving/deleting them. Completed

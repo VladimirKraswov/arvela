@@ -70,7 +70,7 @@ synthetic receipt/render evidence, not a model-speed claim.
   delivery journal is never rolled back, protecting against duplicate sends.
   Agent transcripts, project files, model credentials and browser cookies remain in
   their existing stores; this is not a full computer or engine backup. Previous Mac
-  binaries can be restored manually from the saved Arvela.app after quitting.
+  binaries can be restored manually from the saved Enki.app after quitting.
 - Ordinary Quit stops this app's Pi process trees. It aborts OpenCode through public
   APIs only when the latest user turn matches the app's recorded ownership lease;
   it never kills an external server or a later foreign request. Unreachable aborts
@@ -86,10 +86,10 @@ Normal CI builds remain unsigned test packages. For a release, set
 `TAURI_SIGNING_PRIVATE_KEY` (or use the CLI's private-key path) and
 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` through a private environment, then run
 `npm run build:release:macos`. The public key is in `src-tauri/updater.pub`; the
-private signing key must stay outside Git. Tauri generates `Arvela.app.tar.gz`
+private signing key must stay outside Git. Tauri generates `Enki.app.tar.gz`
 and its `.sig` with the version bound in the signature. Verify using
-`ARVELA_VERIFY_ARTIFACT=/absolute/path/Arvela.app.tar.gz cargo test --manifest-path src-tauri/Cargo.toml verify_release_artifact -- --ignored`.
-Generate the channel feed with `node scripts/update-feed.mjs stable darwin-aarch64 /absolute/path/Arvela.app.tar.gz`.
+`ARVELA_VERIFY_ARTIFACT=/absolute/path/Enki.app.tar.gz cargo test --manifest-path src-tauri/Cargo.toml verify_release_artifact -- --ignored`.
+Generate the channel feed with `node scripts/update-feed.mjs stable darwin-aarch64 /absolute/path/Enki.app.tar.gz`.
 Publish that exact signed archive and signature to the matching GitHub release,
 verify the downloaded bytes, then publish the feed. Preview follows the same flow
 with `preview`; stable rejects prerelease versions. Public feeds never contain
@@ -103,7 +103,7 @@ Windows/Linux live qualification was skipped at the owner's request.
 
 ## Installed macOS release acceptance
 
-Runtime commit `23cc1ee` is published as [v0.2.53](https://github.com/VladimirKraswov/arvela/releases/tag/v0.2.53).
+Runtime commit `23cc1ee` is published as [v0.2.53](https://github.com/VladimirKraswov/enki/releases/tag/v0.2.53).
 The installed executable matches the packaged binary (SHA-256
 `82cff092bec4fe5513117aa26f24cf9b758436379a3ecd2bd907ef5c16440c36`).
 The public updater archive was downloaded afresh and matched the local artifact

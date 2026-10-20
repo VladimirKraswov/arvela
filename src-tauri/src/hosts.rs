@@ -135,7 +135,7 @@ pub(crate) fn upload_archive(
     }
     let mut command = ssh_probe(target)?;
     // Only validated UUID and numeric byte count are interpolated; original names never reach a shell.
-    let script = format!("umask 077; root=\"$HOME/.local/share/opencode-desktop/attachments\"; test ! -L \"$root\" && mkdir -p -- \"$root\" && d=\"$root/{id}\" && mkdir -- \"$d\" && cat > \"$d/archive.zip.part\" && test \"$(wc -c < \"$d/archive.zip.part\")\" -eq {} && mv -- \"$d/archive.zip.part\" \"$d/archive.zip\" && printf '%s\\n' \"$d/archive.zip\"", bytes.len());
+    let script = format!("umask 077; root=\"$HOME/.local/share/enki/attachments\"; test ! -L \"$root\" && mkdir -p -- \"$root\" && d=\"$root/{id}\" && mkdir -- \"$d\" && cat > \"$d/archive.zip.part\" && test \"$(wc -c < \"$d/archive.zip.part\")\" -eq {} && mv -- \"$d/archive.zip.part\" \"$d/archive.zip\" && printf '%s\\n' \"$d/archive.zip\"", bytes.len());
     command.arg(target).arg(script);
     let output = crate::process::output_with_input_timeout(
         &mut command,

@@ -11,7 +11,7 @@ Proxmox, а не все возможности каталогов моделей
 ## Карта и поток одного запроса
 
 ```text
-Arvela на Mac (Tauri 2 / React / TypeScript / Rust)
+Enki на Mac (Tauri 2 / React / TypeScript / Rust)
   ├─ интерфейс, проекты, черновики, вложения, диктовка, передача задач
   └─ OpenCode-сессия → http://127.0.0.1:4096 (OpenCode 1.18.18)
        ├─ по умолчанию: local-qwen-next/qwen38-flash-next

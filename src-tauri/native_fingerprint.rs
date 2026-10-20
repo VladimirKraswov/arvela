@@ -55,7 +55,7 @@ pub fn fingerprint(root: &Path) -> Result<String, String> {
                         if line.starts_with('[') {
                             own = false;
                         }
-                        if *line == "name = \"arvela\"" {
+                        if matches!(*line, "name = \"arvela\"" | "name = \"enki\"") {
                             own = true;
                         }
                         !(own && line.starts_with("version = "))

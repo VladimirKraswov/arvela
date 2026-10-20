@@ -5,7 +5,7 @@
 The normal path for the owner's shared models is now:
 
 ```text
-Arvela (Windows / macOS / Linux)
+Enki (Windows / macOS / Linux)
   → authenticated, pinned HTTPS → Hub catalog + reservations + status
       → private control API → gateway in VM 5100 → one resident V100 model
       → truthy loaded health + exact model ID → fixed Strata gateway in VM 5200
@@ -35,7 +35,7 @@ model fails closed when Hub is unavailable or removes its binding. Remote client
 use the same Hub identity and need no model-control SSH tunnel or control key.
 Their inference transport remains configured in their owning agent.
 
-Only the Hub operator configures `/etc/arvela-hub/model-services.json`, a private
+Only the Hub operator configures `/etc/enki-hub/model-services.json`, a private
 0600 file readable by the Hub service user. Example:
 
 ```json
@@ -43,7 +43,7 @@ Only the Hub operator configures `/etc/arvela-hub/model-services.json`, a privat
   "label":"Tesla V100 · VM 5100",
   "resource":"tesla-v100",
   "endpoint":"http://192.168.31.93:8080",
-  "tokenFile":"/etc/arvela-hub/model-services-v100.key"
+  "tokenFile":"/etc/enki-hub/model-services-v100.key"
 }}}
 ```
 
@@ -94,7 +94,7 @@ Additional providers at an already bound agent API root inherit its control gate
 and require fresh registry authorization for their exact ID; names/prefixes do not
 establish ownership. Hub routes take precedence over these local bindings.
 
-Arvela separates an **agent** (OpenCode or Pi), its provider/model
+Enki separates an **agent** (OpenCode or Pi), its provider/model
 selection, and the **inference service** holding weights in VRAM. OpenCode remains
 the default for new projects. Pi settings, histories, credentials and extensions
 remain independent. Selecting an agent does not rename or reinterpret a transcript;
@@ -275,12 +275,12 @@ selection or a busy model change cannot silently send to the wrong model.
 
 ## Product rename
 
-Version 0.2.24 uses **Arvela** in the window, bundle, installers and UI;
-the public repository is `VladimirKraswov/arvela`. The native identifier
+Version 0.2.24 uses **Enki** in the window, bundle, installers and UI;
+the public repository is `VladimirKraswov/enki`. The native identifier
 `dev.local.opencodedesktop`, compatibility executable `opencode-desktop`, data
 paths, MCP command names and preference keys remain stable. No separate history
 or credential store is created. Existing integrations keep their reserved IDs.
-On Mac install the new bundle in `/Applications/Arvela.app`, back up the prior
+On Mac install the new bundle in `/Applications/Enki.app`, back up the prior
 bundle and retain the prior application path as a compatibility symlink so loaded
 MCP clients still resolve it. Never run both bundles against the same profile.
 Windows/Linux installation migration still requires platform acceptance before

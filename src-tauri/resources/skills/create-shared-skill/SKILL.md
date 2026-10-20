@@ -1,6 +1,6 @@
 ---
 name: create-shared-skill
-description: Create or improve a reusable shared skill from a chat, repeated task, or observed failures. Use when the user asks to create, edit, fix or improve a skill (including «исправь свой навык»), capture session experience, or turn a workflow into reusable guidance for Arvela, OpenCode and Pi.
+description: Create or improve a reusable shared skill from a chat, repeated task, or observed failures. Use when the user asks to create, edit, fix or improve a skill (including «исправь свой навык»), capture session experience, or turn a workflow into reusable guidance for Enki, OpenCode and Pi.
 ---
 
 # Create a shared skill
@@ -16,7 +16,7 @@ Treat a request to create a skill as a request to analyse experience, not just w
 
 ## Resolve and improve an existing skill
 
-For «исправь свой навык», first inspect skills available to this session through the engine's actual catalogue. Run `python3 <this-skill-dir>/scripts/catalog.py --project <current-directory>` for common source paths, names, descriptions and SHA256 revisions (read-only, no skill execution). Include explicitly connected sources from Arvela's registry; the helper reads global and matching project sources. A disabled source is not an available skill. Remote engines can only inspect sources reachable on their own machine; never pretend the local catalogue is available remotely.
+For «исправь свой навык», first inspect skills available to this session through the engine's actual catalogue. Run `python3 <this-skill-dir>/scripts/catalog.py --project <current-directory>` for common source paths, names, descriptions and SHA256 revisions (read-only, no skill execution). Include explicitly connected sources from Enki's registry; the helper reads global and matching project sources. A disabled source is not an available skill. Remote engines can only inspect sources reachable on their own machine; never pretend the local catalogue is available remotely.
 
 Match the user's name, task, recent skill calls and observed failure against descriptions. Read the matching `SKILL.md` and relevant scripts/references. Do not choose just by filename or edit every skill. If several matches materially differ, ask which one. Missing/disconnected skills require an honest explanation, not invention.
 
@@ -28,7 +28,7 @@ Use actual errors and successful outcomes to justify changes. Separate a skill i
 
 Use a directory named with short lowercase hyphenated words. Put `SKILL.md` at its root with YAML `name` and a concrete `description` describing when to use it. Add `scripts/` only for repeatable operations and `references/` for supporting detail. Use relative paths from the skill directory, portable standard libraries where practical, and explicit dependency/OS limitations. Do not invent tool APIs; choose the tools actually exposed in the current session.
 
-For global user-authored skills use `~/.agents/skills/<name>/`; for project-only skills use `<project>/.agents/skills/<name>/`. Arvela also accepts an explicitly connected shared source in Settings → shared skills/tools. These common sources are consumed by both engines. Do not default to `.opencode/skills`, `~/.config/opencode/skills`, `.pi/skills` or `~/.pi/agent/skills`. Do not edit Arvela’s versioned bundled skills or downloaded Hub caches: create an editable user skill instead.
+For global user-authored skills use `~/.agents/skills/<name>/`; for project-only skills use `<project>/.agents/skills/<name>/`. Enki also accepts an explicitly connected shared source in Settings → shared skills/tools. These common sources are consumed by both engines. Do not default to `.opencode/skills`, `~/.config/opencode/skills`, `.pi/skills` or `~/.pi/agent/skills`. Do not edit Enki’s versioned bundled skills or downloaded Hub caches: create an editable user skill instead.
 
 When migrating an engine-only skill, back it up outside active skill search paths, compare its content and move the reviewed package to one common source. Remove the old active duplicate only after validating the shared copy. Preserve unrelated skills and agent configuration.
 

@@ -180,7 +180,7 @@ class Releases:
                                'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)},
                     'signedSource': {'url': '/downloads/source/' + key + '.json',
                                      'payloadSha256': key}}, 'application/json; charset=utf-8', None
-        return data, 'application/zip', 'Arvela-' + packet['version'] + '-source.zip'
+        return data, 'application/zip', 'Enki-' + packet['version'] + '-source.zip'
 
     def api(self, method, path, actor, data):
         suffix = path.removeprefix('/api/updates')

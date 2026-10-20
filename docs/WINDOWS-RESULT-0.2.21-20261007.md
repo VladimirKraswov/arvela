@@ -70,7 +70,7 @@ tests, not a live Pi inference run. npm audit reports one high-severity
 ## Installation state and preservation
 
 Before update, actual native UI showed **OpenCode Desktop 0.2.18** at
-`C:\Users\sprot\AppData\Local\OpenCode Desktop\opencode-desktop.exe` (PID22152).
+`C:\Users\sprot\AppData\Local\OpenCode Desktop\enki.exe` (PID22152).
 The browser bridge was `.opencode-desktop\browser-runtime\bridge\0.2.18`.
 Codex/MSIX nominal uninstall view showed stale 0.2.16, so that shadow registry
 cannot establish the normally launched installed version. The user's chat,

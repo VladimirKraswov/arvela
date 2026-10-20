@@ -42,7 +42,7 @@ A production rollout is incomplete without the canonical publisher's verified Hu
 ## Protected workshop delivery
 
 The owner permanently authorizes local commits and verified Hub publication for
-implementation tasks in «Мастерская Arvela». This satisfies the explicit-publication
+implementation tasks in «Мастерская». This satisfies the explicit-publication
 rule above; do not ask whether a commit/release is wanted again. An explicit user
 request for analysis only or no deployment takes precedence. Preserve unrelated
 changes; stage only your scope, and use an isolated clean copy with independent

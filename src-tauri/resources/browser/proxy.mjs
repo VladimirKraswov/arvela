@@ -6,7 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 const root = process.argv[2];
 if (!root || !path.isAbsolute(root)) throw new Error('Invalid managed runtime directory');
-const STOPPED = 'Arvela browser is stopped. Open Desktop → Settings → Browser and start it.';
+const STOPPED = 'Enki browser is stopped. Open Desktop → Settings → Browser and start it.';
 const RESTARTED = 'Desktop browser has restarted. Reconnect its MCP integration.';
 const TOOL_TIMEOUT_MS = 90000;
 const RECONNECT_WAIT_MS = 5000;

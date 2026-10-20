@@ -388,7 +388,7 @@ fn terminate_pid(pid: u32) -> Result<(), String> {
     Ok(())
 }
 
-/// Restart only a live child started by THIS Arvela process. A healthy endpoint
+/// Restart only a live child started by THIS Enki process. A healthy endpoint
 /// is not proof of ownership: an external server (or SSH tunnel) stays untouched.
 fn restart_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> Result<(), String> {
     let endpoint = parse_endpoint(raw)?;
@@ -403,7 +403,7 @@ fn restart_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> R
         if probe(&client, &endpoint) == Probe::Healthy {
             let owned = managed().lock().unwrap_or_else(|e| e.into_inner())
                 .get(&endpoint.origin).cloned()
-                .ok_or("Это внешний сервер OpenCode. Перезапустите его через средство, которым он запущен; Arvela его не остановит.")?;
+                .ok_or("Это внешний сервер OpenCode. Перезапустите его через средство, которым он запущен; Enki его не остановит.")?;
             let mut child = owned
                 .lock()
                 .map_err(|_| "Не удалось проверить процесс OpenCode")?;
@@ -702,7 +702,7 @@ HTTPServer(('127.0.0.1', port), Handler).serve_forever()
         ensure_with(&url, Some(&binary), &root).unwrap();
         let before = listener_pids(port).unwrap();
         assert_eq!(before.len(), 1, "{before:?}");
-        // A second Arvela process has no ownership and cannot kill this listener.
+        // A second Enki process has no ownership and cannot kill this listener.
         let owned = managed().lock().unwrap().remove(&url).unwrap();
         assert!(restart_with(&url, Some(&binary), &root)
             .unwrap_err()

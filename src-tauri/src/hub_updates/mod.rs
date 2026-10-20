@@ -66,7 +66,7 @@ pub(super) fn lease() -> Result<fs::File, String> {
     }
     let file = options.open(path).map_err(|e| e.to_string())?;
     fs2::FileExt::try_lock_exclusive(&file)
-        .map_err(|_| "В другом экземпляре Arvela уже выполняется обновление или сборка")?;
+        .map_err(|_| "В другом экземпляре Enki уже выполняется обновление или сборка")?;
     Ok(file)
 }
 pub fn root() -> Result<PathBuf, String> {
@@ -230,7 +230,7 @@ pub async fn hub_update(
     let _gate = Gate(&state.busy);
     if tauri::is_dev() && matches!(action.as_str(), "activate" | "build" | "install") {
         return Err(
-            "Обновления устанавливаются только в собранной версии Arvela, не в режиме разработки."
+            "Обновления устанавливаются только в собранной версии Enki, не в режиме разработки."
                 .into(),
         );
     }

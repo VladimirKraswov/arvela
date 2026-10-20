@@ -7,9 +7,9 @@ The previous OpenCode 1.18.18 process (PID 3714) answered `/global/health`, but 
 macOS unified TCC logs provide additional evidence:
 
 - 20:42:20 Moscow: `Failed to match existing code requirement` for `dev.local.opencodedesktop`, SystemPolicyAllFiles, followed by denial. The two recorded code hashes differ.
-- 20:42:21: OpenCode PID 3714 retained Arvela as its responsible identity, but TCC repeatedly reported `Failed to fetch responsible file descriptor`. TCC fell back to the CLI path. That particular Documents request was **allowed**; it must not be presented as the exact denied request that caused the later HTTP 500.
-- 20:48:48: an Arvela-attributed shell also lacked a responsible file descriptor; TCC explicitly denied Documents access without a prompt.
-- Installed Arvela uses an ad hoc signature with a designated requirement consisting of a code hash. `security find-identity -v -p codesigning` found no valid signing identities.
+- 20:42:21: OpenCode PID 3714 retained Enki as its responsible identity, but TCC repeatedly reported `Failed to fetch responsible file descriptor`. TCC fell back to the CLI path. That particular Documents request was **allowed**; it must not be presented as the exact denied request that caused the later HTTP 500.
+- 20:48:48: an Enki-attributed shell also lacked a responsible file descriptor; TCC explicitly denied Documents access without a prompt.
+- Installed Enki uses an ad hoc signature with a designated requirement consisting of a code hash. `security find-identity -v -p codesigning` found no valid signing identities.
 
 Together these establish an unstable privacy identity and orphaned launch context during the incident; they are the strongest explanation of the access failures, rather than ordinary folder permissions. The exact denied filesystem request of PID 3714 was not independently correlated to a TCC transaction. Restarting the same CLI from the current authorized execution context restored directory API access. That is recovery evidence, not proof that a future GUI-launched process has the same access.
 
@@ -34,8 +34,8 @@ With an already provisioned Developer ID identity, build using Tauri directly (t
 
 ```sh
 npm exec tauri -- build --bundles app,dmg --config '{"bundle":{"macOS":{"signingIdentity":"Developer ID Application: YOUR NAME (TEAMID)"}}}'
-python3 scripts/verify-macos.py src-tauri/target/release/bundle/macos/Arvela.app
-codesign -d -r- src-tauri/target/release/bundle/macos/Arvela.app
+python3 scripts/verify-macos.py src-tauri/target/release/bundle/macos/Enki.app
+codesign -d -r- src-tauri/target/release/bundle/macos/Enki.app
 ```
 
 After any identity-changing local upgrade, verify project reads in the application/server launch context. If access is denied, explain which launcher requires access and let the user renew it. Do not silently use another launcher's permissions as a permanent substitute.

@@ -187,10 +187,10 @@ fn apply(p: &Plan) -> Result<(), String> {
         }
         let staging = p
             .target
-            .with_file_name(format!(".Arvela-update-{}.app", std::process::id()));
+            .with_file_name(format!(".Enki-update-{}.app", std::process::id()));
         let previous = p
             .target
-            .with_file_name(format!(".Arvela-previous-{}.app", std::process::id()));
+            .with_file_name(format!(".Enki-previous-{}.app", std::process::id()));
         if staging.exists() || previous.exists() {
             return Err("Installation staging already exists".into());
         }

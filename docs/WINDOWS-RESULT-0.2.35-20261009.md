@@ -1,11 +1,11 @@
-# Arvela 0.2.35 — Windows build and acceptance (2026-10-09)
+# Enki 0.2.35 — Windows build and acceptance (2026-10-09)
 
 Base main: `0705a1491494a03115a1da20b9e4c77753dc4e34`.
 Branch: `windows/arvela-0.2.35-validation-20261009`.
 Windows 11 Home Single Language 10.0.26200 x64; Node 24.16.0,
 Rust 1.99.0 stable MSVC, VS18 C++ BuildTools, WebView2 154.0.4258.62.
 Reused the clean existing checkout, preserving both earlier Windows branches
-and PR2. Upstream now uses the canonical HTTPS `VladimirKraswov/arvela` name.
+and PR2. Upstream now uses the canonical HTTPS `VladimirKraswov/enki` name.
 No version bump, manifest/lock change, main push, merge or release publication.
 
 PR publication is blocked by existing GitHub OAuth permissions: pushing the
@@ -74,7 +74,7 @@ No local/cloud inference, GPU operations or provider/model/permission changes.
 
 ## Artifacts and preservation
 
-Installer `Arvela_0.2.35_x64-setup.exe`: 4,357,020 bytes, NotSigned.
+Installer `Enki_0.2.35_x64-setup.exe`: 4,357,020 bytes, NotSigned.
 SHA256 `CF7E4B7EA833BE96C3A750D1CFB5379A8E61443D76BEB98CC326A4B8777F2D0B`.
 Standalone executable: 9,865,216 bytes.
 SHA256 `9FDCB7ED915FC7D1E78ED3EB5D5C40CDD7A3403C9661B0CBF62459CDC9204E67`.
@@ -101,8 +101,8 @@ old bridge warning/Next and reported that Desktop opened. The agent did not
 press the kill confirmation. At the next inventory no Desktop window remained;
 opened the already-installed executable through ordinary Explorer (not inherited
 MSIX launch). Sky confirmed the normal process path
-`C:\Users\sprot\AppData\Local\Arvela\opencode-desktop.exe` and Settings
-`Arvela 0.2.35`. Existing recent chat list loaded, composer empty, local Qwen
+`C:\Users\sprot\AppData\Local\Enki\enki.exe` and Settings
+`Enki 0.2.35`. Existing recent chat list loaded, composer empty, local Qwen
 Medium/qwen-build selected; no prompt, abort or history mutation was sent.
 
 Opened the in-app panel at idle about:blank. Ran `installed-panel.mjs` with the

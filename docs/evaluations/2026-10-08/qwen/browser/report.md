@@ -1,4 +1,4 @@
-# Arvela synthetic evaluation 2.1.0
+# Enki synthetic evaluation 2.1.0
 
 Model: qwen38-flash-next; requested effort: medium; effective provider effort: medium. Memory: off. Navigation: off.
 

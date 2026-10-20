@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Arvela",
-  "version": "0.2.82",
+  "mainBinaryName": "enki",
+  "version": "0.2.83",
   "identifier": "dev.local.opencodedesktop",
   "build": {
     "beforeDevCommand": "npm run dev",
