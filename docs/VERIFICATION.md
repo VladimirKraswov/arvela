@@ -15,7 +15,11 @@ owner registry was repaired under the actual registry lock, with a private backu
 expected-content check, atomic replace and verification that only one source path
 changed. No prompt or game action was sent and no engine/agent/browser restarted.
 Other inspected registry path checks already canonicalize; no further confirmed
-registry defect was found. Live Windows junction/GUI acceptance remains separate
+registry defect was found. Canonical release:995 frontend pass/6 existing skips,
+146 native pass/3 existing skips,77 Hub tests; publisher/build/architecture/budget/
+fmt/strict Clippy pass. Receipt `.local/releases/0.2.88-stable.json`; Hub head and
+both signed packets verified,8 changed source/19 hot files byte-match runtime7481c97.
+No owner installation/activation performed. Live Windows junction/GUI acceptance remains separate
 from the Unix migration regression.
 
 # Enki MCP identity migration (0.2.87)
