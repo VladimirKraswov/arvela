@@ -1,5 +1,7 @@
 # V100 — квалификация профилей и шлюза (2026-10-20)
 
+Reviewed runtime `e8c04d03401a9de75790984232540b413498f085` pushed to `main`; server profiles already active.
+
 Server-only rollout in VM5100: original four checkpoints/quants, contexts,
 Medium/native budgets and OpenCode/Pi policies retained. GPU stays in VM5100;
 RTX5090/Strata unaffected. Canonical source and primary-source research:
