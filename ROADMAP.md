@@ -5,7 +5,7 @@
 - [x] Reject generic software/GitHub RSS results when the query names an actual project; preserve query-specific misses and GitHub repository fallback.
 - [x] Shared OpenCode/Pi workflow distinguishes missing URLs from access/network failures and directs repository discovery/branch/tree verification after two404s. Exact old Pi reminder remains hidden in history.
 - [x] Portable reliable-web-search skill records the same bounded recovery; no owner session prompt, tool replay or inference.
-- [ ] Canonical Hub publication and served packet verification.
+- [x] Canonical Hub publication and served packet verification: 0.2.86, 13 changed source files and 19 hot files byte-match runtime6365de0.
 
 ## Full-access loop guard consistency (0.2.85)
 

@@ -11,7 +11,11 @@ semantics remain intact. The common skill and both engines' per-prompt reminder
 now describe404 recovery through verified repository metadata/default branch/tree;
 legacy Pi history blocks remain hidden without stripping quotations or files.
 
-45 focused search/prompt/engine-routing/skill checks pass. Live read-only public
+45 focused search/prompt/engine-routing/skill checks pass. Canonical release:
+989 frontend pass / 6 existing skips, 144 native pass / 3 existing skips,
+77 Hub tests, publisher/build/179-module architecture/budget/fmt/strict Clippy pass.
+Receipt `.local/releases/0.2.86-stable.json`; Hub head and both signed packets
+verified, 13 changed source files / 19 hot files match runtime6365de0. Live read-only public
 GitHub repository search returns id-Software/Quake-2; its API metadata reports
 master and its game/g_target.c returns HTTP200 with the expected symbol.
 No owner prompt, game edit/tool replay, model inference or engine restart.
