@@ -17,7 +17,12 @@ Additional helper tests cover reverse migration, UNC, relative paths,
 foreign names and case/platform mismatches. No owner config was manually rewritten,
 no engine/agent/browser restart or game action performed. Native inputs other
 than normalized version metadata are unchanged from0.2.86 (hot update compatible).
-Windows/Linux real GUI qualification remains separate from portable policy tests.
+Canonical release:995 frontend pass/6 existing skips,144 native pass/3 existing skips,
+77 Hub tests; publisher/build/180-module architecture/budget/fmt/strict Clippy pass.
+Receipt `.local/releases/0.2.87-stable.json`; Hub head and both signed packets
+verified,13 changed source/19 hot files byte-match runtime6b6fb04. Published native
+fingerprint matches0.2.86. Windows/Linux real GUI qualification remains separate
+from portable policy tests; owner activation was not performed.
 
 # Web discovery recovery (0.2.86)
 

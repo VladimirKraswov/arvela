@@ -4,7 +4,7 @@
 
 - [x] Browser and shared MCP reserved entries recognize both shipped executable identities across the rename, retaining private flags and exact scope/server checks. Foreign and malformed entries remain protected.
 - [x] POSIX case sensitivity and Windows drive/UNC comparison; idempotent wrapper rewrite preserves JSONC, unrelated tools and permissions. Four migration regressions fail before the fix.
-- [ ] Canonical Hub publication and exact packet verification; hot-compatible with0.2.86.
+- [x] Canonical Hub publication and exact packet verification:0.2.87, runtime6b6fb04, 13source/19hot files; published fingerprint matches0.2.86.
 
 ## Web discovery recovery (0.2.86)
 
