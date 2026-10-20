@@ -1,5 +1,12 @@
 # Enki roadmap
 
+## Web discovery recovery (0.2.86)
+
+- [x] Reject generic software/GitHub RSS results when the query names an actual project; preserve query-specific misses and GitHub repository fallback.
+- [x] Shared OpenCode/Pi workflow distinguishes missing URLs from access/network failures and directs repository discovery/branch/tree verification after two404s. Exact old Pi reminder remains hidden in history.
+- [x] Portable reliable-web-search skill records the same bounded recovery; no owner session prompt, tool replay or inference.
+- [ ] Canonical Hub publication and served packet verification.
+
 ## Full-access loop guard consistency (0.2.85)
 
 - [x] Explicit loop permission in full session rules; migrate both legacy representations before the next prompt, including delegated work.

@@ -1,3 +1,23 @@
+# Web discovery recovery (0.2.86)
+
+Read-only inspection identified repeated webfetch HTTP404s from guessed repository
+names, independent HTTP403s on two public search providers, and generic GitHub
+RSS results accepted because the anchor was the generic term software. Missing
+URLs are not evidence of an engine outage or access-policy failure.
+Two regression tests fail before the fix and pass after it: generic software RSS
+must not satisfy a Quake repository query, and repository fallback must use the
+project anchor. Existing provider cooldown/cancellation/query-specific health
+semantics remain intact. The common skill and both engines' per-prompt reminder
+now describe404 recovery through verified repository metadata/default branch/tree;
+legacy Pi history blocks remain hidden without stripping quotations or files.
+
+45 focused search/prompt/engine-routing/skill checks pass. Live read-only public
+GitHub repository search returns id-Software/Quake-2; its API metadata reports
+master and its game/g_target.c returns HTTP200 with the expected symbol.
+No owner prompt, game edit/tool replay, model inference or engine restart.
+Public provider403s remain real access denials; this change does not claim to
+restore those services or guarantee future model adherence to guidance.
+
 # Full access / doom_loop (0.2.85)
 
 Screenshot diagnosis: OpenCode 1.18.18 processor asks doom_loop with only

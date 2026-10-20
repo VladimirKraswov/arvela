@@ -63,3 +63,12 @@ it('keeps pre-Enki language reminders hidden without rewriting old Pi history',(
  expect(visiblePromptText('старое сообщение\n\n'+old,'s')).toBe('старое сообщение');
  expect(visiblePromptText('quoted:'+old,'s')).toBe('quoted:'+old);
 });
+it('hides exact legacy workflow blocks while preserving quoted and foreign history',async()=>{
+ const {legacyToolWorkflowReminder}=await import('../src/agent/toolWorkflow');
+ const old=legacyToolWorkflowReminder('s');
+ expect(visiblePromptText('задача\n\n'+old,'s')).toBe('задача');
+ expect(visiblePromptText('цитата:'+old,'s')).toBe('цитата:'+old);
+ expect(visiblePromptText('задача\n\n'+old,'other')).toBe('задача\n\n'+old);
+ expect(toolWorkflowReminder('s')).toContain('После двух 404');
+ expect(toolWorkflowReminder('s')).toContain('scope: github');
+});

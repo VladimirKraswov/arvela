@@ -72,3 +72,22 @@ describe('shared resilient search',()=>{
   expect((await s.search({query:'test'})).failures[0].reason).toBe('response_too_large');
  });
 });
+
+describe('repository discovery relevance',()=>{
+ const genericGithub='<rss><channel><item><title>GitHub</title><link>https://github.com/github</link><description>How people build software. GitHub has repositories.</description></item></channel></rss>';
+ it('rejects generic software results for the observed Quake discovery query',async()=>{
+  const s=createSearch({providers:['bing'],fetcher:async()=>new Response(genericGithub)});
+  const result=await s.search({query:'github official id Software Quake 2 GPL 3.20 source code repository'});
+  expect(result.isError).toBe(true);expect(result.failures[0].reason).toBe('irrelevant_results');
+ });
+ it('falls back to project repositories after generic software RSS',async()=>{
+  const urls:string[]=[];
+  const s=createSearch({providers:['bing','github'],fetcher:async(url:string)=>{
+   urls.push(url);return url.includes('bing')?new Response(genericGithub):Response.json({items:[{full_name:'id-Software/Quake-2',html_url:'https://github.com/id-Software/Quake-2',description:'Quake 2 GPL Source Release'}]});
+  }});
+  const result=await s.search({query:'github official id Software Quake 2 GPL 3.20 source code repository'});
+  expect(result.provider).toBe('github');expect(result.queryUsed).toBe('quake');
+  expect(result.results[0].url).toBe('https://github.com/id-Software/Quake-2');
+  expect(urls[1]).toContain('q=quake&');
+ });
+});

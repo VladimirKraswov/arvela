@@ -1,7 +1,7 @@
 // Read-only search. Fixed public endpoints; no credentials, history or query logging.
 const endpoints = { exa: 'https://mcp.exa.ai/mcp', parallel: 'https://search.parallel.ai/mcp' };
 const decode = s => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&#(x[\da-f]+|\d+);/gi, (_, n) => { const v = n[0].toLowerCase() === 'x' ? parseInt(n.slice(1),16) : Number(n); return v > 0 && v <= 0x10ffff ? String.fromCodePoint(v) : ''; }).replace(/&(amp|lt|gt|quot|apos);/g, (_, n) => ({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'"})[n]);
-const generic = new Set('official github documentation docs website site latest current search find information about how what the and for from with chrome safari tls http2 fingerprint и в на по как что найти официальный документация сайт'.split(' '));
+const generic = new Set('official github documentation docs website site latest current search find information about how what the and for from with chrome safari tls http2 fingerprint software source code repository repositories project projects release gpl исходники исходный код репозиторий репозитории проект программное обеспечение и в на по как что найти официальный документация сайт'.split(' '));
 export function queryAnchor(query) {
   return (query.replace(/\b(?:site|filetype|intitle|inurl):\S+/gi,'').toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._-]*/gu)||[]).find(t=>t.length>2&&!generic.has(t)) || '';
 }
