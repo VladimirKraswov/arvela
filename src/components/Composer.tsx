@@ -323,7 +323,7 @@ export function Composer() {
         <div className="composer-bar">
           <div className="composer-controls-left">
             <button className="composer-plus" aria-label="Открыть команды" title="Команды и действия" onClick={() => store.setUi({paletteOpen: true})}>
-              <Icon name="plus" size={19} />
+              <Icon name="command" size={19} />
             </button>
             <input ref={fileInputRef} type="file" multiple hidden disabled={s.ui.sending} aria-label="Выбрать файлы" onChange={event => {
               addFiles(Array.from(event.currentTarget.files ?? []), chooserScope.current ?? scope);
