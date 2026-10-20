@@ -228,3 +228,81 @@ it("an error arriving before POST acceptance is not replaced by a synthetic busy
   expect(store.isRunning()).toBe(false); expect(store.isQueueArmed()).toBe(false);
   expect(store.getQueue()).toHaveLength(1); expect(store.client.prompt).toHaveBeenCalledTimes(1);
 });
+
+it('defers a busy race during preparation without pausing or posting, then drains once on idle', async () => {
+ const {modelServices}=await import('../src/models/services');
+ vi.spyOn(modelServices,'ensure').mockImplementationOnce(async()=>{status('busy');}).mockResolvedValue(undefined);
+ store.enqueuePrompt('next after race'); status('idle'); await flush();
+ expect(store.client.prompt).not.toHaveBeenCalled();
+ expect(store.getQueue()[0]).toMatchObject({state:'ready',error:undefined});
+ expect(store.isQueueArmed()).toBe(true);
+ status('idle');status('idle');await flush();
+ expect(store.client.prompt).toHaveBeenCalledTimes(1);
+ expect(store.getQueue()).toHaveLength(0);
+});
+it('a permission arriving during preparation waits without turning into a queue error',async()=>{
+ const {modelServices}=await import('../src/models/services');
+ vi.spyOn(modelServices,'ensure').mockImplementationOnce(async()=>{store.state.chat.permissions.per_late={id:'per_late',sessionID:'ses_a',permission:'edit'};}).mockResolvedValue(undefined);
+ store.enqueuePrompt('after permission');status('idle');await flush();
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.isQueueArmed()).toBe(true);
+ expect(store.getQueue()[0]).toMatchObject({state:'ready',error:undefined});
+ store.handleEvent({type:'permission.v2.replied',properties:{requestID:'per_late',sessionID:'ses_a'}});await flush();
+ expect(store.client.prompt).toHaveBeenCalledTimes(1);
+});
+it('legacy session.idle dispatches an armed queue exactly once',async()=>{
+ store.enqueuePrompt('legacy idle');
+ store.handleEvent({type:'session.idle',properties:{sessionID:'ses_a'}});
+ store.handleEvent({type:'session.idle',properties:{sessionID:'ses_a'}});await flush();
+ expect(store.client.prompt).toHaveBeenCalledTimes(1);
+});
+
+it('a busy event during reservation waits and does not lose the captured model', async () => {
+ const {modelServices}=await import('../src/models/services');
+ vi.spyOn(modelServices,'reserve').mockImplementationOnce(async()=>{status('busy');}).mockResolvedValue(undefined);
+ store.enqueuePrompt('after reservation');status('idle');await flush();
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.isQueueArmed()).toBe(true);
+ expect(store.getQueue()[0]).toMatchObject({state:'ready',error:undefined});
+ store.setModelChoice('p','other');status('idle');await flush();
+ expect(store.client.prompt).toHaveBeenCalledTimes(1);
+ expect(store.client.prompt.mock.calls[0][2].model.modelID).toBe('m');
+});
+it('Stop while preparation is waiting never rearms the queue',async()=>{
+ const {modelServices}=await import('../src/models/services');
+ let finish!:()=>void;
+ vi.spyOn(modelServices,'ensure').mockImplementationOnce(()=>new Promise<void>(resolve=>{finish=resolve;}));
+ vi.spyOn(store.client,'abort').mockResolvedValue(undefined);
+ store.enqueuePrompt('keep paused');status('idle');await flush();
+ await store.stopSession('ses_a');finish();await flush();status('idle');await flush();
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.isQueueArmed()).toBe(false);
+ expect(store.getQueue()).toHaveLength(1);expect(store.getQueue()[0].state).toBe('ready');
+});
+it('explicit resume acknowledges an old ready-item error without rebinding its model',async()=>{
+ store.enqueuePrompt('saved task');
+ store.state.prefs.queues.ses_a[0].error='Агент снова занят. Возобновите очередь после текущего ответа.';
+ store.queueArmed.delete('ses_a');store.setModelChoice('p','other');
+ store.resumeQueue();
+ expect(store.getQueue()[0].error).toBeUndefined();
+ expect(store.getQueue()[0].model.modelID).toBe('m');
+ status('idle');await flush();expect(store.client.prompt).toHaveBeenCalledTimes(1);
+});
+
+it('a busy event during durable journal preparation cancels the unsent record and waits',async()=>{
+ const {operationJournal}=await import('../src/operations/journal');
+ const dispatch=operationJournal.dispatch.bind(operationJournal);
+ vi.spyOn(operationJournal,'dispatch').mockImplementationOnce((input,current,send)=>dispatch(input,current,async()=>{status('busy');return send();}));
+ store.enqueuePrompt('journal race');status('idle');await flush();
+ expect(store.client.prompt).not.toHaveBeenCalled();expect(store.isQueueArmed()).toBe(true);
+ expect(store.getQueue()[0]).toMatchObject({state:'ready',error:undefined});
+ const records=await operationJournal.list(store.state.prefs.workspaceKey??store.state.prefs.endpoint);
+ expect(records).toHaveLength(1);expect(records[0].state).toBe('cancelled');
+ status('idle');await flush();expect(store.client.prompt).toHaveBeenCalledTimes(1);
+});
+
+it('failed durable acknowledgement of a saved error does not resume the queue',()=>{
+ store.enqueuePrompt('keep paused');
+ store.state.prefs.queues.ses_a[0].error='old preparation error';store.queueArmed.delete('ses_a');
+ vi.spyOn(localStorage,'setItem').mockImplementation(()=>{throw Error('quota');});
+ store.resumeQueue();
+ expect(store.isQueueArmed()).toBe(false);expect(store.getQueue()[0].error).toBe('old preparation error');
+ expect(store.client.prompt).not.toHaveBeenCalled();
+});

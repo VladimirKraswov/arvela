@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('../src/api/events', () => ({ globalEventStreamUrl: () => 'http://localhost/global/event', eventStreamUrl: () => '', runEventStream: vi.fn(async () => {}) }));
 let store: any, drafts: typeof import('../src/attachments/drafts').attachmentDrafts, scope: string;
 const settle = async () => { for(let i=0;i<20;i++) await new Promise(r => setTimeout(r, 5)); };
@@ -16,6 +16,8 @@ beforeEach(async () => {
   scope = mod.attachmentScope(store.state.prefs.workspaceKey ?? store.state.prefs.endpoint, store.state.directory,'ses_a');
   await drafts.add(scope,[new File(['hello'],'fixture.txt',{type:'text/plain'})]);
 });
+// Flush the old module's debounce before the next test replaces localStorage.
+afterEach(async () => { (await import('../src/state/prefs')).flushPrefs(); });
 const idle = () => store.handleEvent({type:'session.status',properties:{sessionID:'ses_a',status:{type:'idle'}}});
 it('Stop during attachment preparation does not restart the agent with a late correction',async()=>{
  await store.enqueueWithAttachments('do not restart',drafts.snapshot(scope));

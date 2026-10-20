@@ -236,12 +236,11 @@ export class PromptQueueController {
     const sid = this.state.activeSessionId;
     const queue = this.getQueue();
     if (!sid || !queue.length || queue[0].state !== "ready" || this.queueLocks.has(sid)) return;
-    if (useSelectedModel) {
-      const model = this.host.getModelChoice();
-      if (!model) return;
-      if (!this.writeQueue(sid, queue.map(item => item.state === "ready"
-        ? { ...item, model: { ...model }, error: undefined } : item), true)) return;
-    }
+    const model = useSelectedModel ? this.host.getModelChoice() : null;
+    if (useSelectedModel && !model) return;
+    if ((useSelectedModel || queue.some(item => item.state === "ready" && item.error)) &&
+      !this.writeQueue(sid, queue.map(item => item.state === "ready"
+        ? { ...item, ...(model ? { model: { ...model } } : {}), error: undefined } : item), true)) return;
     const chat = this.state.chat.sessions[sid];
     if (chat) this.host.mutate(s => ({ chat: { ...s.chat, sessions: { ...s.chat.sessions, [sid]: { ...chat, lastError: null } } } }));
     this.queueArmed.add(sid);

@@ -2955,7 +2955,7 @@ class Store {
     this.writeQueue(
       sid,
       this.getQueue(sid).map((x) =>
-        x.id === item.id ? { ...x, state: "sending" } : x,
+        x.id === item.id ? { ...x, state: "sending", error: undefined } : x,
       ),
     );
     savePrefs(this.state.prefs);
@@ -2963,6 +2963,13 @@ class Store {
     const seq = this.statusSequence;
     const stopped = this.queueStops.get(sid) ?? 0;
     let posted = false;
+    let waitingBeforePost = false;
+    const defer = () => this.writeQueue(sid, this.getQueue(sid).map(q =>
+      q.id === item.id ? { ...q, state: "ready", error: undefined } : q));
+    const mustWait = () => {
+      const pending = this.pendingInteraction(sid);
+      return (!steer && this.isRunning(sid)) || pending.permissions.length > 0 || pending.questions.length > 0;
+    };
     try {
       if (!flushPrefs()) throw new Error("Не удалось сохранить состояние очереди. Запрос не отправлен.");
       // OpenCode persists a new user message, then joins the existing run loop.
@@ -2983,23 +2990,28 @@ class Store {
           this.state.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT, this.state.prefs.asr ?? { endpoint: "", model: "", language: "" }, new AbortController().signal, undefined, this.archiveStager(backend)));
       }
       if (!current()) throw new Error("Чат изменился; запрос не отправлен.");
-      if (!steer && this.isRunning(sid)) throw new Error("Агент снова занят. Возобновите очередь после текущего ответа.");
+      // These are waits, not delivery failures: no POST has happened. Keep
+      // the queue armed so the next idle/interaction event can dispatch once.
       if ((this.queueStops.get(sid) ?? 0) !== stopped) throw Error('Отправка отменена кнопкой «Стоп». Запрос остался в очереди.');
-      const pending = this.pendingInteraction(sid);
-      if (pending.permissions.length || pending.questions.length) throw new Error("Сначала ответьте на запрос агента.");
+      if (mustWait()) { defer(); return; }
       const messageID = newMessageId(), dispatchAt = Date.now();
+      await modelServices.reserve(item.model.providerID, item.model.modelID, engineId, sid);
+      if (!current() || (this.queueStops.get(sid) ?? 0) !== stopped) throw new Error("Отправка отменена.");
+      if (mustWait()) { defer(); return; }
       (this.state.chat.sessions[sid] ??= emptySessionChat()).pendingTiming = {
         ...(this.engineIdFor(sid, item.directory) === PI_BACKEND_ID ? {} : {messageID}), dispatchAt,
         preparationMs: dispatchAt - preparationStarted,
         queueMs: typeof item.queuedAt === 'number' && preparationStarted >= item.queuedAt ? preparationStarted - item.queuedAt : null,
       };
-      await modelServices.reserve(item.model.providerID, item.model.modelID, engineId, sid);
-      if (!current() || (this.queueStops.get(sid) ?? 0) !== stopped) throw new Error("Отправка отменена.");
       const submit = steer && backend.steer ? backend.steer.bind(backend) : backend.prompt.bind(backend);
       await operationJournal.dispatch({ id: messageID, workspace: this.state.prefs.workspaceKey ?? this.state.prefs.endpoint, engine: engineId, sessionId: sid, directory: item.directory, source: "queue", sourceId: item.id, text: item.text, model: `${item.model.providerID}/${item.model.modelID}`, attachments: item.attachments ?? null },
         () => current() && (this.queueStops.get(sid) ?? 0) === stopped, async () => {
       if (engineId !== PI_BACKEND_ID) await ownWork(backend.endpoint, item.directory, sid, messageID, this.client.headers.Authorization);
       if (!current() || (this.queueStops.get(sid) ?? 0) !== stopped) throw new NotDispatched("Отправка отменена.");
+      if (mustWait()) {
+        waitingBeforePost = true;
+        throw new NotDispatched("Ожидаем завершения текущего действия агента.");
+      }
       posted = true;
       await submit(sid, item.directory, {
         messageID,
@@ -3039,6 +3051,9 @@ class Store {
             "Уточнение передано агенту. Он учтёт его на следующем шаге.",
         });
     } catch (e) {
+      if (waitingBeforePost && !posted && current() && (this.queueStops.get(sid) ?? 0) === stopped) {
+        defer(); return;
+      }
       this.queueArmed.delete(sid);
       // Persist an ambiguous outcome; NEVER automatically retry and execute it twice.
       if (workspaceBackend === this.backend)
@@ -3293,7 +3308,7 @@ class Store {
       this.notifications.notify(event.type === 'message.part.delta' ||
         (event.type === 'message.part.updated' && (part?.type === 'text' || part?.type === 'reasoning')));
     }
-    if (event.type === "session.status") void this.drainQueue();
+    if (event.type === "session.status" || event.type === "session.idle" || /^(permission|question)(\.v2)?\.(replied|rejected)$/.test(event.type)) void this.drainQueue();
   }
 
   activityStatus(id: string): SessionStatus | undefined {

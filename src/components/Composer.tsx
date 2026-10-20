@@ -297,6 +297,7 @@ export function Composer() {
           </div>
           {!store.isQueueArmed() && store.queueRecoveryReason() && <p className="queue-recovery" role="status">{store.queueRecoveryReason()}</p>}
           {!store.isQueueArmed() && store.queueHasDifferentModel() && <button className="queue-model-recovery" disabled={!!queueEdit || s.ui.sending || !connected || store.getQueue()[0]?.state !== "ready"} onClick={() => store.resumeQueue(true)}>Продолжить на выбранной модели</button>}
+          <div className="queued-prompts">
           {store.getQueue().map((item) => {
             const itemFiles = queueEdit?.id === item.id ? attachments : item.attachments?.files ?? [];
             return (
@@ -346,6 +347,7 @@ export function Composer() {
               </div>}
             </div>
           ); })}
+          </div>
         </div>
       )}
       {s.ui.workspacePreparing && (

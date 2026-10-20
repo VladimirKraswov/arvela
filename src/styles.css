@@ -2007,16 +2007,23 @@ kbd {
   font-size: 0.785714rem;
 }
 .prompt-queue {
+  display: flex;
+  flex-direction: column;
   padding: 4px 8px;
   max-height: min(180px, 24vh);
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   flex-shrink: 0;
   margin-bottom: 8px;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: 14px;
 }
+.queued-prompts {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.prompt-queue > :not(.queued-prompts) { flex-shrink: 0; }
 .queue-heading {
   display: flex;
   flex-wrap: wrap;
@@ -2074,6 +2081,7 @@ kbd {
   .queue-actions { gap: 6px; }
   .queue-actions span { max-width: 80px; }
   .queue-heading > span { display: none; }
+  .prompt-queue:has(.queue-recovery) { max-height: min(300px, 40vh); }
 }
 .voice-control {
   display: flex;
