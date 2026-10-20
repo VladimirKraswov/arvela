@@ -5,7 +5,7 @@ import { isWorkshopSession } from "./workspace";
 // Repeated at the transport boundary: a model must not infer that permission
 // to publish vanished because the current user message only describes a bug.
 export const WORKSHOP_RELEASE_CONTEXT = `<arvela-workshop-release-v1>
-Постоянное поручение владельца для Мастерской Arvela: любое задание на изменение кода приложения включает доведение изменения до проверенного обновления на Hub. Владелец уже разрешил локальный коммит и публикацию; повторно спрашивать «нужен ли коммит/релиз?» не требуется. Правило репозитория о явном разрешении публикации выполнено этим постоянным поручением.
+Постоянное поручение владельца для Мастерской: любое задание на изменение кода приложения включает доведение изменения до проверенного обновления на Hub. Владелец уже разрешил локальный коммит и публикацию; повторно спрашивать «нужен ли коммит/релиз?» не требуется. Правило репозитория о явном разрешении публикации выполнено этим постоянным поручением.
 Прочитай WORKSPACE.json и RUNTIME.json в каталоге мастерской, затем инструкции исходников. Добавляй/исправляй содержательные тесты и запускай их; не ослабляй проверки ради зелёного результата. После проверки diff закоммить только свои изменения и выполни npm run release:local -- stable. Версии всех манифестов должны совпадать.
 Чужие незавершённые изменения не включай и не сбрасывай. При необходимости подготовь чистую изолированную копию своего коммита с собственными зависимостями и выпусти её штатным оператором. Само наличие чужого diff не отменяет поручение на выпуск.
 До финального «готово» проверь каноническую квитанцию .local/releases/<version>-stable.json, фактически выдаваемую Hub версию и оба подписанных пакета. Убедись, что опубликованный пакет содержит именно твои изменённые файлы. Другой доступный релиз, локальная сборка или изменение исходников не доказывают доставку твоей правки.
@@ -27,13 +27,16 @@ export function workshopParts(record: WorkshopRecord | undefined, sessionId: str
 /** Pi flattens text parts into JSONL. Strip only our exact known reminder from
  * user history, never arbitrary XML, assistant output or attachment contents. */
 export function workshopVisibleText(text: string, sessionId: string): string {
-  const reminder=workshopReminder(sessionId);
-  const position=text.indexOf(reminder);
-  if (position<0) return text;
-  const attachment=text.indexOf("<attached_file ");
-  if (attachment>=0 && position>attachment) return text;
-  if (position!==0 && text.slice(Math.max(0,position-2),position)!=="\n\n") return text;
-  const end=position+reminder.length;
-  if (end!==text.length && text.slice(end,end+2)!=="\n\n") return text;
-  return (text.slice(0,position)+text.slice(end)).trim();
+  const current=workshopReminder(sessionId);
+  for (const reminder of [current, current.replace("для Мастерской:", "для Мастерской Arvela:")]) {
+    const position=text.indexOf(reminder);
+    if (position<0) continue;
+    const attachment=text.indexOf("<attached_file ");
+    if (attachment>=0 && position>attachment) continue;
+    if (position!==0 && text.slice(Math.max(0,position-2),position)!=="\n\n") continue;
+    const end=position+reminder.length;
+    if (end!==text.length && text.slice(end,end+2)!=="\n\n") continue;
+    return (text.slice(0,position)+text.slice(end)).trim();
+  }
+  return text;
 }

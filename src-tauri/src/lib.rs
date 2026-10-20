@@ -11,6 +11,7 @@ pub mod hub_updates;
 mod journal;
 mod lifecycle;
 mod local_server;
+mod migration;
 mod model_credentials;
 mod paths;
 pub mod pi;
@@ -22,6 +23,9 @@ mod updates;
 pub mod workshop;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    paths::app_data_parent()
+        .and_then(|p| migration::initialize(&p))
+        .expect("Не удалось безопасно перенести данные Enki");
     let hot = hub_updates::assets::HotAssets::load();
     let mut context = tauri::generate_context!();
     let embedded = std::mem::replace(&mut context.assets, Box::new(hub_updates::assets::Empty));

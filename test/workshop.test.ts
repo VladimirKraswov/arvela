@@ -65,3 +65,12 @@ it('does not jump back to an old workshop click after the user changes chat',asy
  const open=vi.spyOn(store,'openChat').mockResolvedValue(undefined);const pending=store.openWorkshop();
  store.state.activeSessionId='newer-selection';finish({...workspace,session});await pending;expect(open).not.toHaveBeenCalled();
 });
+
+it('renames the legacy workshop without duplicating or changing its identity',async()=>{
+ const api=backend();const old={...session,title:'Мастерская Arvela'};
+ vi.mocked(api.listSessions).mockResolvedValue([old]);
+ vi.mocked(api.updateSession).mockResolvedValue({...old,title:'Мастерская'});
+ const record=await resolveWorkshop(api,workspace);
+ expect(api.createSession).not.toHaveBeenCalled();expect(api.updateSession).toHaveBeenCalledWith('protected',{title:'Мастерская'},'/workshop');
+ expect(record.session.id).toBe('protected');expect(record.session.title).toBe('Мастерская');
+});

@@ -8,7 +8,7 @@ export function ProjectMapSection({server,directory}:{server:string;directory:st
   useEffect(()=>{live.current=true;setMap(null);setConnection(null);setError('');const n=++serial.current;if(available)void readMapConnection(directory!).then(c=>{if(live.current&&n===serial.current)setConnection(c);}).catch(e=>{if(live.current&&n===serial.current)setError(String(e));});return()=>{live.current=false;serial.current++;};},[server,directory,available]);
   const run=async(fn:()=>Promise<void>)=>{const n=++serial.current;setBusy(true);setError('');try{await fn();}catch(e){if(live.current&&n===serial.current)setError(String(e));}finally{if(live.current&&n===serial.current)setBusy(false);}};
   return <section className="outcome-section"><details><summary>Карта проекта</summary>
-    {!available?<p className="context-note">{!isNative()?'Карта доступна в установленном Arvela.':!directory?'Откройте папку проекта.':'Карта пока доступна для локальных проектов.'}</p>:<>
+    {!available?<p className="context-note">{!isNative()?'Карта доступна в установленном Enki.':!directory?'Откройте папку проекта.':'Карта пока доступна для локальных проектов.'}</p>:<>
 
       <label className="project-map-query">Поиск<input maxLength={256} value={query} onChange={e=>setQuery(e.target.value)} placeholder="Файл или символ"/></label>
       <div className="outcome-actions"><button className="btn small" disabled={busy||!connection?.ready} onClick={()=>void run(async()=>{const n=serial.current;const value=await previewMap(directory!,query);if(live.current&&n===serial.current)setMap(value);})}>{busy?'Чтение…':map?'Обновить карту':'Показать карту'}</button>

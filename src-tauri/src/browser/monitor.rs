@@ -68,7 +68,7 @@ pub async fn browser_monitor(
                     LABEL,
                     WebviewUrl::App("index.html?view=browser-monitor".into()),
                 )
-                .title("Браузер · Arvela")
+                .title("Браузер · Enki")
                 .inner_size(438.0, 334.0)
                 .resizable(false)
                 .maximizable(false)

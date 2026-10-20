@@ -130,7 +130,12 @@ pub fn cli() -> Result<(), String> {
     if let Err(e) = &result {
         eprintln!("{e}");
     }
-    reopen(&plan.target)?;
+    let reopen_target = if result.is_ok() {
+        destination(&plan)
+    } else {
+        plan.target.clone()
+    };
+    reopen(&reopen_target)?;
     if result.is_ok() {
         if let Some(build) = plan.artifact.ancestors().find(|p| {
             p.parent() == Some(base.as_path())
@@ -144,6 +149,15 @@ pub fn cli() -> Result<(), String> {
         }
     }
     result
+}
+fn destination(p: &Plan) -> PathBuf {
+    #[cfg(target_os = "macos")]
+    if p.artifact.file_name().is_some_and(|n| n == "Enki.app")
+        && p.target.file_name().is_some_and(|n| n == "Arvela.app")
+    {
+        return p.target.with_file_name("Enki.app");
+    }
+    p.target.clone()
 }
 fn apply(p: &Plan) -> Result<(), String> {
     semver::Version::parse(&p.version).map_err(|e| e.to_string())?;
@@ -167,6 +181,10 @@ fn apply(p: &Plan) -> Result<(), String> {
         if p.target.extension().is_none_or(|e| e != "app") || p.target.is_symlink() {
             return Err("Invalid installed application".into());
         }
+        let destination = destination(p);
+        if destination != p.target && destination.exists() {
+            return Err("Enki.app уже существует. Установка не изменяла приложения.".into());
+        }
         let staging = p
             .target
             .with_file_name(format!(".Arvela-update-{}.app", std::process::id()));
@@ -181,7 +199,7 @@ fn apply(p: &Plan) -> Result<(), String> {
         successful(&mut copy, Duration::from_secs(120))?;
         fs::rename(&p.target, &previous)
             .map_err(|e| format!("Нет права заменить приложение: {e}"))?;
-        if let Err(e) = fs::rename(&staging, &p.target) {
+        if let Err(e) = fs::rename(&staging, &destination) {
             let _ = fs::rename(&previous, &p.target);
             return Err(e.to_string());
         }
@@ -290,6 +308,28 @@ fn reopen(target: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn renamed_bundle_has_new_destination_without_overwriting_another_name() {
+        let p = Plan {
+            artifact: "/build/Enki.app".into(),
+            target: "/Applications/Arvela.app".into(),
+            version: "0.2.83".into(),
+            hash: "a".repeat(64),
+            parent: 1,
+        };
+        assert_eq!(destination(&p), Path::new("/Applications/Enki.app"));
+        let custom = Plan {
+            target: "/Applications/Custom.app".into(),
+            ..p.clone()
+        };
+        assert_eq!(destination(&custom), custom.target);
+        let bridge = Plan {
+            artifact: "/build/Arvela.app".into(),
+            ..p
+        };
+        assert_eq!(destination(&bridge), bridge.target);
+    }
     #[test]
     fn artifact_hash_detects_post_build_tampering() {
         let p = std::env::temp_dir().join(format!("arvela-artifact-{}", std::process::id()));

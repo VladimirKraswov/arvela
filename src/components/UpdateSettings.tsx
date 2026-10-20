@@ -24,7 +24,7 @@ export function UpdateSettings(){
   };
   const disabled=!!u.busy||!!busy;
   const hot=u.release?.kind==='hot',built=updates.prepared(),stage=u.status?.build.stage;
-  return <section className="setting-group quality-settings"><h2>Arvela {u.status?.hot.uiVersion??version}</h2>
+  return <section className="setting-group quality-settings"><h2>Enki {u.status?.hot.uiVersion??version}</h2>
     {u.status&&u.status.nativeVersion!==u.status.hot.uiVersion&&<p className="muted">Нативная версия {u.status.nativeVersion}</p>}
     <SettingField label="Канал"><select value={u.channel} disabled={disabled||u.waiting||compiling} onChange={e=>{const channel=e.target.value==='preview'?'preview':'stable';updates.setChannel(channel);localStorage.setItem('arvela.update.channel',channel);}}><option value="stable">Стабильный</option><option value="preview">Предварительный</option></select></SettingField>
     <div className="btn-row"><button className="btn" disabled={disabled||compiling||u.waiting} onClick={()=>void updates.check()}>{u.busy==='check'?'Проверяю…':'Проверить обновления'}</button>

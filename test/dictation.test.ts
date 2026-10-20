@@ -159,3 +159,30 @@ it('stops waiting for a broken recorder and keeps partial checkpoints recoverabl
  expect(stopTrack).toHaveBeenCalledOnce();expect(stopped).toHaveBeenCalledOnce();expect(error).toHaveBeenCalledOnce();
  const records=await storage.list(dictationScope('host','draft'));expect(records[0].complete).toBe(false);expect(await new Blob(records[0].parts).text()).toBe('partial-container');
 });
+
+it('readiness waits for a durable audio checkpoint and an unmuted live track',async()=>{
+ vi.useFakeTimers();const storage=memory(),ready=vi.fn();let commit!:()=>void,recorder:any;
+ storage.put.mockImplementationOnce(()=>new Promise<void>(resolve=>{commit=resolve;}));
+ const track={stop:vi.fn(),muted:true,readyState:'live'};
+ vi.stubGlobal('MediaRecorder',class{
+  static isTypeSupported(){return true;}state='inactive';mimeType='audio/webm';ondataavailable:any;onstop:any;
+  constructor(){recorder=this;}start(){this.state='recording';}stop(){this.state='inactive';this.onstop?.();}
+ });
+ const capture=new SegmentedCapture({getTracks:()=>[track]} as any,null,storage,'host','draft',defaultAsr,{ready,progress(){},segmentReady(){},stopped(){},error(){}});
+ capture.start();await vi.advanceTimersByTimeAsync(500);expect(ready).not.toHaveBeenCalled();
+ recorder.ondataavailable({data:new Blob(['audio-head'])});await vi.advanceTimersByTimeAsync(0);expect(ready).not.toHaveBeenCalled();
+ commit();await vi.advanceTimersByTimeAsync(50);expect(ready).not.toHaveBeenCalled();
+ track.muted=false;await vi.advanceTimersByTimeAsync(50);expect(ready).toHaveBeenCalledOnce();
+ await capture.finish();expect(track.stop).toHaveBeenCalledOnce();expect(ready).toHaveBeenCalledOnce();
+});
+it('a recorder producing no data fails visibly instead of claiming readiness',async()=>{
+ vi.useFakeTimers();const ready=vi.fn(),error=vi.fn(),stop=vi.fn();
+ vi.stubGlobal('MediaRecorder',class{
+  static isTypeSupported(){return true;}state='inactive';mimeType='audio/webm';onstop:any;
+  start(){this.state='recording';}stop(){this.state='inactive';this.onstop?.();}
+ });
+ const capture=new SegmentedCapture({getTracks:()=>[{stop}]} as any,null,memory(),'host','draft',defaultAsr,{ready,error,progress(){},segmentReady(){},stopped(){}});
+ capture.start();await vi.advanceTimersByTimeAsync(8100);
+ expect(ready).not.toHaveBeenCalled();expect(error).toHaveBeenCalledWith(expect.stringContaining('не начал передавать звук'));expect(stop).toHaveBeenCalledOnce();
+ await capture.finish();
+});

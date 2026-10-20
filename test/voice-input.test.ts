@@ -28,6 +28,9 @@ beforeEach(async () => {
   resume = vi.fn().mockResolvedValue(undefined); close = vi.fn().mockResolvedValue(undefined); capture = vi.fn();
   vi.stubGlobal("AudioContext", class { resume = resume; close = close; });
   vi.stubGlobal("MediaRecorder", class {});
+  vi.stubGlobal("ResizeObserver", class { observe(){} disconnect(){} });
+  vi.stubGlobal("requestAnimationFrame", () => 1); vi.stubGlobal("cancelAnimationFrame", () => {});
+  vi.spyOn(HTMLCanvasElement.prototype,"getContext").mockReturnValue({setTransform(){},clearRect(){},beginPath(){},roundRect(){},fill(){},fillStyle:""} as any);
   // The permission hint is host-specific; pin macOS so the assertion is exact.
   resetPlatformCache();
   vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", mediaDevices: { getUserMedia: capture } });
@@ -67,13 +70,13 @@ it("records and transcribes even when Web Audio never resumes", async () => {
     state = "inactive"; mimeType = "audio/webm";
     onstop: (() => void) | null = null;
     ondataavailable: ((event:{data:Blob})=>void) | null = null;
-    start() { this.state = "recording"; started(); }
+    start() { this.state = "recording"; started(); this.ondataavailable?.({data:new Blob(["first-checkpoint"])}); }
     stop() { this.state = "inactive"; this.ondataavailable?.({data:new Blob(["fixture-audio"])});this.onstop?.(); }
   });
   vi.stubGlobal("requestAnimationFrame", () => 1);
   vi.stubGlobal("cancelAnimationFrame", () => {});
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    clearRect() {}, beginPath() {}, roundRect() {}, fill() {}, fillStyle: "",
+    setTransform() {}, clearRect() {}, beginPath() {}, roundRect() {}, fill() {}, fillStyle: "",
   } as unknown as CanvasRenderingContext2D);
   fake.transcribe.mockResolvedValue("распознано");
   await click("Надиктовать");
@@ -137,4 +140,18 @@ it('requires explicit recovery of interrupted audio before starting another reco
  await act(async()=>{[...document.querySelectorAll('button')].find(b=>b.textContent==='Восстановить диктовку')!.click();});
  expect(fake.transcribe).toHaveBeenCalledOnce();expect(fake.appendDictation).toHaveBeenCalledWith(workspace,draft,'восстановленный текст','interrupted');
  expect(fake.records.size).toBe(0);
+});
+
+it('does not invite speech until a real audio checkpoint arrives, and cleans up after cancellation',async()=>{
+ const stop=vi.fn();fake.transcribe.mockResolvedValue('текст');capture.mockResolvedValue({getTracks:()=>[{stop}]});
+ let recorder:any;
+ vi.stubGlobal('MediaRecorder',class{
+  static isTypeSupported(){return true;} state='inactive';mimeType='audio/webm';ondataavailable:any;onstop:any;
+  constructor(){recorder=this;}start(){this.state='recording';}stop(){this.state='inactive';this.onstop?.();}
+ });
+ await click('Надиктовать');
+ expect(document.body.textContent).toContain('Пока не говорите');expect(document.body.textContent).not.toContain('Можно говорить');
+ await act(async()=>{recorder.ondataavailable({data:new Blob(['actual-audio'])});});
+ expect(document.body.textContent).toContain('Можно говорить');expect(document.querySelector('canvas')).not.toBeNull();
+ await click('Остановить диктовку');expect(stop).toHaveBeenCalledOnce();
 });

@@ -147,7 +147,7 @@ export function Sidebar() {
       {information&&<InformationDialog directory={information.directory} session={information} onClose={()=>setInformation(null)}/>}
       <div className="sidebar-brand" data-tauri-drag-region="deep">
         <img src={arvelaMark} width={24} height={24} alt="" />
-        <strong>Arvela</strong>
+        <strong>Enki</strong>
         <span className="spacer" />
         <button
           className="icon-btn"
@@ -253,7 +253,7 @@ export function Sidebar() {
             <Icon name="code" size={17} />
           </span>
           <span>
-            <b>Arvela</b>
+            <b>Enki</b>
             <small>
               <i
                 className={`conn-dot ${s.connection.phase === "connected" ? "ok" : "bad"}`}

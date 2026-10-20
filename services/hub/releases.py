@@ -126,6 +126,9 @@ class Releases:
         for channel in ('stable','preview'):
             head=self.head(channel)
             keep.update(a['digest'] for a in head.get('artifacts',{}).values())
+        for channel in ('stable','preview'):
+            bridge=self.read(self.root / ('legacy-' + channel + '.json')) or {}
+            keep.update(a['digest'] for a in bridge.get('artifacts',{}).values())
         items=[p for p in self.root.glob('*.json') if HASH.fullmatch(p.stem) and not p.is_symlink()]
         items.sort(key=lambda p:p.stat().st_mtime_ns,reverse=True)
         keep.update(p.stem for p in items[:40])
@@ -192,8 +195,13 @@ class Releases:
                 if result is None:
                     self.error('Пакет не найден.', 404)
                 return result
+            if method == 'GET' and suffix in ('/enki/stable', '/enki/preview'):
+                return self.head(suffix.rsplit('/',1)[1])
             if method == 'GET' and suffix in ('/stable', '/preview'):
-                return self.head(suffix[1:])
+                # Pre-Enki natives reject renamed source manifests. Keep the
+                # last compatible signed bridge; its native updater opts into
+                # /enki/<channel> after installation. No code/signature rewrite.
+                return self.read(self.root / ('legacy-' + suffix[1:] + '.json')) or self.head(suffix[1:])
             if method == 'POST' and suffix == '':
                 if not actor['admin']:
                     self.error('Публикация доступна только администратору.', 403)
@@ -227,6 +235,11 @@ class Releases:
                         self.error('Пакет с этим хешем уже существует.', 409)
                     if existing is None:
                         self.atomic(file, data[kind])
+                try:
+                    config=json.loads(base64.b64decode(source['files']['src-tauri/tauri.conf.json'],validate=True))
+                except (ValueError,TypeError,KeyError):config={}
+                if config.get('productName') == 'Arvela':
+                    self.atomic(self.root / ('legacy-' + channel + '.json'), head)
                 self.atomic(self.root / (channel + '.json'), head)
                 try:self.collect()
                 except OSError:pass

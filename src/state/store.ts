@@ -1245,7 +1245,7 @@ class Store {
   isWorkshopDirectory(directory: string): boolean { return this.state.prefs.workshop?.directory === directory; }
   async ensureWorkshop(): Promise<WorkshopRecord> {
     if (!isNative() || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost()))
-      throw new Error("Выберите «Этот компьютер», чтобы открыть мастерскую Arvela.");
+      throw new Error("Выберите «Этот компьютер», чтобы открыть мастерскую.");
     if (this.state.connection.phase !== "connected") throw new Error("Подключите OpenCode, чтобы открыть мастерскую.");
     const key = this.state.prefs.workspaceKey ?? this.state.prefs.endpoint;
     const pending = this.workshopFlights.get(key); if (pending) return pending;
@@ -1769,7 +1769,7 @@ class Store {
   }
 
   async renameSession(session: Session, title: string): Promise<void> {
-    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская Arvela защищена от удаления и архивирования."}); return; }
+    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская защищена от удаления и архивирования."}); return; }
     const gen = this.connectionGeneration;
     const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
@@ -1798,7 +1798,7 @@ class Store {
   }
 
   async archiveSession(session: Session): Promise<void> {
-    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская Arvela защищена от удаления и архивирования."}); return; }
+    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская защищена от удаления и архивирования."}); return; }
     const gen = this.connectionGeneration;
     const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {
@@ -1882,7 +1882,7 @@ class Store {
   }
 
   async deleteSession(session: Session): Promise<void> {
-    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская Arvela защищена от удаления и архивирования."}); return; }
+    if (this.isWorkshopSession(session)) { this.patchUi({toast:"Мастерская защищена от удаления и архивирования."}); return; }
     const gen = this.connectionGeneration;
     const backend = this.engine(this.engineIdFor(session.id, session.directory));
     try {

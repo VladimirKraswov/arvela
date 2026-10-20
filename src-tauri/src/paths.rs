@@ -76,6 +76,9 @@ pub fn opencode_config_dir() -> Result<PathBuf, String> {
 
 /// Root of this application's own data (chat workspaces, computer-control gate).
 pub fn app_data_dir() -> Result<PathBuf, String> {
+    crate::migration::resolve(&app_data_parent()?)
+}
+pub fn app_data_parent() -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
         let root =
@@ -83,16 +86,23 @@ pub fn app_data_dir() -> Result<PathBuf, String> {
         if !root.is_absolute() {
             return Err("LOCALAPPDATA должен быть абсолютным путём".into());
         }
-        return Ok(root.join("opencode-desktop"));
+        Ok(root)
     }
     #[cfg(not(target_os = "windows"))]
-    resolve("XDG_DATA_HOME", ".local/share", "opencode-desktop")
+    {
+        let roots = candidates("XDG_DATA_HOME", ".local/share")?;
+        Ok(roots
+            .iter()
+            .find(|p| p.join("enki").exists() || p.join("opencode-desktop").exists())
+            .unwrap_or(&roots[0])
+            .clone())
+    }
 }
 
 /// Path used *on the remote machine* by the SSH chat-workspace helper. It is a
 /// literal, not a local resolution: the remote host has its own HOME and may not
 /// be the same OS, and existing remote chats already live here.
-pub const REMOTE_CHATS_SUBPATH: &str = ".local/share/opencode-desktop/chats";
+pub const REMOTE_CHATS_SUBPATH: &str = ".local/share/enki/chats";
 
 /// OpenCode owns one shared database under its data root.
 pub fn opencode_data_dir() -> Result<PathBuf, String> {
@@ -194,7 +204,7 @@ mod tests {
         fs::create_dir_all(&home).unwrap();
         let _home = Scoped::set("HOME", Some(&home));
         let _data = Scoped::set("XDG_DATA_HOME", Some(&xdg));
-        assert_eq!(app_data_dir().unwrap(), xdg.join("opencode-desktop"));
+        assert_eq!(app_data_dir().unwrap(), xdg.join("enki"));
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -214,10 +224,7 @@ mod tests {
             opencode_config_dir().unwrap(),
             home.join(".config/opencode")
         );
-        assert_eq!(
-            app_data_dir().unwrap(),
-            home.join(".local/share/opencode-desktop")
-        );
+        assert_eq!(app_data_dir().unwrap(), home.join(".local/share/enki"));
         fs::remove_dir_all(&root).unwrap();
     }
 

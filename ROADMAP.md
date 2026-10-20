@@ -812,3 +812,16 @@ See [model services](docs/MODEL-SERVICES.md); release receipt and cross-platform
 - [x] Rename queued «Сейчас» to «Скорректировать». Keep the same session and safe-boundary steering, without abort/clear or disturbing the remaining queue.
 - [x] Render corrections as compact «Уточнение» notes, with durable OpenCode part metadata and scoped Pi live/history markers. Send explicit continuation guidance; hide only exact app-owned same-session guidance.
 - [x] Verify duplicate-click/queue preservation and Pi process/model/thinking preservation, live/history classification and ordinary-message distinction.
+
+## Enki display branding, composer and dictation readiness (0.2.82)
+
+- [x] First durable encoder checkpoint and live/unmuted track gate «Можно говорить»; bounded visible failure instead of premature readiness. Preserve pre-roll, progressive ASR, recovery and suspended-WebAudio capture.
+- [x] Independent display-frame waveform, peak envelope, growing history and subpixel scrolling; responsive orange authoritative full-access badge and image previews.
+- [x] Enki UI/window/tray/macOS display name, stable package/data/update identity. Rename the existing protected workshop without duplicating it; preserve exact legacy Pi hidden reminders.
+- [x] Actual Chromium encoder/CPU ASR retains first spoken word; isolated native macOS WebKit AAC/MP4 readiness, canvas and recovery pass with synthetic input. Windows/Linux live shell checks remain separate.
+
+## Enki: совместимый переход — 0.2.82
+
+- [x] Переходный подписанный маршрут обновлений для старых клиентов; новые нативные клиенты принимают Enki.
+- [x] Атомарный перенос собственных данных в enki, сохранение абсолютных путей, блокировка/журнал/восстановление; OpenCode/Pi остаются независимыми.
+- [ ] Полное переименование пакета и исходной папки в следующем релизе Enki после публикации перехода.

@@ -6,8 +6,9 @@ import { captureErrorMessage, micUnavailableMessage } from '../voice/captureErro
 import { activeDictationSegments, SegmentedCapture } from '../voice/capture';
 import { dictationJournal, dictationScope, type DictationSegment } from '../voice/journal';
 import { TranscriptionQueue } from '../voice/transcriptionQueue';
+import { VoiceWaveform } from './VoiceWaveform';
 import { Icon } from './Icon';
-type Phase = 'idle' | 'requesting' | 'recording' | 'transcribing';
+type Phase = 'idle' | 'requesting' | 'preparing' | 'recording' | 'transcribing';
 export function VoiceInput({ disabled, onActiveChange }: {
     disabled: boolean;
     onActiveChange?: (active: boolean) => void;
@@ -17,8 +18,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
     const [seconds, setSeconds] = useState(0);
     const [pending, setPending] = useState<DictationSegment[]>([]);
     const [noVad, setNoVad] = useState(false);
-    const canvas = useRef<HTMLCanvasElement>(null);
-    const history = useRef(Array<number>(48).fill(0));
+    const level = useRef(0);
     const epoch = useRef(0), alive = useRef(true);
     const capture = useRef<SegmentedCapture | null>(null);
     const audio = useRef<AudioContext | null>(null);
@@ -91,17 +91,6 @@ export function VoiceInput({ disabled, onActiveChange }: {
         setPhase('idle');
         void refresh().catch(e => setError(String(e)));
     };
-    const draw = (level: number) => {
-        const values = history.current;
-        values.push(Math.min(1, level * 5));
-        values.shift();
-        const el = canvas.current, ctx = el?.getContext('2d');
-        if (!el || !ctx)
-            return;
-        ctx.clearRect(0, 0, el.width, el.height);
-        ctx.fillStyle = getComputedStyle(el).color;
-        values.forEach((value, i) => { const height = Math.max(3, value * el.height); ctx.beginPath(); ctx.roundRect(i * 6, (el.height - height) / 2, 3, height, 2); ctx.fill(); });
-    };
     const start = async () => {
         const settings = { ...(store.state.prefs.asr ?? defaultAsr) }, problem = validateAsr(settings);
         if (problem) {
@@ -115,7 +104,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
         }
         const operation = ++epoch.current, active = () => alive.current && epoch.current === operation && currentScope.current === scope;
         setError('');
-        setSeconds(0);
+        setSeconds(0); level.current = 0;
         setNoVad(false);
         setPhase('requesting');
         // Resume while still in the user's click gesture; never await WebKit's
@@ -150,12 +139,14 @@ export function VoiceInput({ disabled, onActiveChange }: {
                 void context?.close().catch(() => { });
                 return;
             }
+            setPhase('preparing');
             const work = processor();
             const recording = new SegmentedCapture(stream, context, dictationJournal, workspace, key, settings, {
-                progress: (time, level, vad) => { if (active()) {
+                ready: () => { if (active()) setPhase('recording'); },
+                progress: (time, amplitude, vad) => { if (active()) {
                     setSeconds(time);
                     setNoVad(time >= 3 && !vad);
-                    draw(level);
+                    level.current = amplitude;
                 } },
                 segmentReady: () => { void work.drain(); if (active())
                     void refresh().catch(e => setError(String(e))); },
@@ -175,7 +166,6 @@ export function VoiceInput({ disabled, onActiveChange }: {
             });
             capture.current = recording;
             recording.start();
-            setPhase('recording');
         }
         catch (e) {
             stream?.getTracks().forEach(t => t.stop());
@@ -225,12 +215,13 @@ export function VoiceInput({ disabled, onActiveChange }: {
     </div>}
     {phase === 'idle' ? <button className="icon-btn" title="Надиктовать" aria-label="Надиктовать" disabled={disabled || pending.length > 0} onClick={() => void start()}><Icon name="mic"/></button> :
             <div className="voice-recording" role="status" aria-label="Надиктовка">
-        {phase !== 'recording' && <button className="voice-cancel icon-btn" aria-label={phase === 'requesting' ? 'Отменить диктовку' : 'Прекратить ожидание распознавания'} title={phase === 'requesting' ? 'Отменить' : 'Готовый текст и сохранённый звук останутся'} onClick={cancel}><Icon name="close"/></button>}
+        <button className="voice-cancel icon-btn" aria-label={phase === 'requesting' || phase === 'preparing' ? 'Отменить диктовку' : phase === 'recording' ? 'Остановить диктовку' : 'Прекратить ожидание распознавания'} title={phase === 'requesting' || phase === 'preparing' ? 'Отменить' : 'Готовый текст и сохранённый звук останутся'} onClick={cancel}><Icon name="close"/></button>
         {phase === 'recording' ? <>
-          <canvas width="288" height="32" ref={canvas} aria-label="Уровень звука микрофона"/>
+          <VoiceWaveform level={level}/>
+          <span className="voice-ready" role="status">Можно говорить</span>
           <span className="voice-timer" title={noVad ? 'Автостоп по тишине недоступен. Остановите запись вручную.' : 'Запись остановится после минуты тишины'}>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</span>
           <button className="voice-finish icon-btn" aria-label="Закончить и распознать" title="Закончить диктовку" onClick={finish}><Icon name="stop" size={14}/></button>
-        </> : <span>{phase === 'requesting' ? 'Доступ к микрофону…' : 'Распознаю последние фрагменты…'}</span>}
+        </> : <span>{phase === 'requesting' ? 'Подключаю микрофон… Пока не говорите' : phase === 'preparing' ? 'Подготавливаю запись… Пока не говорите' : 'Распознаю последние фрагменты…'}</span>}
       </div>}
   </div>;
 }

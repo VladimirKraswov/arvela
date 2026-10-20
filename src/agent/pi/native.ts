@@ -83,7 +83,7 @@ export function isNativeHost(): boolean {
 }
 
 const UNAVAILABLE =
-  "Pi доступен только в установленном приложении Arvela.";
+  "Pi доступен только в установленном приложении Enki.";
 
 /** Used in the browser preview, where no native host exists. */
 const unavailableBridge: PiBridge = {

@@ -31,7 +31,7 @@ function AttachmentChip({ file, onRemove, disabled }: { file: DraftAttachment; o
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  return <div className="attachment-chip">
+  return <div className={`attachment-chip ${preview ? "attachment-chip-image" : ""}`}>
     {preview ? <img src={preview} alt=""/> : <Icon name="file" size={18}/>}
     <span title={file.name}>{file.name}</span><small>{file.size < 1024 * 1024 ? `${Math.max(1, Math.ceil(file.size / 1024))} КБ` : `${(file.size / 1024 / 1024).toFixed(1)} МБ`}</small>
     <button type="button" disabled={disabled} aria-label={`Убрать ${file.name}`} onClick={onRemove}><Icon name="close" size={14}/></button>
@@ -298,11 +298,7 @@ export function Composer() {
         <textarea
           ref={textareaRef}
           aria-label="Message"
-          placeholder={
-            store.isProjectless()
-              ? "Спросите что угодно или поручите задачу…"
-              : "Спросите о коде или поручите задачу…"
-          }
+          placeholder="Работайте с Enki"
           value={draft}
           disabled={s.ui.workspacePreparing}
           onChange={(e) => store.setDraft(e.target.value)}
@@ -327,7 +323,7 @@ export function Composer() {
         <div className="composer-bar">
           <div className="composer-controls-left">
             <button className="composer-plus" aria-label="Открыть команды" title="Команды и действия" onClick={() => store.setUi({paletteOpen: true})}>
-              <Icon name="command" size={19} />
+              <Icon name="plus" size={19} />
             </button>
             <input ref={fileInputRef} type="file" multiple hidden disabled={s.ui.sending} aria-label="Выбрать файлы" onChange={event => {
               addFiles(Array.from(event.currentTarget.files ?? []), chooserScope.current ?? scope);
@@ -336,6 +332,8 @@ export function Composer() {
             <button className="composer-plus" type="button" disabled={s.ui.sending} aria-label="Приложить файлы" title="Приложить файлы" onClick={openChooser}><Icon name="file" size={18}/></button>
             <SelectMenu
               label="Режим доступа"
+              className={store.getAccessMode() === "full" ? "composer-access-full" : "composer-access"}
+              icon={store.getAccessMode() === "full" ? "shield" : undefined}
               disabled={running || s.ui.sending || !connected}
               value={store.getAccessMode()}
               options={[

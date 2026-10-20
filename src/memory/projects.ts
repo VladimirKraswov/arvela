@@ -13,7 +13,7 @@ export class ProjectBindings {
       const timer = setTimeout(() => { settled = true; reject(Error('Хранилище проектов не отвечает.')); }, 5000);
       q.onupgradeneeded = () => q.result.createObjectStore('bindings', { keyPath: 'key' });
       q.onsuccess = () => { clearTimeout(timer); if (settled) { q.result.close(); return; } settled = true; q.result.onversionchange = () => this.close(); resolve(q.result); };
-      q.onerror = q.onblocked = () => { clearTimeout(timer); settled = true; reject(Error('Закройте другое окно Arvela и повторите сохранение.')); };
+      q.onerror = q.onblocked = () => { clearTimeout(timer); settled = true; reject(Error('Закройте другое окно Enki и повторите сохранение.')); };
     }).catch(e => { this.database = undefined; throw e; });
     return this.database;
   }

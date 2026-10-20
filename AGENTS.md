@@ -1,8 +1,10 @@
-# Arvela — agent instructions
+# Enki — agent instructions
+
+Application name: Enki (Энки). Migrate app-owned names and paths during upgrades without losing sessions. Preserve legacy readers, signing trust and old absolute-path aliases as explicit compatibility mechanisms; never rename independently installed OpenCode/Pi engines or their databases. The protected session is «Мастерская».
 
 ## Mission and scope
 
-Implement the user's Arvela: a native Tauri interface over independently installed OpenCode and Pi. OpenCode remains the default, and both agents have separate settings and honest capability boundaries. Stable app identity/data paths retain their original names. The user initially delegated implementation to Qwen3.8 Flash Next via OpenCode. On 2026-09-22 the user explicitly reassigned fixes and the Codex-style UI/UX rebuild to the coordinating Codex agent; direct implementation is now authorized. This is a new standalone project. Work only in this repository and test-owned temporary directories. Preserve other projects, existing OpenCode sessions, global model settings, the inference server and the installed OpenCode CLI.
+Implement the user's Enki: a native Tauri interface over independently installed OpenCode and Pi. OpenCode remains the default, and both agents have separate settings and honest capability boundaries. Data path changes require a tested, restart-safe migration. The user initially delegated implementation to Qwen3.8 Flash Next via OpenCode. On 2026-09-22 the user explicitly reassigned fixes and the Codex-style UI/UX rebuild to the coordinating Codex agent; direct implementation is now authorized. This is a new standalone project. Work only in this repository and test-owned temporary directories. Preserve other projects, existing OpenCode sessions, global model settings, the inference server and the installed OpenCode CLI.
 
 At each new task or resumed/compacted operation, read `.pi/TASK.md`, this file, and the relevant roadmap section. Also read the canonical local model guidance, when present: `~/.pi/agent/operations/QWEN_FLASH_NEXT_GUARDRAILS.md`. Do not copy private credentials into the checkpoint. Missing optional local guidance is not a blocker for other contributors.
 

@@ -37,10 +37,10 @@ try{
     envelopes[kind]={payload:payload.toString('base64'),signature:fs.readFileSync(file+'.sig','utf8').trim()};
     console.log(`${kind}: ${payload.length} bytes, SHA256 ${hash(payload)}`);
   }
-  const current=await request('GET',`/api/updates/${channel}`);
+  const current=await request('GET',`/api/updates/enki/${channel}`);
   const receipt=await publishAndVerify(
     ()=>request('POST','/api/updates',{channel,expectedRevision:current.revision,...envelopes}),
-    ()=>request('GET',`/api/updates/${channel}`),
+    ()=>request('GET',`/api/updates/enki/${channel}`),
     {version,nativeFingerprint:fp},envelopes,
     digest=>request('GET',`/api/updates/artifacts/${digest}`,undefined,40*1048576));
   const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();

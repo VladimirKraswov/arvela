@@ -40,7 +40,7 @@ export function BrowserEnvironmentSettings({ disabled, running }: Props) {
       <button className="btn" disabled={locked} onClick={() => { setDraft({...browserEnvironmentDefaults,engine:"chrome",display:"window",reduceAutomationSignals:true,actionDelayMs:150}); setError(""); setNotice("Профиль «Совместимость» использует установленный Chrome в обычном окне. Сохраните изменения."); }}>Совместимость</button>
       <button className="btn" disabled={locked} onClick={() => { setDraft({...browserEnvironmentDefaults,storage:"temporary",doNotTrack:true,protectWebRTC:true,serviceWorkers:"block"}); setError(""); setNotice("Профиль «Приватный» не сохраняет авторизацию между запусками браузера. Сохраните изменения."); }}>Приватный</button>
     </div>
-    {select("engine", "Браузер", [["chromium", "Chromium Arvela"], ["chrome", "Установленный Google Chrome"]])}
+    {select("engine", "Браузер", [["chromium", "Chromium Enki"], ["chrome", "Установленный Google Chrome"]])}
     {select("display", "Запуск", [["embedded", "Во встроенной панели"], ["window", "С обычным окном браузера"]])}
     {select("storage", "Данные сайтов", [["persistent", "Сохранять отдельно для каждой сессии"], ["temporary", "Временный профиль до закрытия браузера"]])}
     <div className="setting-row engine-field-row"><div className="setting-label"><label htmlFor="browser-env-locale">Язык сайтов</label><SettingHelp topic="browser.locale" title="Язык сайтов"/></div><div className="setting-control"><input id="browser-env-locale" value={draft.locale} maxLength={100} placeholder="Системный · ru-RU, en-US" disabled={locked} onChange={event => change("locale", event.target.value)}/></div></div>

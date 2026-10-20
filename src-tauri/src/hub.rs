@@ -134,9 +134,14 @@ pub(crate) fn release_get(path: &str, identity: &str) -> Result<Value, String> {
     {
         return Err("Подключение Hub изменилось. Проверьте обновления заново.".into());
     }
+    let route = if matches!(path, "stable" | "preview") {
+        format!("enki/{path}")
+    } else {
+        path.to_owned()
+    };
     let response = client(&c)?
         .get(format!(
-            "{}/api/updates/{path}",
+            "{}/api/updates/{route}",
             c.endpoint.trim_end_matches('/')
         ))
         .timeout(Duration::from_secs(120))

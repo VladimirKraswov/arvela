@@ -7,17 +7,28 @@ import {createRoot} from 'react-dom/client';
 import '/src/styles.css';
 import {Composer} from '/src/components/Composer.tsx';
 import {store} from '/src/state/store.ts';
+import {attachmentDrafts,attachmentScope} from '/src/attachments/drafts.ts';
+window.fixtureState=store;window.fixtureDrafts={attachmentDrafts,attachmentScope};
 const params=new URLSearchParams(location.search); document.getElementById('fixture').style.width=(params.get('width')??'1000')+'px'; document.documentElement.style.fontSize=(params.get('font')??'14')+'px';
 const s=store.state;
+if(params.has('full'))store.getAccessMode=()=> 'full';
+if(params.has('microphone')) {
+ s.prefs.asr={endpoint:location.origin+'/fixture/audio/transcriptions',model:'gigaam-v3-e2e-rnnt',language:'ru'};
+ navigator.mediaDevices.getUserMedia=async()=>{
+  const context=new AudioContext();await context.resume();const destination=context.createMediaStreamDestination();const clock=context.createOscillator(),quiet=context.createGain();quiet.gain.value=.000001;clock.connect(quiet).connect(destination);clock.start();
+  window.fixtureMic={context,destination,play:async(url)=>{const buffer=await context.decodeAudioData(await(await fetch(url)).arrayBuffer());const source=context.createBufferSource();source.buffer=buffer;source.connect(destination);source.start();return buffer.duration;},tone:()=>{const oscillator=context.createOscillator(),gain=context.createGain();oscillator.frequency.value=220;gain.gain.value=.18;oscillator.connect(gain).connect(destination);oscillator.start();window.fixtureOscillator=oscillator;}};
+  return destination.stream;
+ };
+}
 if(params.has('pi')) {store.engineIdFor=()=> 'pi';store.piModelOptions=()=>[{providerID:'local',modelID:'m2',label:'Qwen3.8 27B Pi — mixed groupwise-int (Tesla V100)'}];}
 s.activeSessionId='fixture';s.directory='/tmp/ui-fixture';s.prefs.activeHost='local';
 s.prefs.projectEngine={};s.prefs.sessionEngine={fixture:'opencode'};
 const names=['Qwen3.8 Flash Next NVFP4 (RTX 5090)','Qwen3.8 27B NVFP4 (NInfer · V100)','Qwen3.8 27B Pi — mixed groupwise-int (Tesla V100)'];
 const models=Object.fromEntries(names.map((name,i)=>['m'+i,{id:'m'+i,name,variants:{medium:{},xhigh:{}}}]));
 store.getModelChoice=()=>({providerID:'local',modelID:params.has('pi')?'m2':'m0',variant:'medium'});
-store.connectedProvidersWithModels=()=>[{id:'local',models}];
+store.connectedProvidersWithModels=()=>[{id:'local',models}];store.configuredProvidersWithModels=()=>[{id:'local',models}];
 store.modelInfo=()=>models.m0;store.engineReady=()=>true;
-store.activeSession=()=>({id:'fixture'});store.getDraft=()=>'';s.prefs.queues={fixture:params.has('queue') ? Array.from({length:5},(_,i)=>({id:'q'+i,text:('Задача '+(i+1)+' — подробное описание\n').repeat(12),state:'ready',model:{providerID:'local',modelID:params.has('recovery')?'m1':'m0',variant:'medium'},attachments:i===0?{files:[{id:'f',name:'Документ.pdf'}]}:undefined})) : []};
+store.activeSession=()=>({id:'fixture'});if(!params.has('microphone'))store.getDraft=()=>'';s.prefs.queues={fixture:params.has('queue') ? Array.from({length:5},(_,i)=>({id:'q'+i,text:('Задача '+(i+1)+' — подробное описание\n').repeat(12),state:'ready',model:{providerID:'local',modelID:params.has('recovery')?'m1':'m0',variant:'medium'},attachments:i===0?{files:[{id:'f',name:'Документ.pdf'}]}:undefined})) : []};
 if(params.has('recovery')) s.chat.sessions.fixture={lastError:'Insufficient Balance',status:{type:'idle'}};
 store.primaryAgentNames=()=>['qwen-build'];store.getAgentChoice=()=> 'qwen-build';
 store.contextInfo=()=>({used:16000,limit:262144,percent:6,threshold:200000,remaining:184000,auto:true});

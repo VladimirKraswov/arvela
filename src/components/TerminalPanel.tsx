@@ -222,7 +222,7 @@ export function TerminalPanel() {
       }
       if (!pty) {
         pty = await client.ptyCreate(
-          { cwd: dir, title: "Arvela" },
+          { cwd: dir, title: "Enki" },
           dir,
         );
         if (gen !== genRef.current) {

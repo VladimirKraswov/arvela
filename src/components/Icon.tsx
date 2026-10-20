@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, string> = {
+  shield: "M12 3 21 7v5c0 5-5 8-9 10-4-2-9-5-9-10V7zM12 7v6M12 17h.01",
   grip: "M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01",
   popout: "M3 3h18v18H3zM12 12h6v6h-6z",
   lock: "M6 10h12v11H6zM8 10V6a4 4 0 0 1 8 0v4",

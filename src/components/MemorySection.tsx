@@ -20,7 +20,7 @@ export function MemorySection({ server, directory, proposed }: { server: string;
     return () => { live = false; serial++; window.removeEventListener('focus', read); };
   }, []);
   if (error) return <section className="outcome-section"><details><summary>Память проекта</summary><p role="alert" className="context-error">{error}</p><p className="context-note">Подключение настраивается в общей облачной библиотеке.</p></details></section>;
-  if (!isNative() || !connection || !connection.c.enabled || !directory) return <section className="outcome-section"><details><summary>Память проекта</summary><p className="context-note">{!isNative() ? 'Память доступна в установленном Arvela.' : !directory ? 'Откройте папку проекта, чтобы связать её с общей памятью.' : connection?.c.enabled === false ? 'Включите подключение к Hub в настройках облачной библиотеки.' : 'Проверка подключения…'}</p></details></section>;
+  if (!isNative() || !connection || !connection.c.enabled || !directory) return <section className="outcome-section"><details><summary>Память проекта</summary><p className="context-note">{!isNative() ? 'Память доступна в установленном Enki.' : !directory ? 'Откройте папку проекта, чтобы связать её с общей памятью.' : connection?.c.enabled === false ? 'Включите подключение к Hub в настройках облачной библиотеки.' : 'Проверка подключения…'}</p></details></section>;
   const scope = { hub: connection.hub, server, directory };
   return <ProjectMemory key={projectKey(scope)} scope={scope} shareText={connection.c.shareText} proposed={proposed} />;
 }

@@ -20,6 +20,27 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256(base64.b64decode(envelope['payload'])).hexdigest(),artifact['digest'])
         with self.assertRaises(m.Fault) as e:self.call('POST',body={},actor=self.reader)
         self.assertEqual(e.exception.status,403)
+    def test_legacy_clients_receive_bridge_new_clients_receive_latest_and_gc_keeps_bridge(self):
+        def publish(version,product,revision):
+            source=package('source',version)
+            payload=json.loads(base64.b64decode(source['payload']))
+            payload['files']['src-tauri/tauri.conf.json']=b64(json.dumps({'productName':product}).encode())
+            source['payload']=b64(json.dumps(payload).encode())
+            return self.call('POST',body=dict(channel='stable',expectedRevision=revision,hot=package('hot',version),source=source))
+        bridge=publish('0.2.82','Arvela',None)
+        latest=publish('0.2.83','Enki',bridge['revision'])
+        self.assertEqual(self.call('GET','/stable'),bridge)
+        self.assertEqual(self.call('GET','/enki/stable'),latest)
+        self.assertEqual(self.call('GET')['stable'],latest)
+        self.assertEqual(self.h.releases.download('/downloads/latest')[0]['version'],'0.2.83')
+        for a in bridge['artifacts'].values():
+            p=self.h.releases.root/(a['digest']+'.json')
+            import os
+            os.utime(p,(1,1))
+        for i in range(45):self.h.releases.atomic(self.h.releases.root/(hashlib.sha256(str(i).encode()).hexdigest()+'.json'),{})
+        self.h.releases.collect()
+        for a in bridge['artifacts'].values():self.assertIsNotNone(self.call('GET','/artifacts/'+a['digest']))
+        with self.assertRaises(m.Fault):self.call('GET','/enki/unknown')
     def test_cas_monotonic_version_and_incomplete_pair_preserve_head(self):
         head=self.publish()
         for body in [dict(channel='stable',expectedRevision=None,hot=package('hot','2.0.0'),source=package('source','2.0.0')),dict(channel='stable',expectedRevision=head['revision'],hot=package('hot','1.0.1'),source=package('source','1.0.2'))]:

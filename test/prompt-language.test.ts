@@ -57,3 +57,9 @@ it('corrections keep visible text, gain durable metadata, and survive Pi live/hi
  expect(live.events.find(e=>e.type==='message.part.updated')?.properties.part).toMatchObject({text:'Учитывай Windows',metadata:{arvelaSteering:1}});
  expect(isSteeringText('<attached_file name="x">\n\n'+steeringReminder('s'),'s')).toBe(false);
 });
+
+it('keeps pre-Enki language reminders hidden without rewriting old Pi history',()=>{
+ const old=languageReminder('s').replace('Язык общения Enki:','Язык общения Arvela:');
+ expect(visiblePromptText('старое сообщение\n\n'+old,'s')).toBe('старое сообщение');
+ expect(visiblePromptText('quoted:'+old,'s')).toBe('quoted:'+old);
+});

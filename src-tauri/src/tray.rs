@@ -36,12 +36,12 @@ pub fn close(app: &tauri::AppHandle) {
     }
 }
 pub fn setup(app: &tauri::AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Открыть Arvela", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Открыть Enki", true, None::<&str>)?;
     let updates = MenuItem::with_id(app, "updates", "Обновления…", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Завершить Arvela", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Завершить Enki", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &updates, &quit_item])?;
     let mut tray = TrayIconBuilder::with_id("arvela-runtime")
-        .tooltip("Arvela")
+        .tooltip("Enki")
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {

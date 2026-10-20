@@ -17,11 +17,11 @@ it('renders one protected entry before projects without destructive actions or d
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try {
   await act(async()=>root.render(createElement(Sidebar)));
-  const entry=host.querySelector<HTMLButtonElement>('[aria-label="Мастерская Arvela"]')!;
-  expect(entry).not.toBeNull();expect(host.querySelectorAll('[aria-label="Мастерская Arvela"]')).toHaveLength(1);
+  const entry=host.querySelector<HTMLButtonElement>('[aria-label="Мастерская"]')!;
+  expect(entry).not.toBeNull();expect(host.querySelectorAll('[aria-label="Мастерская"]')).toHaveLength(1);
   expect(entry.compareDocumentPosition(host.querySelector('.sidebar-scroll')!)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(entry.parentElement!.querySelectorAll('button')).toHaveLength(1);
-  expect(host.querySelector('[aria-label="Действия: Мастерская Arvela"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Действия: Мастерская"]')).toBeNull();
   expect(host.querySelector('[aria-label="Проект workshop"]')).toBeNull();
   await act(async()=>entry.click());expect(open).toHaveBeenCalledOnce();
  }finally{act(()=>root.unmount());}

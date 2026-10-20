@@ -222,7 +222,7 @@ fn validate_identity(v: &Verified) -> Result<(), String> {
         }
         if name == "src-tauri/tauri.conf.json"
             && (value["identifier"] != "dev.local.opencodedesktop"
-                || value["productName"] != "Arvela")
+                || !matches!(value["productName"].as_str(), Some("Arvela" | "Enki")))
         {
             return Err("Источник меняет идентификатор приложения".into());
         }
@@ -234,7 +234,7 @@ fn validate_identity(v: &Verified) -> Result<(), String> {
     )
     .map_err(|_| "Invalid Cargo manifest")?;
     if !cargo.contains(&format!("version = \"{}\"", v.packet.version))
-        || !cargo.contains("name = \"arvela\"")
+        || !(cargo.contains("name = \"arvela\"") || cargo.contains("name = \"enki\""))
     {
         return Err("Invalid native package identity".into());
     }
@@ -278,11 +278,18 @@ fn platform_args() -> Vec<&'static str> {
 fn artifact(dir: &Path) -> Result<PathBuf, String> {
     let root = dir.join("src-tauri/target/release/bundle");
     #[cfg(target_os = "macos")]
-    return root
-        .join("macos/Arvela.app")
-        .is_dir()
-        .then(|| root.join("macos/Arvela.app"))
-        .ok_or("Сборка не создала Arvela.app".into());
+    {
+        let candidates: Vec<_> = ["macos/Enki.app", "macos/Arvela.app"]
+            .into_iter()
+            .map(|p| root.join(p))
+            .filter(|p| p.is_dir())
+            .collect();
+        if candidates.len() == 1 {
+            Ok(candidates[0].clone())
+        } else {
+            Err("Не найден единственный пакет приложения".into())
+        }
+    }
     #[cfg(not(target_os = "macos"))]
     {
         #[cfg(target_os = "windows")]

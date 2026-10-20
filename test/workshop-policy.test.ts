@@ -39,3 +39,9 @@ it('preserves arbitrary markers, quoted reminders and file contents',()=>{
  expect(workshopVisibleText(text,'other')).toBe(text);
  expect(workshopVisibleText(text,'workshop')).not.toContain('<arvela-workshop-release-v1>');
 });
+
+it('keeps the exact legacy workshop reminder hidden after the display-name migration',()=>{
+ const old=workshopReminder('workshop').replace('для Мастерской:','для Мастерской Arvela:');
+ expect(workshopVisibleText('текст\n\n'+old,'workshop')).toBe('текст');
+ expect(workshopVisibleText('quoted:'+old,'workshop')).toBe('quoted:'+old);
+});

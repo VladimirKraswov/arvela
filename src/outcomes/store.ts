@@ -36,7 +36,7 @@ export class OutcomeStore {
    q.onupgradeneeded=()=>{const s=q.result.createObjectStore('cards',{keyPath:'id'});s.createIndex('scope','scopeKey');};
    q.onsuccess=()=>{clearTimeout(timer);if(settled){q.result.close();return;}settled=true;q.result.onversionchange=()=>{q.result.close();this.db=undefined;};resolve(q.result);};
    q.onerror=()=>{clearTimeout(timer);settled=true;reject(Error(ERROR));};
-   q.onblocked=()=>{clearTimeout(timer);settled=true;reject(Error('Закройте другое окно Arvela для обновления хранилища.'));};
+   q.onblocked=()=>{clearTimeout(timer);settled=true;reject(Error('Закройте другое окно Enki для обновления хранилища.'));};
   }).catch(e=>{this.db=undefined;throw e;});return this.db;
  }
  async list(scope?:OutcomeScope):Promise<Outcome[]> {

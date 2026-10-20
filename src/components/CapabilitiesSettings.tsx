@@ -303,7 +303,7 @@ export function CapabilitiesSettings({
         </p>
       )}
       {!isNative() && (
-        <p>Управление доступно в установленном Arvela.</p>
+        <p>Управление доступно в установленном Enki.</p>
       )}
       <div className="settings-actions">
         <SettingField label="Область">{" "}<select

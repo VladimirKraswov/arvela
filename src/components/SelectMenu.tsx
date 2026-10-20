@@ -4,6 +4,7 @@ import { Icon } from "./Icon";
 export function SelectMenu({
   label,
   className,
+  icon,
   value,
   options,
   onChange,
@@ -14,6 +15,7 @@ export function SelectMenu({
 }: {
   label: string;
   className?: string;
+  icon?: string;
   value: string;
   options: {
     value: string;
@@ -77,6 +79,7 @@ export function SelectMenu({
           setQuery("");
         }}
       >
+        {icon && <Icon name={icon} size={16}/>}
         <span>
           {selected?.label ?? value ?? label}
         </span>

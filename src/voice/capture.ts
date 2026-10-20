@@ -13,6 +13,7 @@ export const activeDictationSegments = () => new Set([...captures].flatMap(c => 
 /** Updates/normal quit await audio persistence, never an ASR network roundtrip. */
 export async function flushDictationCapture() { await Promise.all([...captures].map(c => c.finish())); await dictationJournal.flush(); }
 export interface CaptureCallbacks {
+    ready?(): void;
     progress(seconds: number, level: number, vadAvailable: boolean): void;
     segmentReady(): void;
     stopped(): void;
@@ -28,6 +29,8 @@ export class SegmentedCapture {
     private analyser?: AnalyserNode;
     private values?: Uint8Array<ArrayBuffer>;
     private ended = false;
+    private checkpointReady = false;
+    private ready = false;
     private failing = false;
     private finishing?: Promise<void>;
     private started = Date.now();
@@ -51,7 +54,7 @@ export class SegmentedCapture {
         }
         try {
             this.current = this.create(false);
-            this.timer = setInterval(() => this.tick(), 250);
+            this.timer = setInterval(() => this.tick(), 50);
         }
         catch (error) {
             this.release();
@@ -76,6 +79,9 @@ export class SegmentedCapture {
             clip.segment.mime = recorder.mimeType || event.data.type;
             clip.segment.parts.push(event.data);
             persist();
+            // Show readiness only after the encoder has produced real data and
+            // its first checkpoint is safe. Speech can start after this signal.
+            void clip.writes.then(() => { if (!this.ended && !this.failing) { this.checkpointReady = true; this.notifyReady(); } });
         } };
         recorder.onerror = () => this.fail(Error('Запись прервана. Сохранённые фрагменты можно восстановить. Проверьте микрофон.'));
         recorder.onstop = () => {
@@ -100,10 +106,21 @@ export class SegmentedCapture {
         }
         return clip;
     }
+    private notifyReady() {
+        if (this.ready || this.ended || this.failing || !this.checkpointReady) return;
+        if (!this.input.getTracks().every(track => track.readyState !== 'ended' && !track.muted)) return;
+        this.ready = true;
+        this.callbacks.ready?.();
+    }
     private tick() {
         if (this.ended)
             return;
         const now = Date.now();
+        this.notifyReady();
+        if (!this.ready && now - this.started >= 8000) {
+            this.fail(Error('Микрофон не начал передавать звук. Проверьте устройство и попробуйте снова.'));
+            return;
+        }
         let rms: number | null = null;
         if (this.analyser && this.values && this.audio?.state !== 'suspended' && this.audio?.state !== 'closed') {
             this.analyser.getByteTimeDomainData(this.values);

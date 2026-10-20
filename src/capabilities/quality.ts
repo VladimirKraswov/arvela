@@ -9,7 +9,7 @@ export interface Experiment {
   id:string; scope:string; directory:string|null; path:string; name:string;
   baseline:string; candidate:string; baselinePath:string; candidatePath:string; trials:Trial[]; state:string;
 }
-const prefix='[Arvela skill trial] ';
+const prefix='[Enki skill trial] ';
 export function trialPrompt(e:Experiment, phase:Trial['phase'], scenario:string):string {
   const path=phase==='baseline'?e.baselinePath:e.candidatePath;
   return `${prefix}${JSON.stringify({id:e.id,phase,scenario:scenario.trim()})}\nПрочитай навык ${JSON.stringify(path)} и используй именно эту версию для задачи ниже. Не изменяй пакет навыка.\n\n${scenario.trim()}`;
