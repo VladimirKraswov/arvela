@@ -1,3 +1,4 @@
+import { conversationWindow } from '../chat/window';
 import { WorkspacePicker } from './WorkspacePicker';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { store, useAppState } from '../state/store';
@@ -22,29 +23,33 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   const progressState = useRef<Record<string, boolean>>(positions.get(cacheKey)?.progress ?? {});
   const controller = useRef<ChatScrollController | null>(null);
   const [away, setAway] = useState(false);
-  const first = useRef<string | undefined>(positions.get(cacheKey)?.first);
+  const following = useRef(positions.get(cacheKey)?.position.following ?? true);
+  const tail = useRef(true), jump = useRef(false);
+  const first = useRef<string | undefined>(following.current ? undefined : positions.get(cacheKey)?.first);
   const [, redraw] = useState(0);
   const order = slot?.messageOrder ?? [];
-  // Keep the same first visible message as new messages arrive. Never evict what is being read.
-  if (!first.current && order.length) first.current = order[Math.max(0, order.length - 60)];
   const reveal = s.ui.revealMessage?.sessionID === sessionId && s.ui.revealMessage.directory === s.directory
     && s.ui.revealMessage.server === (s.prefs.workspaceKey ?? s.prefs.endpoint) ? s.ui.revealMessage : null;
-  if (reveal && order.includes(reveal.messageID) && order.indexOf(reveal.messageID) < order.indexOf(first.current ?? "")) first.current = reveal.messageID;
-  const start = Math.max(0, order.indexOf(first.current ?? ''));
-  const messages = order.slice(start).map(id => slot!.messages[id]).filter(Boolean);
-  const bannerError = sessionBannerError(slot?.lastError, messages);
-  const rows = groupConversation(order.map(id => slot!.messages[id]).filter(Boolean));
-  const visibleIds = new Set(messages.map(m => m.id));
-  const visibleRows = rows.filter(row => row.kind === 'user' ? visibleIds.has(row.message.id) : row.messages.some(m=>visibleIds.has(m.id)));
+  if (reveal && order.includes(reveal.messageID)) {
+    following.current = false;
+    const range = conversationWindow(order, first.current, false), index = order.indexOf(reveal.messageID);
+    if (index < range.start || index >= range.end) first.current = reveal.messageID;
+  }
+  const {start, end} = conversationWindow(order, first.current, following.current);
+  first.current = order[start]; tail.current = end === order.length;
+  const messages = order.slice(start,end).map(id => slot!.messages[id]).filter(Boolean);
+  const bannerError = sessionBannerError(slot?.lastError, order.slice(-60).map(id => slot!.messages[id]).filter(Boolean));
+  const visibleRows = groupConversation(messages);
   const pending = sessionId ? store.pendingInteraction(sessionId) : { permissions: [], questions: [] };
   const permission = pending.permissions[0], question = pending.questions[0];
   const more = !!sessionId && !!s.historyCursors[sessionId] && !s.olderExhausted[sessionId];
 
   useLayoutEffect(() => {
     const el = scrollRef.current!, content = contentRef.current!;
-    const view = new ChatScrollController(el, (following, offBottom) => {
-      setAway(offBottom);
-      store.setConversationAtBottom(following && !offBottom);
+    const view = new ChatScrollController(el, (follow, offBottom) => {
+      following.current = follow && tail.current;
+      setAway(offBottom || !tail.current);
+      store.setConversationAtBottom(follow && !offBottom && tail.current);
     }, positions.get(cacheKey)?.position);
     controller.current = view;
     const resize = new ResizeObserver(() => view.schedule());
@@ -83,7 +88,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
     el.addEventListener('touchstart', touchStart, { passive: true }); el.addEventListener('touchmove', touchMove, { passive: true });
     el.addEventListener('pointerdown', pointer);
     return () => {
-      positions.set(cacheKey, { position: view.snapshot(), first: first.current, progress: progressState.current });
+      positions.set(cacheKey, { position: {...view.snapshot(), following:following.current}, first: first.current, progress: progressState.current });
       if (positions.size > 80) positions.delete(positions.keys().next().value!);
       resize.disconnect(); view.dispose(); controller.current = null;
       el.removeEventListener('conversation-disclosure', disclosure);
@@ -92,7 +97,10 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
     };
   }, [cacheKey]);
   // Before paint, preserve anchors for React updates; ResizeObserver handles async height changes.
-  useLayoutEffect(() => { controller.current?.layout(); });
+  useLayoutEffect(() => {
+    if (jump.current) { jump.current = false; controller.current?.latest(); }
+    else controller.current?.layout();
+  });
 
   useLayoutEffect(() => {
     if (!reveal || !scrollRef.current) return;
@@ -112,6 +120,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
   }, [reveal]);
 
   const older = async () => {
+    following.current = false;
     controller.current?.pause();
     if (start) { first.current = order[Math.max(0, start - 60)]; redraw(n => n + 1); }
     else if (sessionId) {
@@ -123,6 +132,14 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
       if (index > 0) first.current = next[Math.max(0, index - 60)];
       redraw(n => n + 1);
     }
+  };
+  const newer = () => {
+    following.current = false; controller.current?.pause();
+    first.current = order[Math.min(order.length - 1,start + 60)]; redraw(n => n + 1);
+  };
+  const latest = () => {
+    following.current = true; first.current = order[Math.max(0,order.length - 60)];
+    jump.current = true; redraw(n => n + 1);
   };
   const broken = store.engineIdFor() !== 'pi' && ['reconnecting','error','closed'].includes(s.connection.streamState);
   // Provenance must be visible: a handed-over chat never pretends the earlier
@@ -149,7 +166,7 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
           {s.ui.historyLoading ? 'Загрузка…' : start ? `${start} предыдущих сообщений` : 'Загрузить более ранние сообщения'}<Icon name="chevron" size={16} />
         </button>}
         {visibleRows.map((row, index) => {
-          const shown = row.kind === 'assistant' ? row.messages.filter(m=>visibleIds.has(m.id)) : [];
+          const shown = row.kind === 'assistant' ? row.messages : [];
           const firstMessage = row.kind === 'user' ? row.message : shown[0];
           const previous = visibleRows[index - 1];
           const previousTime = previous ? previous.kind === 'user' ? previous.message.time.created : previous.messages[previous.messages.length - 1].time.created : 0;
@@ -157,10 +174,11 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
             {dayKey(firstMessage.time.created) && (index === 0 || dayKey(previousTime) !== dayKey(firstMessage.time.created)) &&
               <div className="history-date">{dayLabel(firstMessage.time.created)}</div>}
             {row.kind === 'user' ? <UserMessageView message={row.message} /> : <AssistantTurnView sessionId={sessionId!} messages={shown} progressState={progressState.current} progressKey={row.key}
-              partial={shown.length < row.messages.length || (index === 0 && (more || start > 0))}
-              active={index === visibleRows.length - 1 && !!slot && ['busy', 'retry'].includes(slot.status.type)} />}
+              partial={(index === 0 && (more || start > 0)) || (index === visibleRows.length - 1 && end < order.length)}
+              active={end === order.length && index === visibleRows.length - 1 && !!slot && ['busy', 'retry'].includes(slot.status.type)} />}
           </div>;
         })}
+        {end < order.length && <button className="history-more" onClick={newer}>Следующие сообщения · {order.length - end}<Icon name="chevron" size={16}/></button>}
         {bannerError && <div className="msg-error" role="alert">{bannerError}</div>}
         {slot?.status.type === 'busy' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />Агент работает…</div>}
         {slot?.status.type === 'retry' && <div className="status-line" role="status"><span className="tool-spinner" aria-hidden />{slot.status.message ?? 'Повтор подключения…'}</div>}
@@ -173,6 +191,6 @@ function Conversation({ cacheKey }: { cacheKey: string }) {
         </div>}
       </div>
     </div>
-    {away && sessionId && <button className="jump-latest" title="Перейти к последнему сообщению" aria-label="К последнему сообщению" onClick={() => controller.current?.latest()}><Icon name="arrowDown" size={18} /><span>Вниз</span></button>}
+    {away && sessionId && <button className="jump-latest" title="Перейти к последнему сообщению" aria-label="К последнему сообщению" onClick={latest}><Icon name="arrowDown" size={18} /><span>Вниз</span></button>}
   </div>;
 }

@@ -1,3 +1,51 @@
+# Bounded active conversations (0.2.94)
+
+Read-only owner diagnostics: Quake history has 33,285 parts / 233,237,340 JSON
+characters; NFS has 5,567 / 28,465,541. Recent 200-message pages are about 3 and
+5 MB, respectively. No owner conversation replay, database write, model call,
+engine restart, game action or heavy owner UI opening was performed.
+A WebKit CPU report at 11:42–11:45 shows 90 CPU seconds / 165 seconds, peak
+footprint 1.49 GB and Intl.DateTimeFormat construction in sampled stacks. It
+predates the 14:38 reboot and does not identify Enki conclusively. No claim that
+this report proves the reboot's cause.
+
+Confirmed source defects: the first visible message remained anchored while a
+following conversation grew indefinitely, so the mounted range and restored
+range were unbounded. Entire cached order was grouped on every update. Footer
+formatters were constructed repeatedly. Hub retained full serialized receipt
+strings and cleared them above 5000, resending unchanged history repeatedly;
+collection/stringification was synchronous. Task observation copied/reversed and
+mapped the whole history on every live delta to find the latest user message.
+
+Fixes bound following rendering to 60 messages and detached reading to 120,
+provide overlapping older/newer windows, preserve reading/search/latest across
+switches, and never delete canonical data. Four lazy date formatters are reused.
+Oversized Markdown (>32k chars or >300 newlines) uses a bounded plain-text page
+instead of a giant parsed DOM; copying preserves the entire original. Hub uses
+incremental collection, batches/yields every 25 entries, weak SHA256 receipts
+stored only after native acknowledgement, cancellation and retry preservation.
+Latest-user observation scans backward until found without full-history copies.
+
+Behavior coverage includes 20k-message tail growth/cached return; fixed reader
+window while appending; reader restore, search focus, newer/latest navigation;
+2000 timestamp sets with exactly four formatter constructions; 100 live events
+in a 20k history with only 100 message lookups; 5050-record Hub replay/change,
+batch limits, UI yields, failed acknowledgement, disposal and production SHA256;
+large Markdown paging and full copying.
+
+Isolated Chromium fixture exercised the actual ChatView/scroll controller and
+Markdown, with test-owned state and simple message renderer adapters (not owner
+state or a whole native-app benchmark). 20 alternating switches, 100 appends,
+older/reveal/newer/latest and large-text next page pass; zero JS errors. Tail60,
+reader120, final151 DOM nodes/~31.5 MB JS heap. Median switch34.7ms includes a
+forced20ms wait, not a pure latency measurement. Initial fixture missed Vite's
+React preamble; corrected transformIndexHtml. Test server and browser closed.
+The source-only change is hot-compatible with native0.2.93; installed owner0.2.92
+still needs the native0.2.93 extension cache fix included in this source release.
+Owner native freeze/reboot acceptance, Windows/Linux GUI remain unverified.
+
+Release receipt and complete gate results follow after canonical publication.
+
 # Engine extension cache invalidation (0.2.93)
 
 Owner installed0.2.92 and on-disk policy already contains the directory alias fix,

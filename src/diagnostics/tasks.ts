@@ -38,9 +38,13 @@ export function observeTask(chat: SessionChatState, event: ServerEvent, now: num
       for (const old of keys.slice(0, Math.max(0, keys.length - 100))) delete chat.taskObservations[old];
     }
   }
-  const user = [...chat.messageOrder].reverse().map(id=>chat.messages[id]).find(m=>m?.role==='user');
+  let user: Message | undefined;
+  for (let i = chat.messageOrder.length - 1; i >= 0; i--) {
+    const message = chat.messages[chat.messageOrder[i]];
+    if (message?.role === 'user') { user = message; break; }
+  }
   const o = user && chat.taskObservations?.[timingKey(user)];
-  if (!o) return;
+  if (!o || !user) return;
   const p = event.type === 'message.part.updated' ? props.part as import('../api/types').MessagePart : null;
   const id = p?.messageID ?? (event.type === 'message.part.delta' ? props.messageID : null);
   const m = typeof id === 'string' ? chat.messages[id] : undefined;
@@ -52,7 +56,7 @@ export function observeTask(chat: SessionChatState, event: ServerEvent, now: num
     if (o.retryAttempt !== chat.status.attempt) { o.retries++; o.retryAttempt = chat.status.attempt; }
   }
   if (event.type === 'session.error' || event.type === 'session.idle' || event.type === 'session.status' && chat.status.type === 'idle') {
-    if (chat.messageOrder.some(id=>{const m=chat.messages[id];return m?.role==='assistant' && (!m.parentID || m.parentID===user.id) && chat.messageOrder.indexOf(id)>chat.messageOrder.indexOf(user.id);} )) o.endedAt ??= now;
+    if (chat.messageOrder.slice(chat.messageOrder.indexOf(user.id)+1).some(id=>{const m=chat.messages[id];return m?.role==='assistant' && (!m.parentID || m.parentID===user.id);} )) o.endedAt ??= now;
   }
 }
 /** Bounded to one already-loaded request, ending before the next user message. */

@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## Bounded active conversation rendering (0.2.94)
+
+- [x] Keep mounted history at 60 messages while following, up to 120 while reading; restore the appropriate bounded window on chat return, preserve older/newer/search/scroll navigation and all canonical history.
+- [x] Reuse four date formatters; avoid a full history copy/scan for the latest request on every stream event. Page oversized Markdown as bounded plain text with full-source copying.
+- [x] Collect Hub records incrementally, yield every 25 records and retain compact weak cryptographic receipts; never clear and resend an unchanged 5000+ message history.
+- [x] Safe synthetic 20k/5k chat fixture: repeated switches, live growth, reader restore/search/newer/latest and oversized text navigation pass. System CPU report is corroborating evidence only, not proven cause of the owner reboot.
+- [ ] Canonical release gates, Hub receipt and exact served packets. Owner native performance acceptance remains separate.
+
 ## Engine extension cache invalidation (0.2.93)
 
 - [x] Materialize policy/browser hooks and relative dependencies in one immutable content-addressed graph. Native catalog supplies current paths and verified retired aliases/revisions; no arbitrary prefix/name deletion.

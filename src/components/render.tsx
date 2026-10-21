@@ -48,7 +48,10 @@ export function Fold({
       <button
         className="fold-head"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={e => {
+          e.currentTarget.dispatchEvent(new Event('conversation-disclosure', {bubbles:true}));
+          setOpen(v => !v);
+        }}
       >
         <span className="tw">▶</span>
         <span

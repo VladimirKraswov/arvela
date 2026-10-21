@@ -3,7 +3,8 @@ import { store } from '../state/store';
 import { isNative } from '../native/platform';
 import { config, disable, drain, idle, install, request, spool, type HubItem } from './client';
 import { assessmentIndex } from '../outcomes/sharing';
-import { collectHubRecords } from './collection';
+import { iterateHubRecords } from './collection';
+import { enqueueChangedRecords } from './incremental';
 import { hubOrigin } from './identity';
 
 export function HubRuntime() {
@@ -11,7 +12,7 @@ export function HubRuntime() {
     if (!isNative()) return;
     let disposed = false, busy = false, lastCatalog = 0, failures = 0, next = 0;
     let collectionScope = '';
-    const observed = new Map<string, string>();
+    let observed = new WeakMap<import('../api/types').Message, string>();
     async function tick() {
       if (disposed || busy || Date.now() < next) return;
       busy = true;
@@ -22,18 +23,9 @@ export function HubRuntime() {
         if (disposed) return;
         const state = store.state;
         const scope = JSON.stringify([origin, state.prefs.workspaceKey ?? state.prefs.endpoint]);
-        if (scope !== collectionScope) { observed.clear(); lastCatalog = 0; collectionScope = scope; }
-        const key = (record: { engine: string; sessionId: string; id: string }) => JSON.stringify([record.engine, record.sessionId, record.id]);
-        const records = collectHubRecords(state, assessments, settings.shareText)
-          .filter(record => observed.get(key(record)) !== JSON.stringify(record));
-        if (observed.size > 5000) observed.clear();
-        for (let i = 0; i < records.length; i += 50) {
-          if (disposed) return;
-          const batch = records.slice(i, i + 50);
-          // The native boundary rejects this batch if the Hub changed during collection.
-          await spool('enqueue', batch, undefined, origin);
-          for (const record of batch) observed.set(key(record), JSON.stringify(record));
-        }
+        if (scope !== collectionScope) { observed = new WeakMap(); lastCatalog = 0; collectionScope = scope; }
+        await enqueueChangedRecords(iterateHubRecords(state,assessments,settings.shareText), observed,
+          batch=>spool('enqueue',batch,undefined,origin),()=>!disposed);
         if (disposed) return;
         await drain();
         failures = 0;

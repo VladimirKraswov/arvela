@@ -34,3 +34,13 @@ it('labels yesterday across calendar/year boundaries and leaves missing timestam
  expect(dayLabel(previous,now)).toBe('Вчера');expect(messageTime(previous,now)).toBe('вчера, 23:55');expect(dayLabel(0,now)).toBe('');
  expect(dayLabel(new Date(2024,2,1).getTime(),now)).toContain('2024');
 });
+it('pages oversized answers without parsing a giant Markdown tree and copies the original',async()=>{
+ vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
+ const clipboard=vi.fn().mockResolvedValue(undefined);Object.defineProperty(navigator,'clipboard',{value:{writeText:clipboard},configurable:true});
+ const source=('## A\n\n'+'- **item**\n'.repeat(5000))+'THE END';
+ const el=document.createElement('div');document.body.append(el);root=createRoot(el);
+ act(()=>root!.render(createElement(Markdown,{source})));
+ expect(el.querySelector('.large-message')).not.toBeNull();expect(el.querySelector('li')).toBeNull();expect(el.querySelector('pre')!.textContent!.length).toBeLessThanOrEqual(32770);
+ act(()=>(el.querySelectorAll('button')[1] as HTMLButtonElement).click());expect(el.textContent).toContain('Часть 2');
+ await act(async()=>(el.querySelector('[aria-label="Скопировать весь текст"]') as HTMLButtonElement).click());expect(clipboard).toHaveBeenCalledWith(source);
+});
