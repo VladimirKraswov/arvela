@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## Fullscreen tray and global policy recovery (0.2.95)
+
+- [x] macOS exits the fullscreen Space via its native completion notification before hiding the application; reopen restores fullscreen, duplicate close and rapid reopen preserve the intended visibility. Other platforms and explicit quit retain existing behavior.
+- [x] A stale global OpenCode plugin cache is refreshed through its official API only after bounded whole-engine idle verification (legacy directories and v2 drains), native JSONC CAS staging and confirmed global disposal event. Reattach shared/browser MCPs before dispatch; never replay a prompt.
+- [x] Installed1.18.18 isolated server reproduces stale global cache after scoped disposal and passes recovery. Owner cache repaired while idle, global/project read-back and unchanged config semantics verified; no owner prompt/inference/server kill.
+- [x] Repeatable native Mac fixture checks actual AppKit hidden/fullscreen state, preserved background worker and rapid reopen; no owner data/agents. Focused protocol, busy/unknown/truncated inventory, cancellation and cache regressions pass.
+- [ ] Canonical release gates, receipt/head and exact packet verification; owner native update activation separate.
+
 ## Bounded active conversation rendering (0.2.94)
 
 - [x] Keep mounted history at 60 messages while following, up to 120 while reading; restore the appropriate bounded window on chat return, preserve older/newer/search/scroll navigation and all canonical history.

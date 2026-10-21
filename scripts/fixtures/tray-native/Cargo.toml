@@ -1,0 +1,12 @@
+[package]
+name="enki-tray-fixture"
+version="0.1.0"
+edition="2021"
+[dependencies]
+tauri={version="=2.11.6",features=["tray-icon"]}
+objc2="0.6"
+objc2-app-kit={version="0.3",features=["NSApplication"]}
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSNotification", "NSOperation", "NSString", "NSObject", "block2"] }
+block2 = "0.6"
+[build-dependencies]
+tauri-build={version="2",features=[]}

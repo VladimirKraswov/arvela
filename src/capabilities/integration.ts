@@ -14,7 +14,7 @@ type Request = (
   path: string,
   options: { query: { directory: string }; body?: unknown; timeoutMs: number },
 ) => Promise<Record<string, { status?: string; error?: string }>>;
-export interface SharedSetupReport { unavailable: { id: string; name: string }[] }
+export interface SharedSetupReport { reloaded?: boolean; unavailable: { id: string; name: string }[] }
 const connected = new Map<string, string>(),
   unavailable = new Map<string, { fingerprint: string; retryAt: number }>(),
   flights = new Map<string, Promise<SharedSetupReport>>();
@@ -60,6 +60,7 @@ export async function configureShared(
     directory: string;
     current: () => boolean;
     request: Request;
+    refreshGlobal?: (catalog:Catalog)=>Promise<boolean>;
   },
   invoke = capabilityNative,
 ) {
@@ -68,6 +69,7 @@ export async function configureShared(
   if (flights.has(key)) return flights.get(key)!;
   const work = (async () => {
     const issues = new Map<string, {id: string; name: string}>();
+    let reloaded=false;
     // Migrate both files before reloading: the effective engine config merges global and project plugins.
     const prepared: {scope:Scope;catalog:Catalog;entries:Record<string,unknown>}[] = [];
     for (const scope of ["project", "global"] as const) {
@@ -110,7 +112,11 @@ export async function configureShared(
           await o.request("POST", "/instance/dispose", { query: { directory: o.directory }, body: {}, timeoutMs: 10000 });
           // Disposed instances lose live MCP connections; reconnect only this scope.
           for (const cache of connected.keys()) if (cache.startsWith(`${key}/`)) connected.delete(cache);
-          if (!(await loaded())) throw new Error("OpenCode не загрузил политику доступа проекта.");
+          if (!(await loaded())) {
+            reloaded=await o.refreshGlobal?.(catalog)??false;
+            if(reloaded)invalidateCapabilities();
+            if (!(await loaded())) throw new Error("OpenCode не загрузил политику доступа проекта.");
+          }
         }
       }
       for (const s of catalog.registry.servers) {
@@ -170,7 +176,7 @@ export async function configureShared(
         if (o.current()) connected.set(cache, fingerprint);
       }
     }
-    return {unavailable:[...issues.values()]};
+    return {unavailable:[...issues.values()],...(reloaded?{reloaded:true}:{})};
   })();
   flights.set(key, work);
   try {

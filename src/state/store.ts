@@ -1,3 +1,5 @@
+import {applyGlobalPlugins} from '../api/configReload';
+import {refreshGlobalPolicy} from '../capabilities/globalPolicy';
 import { agentParts, steeringParts } from "../agent/promptPolicy";
 import { prepareWorkshop, resolveWorkshop, isWorkshopSession, type WorkshopRecord } from "../workshop/workspace";
 import { ownWork } from "../operations/ownership";
@@ -13,7 +15,7 @@ import { initialState } from './initial';
 import type { AppState, UiState } from './types';
 export type { AppState, UiState, ConnectionState, ConnectionPhase } from './types';
 import { chooseOpenCodeModel, choosePiModel, parseModelId, piModelInfo, type ModelChoice } from './modelChoice';
-import {configureShared} from "../capabilities/integration";
+import {configureShared,capabilityNative,invalidateCapabilities} from "../capabilities/integration";
 import { modelServices, type ModelService } from "../models/services";
 import type { HubModelServices } from "../models/hub";
 import { ScheduleBlocked, type ScheduledTask, type DispatchResult } from "../schedules/tasks";
@@ -516,10 +518,17 @@ class Store {
     });
   }
 
-  async configureSharedTools(directory = this.state.directory): Promise<void> {
+  async configureSharedTools(directory = this.state.directory, signal?:AbortSignal): Promise<void> {
     if (!directory || !isNative() || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
     const endpoint=this.state.prefs.endpoint, client=this.client, generation=this.connectionGeneration;
-    const report = await configureShared({endpoint,directory,current:()=>generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && !this.currentHost(),request:(method,path,options)=>client.request(method,path,options)});
+    const current=()=>!signal?.aborted&&generation===this.connectionGeneration&&this.state.prefs.endpoint===endpoint&&!this.currentHost();
+    const report = await configureShared({endpoint,directory,current,
+      request:(method,path,options)=>client.request(method,path,options),
+      refreshGlobal:paths=>refreshGlobalPolicy({endpoint,directory,paths,current,
+        request:(method,path,options)=>client.request(method,path,options),invoke:capabilityNative,
+        apply:plugins=>applyGlobalPlugins(client,plugins,current)}),
+    });
+    if(report.reloaded){invalidateBrowserSetup();if(browserEnabled(this.state.prefs))await this.configureBrowser(false,false,directory);}
     if (generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && report.unavailable.length)
       this.patchUi({toast:`Недоступны MCP: ${report.unavailable.map(s=>s.name).join(", ")}. Отправка доступна; проверьте подключение в настройках.`});
   }
@@ -2360,7 +2369,7 @@ class Store {
           throw new ScheduleBlocked("Браузерные инструменты не подключились; запрос не отправлен. Проверьте «Настройки → Браузер» и возобновите задание.");
       }
       // Browser setup can take time. Re-check authoritative interaction state before dispatch.
-      if (!pi) await untilAborted(this.configureSharedTools(task.directory), signal);
+      if (!pi) await untilAborted(this.configureSharedTools(task.directory, signal), signal);
       await untilAborted(modelServices.ensure(task.model.providerID, task.model.modelID, task.engine, {signal, context: task.sessionID}), signal);
       const [freshStatus, freshPermissions, freshQuestions] = await untilAborted(Promise.all([
         backend.sessionStatuses(task.directory, signal), backend.pendingPermissions(task.directory, signal), backend.pendingQuestions(task.directory, signal),
@@ -3469,6 +3478,11 @@ class Store {
       onEvent: ({ directory, payload }) => {
         if (generation !== this.connectionGeneration || backend !== this.backend ||
             !payload || typeof payload.type !== "string") return;
+        if (payload.type === "global.disposed") {
+          invalidateCapabilities();
+          invalidateBrowserSetup();
+          return;
+        }
         this.indexSidebarEvent(payload);
         if (payload.type === "session.updated" && payload.properties?.info) {
           const info = payload.properties.info as Session;

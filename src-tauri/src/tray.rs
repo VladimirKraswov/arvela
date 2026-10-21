@@ -1,4 +1,7 @@
 //! The window is a view of the runtime. Closing it must not stop agent work.
+#[cfg(target_os = "macos")]
+#[path = "tray/macos.rs"]
+mod macos;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -9,6 +12,8 @@ static QUIT: AtomicU8 = AtomicU8::new(0);
 static MONITOR_HIDDEN: AtomicBool = AtomicBool::new(false);
 static AVAILABLE: AtomicBool = AtomicBool::new(false);
 pub fn show(app: &tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
+    macos::show(app);
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.unminimize();
@@ -23,11 +28,24 @@ pub fn show(app: &tauri::AppHandle) {
 pub fn close(app: &tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         if AVAILABLE.load(Ordering::Acquire) {
-            let _ = w.hide();
-            if let Some(m) = app.get_webview_window(crate::browser::monitor::LABEL) {
-                if m.is_visible().unwrap_or(false) {
-                    MONITOR_HIDDEN.store(true, Ordering::Release);
-                    let _ = m.hide();
+            // Hiding only an NSWindow in a fullscreen Space can leave the user
+            // on an empty black Space. Let AppKit hide the whole application;
+            // it switches Spaces and preserves all windows and running agents.
+            #[cfg(target_os = "macos")]
+            {
+                if let Err(error) = macos::hide(app) {
+                    eprintln!("Cannot hide Enki: {error}");
+                    let _ = w.minimize();
+                }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = w.hide();
+                if let Some(m) = app.get_webview_window(crate::browser::monitor::LABEL) {
+                    if m.is_visible().unwrap_or(false) {
+                        MONITOR_HIDDEN.store(true, Ordering::Release);
+                        let _ = m.hide();
+                    }
                 }
             }
         } else {

@@ -723,3 +723,12 @@ it('shows a cached target immediately while project metadata is still loading, a
  ready({all:[],connected:[],default:{}});await opening;
  expect(store.state.activeSessionId).toBe('newer');
 });
+it('invalidates shared and browser attachments on a global reload even without a session ID',async()=>{
+ const capabilities=await import('../src/capabilities/integration'),browser=await import('../src/browser/integration');
+ const shared=vi.spyOn(capabilities,'invalidateCapabilities'),attached=vi.spyOn(browser,'invalidateBrowserSetup');
+ const backend=store.backend;let subscription:any;
+ vi.spyOn(backend,'subscribeAll').mockImplementation((s:any)=>{subscription=s;});
+ store.startGlobalStream(backend,store.connectionGeneration);
+ subscription.onEvent({directory:'global',payload:{type:'global.disposed',properties:{}}});
+ expect(shared).toHaveBeenCalledOnce();expect(attached).toHaveBeenCalledOnce();
+});

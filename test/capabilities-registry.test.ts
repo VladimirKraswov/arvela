@@ -369,3 +369,11 @@ it('migrates both config layers before refreshing a cached old module and leaves
   expect(disposed).toBe(!busy);
  }
 });
+it('recovers the global cached layer after a scoped disposal proves insufficient, before attaching tools',async()=>{
+ const c={...catalog(),registry:emptyRegistry(),accessPluginPath:'/immutable/access-policy.mjs',retiredAccessPluginPaths:['/legacy/access-policy.mjs']};let refreshed=false;
+ const invoke=vi.fn(async(name:string)=>name==='read_opencode_config'?{content:'{}'}:c);
+ const request=vi.fn(async(_m:string,p:string)=>p==='/config'?{plugin:refreshed?['file:///immutable/access-policy.mjs']:['file:///legacy/access-policy.mjs']}:{});
+ const refreshGlobal=vi.fn(async()=>{refreshed=true;return true;});
+ const report=await configureShared({endpoint:'global-cached',directory:'/work',current:()=>true,request:request as any,refreshGlobal},invoke as any);
+ expect(report).toEqual({unavailable:[],reloaded:true});expect(refreshGlobal).toHaveBeenCalledOnce();expect(request.mock.calls.filter(c=>c[1]==='/instance/dispose')).toHaveLength(1);
+});

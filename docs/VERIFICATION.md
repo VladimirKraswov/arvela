@@ -1,3 +1,73 @@
+# Fullscreen tray and cached global configuration (0.2.95)
+
+Owner reported a black screen after closing Enki0.2.94 and an access-policy
+preflight error. Live UI observation later showed the original chat/draft again;
+no owner prompt was submitted. Close-to-tray intentionally keeps the process
+running. The previous implementation hid only the main NSWindow, leaving its
+fullscreen Space. AppKit application hiding alone was insufficient too: an
+isolated actual native fixture showed active=false but hidden=false/fullscreen=true.
+
+The Mac path now observes NSWindowDidExitFullScreenNotification for the exact
+live window, exits fullscreen, then hides NSApplication. Reopen restores the
+previous fullscreen mode. A pending animation retains its observer and changes
+intent on rapid reopen; duplicate close never toggles fullscreen twice. No timer
+controls production visibility. Windows/Linux window/monitor hide behavior,
+tray-unavailable minimize fallback and explicit quit lifecycle stay unchanged.
+
+`node scripts/check-tray-native.mjs` builds a fixture from actual tray source,
+using the existing lockfile, unique app identity and temporary WebView data. It
+has no Enki runtime/state/agents/network/model configuration. Actual AppKit:
+before-close hidden=false/fullscreen=true; after-close hidden=true/fullscreen=false;
+background counter continues; reopen hidden=false/fullscreen=true; duplicate close
+plus50ms reopen -> hidden=false/fullscreen=true. Fixture exits0/TRAY_FIXTURE_PASS.
+Initial standalone fixture required an icon; first build selected newer transitive
+packages, interrupted and pinned to the existing lock. Proposed application-only
+hide failed its native assertion, prompting notification-based coordination.
+Observer token conversion errors were fixed before the accepted build; a stale
+fixture binary was inadvertently rerun once after a compile failure and is not
+counted as acceptance. Final repeatable runner builds successfully before running.
+
+Read-only actual engine4096/1.18.18: global config cached four old mutable plugin
+URLs while both on-disk layers already held immutable URLs. Scoped disposal left
+the global cache stale. [Version-specific configuration source](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/config/config.ts)
+uses infinite global caching and invalidates only on a changed API write;
+[global API handler](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/server/routes/instance/httpapi/handlers/global.ts)
+then disposes all instances asynchronously. V2 active drains do not cover legacy
+SessionStatus, which is scoped per instance/directory.
+
+Recovery checks bounded global session metadata including archived records, every
+known legacy directory status (four requests at a time), v2 active drains before
+and after, current endpoint/cancellation, and complete valid inventory. Busy,
+unknown, failed or1000+-row inventory fails closed before global mutation. Exact
+verified managed paths only; unrelated plugins/permissions preserved. Native CAS
+stages the plugin array with equivalent whitespace so an already migrated file
+still causes a real API invalidation. Subscribe before PATCH; wait for actual
+`global.disposed`, not just its earlier HTTP acknowledgement, then verify scoped
+policy and reconnect shared/browser MCPs. Global event handling invalidates
+attachment caches even if the initiating caller was cancelled. No model request or retry is created.
+This is an idle preflight, not an atomic exclusion lock against independent
+external clients starting new work after the check.
+
+Isolated installed engine with temporary XDG roots/--pure reproduced cached old
+config after scoped dispose and then recovered with official PATCH, completion
+event and fresh global/scoped readback. First probe expected server.disposed;
+actual wire tracing identified global.disposed, corrected transport/tests. The
+server and temp directory were removed in finally. No owner state was used in
+this probe. Production headers/body data are not logged.
+
+Owner repair used the same tested helper after verifying the immutable four-file
+SHA graph and realpath aliases. Whole-engine idle verified; private ignored0600
+backup and CAS staging; actual global completion acknowledged, global/project
+managed URLs fresh, entire parsed global config equal before/after. No owner
+prompt/inference/agent abort/game action/server kill. Existing UI error clears
+on the next normal send. Private evidence under.local/review/0.2.95.
+
+Focused80 frontend regressions pass before final gates (includes new fallback
+integration), TS/build/architecture186 and native cargo check pass. Canonical
+publication and final results follow below. Native fingerprint changes: installing
+the source update is required for the Mac tray fix. Owner activation and live
+Windows/Linux GUI acceptance remain separate.
+
 # Bounded active conversations (0.2.94)
 
 Read-only owner diagnostics: Quake history has 33,285 parts / 233,237,340 JSON
