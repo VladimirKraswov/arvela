@@ -402,3 +402,86 @@ it("retains the previous Pi catalog when a rescan fails", async () => {
   await expect(store.refreshModelCatalog()).rejects.toThrow("Pi RPC offline");
   expect(store.piModelOptions()).toEqual(before);
 });
+
+async function contextTransitionFixture() {
+ const {modelServices}=await import('../src/models/services');
+ const ensure=vi.spyOn(modelServices,'ensure').mockResolvedValue(undefined);
+ const big={id:'large',providerID:'big',name:'Large',limit:{context:1048576,input:1000000,output:32768}};
+ const small={id:'small',providerID:'small',name:'Small',limit:{context:262144,input:229376,output:32768}};
+ const previous={id:'previous',sessionID:'ses_transfer',role:'assistant',providerID:'big',modelID:'large',tokens:{total:415589},time:{created:1,completed:2}};
+ const success={info:{id:'summary-new',sessionID:'ses_transfer',role:'assistant',providerID:'big',modelID:'large',summary:true,finish:'stop',tokens:{input:415589,output:1000},time:{created:3,completed:4}},parts:[{type:'text',text:'Задача, изменения, проверки, незавершённые шаги и ограничения.'}]};
+ store.state={...store.state,activeSessionId:'ses_transfer',directory:'/test/A',statuses:{},sessions:[{id:'ses_transfer',directory:'/test/A',title:'Fixture',time:{created:1,updated:1}}],providers:[{id:'big',source:'config',models:{large:big}},{id:'small',source:'config',models:{small}}],connectedProviderIds:['big','small'],chat:{...store.state.chat,sessions:{ses_transfer:{messageOrder:['previous'],messages:{previous},parts:{},status:{type:'idle'}}}}};
+ store.setModelChoice('big','large');ensure.mockClear();
+ vi.spyOn(store.client,'health').mockResolvedValue({healthy:true,version:'fixture'});
+ vi.spyOn(store.client,'agents').mockResolvedValue([]);
+ vi.spyOn(store.client,'config').mockResolvedValue({compaction:{preserve_recent_tokens:16000}});
+ vi.spyOn(store.client,'sessionStatuses').mockResolvedValue({ses_transfer:{type:'idle'}});
+ vi.spyOn(store.client,'pendingPermissions').mockResolvedValue([]);
+ vi.spyOn(store.client,'pendingQuestions').mockResolvedValue([]);
+ const messages=vi.spyOn(store.client,'messages').mockResolvedValueOnce({messages:[{info:previous,parts:[]}]}).mockResolvedValue({messages:[success]});
+ const summarize=vi.spyOn(store.client,'summarize').mockResolvedValue(undefined);
+ const prompt=vi.spyOn(store.client,'prompt').mockResolvedValue(undefined);
+ const abort=vi.spyOn(store.client,'abort').mockResolvedValue(undefined);
+ return{ensure,messages,summarize,prompt,abort,success,previous};
+}
+it('compacts 415k history with its previous large model before loading a 262k target',async()=>{
+ const f=await contextTransitionFixture(),progress=vi.fn();
+ expect(await store.selectModel('small','small',null,undefined,progress)).toBe(true);
+ expect(f.summarize).toHaveBeenCalledExactlyOnceWith('ses_transfer','/test/A','big','large');
+ expect(f.ensure.mock.calls.map(c=>[c[0],c[1]])).toEqual([['big','large'],['small','small']]);
+ expect(f.ensure.mock.invocationCallOrder[1]).toBeGreaterThan(f.summarize.mock.invocationCallOrder[0]);
+ expect(store.getModelChoice()?.modelID).toBe('small');expect(progress).toHaveBeenCalledWith(expect.stringContaining('Large'));
+ expect(f.prompt).not.toHaveBeenCalled();expect(f.abort).not.toHaveBeenCalled();
+ expect(store.state.chat.sessions.ses_transfer.messages.previous).toEqual(f.previous);
+});
+it('does not accept HTTP success with a failed compaction and keeps the old model and draft',async()=>{
+ const f=await contextTransitionFixture();store.setDraft('keep my task');
+ f.messages.mockReset().mockResolvedValueOnce({messages:[{info:f.previous,parts:[]}]}).mockResolvedValue({messages:[{...f.success,info:{...f.success.info,error:{name:'ContextOverflowError'}}}]});
+ await expect(store.selectModel('small','small')).rejects.toThrow('не завершилось');
+ expect(store.getModelChoice()?.modelID).toBe('large');expect(store.getDraft()).toBe('keep my task');
+ expect(f.ensure).toHaveBeenCalledTimes(1);expect(f.prompt).not.toHaveBeenCalled();
+});
+it('blocks a racing prompt until transfer and destination readiness finish',async()=>{
+ const f=await contextTransitionFixture();let complete!:()=>void;
+ f.summarize.mockImplementation(()=>new Promise<void>(r=>complete=r));
+ store.setDraft('keep my task');const selection=store.selectModel('small','small');
+ await vi.waitFor(()=>expect(complete).toBeTypeOf('function'));
+ expect(await store.sendPrompt('keep my task')).toBe(false);expect(store.getDraft()).toBe('keep my task');
+ expect(f.ensure).toHaveBeenCalledTimes(1);complete();expect(await selection).toBe(true);
+ expect(f.prompt).not.toHaveBeenCalled();
+});
+it('cancellation during compaction preserves its result without committing a late target',async()=>{
+ const f=await contextTransitionFixture();let complete!:()=>void;
+ f.summarize.mockImplementation(()=>new Promise<void>(r=>complete=r));const cancel=new AbortController();
+ const pending=store.selectModel('small','small',null,cancel.signal);const rejected=expect(pending).rejects.toThrow('переход отменён');
+ await vi.waitFor(()=>expect(complete).toBeTypeOf('function'));cancel.abort();complete();await rejected;
+ expect(store.getModelChoice()?.modelID).toBe('large');expect(f.ensure).toHaveBeenCalledTimes(1);expect(f.abort).not.toHaveBeenCalled();
+});
+it('does not compact fitting history',async()=>{
+ const f=await contextTransitionFixture();f.messages.mockReset().mockResolvedValue({messages:[{info:{...f.previous,tokens:{total:10000}},parts:[]}]});
+ expect(await store.selectModel('small','small')).toBe(true);expect(f.summarize).not.toHaveBeenCalled();
+});
+it('does not start a transfer while the authoritative engine is busy',async()=>{
+ const f=await contextTransitionFixture();vi.mocked(store.client.sessionStatuses).mockResolvedValue({ses_transfer:{type:'busy'}});
+ await expect(store.selectModel('small','small')).rejects.toThrow('Агент занят');
+ expect(f.summarize).not.toHaveBeenCalled();expect(store.getModelChoice()?.modelID).toBe('large');
+});
+
+it('recovers a session already switched to a smaller model through manual compaction',async()=>{
+ const f=await contextTransitionFixture();store.setModelChoice('small','small');f.ensure.mockClear();
+ await store.compactSession('ses_transfer');
+ expect(f.summarize).toHaveBeenCalledExactlyOnceWith('ses_transfer','/test/A','big','large');
+ expect(f.prompt).not.toHaveBeenCalled();expect(store.getModelChoice()?.modelID).toBe('small');
+});
+it('retains source model selection when its provider is unavailable',async()=>{
+ const f=await contextTransitionFixture();store.state.connectedProviderIds=['small'];
+ await expect(store.selectModel('small','small')).rejects.toThrow('Предыдущая модель недоступна');
+ expect(f.ensure).not.toHaveBeenCalled();expect(f.summarize).not.toHaveBeenCalled();
+});
+it('keeps racing prompts blocked while the destination is loading after a successful summary',async()=>{
+ const f=await contextTransitionFixture();let ready!:()=>void;
+ f.ensure.mockImplementation((p:string)=>p==='small'?new Promise<void>(r=>ready=r):Promise.resolve());
+ const pending=store.selectModel('small','small');await vi.waitFor(()=>expect(ready).toBeTypeOf('function'));
+ expect(store.getModelChoice()?.modelID).toBe('large');expect(await store.sendPrompt('do not race')).toBe(false);
+ ready();expect(await pending).toBe(true);expect(f.prompt).not.toHaveBeenCalled();
+});

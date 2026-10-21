@@ -46,8 +46,9 @@ it("uses a modal warning with retry, allows cancelling the pending readiness che
     expect(node.querySelector('[role="alert"]')?.textContent).toBe("Connection refused");
     act(() => [...node.querySelectorAll("button")].find(b => b.textContent === "Проверить снова")!.click());
     expect(retry).toHaveBeenCalledTimes(1);
-    act(() => root.render(createElement(ModelSelectionDialog, { ...props, pending: true, error: "" })));
+    act(() => root.render(createElement(ModelSelectionDialog, { ...props, pending: true, error: "", progress: "Сжимаем историю предыдущей моделью" })));
     expect(node.textContent).toContain("Подготовка модели");
+    expect(node.querySelector('[role="status"]')?.textContent).toContain("Сжимаем историю предыдущей моделью");
     expect(node.querySelector("button")?.disabled).toBe(false);
     const cancel = new Event("cancel", { cancelable: true });
     act(() => node.querySelector("dialog")!.dispatchEvent(cancel));

@@ -1,5 +1,14 @@
 # Enki roadmap
 
+## Safe transfer to a smaller model (0.2.97)
+
+- [x] Detect previous-model usage above the target input budget; preserve history through one native compaction by the previous larger model before destination loading and selection.
+- [x] Require a fresh complete nonempty summary within destination budget including preserved recent steps. HTTP acknowledgement alone never commits the target; pending completion is bounded and observed without request replay.
+- [x] Preserve drafts/history on failure and cancellation; whole-transition locks cover manual, queued and scheduled dispatch through destination readiness. Check source availability, pinned compaction role, authoritative busy/permission state and navigation identity.
+- [x] Recover an already switched oversized chat via «Сжать сейчас»; explain failures in Russian and display transfer stages. Do not count summarization input as the resulting working context.
+- [x] Installed1.18.18 isolated fixture: one synthetic previous-model request, auto:false, completed summary, original user history retained. No owner prompts/GPU. Focused regressions/build/architecture pass.
+- [ ] Canonical release, head and both served packet verification.
+
 ## Dictation tails and MCP outage notices (0.2.96)
 
 - [x] Complete newly rotated audio clips after a bounded 400 ms minimum; keep every sample, independent container headers, durable recovery and a five-second recorder deadline.

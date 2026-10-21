@@ -86,3 +86,9 @@ it("does not report a previous model's token usage against the newly selected mo
     measuredModel: undefined,
   });
 });
+
+it('does not display the old summarization input as the new compacted context',()=>{
+ const chat=emptySessionChat();chat.messageOrder=['summary'];
+ chat.messages.summary={id:'summary',sessionID:'s',role:'assistant',summary:true,finish:'stop',modelID:'qwen',providerID:'local',time:{created:1,completed:2},tokens:{total:415589,input:414589,output:1000}};
+ expect(contextUsage(chat,model)).toMatchObject({used:null,remaining:null,compacting:false});
+});

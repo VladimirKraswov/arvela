@@ -21,6 +21,34 @@ automatically rewrite OpenCode's model limits; see [AI environment](AI-ENVIRONME
 
 Calculation follows the versioned [OpenCode 1.18.18 overflow implementation](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/overflow.ts): use reported `tokens.total`, or input + output + cache read + cache write; reasoning is not added twice. A fresh conversation shows an unknown usage until the first report. When switching tokenizers, the last measured usage still belongs to the preceding model until the next response. Manual “Сжать сейчас” is available when idle. It calls the engine's summarize endpoint; the request allows up to three minutes rather than prematurely labelling normal summarization a failure.
 
+## Switching to a smaller model (0.2.97)
+
+When the latest successful model usage exceeds the selected target's conservative
+input budget, Enki first invokes native OpenCode compaction with that previous
+larger model. Only one compaction request is sent, explicitly `auto:false`:
+no task continuation, replay or second agent loop. After verified completion it
+loads the target and commits selection. The dialog shows both stages. Previous
+provider access must still work; paid providers retain their normal billing.
+
+The complete conversation remains in the engine database. Its native summary and
+recent tail become the working context; Enki neither deletes history nor rewrites
+AGENTS.md with transient chat state. Failed, empty, truncated, missing or oversized
+summaries stop the transfer and keep the previous choice/draft. A pinned different
+compaction-role model is reported, not silently overridden. Already affected
+chats recover via «Сжать сейчас», which uses the history's previous larger model.
+A provider outage requires restoring that provider or choosing a model large
+enough for the original history; automatic lossy truncation is not a fallback.
+
+Manual/queued/scheduled sends wait through compaction and target readiness.
+Cancelling after the native request started cancels the target selection, while
+the native summary may finish in the original chat; Enki does not abort the agent.
+Native success is checked using a new assistant summary, completion/finish state,
+nonempty text and conservative output/tail budget. Polling observes the same
+request for at most15 minutes including its HTTP wait; it never reissues it.
+Token counts from different tokenizers are estimates for transfer planning; exact
+usage is displayed only after the chosen model reports it. Summary INPUT usage
+is not presented as the resulting compacted context.
+
 ## Access
 
 The composer selects **session-scoped OpenCode permission rules**. It never rewrites global configuration or automatically approves a pending permission request.

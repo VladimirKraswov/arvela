@@ -467,7 +467,7 @@ export class OpenCodeClient {
   ): Promise<void> {
     return this.request<void>("POST", `/session/${sessionID}/summarize`, {
       query: { directory },
-      body: { providerID, modelID },
+      body: { providerID, modelID, auto: false },
       // Large local contexts require prefill + summary generation. A short
       // UI deadline must not report failure while the engine is still working.
       timeoutMs: 900000,

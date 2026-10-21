@@ -142,7 +142,7 @@ export function Composer() {
   selectionScopeRef.current = selectionScope;
   const selectionTicket = useRef(0), refreshTicket = useRef(0);
   const selectionAbort = useRef<AbortController | null>(null);
-  const [selection, setSelection] = useState<{ providerID: string; modelID: string; label: string; pending: boolean; error: string } | null>(null);
+  const [selection, setSelection] = useState<{ providerID: string; modelID: string; label: string; pending: boolean; error: string; progress?: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState("");
   useEffect(() => { selectionAbort.current?.abort(); selectionTicket.current++; refreshTicket.current++; setSelection(null); setRefreshError(""); setRefreshing(false); }, [selectionScope]);
@@ -205,7 +205,9 @@ export function Composer() {
     setSelection({ providerID, modelID, label, pending: true, error: "" });
     try {
       const variants = store.modelInfo(providerID, modelID)?.variants;
-      await store.selectModel(providerID, modelID, variants?.medium ? "medium" : null, abort.signal);
+      await store.selectModel(providerID, modelID, variants?.medium ? "medium" : null, abort.signal, progress => {
+        if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection(value => value ? {...value, progress} : value);
+      });
       if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection(null);
     } catch (error) {
       if (selectionScopeRef.current === expected && ticket === selectionTicket.current) setSelection({ providerID, modelID, label, pending: false, error: error instanceof Error ? error.message : String(error) });

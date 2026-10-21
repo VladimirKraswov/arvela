@@ -4,6 +4,8 @@ export interface CompactionConfig {
   auto?: boolean;
   prune?: boolean;
   reserved?: number;
+  preserve_recent_tokens?: number;
+  tail_turns?: number;
 }
 /** Mirrors OpenCode 1.18.18 session/overflow.ts, NOT the sum of conversation usage. */
 export function contextUsage(
@@ -37,7 +39,9 @@ export function contextUsage(
     !latest || !model ||
     ((!latest.modelID || latest.modelID === model.id) &&
       (!latest.providerID || latest.providerID === model.providerID));
-  const t = measuredForSelected ? latest?.tokens : undefined;
+  // Summary usage describes the old INPUT, not the resulting working context.
+  const summaryBoundary = latest?.summary && latest.time.completed && !latest.error;
+  const t = measuredForSelected && !summaryBoundary ? latest?.tokens : undefined;
   const used = t
     ? t.total ||
       (t.input ?? 0) +

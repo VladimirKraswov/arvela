@@ -1,3 +1,53 @@
+# Context transfer from a larger model (0.2.97)
+
+Read-only engine4096/1.18.18 metadata identifies the owner Quake2 incident:
+last successful DeepSeek-v4-pro usage415589, context1048576; targetV100Qwen
+context262144/input229376. Two subsequent summary assistants used the target
+Qwen and failed ContextOverflowError: session too large even after media removal.
+No owner prompt, GPU inference, model/provider setting or history was changed.
+
+An isolated clean clone at /Volumes/Extend/work/Enki-context-transition-097
+preserves the primary checkout's unrelated pending usage/pricing work. Node
+dependencies installed independently; any native build cache copied as independent
+files, never a shared Cargo target. Source basea1f0506/Enki0.2.96.
+
+Selection now checks bounded fresh native history and detects a smaller-model
+input budget against previous-model measured usage, including cache tokens and
+failed zero-usage summary attempts. One native compaction uses the previous
+configured larger model before loading the target. Source availability, explicit
+compaction-role override and authoritative idle/permission/question state are
+checked. Native request explicitly auto:false. No cloud fallback, loop, history
+delete/truncate, AGENTS.md mutation or prompt replay is introduced.
+
+A new completed nonempty assistant summary with a non-length finish and a
+conservative output/recent-tail budget is required. Pending acknowledgement is
+observed for the same request, bounded15minutes including its HTTP wait, without
+reissuing it. Cancellation/navigation does not abort already accepted compaction
+but prevents committing a late destination. The session guard spans destination
+readiness too; manual, queued and scheduled dispatch wait. Confirmed summary is
+merged without replacing paginated history or unrelated streamed messages.
+«Сжать сейчас» recovers chats that already switched to the small model. Russian
+error/stage messages explain the transition. Summary input billing usage is not
+shown as the resulting working context.
+
+128 focused frontend tests pass:415k->262k previous-model ordering, HTTP-success
+with failed summary, cancellation, unavailable source, authoritative busy state,
+no unnecessary compaction, guards through destination readiness, manual recovery,
+new/complete/nonempty/non-length/fit verification and pending completion deadline.
+Normal same-model compaction is retained. TypeScript/Vite and architecture188 pass.
+
+Actual separately installed1.18.18 ran with isolated HOME/XDG/config and a synthetic
+loopback provider, separate ephemeral port and no inherited API credentials. A
+noReply fixture user turn followed by summarize(previous large,auto:false) produced
+one completed nonempty assistant summary through exactly one provider call.
+Original user message remained; no task continuation or target-model call.
+NATIVE_COMPACTION_PASS. The first fixture mistakenly selected a user.summary
+(diff metadata) instead of assistant.summary; corrected and reran, earlier failed
+fixture assertions are not acceptance. All own servers/test data cleaned up.
+
+Canonical release, signed packets and source/hot byte verification pending.
+Client application remains separate; Windows/Linux live GUI not claimed.
+
 # Dictation tails and MCP notifications (0.2.96)
 
 Owner saw successful dictation followed by HTTP400 and recurring Web Compass

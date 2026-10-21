@@ -1,3 +1,4 @@
+import {inputBudget, transferSource, waitForSummary} from './contextTransfer';
 import {McpNotices} from '../capabilities/notices';
 import {applyGlobalPlugins} from '../api/configReload';
 import {refreshGlobalPolicy} from '../capabilities/globalPolicy';
@@ -706,7 +707,7 @@ class Store {
     engineReady: () => this.engineReady(),
     engineIdFor: () => this.engineIdFor(),
     isRunning: id => this.isRunning(id),
-    externalLock: id => this.scheduledLocks.has(id) || this.compactLocks.has(id),
+    externalLock: id => this.scheduledLocks.has(id) || this.compactLocks.has(id) || this.modelTransitionLocks.has(id),
     pendingInteraction: id => this.pendingInteraction(id),
     dispatchQueued: (item, steer) => this.dispatchQueued(item, steer),
     beginSending: () => this.beginSending(),
@@ -717,6 +718,7 @@ class Store {
   private get queueStops() { return this.promptQueue.queueStops; }
   private accessChanging = false;
   private compactLocks = new Set<string>();
+  private modelTransitionLocks = new Set<string>();
   private historyJournals = new Set<ServerEvent[]>();
   private sidebarJournals = new Set<Map<string, Session | null>>();
   private sidebarRequests = new Map<string, number>();
@@ -2091,31 +2093,104 @@ class Store {
     this.commitModelChoice(providerID, modelID, variant, automaticBrowser);
   }
 
+  private assertContextReady(session: string | null, providerID: string, modelID: string, engine: string): void {
+    if (engine !== PI_BACKEND_ID && session && this.transferNeeded(session, providerID, modelID))
+      throw new Error('История не помещается в выбранную модель. Выберите её повторно для переноса через предыдущую большую модель или нажмите «Сжать сейчас». Черновик и очередь сохранены.');
+  }
+
+  private transferNeeded(session: string, providerID: string, modelID: string) {
+    const target = this.modelInfo(providerID, modelID), chat = this.state.chat.sessions[session];
+    return target && chat ? transferSource(chat.messageOrder.map(id => chat.messages[id]), target) : undefined;
+  }
+
+  /** One native compaction with the history's previous model, before unloading it.
+   * No prompt replay, source mutation, truncation or automatic continuation. */
+  private async transferContext(session: string, directory: string, targetProvider: string, targetModel: string,
+    current: () => boolean, progress?: (message: string) => void): Promise<void> {
+    const target = this.modelInfo(targetProvider, targetModel);
+    if (!target || !inputBudget(target)) return;
+    if (this.isRunning(session) || this.compactLocks.has(session) || this.state.ui.sending || this.scheduledLocks.has(session) || this.queueLocks.has(session))
+      throw new Error('Дождитесь завершения текущей работы перед переносом контекста в меньшую модель.');
+    this.compactLocks.add(session);
+    const backend = this.conversation();
+    try {
+      const before = await backend.messages(session, {directory, limit: 100});
+      if (!current()) throw new Error('Переход отменён: выбран другой чат или модель.');
+      const source = transferSource(before.messages.map(r => r.info), target);
+      if (!source) return;
+      if (!source.providerID || !source.modelID) throw new Error('Не удалось определить предыдущую модель для сжатия. История сохранена.');
+      const previous = this.modelInfo(source.providerID, source.modelID);
+      const used = source.tokens?.total || (source.tokens?.input ?? 0) + (source.tokens?.output ?? 0) + (source.tokens?.cache?.read ?? 0) + (source.tokens?.cache?.write ?? 0);
+      if (!previous || inputBudget(previous) <= used || source.providerID === targetProvider && source.modelID === targetModel)
+        throw new Error('История превышает контекст модели для сжатия. Выберите предыдущую модель с большим контекстом; история сохранена.');
+      if (!modelServices.manages(source.providerID, source.modelID) && !this.state.connectedProviderIds.includes(source.providerID))
+        throw new Error('Предыдущая модель недоступна. Подключите её для сжатия; новая модель пока не выбрана.');
+      const config = await backend.config(directory);
+      const agent = (await backend.agents(undefined, directory)).find(a => a.name === 'compaction');
+      if (agent?.model && (agent.model.providerID !== source.providerID || agent.model.modelID !== source.modelID))
+        throw new Error('В настройках роли compaction закреплена другая модель. Для переноса нужна предыдущая модель с большим контекстом.');
+      if (!current() || this.isRunning(session) || this.state.ui.sending) throw new Error('Состояние чата изменилось; перенос отменён.');
+      progress?.(`Сжимаем историю моделью ${previous.name || previous.id}. Затем загрузим выбранную модель. Полная история останется в чате.`);
+      await modelServices.ensure(source.providerID, source.modelID, this.engineIdFor(session, directory), {context: session});
+      if (!current() || this.isRunning(session) || this.state.ui.sending) throw new Error('Состояние чата изменилось; перенос отменён.');
+      const [statuses, permissions, questions] = await Promise.all([
+        backend.sessionStatuses(directory), backend.pendingPermissions(directory), backend.pendingQuestions(directory),
+      ]);
+      if (!current() || statuses[session]?.type === 'busy' || statuses[session]?.type === 'retry' || permissions.some(p => p.sessionID === session) || questions.some(q => q.sessionID === session))
+        throw new Error('Агент занят или ожидает разрешения. Перенос не начат; дождитесь завершения работы.');
+      const deadline = Date.now() + 900000;
+      await backend.summarize(session, directory, source.providerID, source.modelID);
+      const summary = await waitForSummary(async () => (await backend.messages(session, {directory, limit: 100})).messages,
+        new Set(before.messages.map(r => r.info.id)), target, config.compaction?.preserve_recent_tokens ?? 16000, deadline);
+      if (!current()) throw new Error('Сжатие завершено, но переход отменён: выбран другой чат или модель.');
+      // Merge only the authoritative completed summary. Do not replace paginated
+      // history or replay stale snapshots over unrelated live tool messages.
+      this.handleEvent({type: 'message.updated', properties: {info: summary.info}});
+      for (const part of summary.parts) this.handleEvent({type: 'message.part.updated', properties: {part}});
+      progress?.('Выжимка сохранена. Подготавливаем выбранную модель…');
+    } finally {
+      this.compactLocks.delete(session);
+    }
+  }
+
   private modelSelectionRevision = 0;
   /** Do not write the choice until the selected target passes its readiness check. */
-  async selectModel(providerID: string, modelID: string, variant?: string | null, signal?: AbortSignal): Promise<boolean> {
+  async selectModel(providerID: string, modelID: string, variant?: string | null, signal?: AbortSignal, progress?: (message: string) => void): Promise<boolean> {
     const revision = ++this.modelSelectionRevision;
     const engine = this.engineIdFor(), directory = this.state.directory, session = this.state.activeSessionId;
     const generation = this.directoryGeneration, backend = this.backend;
     const current = () => !signal?.aborted && revision === this.modelSelectionRevision && generation === this.directoryGeneration &&
       engine === this.engineIdFor() && directory === this.state.directory && session === this.state.activeSessionId && backend === this.backend;
-    if (engine === PI_BACKEND_ID) {
-      const result = await this.checkPiModelAccess(`${providerID}/${modelID}`, signal);
-      if (!current()) return false;
-      if (!result.ok) throw new Error(result.detail);
-    } else {
-      if (!this.configuredProvidersWithModels().some(p => p.id === providerID && Boolean(p.models[modelID])))
-        throw new Error("Эта модель не настроена в OpenCode. Обновите список или проверьте настройки провайдера.");
-      const health = await backend.health();
-      if (!current()) return false;
-      if (!health.healthy) throw new Error("Нет связи с OpenCode.");
-      if (!modelServices.manages(providerID, modelID) && !this.state.connectedProviderIds.includes(providerID))
-        throw new Error("Провайдер сейчас недоступен. Проверьте его настройки подключения.");
-      await modelServices.ensure(providerID, modelID, engine, {signal});
-      if (!current()) return false;
+    const locked = engine !== PI_BACKEND_ID && session && directory && inputBudget(this.modelInfo(providerID, modelID) ?? {id: modelID, providerID}) > 0 ? session : null;
+    if (locked && (this.modelTransitionLocks.has(locked) || this.compactLocks.has(locked)))
+      throw new Error('Дождитесь завершения перехода или сжатия контекста.');
+    if (locked) this.modelTransitionLocks.add(locked);
+    let committed = false;
+    try {
+      if (engine === PI_BACKEND_ID) {
+        const result = await this.checkPiModelAccess(`${providerID}/${modelID}`, signal);
+        if (!current()) return false;
+        if (!result.ok) throw new Error(result.detail);
+      } else {
+        if (!this.configuredProvidersWithModels().some(p => p.id === providerID && Boolean(p.models[modelID])))
+          throw new Error("Эта модель не настроена в OpenCode. Обновите список или проверьте настройки провайдера.");
+        const health = await backend.health();
+        if (!current()) return false;
+        if (!health.healthy) throw new Error("Нет связи с OpenCode.");
+        if (!modelServices.manages(providerID, modelID) && !this.state.connectedProviderIds.includes(providerID))
+          throw new Error("Провайдер сейчас недоступен. Проверьте его настройки подключения.");
+        if (session && directory) await this.transferContext(session, directory, providerID, modelID, current, progress);
+        if (!current()) return false;
+        await modelServices.ensure(providerID, modelID, engine, {signal});
+        if (!current()) return false;
+      }
+      this.commitModelChoice(providerID, modelID, variant);
+      committed = true;
+      return true;
+    } finally {
+      if (locked) this.modelTransitionLocks.delete(locked);
+      if (committed) void this.drainQueue();
     }
-    this.commitModelChoice(providerID, modelID, variant);
-    return true;
   }
 
   private commitModelChoice(providerID: string, modelID: string, variant?: string | null, automaticBrowser = false): void {
@@ -2332,7 +2407,7 @@ class Store {
         status, permissions, questions,
         queued: this.getQueue(task.sessionID).length,
         running: this.isRunning(task.sessionID),
-        locked: this.queueLocks.has(task.sessionID) || this.compactLocks.has(task.sessionID),
+        locked: this.queueLocks.has(task.sessionID) || this.compactLocks.has(task.sessionID) || this.modelTransitionLocks.has(task.sessionID),
         dialog: this.state.ui.piDialog?.sessionId === task.sessionID,
       });
     const preparationStarted = Date.now();
@@ -2374,6 +2449,7 @@ class Store {
       }
       // Browser setup can take time. Re-check authoritative interaction state before dispatch.
       if (!pi) await untilAborted(this.configureSharedTools(task.directory, signal), signal);
+      this.assertContextReady(task.sessionID, task.model.providerID, task.model.modelID, task.engine);
       await untilAborted(modelServices.ensure(task.model.providerID, task.model.modelID, task.engine, {signal, context: task.sessionID}), signal);
       const [freshStatus, freshPermissions, freshQuestions] = await untilAborted(Promise.all([
         backend.sessionStatuses(task.directory, signal), backend.pendingPermissions(task.directory, signal), backend.pendingQuestions(task.directory, signal),
@@ -2432,7 +2508,7 @@ class Store {
       this.state.ui.runtimeLoading
     )
       return false;
-    if (this.compactLocks.has(this.state.activeSessionId ?? "")) {
+    if (this.compactLocks.has(this.state.activeSessionId ?? "") || this.modelTransitionLocks.has(this.state.activeSessionId ?? "")) {
       this.patchUi({ sendError: "Дождитесь завершения сжатия контекста. Черновик сохранён." });
       return false;
     }
@@ -2499,6 +2575,7 @@ class Store {
     try {
       if (attachments.length) attachments = await attachmentDrafts.selected(initialScope, attachments.map(file => file.id));
       if (!text.trim() && !attachments.length) return false;
+      this.assertContextReady(selected, model.providerID, model.modelID, engineId);
       await untilAborted(modelServices.ensure(model.providerID, model.modelID, engineId, {signal: operation.signal, context: selected ?? `@draft:${directory}`}), operation.signal);
       if (!sameContext() || this.state.activeSessionId !== selected) return false;
       if (attachments.length && scope !== initialScope) await attachmentDrafts.move(initialScope, scope);
@@ -2722,13 +2799,22 @@ class Store {
       !model ||
       !this.conversation().capabilities.compaction ||
       this.isRunning(sessionId) ||
-      this.compactLocks.has(sessionId)
+      this.compactLocks.has(sessionId) || this.modelTransitionLocks.has(sessionId)
     )
       return;
     this.compactLocks.add(sessionId);
     const generation = this.connectionGeneration;
     try {
       const engine = this.engineIdFor(sessionId, directory), backend = this.conversation();
+      if (engine !== PI_BACKEND_ID && this.transferNeeded(sessionId, model.providerID, model.modelID)) {
+        // Release the outer guard: transferContext owns the same session lock.
+        this.compactLocks.delete(sessionId);
+        await this.transferContext(sessionId, directory, model.providerID, model.modelID,
+          () => generation === this.connectionGeneration && directory === this.state.directory && sessionId === this.state.activeSessionId,
+          message => this.patchUi({toast: message}));
+        this.patchUi({toast: 'Контекст сжат предыдущей моделью. Можно продолжать работу.'});
+        return;
+      }
       await modelServices.ensure(model.providerID, model.modelID, engine, { context: sessionId });
       const current = this.getModelChoice();
       if (generation !== this.connectionGeneration || current?.providerID !== model.providerID || current?.modelID !== model.modelID
@@ -2962,7 +3048,7 @@ class Store {
     if (
       this.queueLocks.has(sid) ||
       this.scheduledLocks.has(sid) ||
-      this.compactLocks.has(sid) ||
+      this.compactLocks.has(sid) || this.modelTransitionLocks.has(sid) ||
       this.state.ui.sending ||
       this.accessChanging ||
       sid !== this.state.activeSessionId ||
@@ -3006,6 +3092,7 @@ class Store {
       if (!flushPrefs()) throw new Error("Не удалось сохранить состояние очереди. Запрос не отправлен.");
       // OpenCode persists a new user message, then joins the existing run loop.
       // No abort: the correction is seen at the next model/tool boundary.
+      this.assertContextReady(sid, item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory));
       await modelServices.ensure(item.model.providerID, item.model.modelID, this.engineIdFor(sid, item.directory), {context: sid});
       if (!current()) throw new Error("Чат изменился; запрос не отправлен.");
       const parts: Awaited<ReturnType<typeof prepareAttachments>> = [];

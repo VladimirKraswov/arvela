@@ -231,7 +231,7 @@ describe("chatReducer stream normalization", () => {
       /aborted/i,
     );
     expect(describeMessageError({ name: "ContextOverflowError" })).toMatch(
-      /context/i,
+      /контекст/i,
     );
     expect(describeMessageError({ data: { message: "boom" } })).toBe("boom");
   });

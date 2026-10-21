@@ -283,6 +283,7 @@ it('waits for long local compaction without replaying the request after the old 
   const pending=new OpenCodeClient().summarize('ses_own','/owned','p','m');
   await vi.advanceTimersByTimeAsync(240000);expect(signal.aborted).toBe(false);expect(fetcher).toHaveBeenCalledOnce();
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get('directory')).toBe('/owned');
+  expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({providerID:'p',modelID:'m',auto:false});
   finish();await pending;expect(fetcher).toHaveBeenCalledOnce();
  } finally {vi.useRealTimers();}
 });

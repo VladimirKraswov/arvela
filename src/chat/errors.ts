@@ -23,7 +23,7 @@ export function describeMessageError(error: unknown): string {
   const e = record(error);
   if (e.name === "MessageOutputLengthError") return "Достигнут лимит ответа модели. Можно сжать контекст и продолжить работу.";
   if (e.name === "MessageAbortedError") return "The response was aborted.";
-  if (e.name === "ContextOverflowError") return "Context window overflowed — consider compaction or a new session.";
+  if (e.name === "ContextOverflowError") return "История превышает контекст модели. При переходе на меньшую модель сначала сожмите её предыдущей большой моделью через «Сжать сейчас». Полная история сохранена.";
   if (isModelConnectionError(error)) {
     // Inspect only the hostname. Never render credentials, query strings or private URLs.
     const metadata = record(record(e.data).metadata);
