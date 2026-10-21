@@ -64,7 +64,12 @@ on the next normal send. Private evidence under.local/review/0.2.95.
 
 Focused80 frontend regressions pass before final gates (includes new fallback
 integration), TS/build/architecture186 and native cargo check pass. Canonical
-publication and final results follow below. Native fingerprint changes: installing
+publication verified:1037 frontend tests/6 existing skips,148 native/3 existing
+skips,77 Hub,11 publisher; build/architecture186/bundle/fmt/strict Clippy PASS.
+Runtimea9c8057, receipt.local/releases/0.2.95-stable.json, served head/revision and
+both signed downloads verified.23 changed source and19 hot files byte-match the
+reviewed commit/dist. Native fingerprint61dffc33… differs from0.2.94. No owner
+installation/activation was performed. Native fingerprint changes: installing
 the source update is required for the Mac tray fix. Owner activation and live
 Windows/Linux GUI acceptance remain separate.
 
