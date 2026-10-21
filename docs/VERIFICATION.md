@@ -14,7 +14,7 @@ accepting applied policy. No path-name substitution or permission broadening.
 Seven tests cover aliases, mixed ancestry, browser metadata, read revocation,
 invalid IDs/cycles, foreign/missing/redirected paths, file targets and bad update
 acknowledgements. File-symlink test is skipped on Windows (requires privileges);
-directory fixtures use junctions there. Focused result pending final rerun.
+directory fixtures use junctions there.23 focused tests pass.
 
 Actual affected session was resolved by the new helper against the installed
 1.18.18 engine API, read-only, with its existing full policy. No prompt replay,
@@ -23,7 +23,7 @@ There are22 existing engine sessions under legacy app-owned paths; official
 session PATCH schema cannot change directory. Removing aliases requires a
 separate complete migration of engine references and historic paths; this fix
 preserves them and does not claim that migration or current activation occurred.
-Canonical release pending; Windows/Linux live acceptance separate.
+Canonical release0.2.91/runtime3d90d11 passed1012 frontend/147 native/77 Hub tests plus publisher/build/architecture/budget/fmt/strict Clippy. Receipt.local/releases/0.2.91-stable.json,served head+both signed packets byte-exact9 source/19 hot files. Native update/new extension instance required; no owner activation. Windows/Linux live acceptance separate.
 
 # Generic command execution feedback (0.2.90)
 

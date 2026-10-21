@@ -4,7 +4,7 @@
 
 - [x] Access-policy and browser session hooks recognize existing filesystem aliases by real directory identity; retain exact session IDs, scoped API calls, root-policy inheritance/revocation and foreign-directory rejection. Update acknowledgements also validate ID/directory.
 - [x] Actual affected projectless session passes read-only access resolution through the installed engine API with canonical Enki path. Seven regression cases cover mixed ancestry, browser access, foreign/missing/redirected paths and mismatched update acknowledgements.
-- [ ] Canonical Hub release and exact packet verification.
+- [x] Canonical Hub release and exact packet verification:0.2.91/runtime3d90d11,9 source/19 hot files byte-exact;1012 frontend/147 native/77 Hub tests plus build/architecture/budget/fmt/strict Clippy pass.
 
 ## Generic command execution feedback (0.2.90)
 
