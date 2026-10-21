@@ -1,3 +1,47 @@
+# Dictation tails and MCP notifications (0.2.96)
+
+Owner saw successful dictation followed by HTTP400 and recurring Web Compass
+unavailable notices. A synthetic WAV probe reproduced the ASR cause: valid
+0.01/0.1-second clips returned400 invalid_audio with a 150ms minimum, while
+0.5-second silence returned200 empty text. A stop immediately after encoder
+rotation can produce such a tail. We never read or uploaded owner recordings.
+
+SegmentedCapture now allows a newly started final encoder to reach400ms before
+stopping, preserving its actual samples and independent container headers.
+Recorder failure remains bounded by the original five-second deadline; microphone
+cleanup is idempotent. Successful ASR clears recognition errors independently of
+capture/storage errors. HTTP hints distinguish audio400, auth401/403, route404,
+rate429 and service5xx; genuine failures keep durable recovery.
+
+The actual CT201 CPU GigaAM source is now tracked under services/asr/server.py.
+Only the decoded150ms rejection was removed from the deployed baseline; existing
+leading0.65/trailing0.20-second padding, model/environment/CPU execution remain.
+Zero decoded samples skips inference; corrupt containers/nonalignedPCM still fail.
+Deployment compared exact baselineSHA2567323f4f7934680f90ac23d36aef41da0aebb8b3cf4e454dc329c335429d74638,
+kept a private backup, verified no establishedASR connections, replaced atomically
+and restarted only gigaam-asr.service. Live sourceSHA256d0625cb00cd4ff21e7509bc44756a861cb797c6f74a9e24ff205a6d49c968d1f.
+Actual endpoint:0/1/160/1600/8000-sample synthetic silence ->200empty; corrupt
+container ->400; previous synthetic Russian speech fixture ->200 with complete
+Russian text. Three Python regressions check sample preservation, empty behavior
+and real decode errors without loading a model; added to the release gates.
+
+Web Compass actually was down: localhost8787 connection refused; existing
+LaunchAgent dev.vladimir.web-compass disabled/unloaded. Re-enabled and bootstrapped
+that existing job; authenticated health returned200. Official failed-only
+/mcp/mesh_web_compass/connect for quake2-next returned200true; read-back all six
+MCPs connected, previously connected tools left alone. No owner prompt, agent
+abort, OpenCode restart, global permission/provider/model edit or GPU inference.
+
+McpNotices deduplicates the same outage per endpoint/directory episode and clears
+only its own visible message upon confirmed healthy report. It does not clear
+unrelated messages, suppress a new outage after recovery or fabricate tool health.
+29 focused frontend regressions pass, including immediate stop at rotation,
+400ms bounded completion, once-only cleanup, independent headers, recovery from
+ASR error to empty success, and outage/recovery notification behavior.
+
+Canonical release and served packet verification pending. Applying a client
+update remains separate; Windows/Linux live GUI acceptance is not claimed.
+
 # Fullscreen tray and cached global configuration (0.2.95)
 
 Owner reported a black screen after closing Enki0.2.94 and an access-policy

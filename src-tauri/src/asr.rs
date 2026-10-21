@@ -80,10 +80,7 @@ async fn transcribe(
         .await
         .map_err(|_| "ASR недоступен или превышено время ожидания".to_string())?;
     if !response.status().is_success() {
-        return Err(format!(
-            "ASR HTTP {}. Проверьте адрес, модель и ключ.",
-            response.status().as_u16()
-        ));
+        return Err(http_error(response.status().as_u16()));
     }
     let mut body = Vec::new();
     while let Some(chunk) = response
@@ -103,6 +100,18 @@ async fn transcribe(
         .map(str::trim)
         .map(str::to_owned)
         .ok_or_else(|| "ASR не вернул распознанный текст".into())
+}
+
+fn http_error(status: u16) -> String {
+    let hint = match status {
+        400 => "Сервис отклонил аудиофрагмент.",
+        401 | 403 => "Проверьте ключ и доступ к сервису.",
+        404 => "Проверьте адрес и модель.",
+        429 => "Сервис перегружен; повторите позже.",
+        500..=599 => "Ошибка сервиса распознавания; повторите позже.",
+        _ => "Не удалось распознать аудиофрагмент.",
+    };
+    format!("ASR HTTP {status}. {hint}")
 }
 
 // Keep the released Tauri IPC argument names compatible with existing callers.
@@ -127,6 +136,14 @@ pub async fn transcribe_audio(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn http_errors_distinguish_audio_from_credentials() {
+        assert!(http_error(400).contains("аудиофрагмент"));
+        assert!(!http_error(400).contains("ключ"));
+        assert!(http_error(401).contains("ключ"));
+        assert!(http_error(503).contains("Ошибка сервиса"));
+    }
+
     #[test]
     fn endpoints_are_explicit_and_credentials_cannot_hide_in_urls() {
         for s in [

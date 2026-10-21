@@ -84,6 +84,7 @@ it("records and transcribes even when Web Audio never resumes", async () => {
   expect(started).toHaveBeenCalledOnce();
   expect(document.querySelector('button[aria-label="Закончить и распознать"]')).not.toBeNull();
   await click("Закончить и распознать");
+  await act(async()=>{await vi.waitFor(()=>expect(stop).toHaveBeenCalledOnce());});
   expect(fake.transcribe).toHaveBeenCalledOnce();
   expect(fake.appendDictation).toHaveBeenCalledWith(expect.any(String), expect.any(String), "распознано",expect.any(String));
   expect(stop).toHaveBeenCalledOnce();
@@ -153,5 +154,18 @@ it('does not invite speech until a real audio checkpoint arrives, and cleans up 
  expect(document.body.textContent).toContain('Пока не говорите');expect(document.body.textContent).not.toContain('Можно говорить');
  await act(async()=>{recorder.ondataavailable({data:new Blob(['actual-audio'])});});
  expect(document.body.textContent).toContain('Можно говорить');expect(document.querySelector('canvas')).not.toBeNull();
- await click('Остановить диктовку');expect(stop).toHaveBeenCalledOnce();
+ await click('Остановить диктовку');await act(async()=>{await vi.waitFor(()=>expect(stop).toHaveBeenCalledOnce());});expect(stop).toHaveBeenCalledOnce();
+});
+
+it('clears a failed recognition after successful recovery without discarding saved audio early',async()=>{
+ const {dictationScope}=await import('../src/voice/journal');const {draftKey}=await import('../src/state/prefs');
+ const workspace=fake.state.prefs.workspaceKey??fake.state.prefs.endpoint,draft=draftKey('session','/tmp');
+ fake.records.set('saved',{id:'saved',group:'fixture',scope:dictationScope(workspace,draft),workspace,draft,settings:fake.state.prefs.asr,created:1,sequence:0,overlap:false,mime:'audio/webm',parts:[new Blob(['fixture'])],complete:true});
+ await act(async()=>{root.unmount();const n=document.createElement('div');document.body.append(n);root=createRoot(n);root.render(createElement(VoiceInput,{disabled:false}));});
+ fake.transcribe.mockRejectedValueOnce(Error('ASR HTTP 400. Сервис отклонил аудиофрагмент.'));
+ await act(async()=>{[...document.querySelectorAll('button')].find(b=>b.textContent==='Восстановить диктовку')!.click();});
+ expect(document.querySelector('[role="alert"]')?.textContent).toContain('ASR HTTP 400');expect(fake.records.size).toBe(1);
+ fake.transcribe.mockResolvedValueOnce('');
+ await act(async()=>{[...document.querySelectorAll('button')].find(b=>b.textContent==='Восстановить диктовку')!.click();});
+ expect(fake.records.size).toBe(0);expect(document.querySelector('[role="alert"]')).toBeNull();
 });

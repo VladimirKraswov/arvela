@@ -15,6 +15,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
 }) {
     const [phase, setPhase] = useState<Phase>('idle');
     const [error, setError] = useState('');
+    const [recognitionError, setRecognitionError] = useState('');
     const [seconds, setSeconds] = useState(0);
     const [pending, setPending] = useState<DictationSegment[]>([]);
     const [noVad, setNoVad] = useState(false);
@@ -46,8 +47,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
         }, message => {
             if (!alive.current || currentScope.current !== scope)
                 return;
-            if (message)
-                setError(message);
+            setRecognitionError(message ?? '');
             void refresh().catch(e => setError(String(e)));
         });
         return queue.current;
@@ -69,7 +69,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
         // Captured audio belongs to the original draft; navigating never moves it.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scope]);
-    useEffect(() => { setPhase('idle'); setPending([]); setError(''); }, [scope]);
+    useEffect(() => { setPhase('idle'); setPending([]); setError(''); setRecognitionError(''); }, [scope]);
     const finish = () => {
         if (capture.current) {
             setPhase('transcribing');
@@ -103,7 +103,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
             return;
         }
         const operation = ++epoch.current, active = () => alive.current && epoch.current === operation && currentScope.current === scope;
-        setError('');
+        setError(''); setRecognitionError('');
         setSeconds(0); level.current = 0;
         setNoVad(false);
         setPhase('requesting');
@@ -179,7 +179,7 @@ export function VoiceInput({ disabled, onActiveChange }: {
         }
     };
     const retry = async () => {
-        setError('');
+        setError(''); setRecognitionError('');
         try {
             await processor().retry(activeDictationSegments());
             await refresh();
@@ -197,16 +197,17 @@ export function VoiceInput({ disabled, onActiveChange }: {
             for (const segment of pending)
                 await dictationJournal.remove(segment.id);
             await refresh();
-            setError('');
+            setError(''); setRecognitionError('');
         }
         catch (e) {
             setError(String(e));
         }
     };
-    const recoverable = pending.length > 0 && (phase === 'idle' || !!error);
+    const shownError = error || recognitionError;
+    const recoverable = pending.length > 0 && (phase === 'idle' || !!shownError);
     return <div className="voice-control">
-    {(error || recoverable) && <div className={`voice-error ${error ? '' : 'voice-saved'}`} role={error ? 'alert' : 'status'}>
-      {error && <><span>{error}</span><button onClick={() => setError('')} aria-label="Закрыть ошибку микрофона">×</button></>}
+    {(shownError || recoverable) && <div className={`voice-error ${shownError ? '' : 'voice-saved'}`} role={shownError ? 'alert' : 'status'}>
+      {shownError && <><span>{shownError}</span><button onClick={() => {setError('');setRecognitionError('');}} aria-label="Закрыть ошибку микрофона">×</button></>}
       {recoverable && <div className="voice-recovery">
         <span>Сохранённый звук: {pending.length}</span>
         <button type="button" className="btn" onClick={() => void retry()}>Восстановить диктовку</button>

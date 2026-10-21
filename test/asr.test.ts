@@ -84,3 +84,11 @@ it('accepts a real empty transcript only for silence in progressive dictation',a
  await expect(transcribeAudio(blob,defaultAsr,signal,{allowEmpty:true})).resolves.toBe('');
  await expect(transcribeAudio(blob,defaultAsr,signal)).rejects.toThrow('не вернул');
 });
+
+it('keeps genuine HTTP failures visible without blaming credentials for audio errors',async()=>{
+ vi.stubGlobal('window',{});
+ for (const [status, hint] of [[400,'аудиофрагмент'],[401,'ключ'],[503,'Ошибка сервиса']] as const) {
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:false,status}));
+  await expect(transcribeAudio(new Blob(['fixture']),defaultAsr,new AbortController().signal,{allowEmpty:true})).rejects.toThrow(hint);
+ }
+});

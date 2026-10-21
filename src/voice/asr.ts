@@ -40,6 +40,15 @@ export function validateAsr(settings: AsrSettings): string | null {
   }
   return settings.model.trim() ? null : "Укажите модель ASR.";
 }
+export function asrHttpError(status: number): string {
+  const hint = status === 400 ? 'Сервис отклонил аудиофрагмент.'
+    : status === 401 || status === 403 ? 'Проверьте ключ и доступ к сервису.'
+    : status === 404 ? 'Проверьте адрес и модель.'
+    : status === 429 ? 'Сервис перегружен; повторите позже.'
+    : status >= 500 ? 'Ошибка сервиса распознавания; повторите позже.'
+    : 'Не удалось распознать аудиофрагмент.';
+  return `ASR HTTP ${status}. ${hint}`;
+}
 export async function transcribeAudio(
   blob: Blob,
   settings: AsrSettings,
@@ -88,7 +97,7 @@ export async function transcribeAudio(
     });
     if (!response.ok)
       throw new Error(
-        `ASR вернул HTTP ${response.status}. Проверьте адрес, модель и ключ.`,
+        asrHttpError(response.status),
       );
     const result = await response.json();
     text = result.text;

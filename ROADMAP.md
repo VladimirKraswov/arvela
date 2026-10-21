@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## Dictation tails and MCP outage notices (0.2.96)
+
+- [x] Complete newly rotated audio clips after a bounded 400 ms minimum; keep every sample, independent container headers, durable recovery and a five-second recorder deadline.
+- [x] CPU GigaAM accepts valid short decoded audio using its existing padding; zero samples returns empty text, corrupt audio still fails. Checked deployed service against synthetic silence, damaged data and Russian speech.
+- [x] Clear resolved ASR errors without clearing capture/storage errors; distinguish HTTP audio failures from credential failures.
+- [x] Announce an MCP outage once per scope/episode, clear its own notice after recovery, retain unrelated notifications and genuine outage visibility. Web Compass disabled LaunchAgent re-enabled; actual engine MCP connection restored.
+- [ ] Canonical release and served packet verification.
+
 ## Fullscreen tray and global policy recovery (0.2.95)
 
 - [x] macOS exits the fullscreen Space via its native completion notification before hiding the application; reopen restores fullscreen, duplicate close and rapid reopen preserve the intended visibility. Other platforms and explicit quit retain existing behavior.

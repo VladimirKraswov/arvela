@@ -5,7 +5,7 @@ import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 test('all gates precede credentials and canonical publication; failed tests cannot publish',()=>{
  const calls=[];let secrets=0;
  releaseWithOperator('stable',(program,args,env)=>calls.push({program,args,env}),()=>{secrets++;return {ONLY:'publisher'};});
- assert.equal(secrets,1);assert.ok(calls.some(c=>c.program==='cargo'&&c.args[0]==='test'));
+ assert.equal(secrets,1);assert.ok(calls.some(c=>c.args.includes('services/asr/tests')));assert.ok(calls.some(c=>c.program==='cargo'&&c.args[0]==='test'));
  assert.deepEqual(calls.at(-1),{program:'node',args:['scripts/releases/publish.mjs','stable'],env:{ONLY:'publisher'}});
  assert.ok(calls.slice(0,-1).every(c=>c.env===undefined));
  secrets=0;assert.throws(()=>releaseWithOperator('stable',(p,a)=>{if(p==='npm'&&a[0]==='test')throw Error('regression');},()=>{secrets++;return{};}));assert.equal(secrets,0);

@@ -1,3 +1,4 @@
+import {McpNotices} from '../capabilities/notices';
 import {applyGlobalPlugins} from '../api/configReload';
 import {refreshGlobalPolicy} from '../capabilities/globalPolicy';
 import { agentParts, steeringParts } from "../agent/promptPolicy";
@@ -518,6 +519,7 @@ class Store {
     });
   }
 
+  private mcpNotices=new McpNotices();
   async configureSharedTools(directory = this.state.directory, signal?:AbortSignal): Promise<void> {
     if (!directory || !isNative() || !isLocalComputer(this.state.prefs.endpoint, !!this.currentHost())) return;
     const endpoint=this.state.prefs.endpoint, client=this.client, generation=this.connectionGeneration;
@@ -529,8 +531,10 @@ class Store {
         apply:plugins=>applyGlobalPlugins(client,plugins,current)}),
     });
     if(report.reloaded){invalidateBrowserSetup();if(browserEnabled(this.state.prefs))await this.configureBrowser(false,false,directory);}
-    if (generation===this.connectionGeneration && this.state.prefs.endpoint===endpoint && report.unavailable.length)
-      this.patchUi({toast:`Недоступны MCP: ${report.unavailable.map(s=>s.name).join(", ")}. Отправка доступна; проверьте подключение в настройках.`});
+    if (current()) {
+      const toast=this.mcpNotices.update(JSON.stringify([endpoint,directory]),report.unavailable,this.state.ui.toast);
+      if(toast!==undefined)this.patchUi({toast});
+    }
   }
   browserTaskActive(): boolean {
     const id = this.state.activeSessionId;

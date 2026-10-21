@@ -43,6 +43,7 @@ export function releaseWithOperator(channel,run,credentials) {
   run('git',['diff','--exit-code']);
   for(const args of [['test'],['run','build'],['run','check:architecture'],['run','check:bundle'],['run','test:releases']])run('npm',args);
   run(process.platform==='win32'?'py':'python3', [...(process.platform==='win32'?['-3']:[]),'-m','unittest','discover','-s','services/hub/tests']);
+  run(process.platform==='win32'?'py':'python3', [...(process.platform==='win32'?['-3']:[]),'-m','unittest','discover','-s','services/asr/tests']);
   for(const args of [['fmt','--check'],['test'],['clippy','--all-targets','--','-D','warnings']])
     run('cargo',[...args.slice(0,1),'--manifest-path','src-tauri/Cargo.toml',...args.slice(1)]);
   // Only the publisher receives credentials, and only after all gates passed.

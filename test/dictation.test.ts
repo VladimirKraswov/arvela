@@ -130,7 +130,7 @@ it('creates independently headed clips, checkpoints partial audio, and flush wai
     level = 128;
     await vi.advanceTimersByTimeAsync(30000);
     expect(stopped).not.toHaveBeenCalled();
-    await flushDictationCapture();
+    const flushed=flushDictationCapture();await vi.advanceTimersByTimeAsync(400);await flushed;
     expect(stopped).toHaveBeenCalledOnce();
     expect(tracks).toHaveBeenCalledOnce();
     const records = await storage.list(dictationScope('host', 'draft'));
@@ -185,4 +185,24 @@ it('a recorder producing no data fails visibly instead of claiming readiness',as
  capture.start();await vi.advanceTimersByTimeAsync(8100);
  expect(ready).not.toHaveBeenCalled();expect(error).toHaveBeenCalledWith(expect.stringContaining('не начал передавать звук'));expect(stop).toHaveBeenCalledOnce();
  await capture.finish();
+});
+
+it('retains a tiny final clip after rotation and releases the microphone once within 400 ms',async()=>{
+ vi.useFakeTimers();const storage=memory(),track=vi.fn(),stopped=vi.fn(),recorders:any[]=[];
+ vi.stubGlobal('MediaRecorder',class{
+  static isTypeSupported(){return true;}state='inactive';mimeType='audio/webm';ondataavailable:any;onstop:any;id=recorders.length;
+  constructor(){recorders.push(this);}start(){this.state='recording';this.ondataavailable({data:new Blob([`header-${this.id}`])});}
+  stop(){this.state='inactive';this.ondataavailable({data:new Blob(['tail'])});this.onstop();}
+ });
+ const capture=new SegmentedCapture({getTracks:()=>[{stop:track}]} as any,null,storage,'host','draft',defaultAsr,{progress(){},segmentReady(){},stopped,error:()=>{throw Error('unexpected capture error');}});
+ capture.start();
+ // No VAD uses forced independent recordings with overlap. Stop at the rotation boundary.
+ for(let t=0;t<20000&&recorders.length<2;t+=50)await vi.advanceTimersByTimeAsync(50);
+ expect(recorders).toHaveLength(2);
+ const finished=capture.finish();expect(track).not.toHaveBeenCalled();
+ await vi.advanceTimersByTimeAsync(399);expect(stopped).not.toHaveBeenCalled();
+ await vi.advanceTimersByTimeAsync(1);await finished;await capture.finish();
+ expect(track).toHaveBeenCalledOnce();expect(stopped).toHaveBeenCalledOnce();
+ const clips=await storage.list(dictationScope('host','draft'));expect(clips).toHaveLength(2);
+ for(const clip of clips){expect(clip.complete).toBe(true);expect(await new Blob(clip.parts).text()).toMatch(/^header-\d+tail$/);}
 });

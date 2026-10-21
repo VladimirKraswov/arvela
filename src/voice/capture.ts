@@ -1,7 +1,9 @@
 import type { AsrSettings } from './asr';
 import { dictationJournal, dictationScope, type DictationSegment, type DictationStorage } from './journal';
 import { OVERLAP_MS, VoiceTiming } from './segmenter';
+const MIN_FINAL_CLIP_MS = 400;
 interface RecorderClip {
+    started: number;
     recorder: MediaRecorder;
     segment: DictationSegment;
     writes: Promise<void>;
@@ -29,6 +31,7 @@ export class SegmentedCapture {
     private analyser?: AnalyserNode;
     private values?: Uint8Array<ArrayBuffer>;
     private ended = false;
+    private released = false;
     private checkpointReady = false;
     private ready = false;
     private failing = false;
@@ -66,7 +69,7 @@ export class SegmentedCapture {
         const mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => MediaRecorder.isTypeSupported(m));
         const recorder = new MediaRecorder(this.input, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
         let resolve!: () => void;
-        const clip: RecorderClip = { recorder, segment: { id: crypto.randomUUID(), group: this.group,
+        const clip: RecorderClip = { recorder, started: Date.now(), segment: { id: crypto.randomUUID(), group: this.group,
                 scope: dictationScope(this.workspace, this.draft), workspace: this.workspace, draft: this.draft,
                 settings: { ...this.settings }, created: this.started, sequence: this.sequence++, overlap,
                 mime: recorder.mimeType, parts: [], complete: false }, writes: Promise.resolve(), done: new Promise(r => { resolve = r; }), resolve: () => resolve() };
@@ -162,6 +165,8 @@ export class SegmentedCapture {
         }
     }
     private release() {
+        if (this.released) return;
+        this.released = true;
         if (this.timer)
             clearInterval(this.timer);
         if (this.overlapTimer)
@@ -180,16 +185,23 @@ export class SegmentedCapture {
         if (this.overlapTimer)
             clearTimeout(this.overlapTimer);
         const clips = [...this.clips];
-        for (const clip of clips) {
-            if (clip.recorder.state !== 'recording') continue;
-            try { clip.recorder.stop(); }
-            catch {
-                this.failing = true;
-                this.callbacks.error('Не удалось завершить запись. Сохранённые фрагменты оставлены для восстановления.');
-                void clip.writes.finally(() => clip.resolve());
+        const stop = () => {
+            for (const clip of clips) {
+                if (clip.recorder.state !== 'recording') continue;
+                try { clip.recorder.stop(); }
+                catch {
+                    this.failing = true;
+                    this.callbacks.error('Не удалось завершить запись. Сохранённые фрагменты оставлены для восстановления.');
+                    void clip.writes.finally(() => clip.resolve());
+                }
             }
-        }
-        this.release();
+            this.release();
+        };
+        // A click just after rotation otherwise produces a header-only/tiny final
+        // container. Keep the encoder alive briefly, preserving its actual samples.
+        const wait = this.failing ? 0 : Math.max(0, ...clips.filter(c=>c.recorder.state==='recording').map(c=>MIN_FINAL_CLIP_MS-(Date.now()-c.started)));
+        const padding = wait > 0 ? setTimeout(stop,wait) : undefined;
+        if (!padding) stop();
         let timeout: ReturnType<typeof setTimeout>;
         const deadline = new Promise<void>(resolve => {
             timeout = setTimeout(() => {
@@ -200,6 +212,8 @@ export class SegmentedCapture {
         });
         this.finishing = Promise.race([Promise.all(clips.map(c => c.done)), deadline]).then(() => {
             clearTimeout(timeout);
+            clearTimeout(padding);
+            this.release();
             captures.delete(this);
             this.callbacks.stopped();
         });
