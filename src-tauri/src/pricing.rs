@@ -173,49 +173,95 @@ fn parse_peak_windows(text: &str) -> Option<Vec<Value>> {
     Some(windows)
 }
 
-fn parse_usd_rate(body: &str) -> Option<f64> {
+/// cbr-xml-daily.ru returns `{"Valute":{"USD":{"Value":81.97,"Nominal":1}}}`;
+/// older mirrors used `Val`. `Value` is per `Nominal` units, so divide.
+fn parse_cbr_rate(body: &str) -> Option<f64> {
     let value: Value = serde_json::from_str(body).ok()?;
-    if let Some(rate) = value.pointer("/Val/USD/Value").and_then(Value::as_f64) {
-        if (0.01..1_000.0).contains(&rate) {
-            return Some(rate);
-        }
-        return None;
-    }
+    let usd = value
+        .pointer("/Valute/USD")
+        .or_else(|| value.pointer("/Val/USD"))?;
+    let raw = usd.get("Value").and_then(Value::as_f64)?;
+    let nominal = usd
+        .get("Nominal")
+        .and_then(Value::as_f64)
+        .filter(|n| *n > 0.0)
+        .unwrap_or(1.0);
+    let rate = raw / nominal;
+    (0.01..1_000.0).contains(&rate).then_some(rate)
+}
+
+/// open.er-api.com/v6/latest/USD is USD-based: the ruble rate is `rates.RUB`
+/// (its `rates.USD` is always 1 and must never be used as a USD→RUB rate).
+fn parse_er_rate(body: &str) -> Option<f64> {
+    let value: Value = serde_json::from_str(body).ok()?;
     value
-        .pointer("/rates/USD")
+        .pointer("/rates/RUB")
         .and_then(Value::as_f64)
         .filter(|r| (0.01..1_000.0).contains(r))
 }
 
-#[tauri::command]
-pub fn fetch_price_book() -> Value {
-    let mut book = embedded_price_book();
+/// Tries CBR first, then er-api. A source that answers but cannot be parsed must
+/// still fall through to the next one — a 200 with an unexpected shape is not a
+/// working rate source.
+fn select_rate(
+    cbr: Result<String, String>,
+    er: Result<String, String>,
+) -> Result<(&'static str, f64), String> {
     let mut problems: Vec<String> = Vec::new();
-    match get("https://api-docs.deepseek.com/quick_start/pricing") {
-        Ok(html) => match parse_price_book(&html) {
-            Some(parsed) => book = parsed,
-            None => problems.push("таблица цен на странице документации не распознана".into()),
+    match cbr {
+        Ok(body) => match parse_cbr_rate(&body) {
+            Some(rate) => return Ok(("cbr", rate)),
+            None => problems.push("cbr: курс в ответе не распознан".into()),
         },
-        Err(error) => problems.push(error),
+        Err(error) => problems.push(format!("cbr: {error}")),
     }
+    match er {
+        Ok(body) => match parse_er_rate(&body) {
+            Some(rate) => return Ok(("er-api", rate)),
+            None => problems.push("er-api: курс в ответе не распознан".into()),
+        },
+        Err(error) => problems.push(format!("er-api: {error}")),
+    }
+    Err(problems.join("; "))
+}
+
+/// Blocking HTTP must run off the async runtime, matching the other network
+/// commands (`tauri::async_runtime::spawn_blocking`).
+fn load_price_book() -> Value {
+    let mut book = match get("https://api-docs.deepseek.com/quick_start/pricing") {
+        // The docs page is a client-rendered app, so the raw HTML usually has no
+        // price table; the hand-verified embedded snapshot is the normal source.
+        Ok(html) => parse_price_book(&html).unwrap_or_else(embedded_price_book),
+        Err(_) => embedded_price_book(),
+    };
     book["checkedAt"] = json!(now_ms());
-    if !problems.is_empty() {
-        book["warning"] = json!(problems.join("; "));
-    }
     book
 }
 
-#[tauri::command]
-pub fn fetch_usd_rate() -> Result<Value, String> {
-    let (body, source) = match get("https://www.cbr-xml-daily.ru/daily_json.js") {
-        Ok(body) => (body, "cbr"),
-        Err(first) => match get("https://open.er-api.com/v6/latest/USD") {
-            Ok(body) => (body, "er-api"),
-            Err(_) => return Err(first),
-        },
-    };
-    let rate = parse_usd_rate(&body).ok_or("Курс доллара в ответе не распознан")?;
+fn load_usd_rate() -> Result<Value, String> {
+    let (source, rate) = select_rate(
+        get("https://www.cbr-xml-daily.ru/daily_json.js"),
+        get("https://open.er-api.com/v6/latest/USD"),
+    )?;
     Ok(json!({ "schema": 1, "source": source, "checkedAt": now_ms(), "rate": rate }))
+}
+
+#[tauri::command]
+pub async fn fetch_price_book() -> Value {
+    tauri::async_runtime::spawn_blocking(load_price_book)
+        .await
+        .unwrap_or_else(|_| {
+            let mut book = embedded_price_book();
+            book["checkedAt"] = json!(now_ms());
+            book
+        })
+}
+
+#[tauri::command]
+pub async fn fetch_usd_rate() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(load_usd_rate)
+        .await
+        .map_err(|_| "Задача получения курса не завершилась".to_string())?
 }
 
 #[cfg(test)]
@@ -264,13 +310,52 @@ mod tests {
     }
 
     #[test]
-    fn parses_both_rate_sources() {
+    fn parses_real_cbr_and_er_api_shapes() {
+        // Shapes observed from the live endpoints on 2026-10-21.
         assert_eq!(
-            parse_usd_rate(r#"{"Val":{"USD":{"Value":80.5}}}"#).unwrap(),
+            parse_cbr_rate(r#"{"Valute":{"USD":{"Value":81.9739,"Nominal":1}}}"#).unwrap(),
+            81.9739
+        );
+        // CBR quotes per Nominal units, so a Nominal of 2 must be divided out.
+        assert_eq!(
+            parse_cbr_rate(r#"{"Valute":{"USD":{"Value":163.9478,"Nominal":2}}}"#).unwrap(),
+            81.9739
+        );
+        // The older `Val` key is still accepted for compatibility.
+        assert_eq!(
+            parse_cbr_rate(r#"{"Val":{"USD":{"Value":80.5}}}"#).unwrap(),
             80.5
         );
-        assert_eq!(parse_usd_rate(r#"{"rates":{"USD":78.25}}"#).unwrap(), 78.25);
-        assert!(parse_usd_rate(r#"{"Val":{"USD":{"Value":0}}}"#).is_none());
-        assert!(parse_usd_rate("not json").is_none());
+        assert!(parse_cbr_rate(r#"{"Valute":{"USD":{"Value":0}}}"#).is_none());
+        assert!(parse_cbr_rate("not json").is_none());
+
+        // er-api is USD-based: rates.USD is always 1 and rates.RUB is the rate.
+        assert_eq!(
+            parse_er_rate(r#"{"base_code":"USD","rates":{"USD":1,"RUB":82.571905}}"#).unwrap(),
+            82.571905
+        );
+        assert!(parse_er_rate(r#"{"rates":{"USD":1}}"#).is_none());
+        assert!(parse_er_rate("not json").is_none());
+    }
+
+    #[test]
+    fn falls_back_when_a_source_answers_with_an_unexpected_shape() {
+        let cbr = r#"{"Valute":{"USD":{"Value":81.9739,"Nominal":1}}}"#.to_string();
+        let er = r#"{"base_code":"USD","rates":{"USD":1,"RUB":82.571905}}"#.to_string();
+        assert_eq!(
+            select_rate(Ok(cbr), Ok(er.clone())).unwrap(),
+            ("cbr", 81.9739)
+        );
+        // A 200 with an unparseable body must not block the next source.
+        assert_eq!(
+            select_rate(Ok("{}".into()), Ok(er.clone())).unwrap(),
+            ("er-api", 82.571905)
+        );
+        assert_eq!(
+            select_rate(Err("HTTP 503".into()), Ok(er)).unwrap(),
+            ("er-api", 82.571905)
+        );
+        let error = select_rate(Ok("{}".into()), Ok("{}".into())).unwrap_err();
+        assert!(error.contains("cbr") && error.contains("er-api"), "{error}");
     }
 }

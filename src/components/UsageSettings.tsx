@@ -103,7 +103,7 @@ export function UsageSettings() {
             Flash — ввод {priceLabel(flash.input)}, чтение кэша {priceLabel(flash.inputCacheHit)}, вывод {priceLabel(flash.output)}.
             Pro — ввод {priceLabel(pro.input)}, чтение кэша {priceLabel(pro.inputCacheHit)}, вывод {priceLabel(pro.output)}.
             Доллар: {fmtRub(money.snapshot.rate.rate)} ₽ ({money.snapshot.rate.source}).
-            Прайс: {book.source}{book.checkedAt ? `, проверен ${new Date(book.checkedAt).toLocaleString("ru-RU")}` : ""}.
+            Прайс: {book.source === "embedded" ? "встроенный снапшот" : book.source}{book.source !== "embedded" && book.checkedAt ? `, проверен ${new Date(book.checkedAt).toLocaleString("ru-RU")}` : ""}.
           </p>;
         })()}
       </section>}

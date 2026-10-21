@@ -9,6 +9,19 @@ const HOUR = 3600_000;
 const mock = vi.hoisted(() => {
   const files = new Map<string, { content: string; sha: string }>();
   const invocations: Array<{ cmd: string; args: Record<string, unknown> }> = [];
+  const flags = { failRate: false };
+  const book = {
+    schema: 1,
+    source: "test",
+    checkedAt: Date.parse("2026-10-21T12:00:00Z"),
+    offPeakFactor: 0.5,
+    peakDays: [1, 2, 3, 4, 5],
+    peakWindows: [{ startHour: 1, endHour: 4 }, { startHour: 6, endHour: 10 }],
+    models: {
+      flash: { input: { peak: 0.3, offPeak: 0.15 }, inputCacheHit: { peak: 0.006, offPeak: 0.003 }, output: { peak: 1.2, offPeak: 0.6 } },
+      pro: { input: { peak: 1.32, offPeak: 0.66 }, inputCacheHit: { peak: 0.044, offPeak: 0.022 }, output: { peak: 3.96, offPeak: 1.98 } },
+    },
+  };
   const shaOf = (content: string) => {
     let h = 0;
     for (let i = 0; i < content.length; i++) h = (h * 31 + content.charCodeAt(i)) | 0;
@@ -28,24 +41,14 @@ const mock = vi.hoisted(() => {
       files.set(args.name as string, { content: args.content as string, sha });
       return { content: args.content, sha };
     }
-    if (cmd === "fetch_price_book") {
-      return {
-        schema: 1,
-        source: "test",
-        checkedAt: NOW,
-        offPeakFactor: 0.5,
-        peakDays: [1, 2, 3, 4, 5],
-        peakWindows: [{ startHour: 1, endHour: 4 }, { startHour: 6, endHour: 10 }],
-        models: {
-          flash: { input: { peak: 0.3, offPeak: 0.15 }, inputCacheHit: { peak: 0.006, offPeak: 0.003 }, output: { peak: 1.2, offPeak: 0.6 } },
-          pro: { input: { peak: 1.32, offPeak: 0.66 }, inputCacheHit: { peak: 0.044, offPeak: 0.022 }, output: { peak: 3.96, offPeak: 1.98 } },
-        },
-      };
+    if (cmd === "fetch_price_book") return book;
+    if (cmd === "fetch_usd_rate") {
+      if (flags.failRate) throw new Error("сеть недоступна");
+      return { source: "test", checkedAt: NOW, rate: 80 };
     }
-    if (cmd === "fetch_usd_rate") return { source: "test", checkedAt: NOW, rate: 80 };
     throw new Error(`unexpected command ${cmd}`);
   });
-  return { files, invocations, invoke };
+  return { files, invocations, invoke, flags, book };
 });
 
 vi.mock("../src/native/platform", () => ({ isNative: () => true }));
@@ -79,6 +82,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   mock.files.clear();
   mock.invocations.length = 0;
+  mock.flags.failRate = false;
   mock.invoke.mockClear();
 });
 afterEach(() => {
@@ -125,5 +129,40 @@ describe("computeUsage native path", () => {
     expect(ledgerWrites).toHaveLength(1);
     expect(result.money).not.toBeNull();
     expect(result.money!.spentRub).toBeGreaterThan(0);
+  });
+
+  it("explains why money is hidden instead of discarding the cause", async () => {
+    mock.flags.failRate = true;
+    const result = await computeUsage(
+      [source("OpenCode", NOW, [message("m1", 2 * 24 * 3600, 1000)])],
+      "30d",
+      new AbortController().signal,
+    );
+    expect(result.money).toBeNull();
+    expect(result.report.totals.total).toBe(1000); // token stats still work
+    expect(result.notes.some(n => n.includes("Курс доллара недоступен") && n.includes("сеть недоступна"))).toBe(true);
+  });
+
+  it("keeps showing money from stale stored prices when a refresh fails", async () => {
+    mock.flags.failRate = true;
+    const stale = NOW - 2 * 24 * HOUR;
+    const ledger = {
+      schema: 1,
+      updatedAt: stale,
+      prices: { book: mock.book, rate: { source: "test", checkedAt: stale, rate: 75 }, notes: [] },
+      days: {},
+    };
+    const fact = { t: NOW - 2 * 24 * HOUR, sk: "OpenCode\u0000deepseek\u0000deepseek-flash", sid: "s1", c: [1000, 100, 100, 800, 0, 0, 0] };
+    const cacheJson = JSON.stringify({ schema: 1, sessions: { "OpenCode|s1": { updated: NOW } }, messages: { "OpenCode|s1|m1": fact } });
+    mock.files.set(CACHE_FILE, { content: cacheJson, sha: "existing-cache" });
+    mock.files.set(LEDGER_FILE, { content: JSON.stringify(ledger), sha: "existing-ledger" });
+    const result = await computeUsage(
+      [source("OpenCode", NOW, [message("m1", 2 * 24 * HOUR, 1000)])],
+      "30d",
+      new AbortController().signal,
+    );
+    expect(result.money).not.toBeNull();
+    expect(result.money!.snapshot.rate.rate).toBe(75);
+    expect(result.notes.some(n => n.includes("используется прежний"))).toBe(true);
   });
 });

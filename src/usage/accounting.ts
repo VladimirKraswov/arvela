@@ -112,8 +112,8 @@ export async function computeUsage(
   const stale = !snapshot || now - snapshot.rate.checkedAt >= DAY_MS;
   if (stale || options.refreshPrices) {
     const fresh = await refreshSnapshot(snapshot, options.refreshPrices ? "принудительно" : "по расписанию 24 ч");
-    if (fresh) snapshot = fresh.snapshot;
-    notes.push(...fresh?.notes ?? []);
+    if (fresh.snapshot) snapshot = fresh.snapshot;
+    notes.push(...fresh.notes);
   }
   let settledLedger = ledger;
   let storageSaved = true;
@@ -135,7 +135,6 @@ export async function computeUsage(
       today: totals.today,
       perModel: modelMoney(refresh.cache, snapshot, periodStart(period, now), now + DAY_MS),
     };
-    notes.push(...snapshot.notes);
   } else {
     notes.push("Курс доллара недоступен — денежные суммы скрыты до следующей проверки.");
   }
@@ -144,11 +143,13 @@ export async function computeUsage(
 }
 
 /** Reads the DeepSeek price book and the USD→RUB rate, keeping old values on
- * partial failure so closed-day accounting never depends on a live network. */
+ * partial failure so closed-day accounting never depends on a live network.
+ * Always returns the notes: when no snapshot can be built they explain why the
+ * money panel is hidden instead of discarding the cause. */
 export async function refreshSnapshot(
   previous: MoneySnapshot | null,
   reason: string,
-): Promise<{ snapshot: MoneySnapshot; notes: string[] } | null> {
+): Promise<{ snapshot: MoneySnapshot | null; notes: string[] }> {
   const notes: string[] = [];
   let book: PriceBook | null = previous?.book ?? null;
   try {
@@ -164,6 +165,5 @@ export async function refreshSnapshot(
     if (!rate) notes.push(`Курс доллара недоступен (${reason}): ${String(error)}.`);
     else notes.push(`Курс доллара не обновился (${reason}); используется прежний ${rate.rate.toFixed(2)} ₽.`);
   }
-  if (!book || !rate) return null;
-  return { snapshot: { book, rate, notes }, notes };
+  return { snapshot: book && rate ? { book, rate, notes } : null, notes };
 }
