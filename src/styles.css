@@ -15,6 +15,8 @@
   --ok: #3e7d4f;
   --warn: #a06a1f;
   --err: #a63a30;
+  --peak: #b63a72;
+  --peak-soft: #f6e3ec;
   --tool: #4a6fa5;
   --code-bg: #f0eeea;
   --shadow: 0 8px 30px rgba(40, 35, 25, 0.14);
@@ -34,6 +36,8 @@
   --ok: #7fb98d;
   --warn: #d0a35c;
   --err: #e07a6e;
+  --peak: #e58ab0;
+  --peak-soft: #3a2530;
   --tool: #8fb0dc;
   --code-bg: #141312;
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
@@ -1743,6 +1747,16 @@ kbd {
   color: var(--text-faint);
   font-size: 0.714286rem;
   margin-top: 3px;
+}
+.select-options button.select-option-peak {
+  background: color-mix(in srgb, var(--peak) 10%, transparent);
+}
+.select-options button.select-option-peak:hover,
+.select-options button.select-option-peak:focus-visible {
+  background: color-mix(in srgb, var(--peak) 18%, transparent);
+}
+.select-options .select-option-peak-note {
+  color: var(--peak);
 }
 .btn {
   border-radius: 8px;

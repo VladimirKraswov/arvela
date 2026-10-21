@@ -32,6 +32,29 @@ it("keeps offline rows selectable and refresh accessible, including an empty cat
   } finally { act(() => root.unmount()); }
 });
 
+it("tints DeepSeek rows during peak hours and shows the cheaper-in countdown", () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  const node = document.createElement("div"); document.body.append(node);
+  const root = createRoot(node);
+  const options = [
+    { value: "deepseek/deepseek-flash", label: "DeepSeek Flash", detail: "deepseek", peak: { note: "дешевле через 2 ч 15 мин" } },
+    { value: "local/model", label: "Local" },
+  ];
+  try {
+    act(() => root.render(createElement(SelectMenu, { label: "Модель", value: "local/model", options, onChange: () => {} })));
+    act(() => node.querySelector("button")!.click());
+    const rows = [...document.querySelectorAll('[role="option"]')];
+    const peakRow = rows.find(r => r.textContent?.includes("дешевле через"));
+    expect(peakRow).toBeDefined();
+    expect(peakRow!.className).toContain("select-option-peak");
+    expect(peakRow!.textContent).toContain("дорого · дешевле через 2 ч 15 мин");
+    // A row without the hint stays untinted.
+    const plain = rows.find(r => r.textContent?.includes("Local"));
+    expect(plain!.className).not.toContain("select-option-peak");
+  } finally { act(() => root.unmount()); }
+});
+
 it("uses a modal warning with retry, allows cancelling the pending readiness check", () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   HTMLDialogElement.prototype.showModal = vi.fn(function(this: HTMLDialogElement) { this.open = true; });

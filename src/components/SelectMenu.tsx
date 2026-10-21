@@ -23,6 +23,8 @@ export function SelectMenu({
     detail?: string;
     /** Shown but not selectable; `detail` explains why. */
     disabled?: boolean;
+    /** DeepSeek peak-hours hint: tints the row and shows the countdown. */
+    peak?: { note: string };
   }[];
   onChange: (value: string) => void;
   disabled?: boolean;
@@ -103,6 +105,7 @@ export function SelectMenu({
             {filtered.map((o) => (
               <button
                 role="option"
+                className={o.peak ? "select-option-peak" : undefined}
                 aria-selected={o.value === value}
                 aria-disabled={o.disabled || undefined}
                 disabled={o.disabled}
@@ -117,6 +120,7 @@ export function SelectMenu({
                 <span>
                   {o.label}
                   {o.detail && <small>{o.detail}</small>}
+                  {o.peak && <small className="select-option-peak-note">дорого · {o.peak.note}</small>}
                 </span>
                 {o.value === value && <Icon name="check" size={15} />}
               </button>

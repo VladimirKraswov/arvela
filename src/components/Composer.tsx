@@ -20,6 +20,7 @@ import { openFileInput, registerComposer } from "../attachments/composerBridge";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { readFile, stat } from "@tauri-apps/plugin-fs";
+import { deepseekPeakStatus, formatUntilCheap } from "../usage/peak";
 
 const PromptQueue = lazy(() => import("./PromptQueue").then(m => ({default: m.PromptQueue})));
 
@@ -48,6 +49,12 @@ export function Composer() {
   const [attachmentProgress, setAttachmentProgress] = useState("");
   const [dragging, setDragging] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
+  // Peak-hours hint refreshes once a minute so the "cheaper in …" countdown stays honest.
+  const [priceNow, setPriceNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setPriceNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const scope = attachmentScope(s.prefs.workspaceKey ?? s.prefs.endpoint, s.directory, s.activeSessionId);
   const attachments = useSyncExternalStore(attachmentDrafts.subscribe, () => attachmentDrafts.snapshot(scope));
   const draft = store.getDraft();
@@ -366,11 +373,15 @@ export function Composer() {
             value={isPi && modelList.length === 0
               ? "Выберите модель в настройках Pi"
               : choice ? `${choice.providerID}/${choice.modelID}` : ""}
-            options={modelList.map((m) => ({
-              value: `${m.providerID}/${m.modelID}`,
-              label: m.label,
-              detail: m.detail ?? m.providerID,
-            }))}
+            options={modelList.map((m) => {
+              const peak = m.providerID === "deepseek" ? deepseekPeakStatus(priceNow) : null;
+              return {
+                value: `${m.providerID}/${m.modelID}`,
+                label: m.label,
+                detail: m.detail ?? m.providerID,
+                peak: peak?.peak && peak.untilMs != null ? { note: `дешевле через ${formatUntilCheap(peak.untilMs)}` } : undefined,
+              };
+            })}
             onRefresh={() => void refreshModels()}
             refreshing={refreshing}
             refreshError={refreshError}
