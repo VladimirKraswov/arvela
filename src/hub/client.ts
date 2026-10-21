@@ -1,3 +1,4 @@
+import {retryHub} from './retry';
 import { capabilityNative, invalidateCapabilities } from "../capabilities/integration";
 import type { Catalog, SharedServer } from "../capabilities/registry";
 import { signature, validateServer } from "../capabilities/registry";
@@ -15,7 +16,12 @@ export async function config(value?:HubConfig,key?:string,expected?:HubConfig){
  if((key!==undefined||(value!==undefined&&(!expected||value.endpoint!==expected.endpoint||value.certificate!==expected.certificate||value.enabled!==expected.enabled)))&&typeof window!=="undefined")window.dispatchEvent(new Event("arvela-hub-config-changed"));
  return saved;
 }
-export const request=<T>(path:string,body?:unknown,expected?:string)=>capabilityNative<T>("hub_request",{path,body:body??null,expected:expected??null});
+export async function request<T>(path:string,body?:unknown,expected?:string):Promise<T> {
+ const origin = expected ?? await hubOrigin(await config());
+ return retryHub(() => capabilityNative<T>("hub_request",{path,body:body??null,expected:origin}), {
+  safe: body === undefined || path === 'memory/retrieve',
+ });
+}
 export const spool=(action:string,records?:HubRecord[],hashes?:string[],expected?:string)=>capabilityNative<Spool>("hub_spool",{action,records:records??null,hashes:hashes??null,expected:expected??null});
 export async function drain(){const batch=await spool("read");if(batch.records.length){await request("ingest",{appVersion:version,records:batch.records},batch.origin);return spool("ack",undefined,batch.hashes,batch.origin);}return batch;}
 export function idle(){return Object.values(store.state.chat.sessions).every(s=>s.status.type==="idle")&&!store.state.ui.sending;}

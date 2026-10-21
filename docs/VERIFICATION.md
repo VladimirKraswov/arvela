@@ -1,3 +1,40 @@
+# Hub recovery and error diagnostics (0.2.102)
+
+Owner repeatedly could not send: «Библиотека недоступна или сертификат не
+совпадает». Node HTTPS with the actual app endpoint/certificate returned200 for
+health/model catalog/coordinator, but an explicit Rust client probe reproduced
+TCP No route to host/os65. No TLS failure was detected. OS proxies were disabled.
+Two Enki LAN privacy entries appeared enabled. After explicit owner approval,
+one linked toggle was turned off/on and both entries verified back on. Installed
+Enki then displayed authenticated Hub HTTP409 instead of a connection failure.
+The separate standalone Rust executable remained LAN-denied; its identity is not
+proof that the installed app remained disconnected. No certificate bypass,
+proxy/tunnel workaround, other-app permission change or owner prompt was used.
+The private temporary diagnostic credential file was removed. Initial TLS
+classifier regression exposed io::Error::source skipping its wrapped error;
+get_ref traversal fixed it and both native classification tests pass.
+
+HTTP409 uncovered a second permanent fault: an expired cached whole-turn lease
+was retained and reused on every send. The client now recognizes ONLY explicit
+expired/missing/cancelled ticket responses, clears an inactive reservation and
+obtains one fresh ticket before dispatch. Expired requestKey recovery is also
+limited to once. Busy/routing/validation conflicts and active runs never create a
+replacement reservation. Native error decoding uses bounded allowlisted Hub
+responses, not arbitrary backend strings.
+
+Native Hub failures now carry a bounded typed envelope; UI messages distinguish
+network, timeout, TLS, interrupted body,401/403/409/429/5xx. Raw URLs, credentials
+and response bodies never reach the error message. TLS/auth errors never retry.
+The shared retry policy allows three attempts (750ms/1500ms backoff, native20sec
+request limit): GETs/read-only retrieval/status, or prepare retaining exactly the
+same persistent requestKey. No inference, agent prompt, ingest or unkeyed write
+is replayed. Abort and profile changes prevent subsequent attempts. Reconnect
+status shows the attempt while the original request/draft remains pending.
+
+26 focused frontend regressions and build pass;2 native tests pass. Actual Hub
+already has persisted device+requestKey idempotency, with lost-ack regressions.
+Full canonical release and installed client acceptance pending.
+
 # Context transfer from a larger model (0.2.97)
 
 Read-only engine4096/1.18.18 metadata identifies the owner Quake2 incident:

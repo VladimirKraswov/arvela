@@ -19,6 +19,7 @@ export interface ServiceModel {
   context_window?: number;
 }
 export interface SwitchStatus {
+  detail?: string;
   schema: 1;
   operation_id: string | null;
   phase: string;
@@ -529,8 +530,9 @@ export class ModelServices {
 }
 export const modelServices = new ModelServices();
 export const isSwitching = (state?: {phase: string; ready: boolean}) => !!state && !state.ready &&
-  ["checking", "waiting", "draining", "unloading", "loading", "warming"].includes(state.phase);
+  ["reconnecting", "checking", "waiting", "draining", "unloading", "loading", "warming"].includes(state.phase);
 export const switchPhaseLabels: Record<string, string> = {
+  reconnecting: "Восстанавливаем связь с Hub",
   checking: "Проверка сервиса модели",
   waiting: "Ожидание модели: сервис занят другим заданием",
   cancelled: "Подготовка модели отменена",

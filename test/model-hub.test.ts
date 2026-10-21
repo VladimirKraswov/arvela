@@ -115,3 +115,36 @@ it("the lazy coordinator must initialize before an unknown provider can pass the
   load();await pending;expect(finished).toBe(true);
   expect(api.request).toHaveBeenCalledWith('prepare',expect.objectContaining({modelID:'artemis'}),'test-hub');
 });
+
+it('recovers a lost prepare acknowledgement using exactly the same requestKey and shows reconnect progress',async()=>{
+ vi.useFakeTimers();const {HubRequestError}=await import('../src/hub/errors');let attempts=0;
+ const api=transport(path=>{if(path==='prepare'&&++attempts===1)throw new HubRequestError('network');return status('ready');});
+ const hub=new HubModelServices(api);await hub.refresh();const work=hub.ensure('local-artemis','artemis','opencode','session');
+ await vi.advanceTimersByTimeAsync(0);expect(hub.status('local-artemis','artemis','session')?.phase).toBe('reconnecting');
+ expect(hub.status('local-artemis','artemis','session')?.detail).toContain('2 из 3');
+ await vi.advanceTimersByTimeAsync(750);await work;
+ const prepares=vi.mocked(api.request).mock.calls.filter(c=>c[0]==='prepare');expect(prepares).toHaveLength(2);expect(prepares[0][1]).toEqual(prepares[1][1]);expect(hub.status('local-artemis','artemis','session')?.ready).toBe(true);
+});
+it('retries a temporary catalog outage without falling back to direct inference',async()=>{
+ vi.useFakeTimers();const {HubRequestError}=await import('../src/hub/errors');const api=transport(()=>status('ready'));
+ vi.mocked(api.request).mockRejectedValueOnce(new HubRequestError('http',503));
+ const hub=new HubModelServices(api);const refresh=hub.refresh();await vi.advanceTimersByTimeAsync(750);await refresh;
+ expect(hub.route('local-artemis','artemis')).toBeDefined();expect(api.request).toHaveBeenCalledTimes(2);
+});
+it('replaces an expired inactive lease once, but never silently replaces an active run lease',async()=>{
+ const {HubRequestError}=await import('../src/hub/errors');let expired=false,active=false;
+ const api=transport(path=>{if(path==='status'&&expired)throw new HubRequestError('lease_expired',409);return status('ready');});
+ const hub=new HubModelServices(api,()=>active);await hub.refresh();await hub.ensure('local-artemis','artemis','opencode','s');
+ expired=true;await hub.ensure('local-artemis','artemis','opencode','s');
+ expect(vi.mocked(api.request).mock.calls.filter(c=>c[0]==='prepare')).toHaveLength(2);
+ active=true;await expect(hub.ensure('local-artemis','artemis','opencode','s')).rejects.toThrow('Срок заявки');
+ expect(vi.mocked(api.request).mock.calls.filter(c=>c[0]==='prepare')).toHaveLength(2);
+});
+it('refreshes only an explicitly expired requestKey once; generic HTTP409 never starts another operation',async()=>{
+ const {HubRequestError}=await import('../src/hub/errors');let requests=0;
+ const api=transport(path=>{if(path==='prepare'&&requests++===0)throw new HubRequestError('lease_expired',409);return status('ready');});
+ const hub=new HubModelServices(api);await hub.refresh();await hub.ensure('local-artemis','artemis','opencode');
+ const prepares=vi.mocked(api.request).mock.calls.filter(c=>c[0]==='prepare');expect(prepares).toHaveLength(2);expect(prepares[0][1]).not.toEqual(prepares[1][1]);
+ const busy=transport(()=>{throw new HubRequestError('http',409);});const other=new HubModelServices(busy);await other.refresh();
+ await expect(other.ensure('local-artemis','artemis','opencode')).rejects.toThrow('конфликтует');expect(vi.mocked(busy.request).mock.calls.filter(c=>c[0]==='prepare')).toHaveLength(1);
+});

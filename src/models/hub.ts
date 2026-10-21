@@ -1,3 +1,5 @@
+import {retryHub} from '../hub/retry';
+import {HubRequestError} from '../hub/errors';
 import { capabilityNative } from "../capabilities/integration";
 import { hubOrigin } from "../hub/identity";
 import { validStatus, type SwitchStatus } from "./services";
@@ -20,6 +22,7 @@ const CACHE = "arvela.model-coordinator.v1";
 /** The Hub owns coordination. The UI only holds cancellable readiness waits and
  * renews reservations for genuinely running sessions; it never runs an agent loop. */
 export class HubModelServices {
+  private recoveries = new Map<symbol, string>();
   private routes: HubRoute[] = [];
   private knownRoutes: HubRoute[] = [];
   private scope = "";
@@ -40,13 +43,32 @@ export class HubModelServices {
   private emit() { this.listeners.forEach(fn => fn()); }
   configuredRoutes(): readonly HubRoute[] { return this.routes; }
   configured() { return this.enabled; }
-  connectionChanged() { this.generation++; this.refreshing = undefined; }
+  connectionChanged() { this.generation++; this.refreshing = undefined; this.recoveries.clear(); }
   route(providerID: string, modelID: string, agent?: string) {
     return [...this.routes, ...this.knownRoutes].find(r => r.providerID === providerID && r.modelID === modelID && (!agent || r.agent === agent));
   }
   status(providerID: string, modelID: string, context?: string, agent?: string) {
     const route = this.route(providerID, modelID, agent);
-    return route && this.states.get(this.stateKey(route, context));
+    if (!route) return;
+    const state = this.states.get(this.stateKey(route, context));
+    const notices = [...this.recoveries.values()];
+    const detail = notices[notices.length - 1];
+    return detail ? {schema: 1 as const, operation_id: null, active_model: null, target_model: route.target,
+      elapsed_seconds: 0, active_requests: 0, loader: null, error: null, ...state, phase: 'reconnecting', ready: false, detail} : state;
+  }
+  private async request<T>(path: string, body: unknown, scope: string, signal?: AbortSignal, check?: () => void): Promise<T> {
+    const generation = this.generation, token = Symbol();
+    const current = () => {
+      if (generation !== this.generation || scope !== this.scope) throw new Error('Подключение Hub изменилось; повтор отменён.');
+      check?.();
+    };
+    try {
+      return await retryHub(() => this.transport.request<T>(path, body, scope), {
+        safe: path === 'catalog' || path === 'status' || path === 'prepare' && !!(body as {requestKey?: string})?.requestKey,
+        signal, current,
+        onRetry: (attempt,total) => { this.recoveries.set(token, `Восстанавливаем связь с Hub: попытка ${attempt} из ${total}. Запрос сохранён.`); this.emit(); },
+      });
+    } finally { if (this.recoveries.delete(token)) this.emit(); }
   }
   private stateKey(route: HubRoute, context?: string) { return JSON.stringify([route.agent, route.providerID, route.modelID, context ?? "@selection"]); }
   private publish(route: HubRoute, value: SwitchStatus, context?: string) {
@@ -84,7 +106,7 @@ export class HubModelServices {
         }
       } catch { /* Corrupt cache grants no access; fresh Hub catalog is required. */ }
     }
-    const catalog = await this.transport.request<{schema: number; routes: HubRoute[]}>("catalog", undefined, scope);
+    const catalog = await this.request<{schema: number; routes: HubRoute[]}>("catalog", undefined, scope);
     if (catalog.schema !== 1 || !Array.isArray(catalog.routes) || !catalog.routes.every(validRoute))
       throw new Error("Hub вернул неподдерживаемый каталог сервисов.");
     if (this.scope !== scope || generation !== this.generation) throw new Error("Подключение Hub изменилось.");
@@ -133,16 +155,35 @@ export class HubModelServices {
     try {
       current();
       const existing = owner && this.leases.get(owner);
-      let state: SwitchStatus;
+      let state!: SwitchStatus;
+      let needsPrepare = true;
+      const stale = (error: unknown) => error instanceof HubRequestError && error.code === 'lease_expired';
       if (existing && existing.scope === scope && existing.route.target === route.target && existing.route.service === route.service) {
         ticket = existing.ticket;
-        state = await this.transport.request("status", {ticket}, scope);
-      } else {
+        try {
+          state = await this.request<SwitchStatus>("status", {ticket}, scope, signal, current);
+          needsPrepare = false;
+        } catch (error) {
+          if (!stale(error) || this.active(owner!)) throw error;
+          current();
+          if (this.leases.get(owner!) === existing) this.leases.delete(owner!);
+          this.pending.delete(pendingKey); this.save(); ticket = undefined;
+        }
+      }
+      if (needsPrepare) {
         if (owner) await this.release(owner);
         current();
-        const requestKey = this.pending.get(pendingKey) ?? crypto.randomUUID();
+        let requestKey = this.pending.get(pendingKey) ?? crypto.randomUUID();
         this.pending.set(pendingKey, requestKey); this.save();
-        state = await this.transport.request("prepare", {providerID, modelID, agent, mode: owner ? "run" : "select", requestKey}, scope);
+        const prepare = () => this.request<SwitchStatus>("prepare", {providerID, modelID, agent, mode: owner ? "run" : "select", requestKey}, scope, signal, current);
+        try { state = await prepare(); }
+        catch (error) {
+          // A rejected expired/conflicting key cannot represent an accepted new
+          // operation. Recover ONCE before dispatch; never change an active run.
+          if (!stale(error) || owner && this.active(owner)) throw error;
+          current(); requestKey = crypto.randomUUID(); this.pending.set(pendingKey, requestKey); this.save();
+          state = await prepare();
+        }
         ticket = state.operation_id ?? undefined;
         created = true;
       }
@@ -155,14 +196,14 @@ export class HubModelServices {
         if (state.ready && state.phase === "ready" && state.active_model === route.target) break;
         if (Date.now() >= deadline) throw new Error("Истекло время ожидания модели; черновик сохранён.");
         await new Promise(resolve => setTimeout(resolve, 800)); current();
-        state = await this.transport.request("status", {ticket}, scope);
+        state = await this.request<SwitchStatus>("status", {ticket}, scope, signal, current);
       }
       if (owner) { this.leases.set(owner, {ticket, owner, route, scope, since: Date.now()}); this.save(); }
       this.pending.delete(pendingKey); this.save();
     } catch (error) {
       if (ticket && created) await this.transport.request("release", {ticket}, scope).catch(() => {});
       const detail = signal?.aborted ? "Подготовка модели отменена." : error instanceof Error ? error.message : String(error);
-      if (ticket || /Hub HTTP 4\d\d\b/.test(detail)) { this.pending.delete(pendingKey); this.save(); }
+      if (ticket || error instanceof HubRequestError && error.code === 'http' && (error.status ?? 0) < 500 || /Hub HTTP 4\d\d\b/.test(detail)) { this.pending.delete(pendingKey); this.save(); }
       if (scope === this.scope && generation === this.generation) this.publish(route, {schema: 1, operation_id: ticket ?? null, phase: signal?.aborted ? "cancelled" : "failed", ready: false,
         active_model: null, target_model: route.target, elapsed_seconds: 0, active_requests: 0, loader: null, error: signal?.aborted ? null : detail}, context);
       throw new Error(detail);

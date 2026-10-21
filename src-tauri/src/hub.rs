@@ -1,4 +1,5 @@
 //! Scoped HTTPS client; device secrets never cross the WebView boundary on read.
+mod errors;
 mod outbox;
 pub mod retrieval;
 use outbox::{strip_text, upload_batch};
@@ -314,11 +315,14 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
         }
         q = q.json(&b);
     }
-    let response = q
-        .send()
-        .map_err(|_| "Библиотека недоступна или сертификат не совпадает")?;
+    let response = q.send().map_err(errors::transport)?;
     let status = response.status();
     if !status.is_success() {
+        if model_control {
+            let mut body = String::new();
+            let _ = response.take(4096).read_to_string(&mut body);
+            return Err(errors::http(status.as_u16(), &body));
+        }
         if memory_path(path) {
             let mut text = String::new();
             if response.take(4096).read_to_string(&mut text).is_ok() {
@@ -333,16 +337,13 @@ fn request(c: &Config, path: &str, body: Option<Value>) -> Result<Value, String>
                 }
             }
         }
-        return Err(format!(
-            "Hub HTTP {} — проверьте доступ и ключ устройства",
-            status.as_u16()
-        ));
+        return Err(errors::failure("http", Some(status.as_u16())));
     }
     let mut raw = String::new();
     response
         .take(8 * 1024 * 1024 + 1)
         .read_to_string(&mut raw)
-        .map_err(|_| "Cannot read Hub response")?;
+        .map_err(|_| errors::failure("interrupted", None))?;
     if raw.len() > 8 * 1024 * 1024 {
         return Err("Hub response exceeds 8MiB".into());
     }
@@ -593,15 +594,13 @@ fn catalog_send(
         }
         q = q.json(b);
     }
-    let response = q
-        .send()
-        .map_err(|_| "Библиотека недоступна или сертификат не совпадает")?;
+    let response = q.send().map_err(errors::transport)?;
     let status = response.status().as_u16();
     let mut raw = String::new();
     response
         .take(1024 * 1024)
         .read_to_string(&mut raw)
-        .map_err(|_| "Cannot read Hub response")?;
+        .map_err(|_| errors::failure("interrupted", None))?;
     if raw.len() > 512 * 1024 {
         return Err("Ответ каталога моделей слишком велик".into());
     }

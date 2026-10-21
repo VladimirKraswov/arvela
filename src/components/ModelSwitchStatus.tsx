@@ -3,7 +3,7 @@ import { Icon } from "./Icon";
 
 export function ModelSwitchStatus({ state, modelName }: {
   state: { phase: string; ready: boolean; elapsed_seconds: number; error?: string | null;
-    loader?: { unit?: string | null; total: number; current: number } | null };
+    detail?: string; loader?: { unit?: string | null; total: number; current: number } | null };
   modelName: string;
 }) {
   const loading = isSwitching(state);
@@ -17,6 +17,7 @@ export function ModelSwitchStatus({ state, modelName }: {
     </div>
     {loading && state.loader?.unit === "bytes" && state.loader.total > 0 &&
       <progress aria-label="Загрузка весов" value={state.loader.current} max={state.loader.total}/>}
+    {loading && state.detail && <span className="model-switch-detail">{state.detail}</span>}
     {state.error && <span className="model-switch-error" role="alert">{state.error}</span>}
   </div>;
 }

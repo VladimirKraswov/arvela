@@ -1,3 +1,4 @@
+import {decodeHubError} from '../hub/errors';
 import { managedPlugins } from '../util/managedPlugins';
 import { isNative } from "../native/platform";
 import { accessPluginUri, sharedOpenCodeConfig, type Catalog, type Scope } from "./registry";
@@ -7,7 +8,8 @@ export async function capabilityNative<T>(
 ): Promise<T> {
   if (!isNative())
     throw new Error("Каталог доступен в установленном приложении.");
-  return (await import("@tauri-apps/api/core")).invoke<T>(command, args);
+  try { return await (await import("@tauri-apps/api/core")).invoke<T>(command, args); }
+  catch (error) { throw command.startsWith("hub_") ? decodeHubError(error) : error; }
 }
 type Request = (
   method: "GET" | "POST",

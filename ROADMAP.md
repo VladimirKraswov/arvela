@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## Hub reconnection and expired reservations (0.2.102)
+
+- [x] Typed native transport failures distinguish timeout, network, TLS, interrupted responses and HTTP status without exposing raw URLs, credentials or response text. TLS/auth/validation conflicts never retry.
+- [x] Bound automatic reconnect to three attempts with cancellable backoff; preserve profile identity and retry only reads/status or prepare with the SAME idempotency key. Never retry an agent prompt or unkeyed mutation. Show reconnect attempt in the model status.
+- [x] Recover explicitly expired inactive leases/keys once before dispatch; preserve active reservations and distinguish busy/routing conflicts from ticket expiry.
+- [x] Owner-authorized macOS LAN permission refresh returned installed Enki from connection failure to an authenticated HTTP409 response; obsolete lease bug reproduced in code/tests. Rust standalone probe still denied LAN, distinct executable identity; no certificate bypass.
+- [ ] Full release gates, actual packets and installed client verification.
+
 ## Safe transfer to a smaller model (0.2.97)
 
 - [x] Detect previous-model usage above the target input budget; preserve history through one native compaction by the previous larger model before destination loading and selection.
