@@ -1,5 +1,11 @@
 # Enki roadmap
 
+## Migrated session directory identity (0.2.91)
+
+- [x] Access-policy and browser session hooks recognize existing filesystem aliases by real directory identity; retain exact session IDs, scoped API calls, root-policy inheritance/revocation and foreign-directory rejection. Update acknowledgements also validate ID/directory.
+- [x] Actual affected projectless session passes read-only access resolution through the installed engine API with canonical Enki path. Seven regression cases cover mixed ancestry, browser access, foreign/missing/redirected paths and mismatched update acknowledgements.
+- [ ] Canonical Hub release and exact packet verification.
+
 ## Generic command execution feedback (0.2.90)
 
 - [x] Shared timeout interpretation for OpenCode and Pi, based on terminal executor markers; original output and permissions preserved. OpenCode title/metadata and Pi error feedback distinguish incomplete checks from successful execution.

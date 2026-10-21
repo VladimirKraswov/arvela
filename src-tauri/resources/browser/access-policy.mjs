@@ -1,3 +1,5 @@
+import { realpath, stat } from 'node:fs/promises';
+import { isAbsolute } from 'node:path';
 import { executionFeedback } from './execution-feedback.mjs';
 // User-selected full access is a session policy, including its delegated work.
 // Role prompts remain intact; loop-guard compatibility is handled by the client adapter.
@@ -15,6 +17,16 @@ export function isFull(rules) {
       { permission: 'doom_loop', pattern: '*', action: 'ask' },
     ]);
 }
+// Sessions retain their original paths across app-owned directory migrations.
+// Compare filesystem identity only on a mismatch; never infer it from names/suffixes.
+async function sameDirectory(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string' || !isAbsolute(left) || !isAbsolute(right)) return false;
+  if (left === right) return true;
+  try {
+    const [a, b] = await Promise.all([realpath(left), realpath(right)]);
+    return a === b && (await stat(a)).isDirectory();
+  } catch { return false; }
+}
 export async function sessionAccess(client, directory, sessionID) {
   const seen = new Set(); let current;
   for (let depth = 0; depth < 32; depth++) {
@@ -22,7 +34,7 @@ export async function sessionAccess(client, directory, sessionID) {
     seen.add(sessionID);
     const response = await client.session.get({ path: { id: sessionID }, query: { directory }, throwOnError: true, signal: AbortSignal.timeout(10000) });
     const session = response.data;
-    if (!session || session.id !== sessionID || session.directory !== directory)
+    if (!session || session.id !== sessionID || !(await sameDirectory(session.directory, directory)))
       throw new Error('Session access context unavailable');
     current ??= session;
     if (!session.parentID) return { full: isFull(session.permission), current, root: session };
@@ -50,7 +62,9 @@ export default async function accessPolicy({ client, directory }) {
       ];
       const response = await client.session.update({ path: { id: current.id }, query: { directory },
         body: { permission }, throwOnError: true, signal: AbortSignal.timeout(10000) });
-      if (!response.data || isFull(response.data.permission) !== full)
+      if (!response.data || response.data.id !== current.id
+        || !(await sameDirectory(response.data.directory, directory))
+        || isFull(response.data.permission) !== full)
         throw new Error('OpenCode did not apply inherited full access');
     },
   };

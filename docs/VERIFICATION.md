@@ -1,3 +1,30 @@
+# Migrated session directory identity (0.2.91)
+
+The affected projectless session still records its original opencode-desktop/chats
+path. The app root has physically moved to enki, with the legacy directory alias
+retained. Read-only database/API metadata and fs realpath show both paths point
+to the same existing directory. Access-policy compared path strings, rejecting
+valid old sessions before prompt dispatch and browser permission derivation.
+
+On mismatches, the common plugin now verifies realpath equality and a directory
+target. It retains exact session IDs, scoped API queries, bounded ancestry/cycle
+checks, inherited full/ask/read behavior and denies missing/foreign/redirected
+paths. Update acknowledgements also verify the returned ID/directory before
+accepting applied policy. No path-name substitution or permission broadening.
+Seven tests cover aliases, mixed ancestry, browser metadata, read revocation,
+invalid IDs/cycles, foreign/missing/redirected paths, file targets and bad update
+acknowledgements. File-symlink test is skipped on Windows (requires privileges);
+directory fixtures use junctions there. Focused result pending final rerun.
+
+Actual affected session was resolved by the new helper against the installed
+1.18.18 engine API, read-only, with its existing full policy. No prompt replay,
+model calls, browser actions, session/database edits or owner process restarts.
+There are22 existing engine sessions under legacy app-owned paths; official
+session PATCH schema cannot change directory. Removing aliases requires a
+separate complete migration of engine references and historic paths; this fix
+preserves them and does not claim that migration or current activation occurred.
+Canonical release pending; Windows/Linux live acceptance separate.
+
 # Generic command execution feedback (0.2.90)
 
 OpenCode can mark a tool call completed while its terminal shell metadata reports
