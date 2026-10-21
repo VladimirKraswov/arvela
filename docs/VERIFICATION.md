@@ -42,8 +42,13 @@ ASR error to empty success, and outage/recovery notification behavior.
 The first full release run was stopped after two test failures while competing
 for resources on the active Mac. A concurrent diagnostic run hit test/hook
 timeouts. Full Vitest concurrency is now capped at two workers; assertions and
-timeouts remain unchanged. Canonical release and served packet verification
-pending. Applying a client
+timeouts remain unchanged. Both previously failing suites then passed17/17;
+canonical release passed1041 frontend/6optional skips,149 native/3ignored,
+77Hub/3ASR/11publisher and build/architecture/bundle/fmt/strictClippy gates.
+Canonical receipt .local/releases/0.2.96-stable.json/runtime36c4b61; independent
+served head and both signed packet verification passed,23 changed source files
+and19hot files byte-exact. Actual multipart short-tail probe also200empty.
+Applying a client
 update remains separate; Windows/Linux live GUI acceptance is not claimed.
 
 # Fullscreen tray and cached global configuration (0.2.95)

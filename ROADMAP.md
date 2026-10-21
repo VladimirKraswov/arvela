@@ -6,7 +6,7 @@
 - [x] CPU GigaAM accepts valid short decoded audio using its existing padding; zero samples returns empty text, corrupt audio still fails. Checked deployed service against synthetic silence, damaged data and Russian speech.
 - [x] Clear resolved ASR errors without clearing capture/storage errors; distinguish HTTP audio failures from credential failures.
 - [x] Announce an MCP outage once per scope/episode, clear its own notice after recovery, retain unrelated notifications and genuine outage visibility. Web Compass disabled LaunchAgent re-enabled; actual engine MCP connection restored.
-- [ ] Canonical release and served packet verification.
+- [x] Canonical0.2.96/runtime36c4b61:1041 frontend/149 native/77 Hub/3 ASR/11 publisher and all gates pass; head/both signed packets verified,23 changed source/19 hot files byte-exact. Client activation separate.
 
 ## Fullscreen tray and global policy recovery (0.2.95)
 
