@@ -6,7 +6,7 @@
 - [x] Mount folded historical step bodies on first disclosure, preserve visited step/editor state, and defer tool-input serialization until its card is open.
 - [x] Cancel obsolete history reads on navigation without aborting agents. Show cached cross-directory chat immediately, preserve latest selection during metadata load.
 - [x]66 focused behavior checks and isolated real Chromium before/after:30 historical steps, median965ms→8.3ms,7920→60 DOM nodes,30 background events→0 answer commits. Live text/disclosure verified. Fixture measurements, not whole native app latency.
-- [ ] Canonical release and served packet verification.
+- [x] Canonical0.2.92/runtime1fb4663 release and served packet verification:13 changed source/19 hot files byte-exact;1017 frontend/147 native/77 Hub tests and all release gates pass. Native fingerprint equals0.2.91 (hot compatible from that version).
 
 ## Migrated session directory identity (0.2.91)
 

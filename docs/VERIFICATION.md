@@ -29,7 +29,14 @@ lazy path normalized; final clean run passes without page errors. Test scripts,
 JSON and screenshot are in ignored.local/ui-performance-092; own servers/browser
 closed in finally. Numbers describe this dev-browser fixture, not all native
 navigation or CPU/engine responsiveness. macOS WebKit/Windows/Linux live owner
-acceptance remains separate. Canonical publication pending.
+acceptance remains separate.
+Canonical0.2.92/runtime1fb4663 passed1017 frontend tests (6 optional skips),
+147 native tests (3 optional skips),77 Hub tests and publisher/build/architecture/
+budget/fmt/strict Clippy gates. Receipt.local/releases/0.2.92-stable.json;
+served head+both signed packets verified byte-exact13 source/19 hot files.
+Native fingerprint equals0.2.91, allowing hot activation from that version;
+older incompatible clients still need the full native update. Owner activation
+not performed; no agent/browser/engine restart.
 
 # Migrated session directory identity (0.2.91)
 
