@@ -6,7 +6,7 @@
 - [x] Reuse four date formatters; avoid a full history copy/scan for the latest request on every stream event. Page oversized Markdown as bounded plain text with full-source copying.
 - [x] Collect Hub records incrementally, yield every 25 records and retain compact weak cryptographic receipts; never clear and resend an unchanged 5000+ message history.
 - [x] Safe synthetic 20k/5k chat fixture: repeated switches, live growth, reader restore/search/newer/latest and oversized text navigation pass. System CPU report is corroborating evidence only, not proven cause of the owner reboot.
-- [ ] Canonical release gates, Hub receipt and exact served packets. Owner native performance acceptance remains separate.
+- [x] Canonical0.2.94/runtime1e35bc2:1029 frontend/148 native/77 Hub tests and all gates pass; receipt/head/both packets verified,20 source/19 hot files byte-exact. Native fingerprint equals0.2.93. Owner native performance acceptance remains separate.
 
 ## Engine extension cache invalidation (0.2.93)
 

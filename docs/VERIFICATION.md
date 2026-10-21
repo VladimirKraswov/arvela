@@ -44,7 +44,17 @@ The source-only change is hot-compatible with native0.2.93; installed owner0.2.9
 still needs the native0.2.93 extension cache fix included in this source release.
 Owner native freeze/reboot acceptance, Windows/Linux GUI remain unverified.
 
-Release receipt and complete gate results follow after canonical publication.
+Canonical `npm run release:local -- stable` passes:1029 frontend tests/6 existing
+skips,148 native/3 existing skips,77 Hub,11 publisher, build/architecture184,
+bundle budget, fmt and strict Clippy. Runtime1e35bc2 published, canonical receipt
+`.local/releases/0.2.94-stable.json`; served head/revision and both signed
+packet downloads verified.20 changed source files and19 hot files byte-match
+reviewed commit/dist. Native fingerprint4015934d… matches0.2.93. Publication
+offers an update; owner application has not been installed/restarted/activated.
+Final fixture run after toolbar wrapping:151 nodes,~31.2MB heap,median31.6ms
+including forced20ms wait,zero errors.52 focused tests pass. The first new chat
+integration test used .tsx, outside this repository's test glob; renamed to .ts
+and verified in the focused52 and full1029 runs. No unrun test is counted.
 
 # Engine extension cache invalidation (0.2.93)
 
