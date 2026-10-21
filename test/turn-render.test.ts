@@ -4,7 +4,7 @@ import {createElement,act} from 'react';
 import {createRoot,type Root} from 'react-dom/client';
 import type {AssistantMessage,MessagePart} from '../src/api/types';
 const data=vi.hoisted(()=>({parts:{} as Record<string,MessagePart>,partsByMessage:{} as Record<string,string[]>,messageOrder:[] as string[],status:"busy",connected:true}));
-vi.mock('../src/state/store',()=>({useAppState:()=>({chat:{sessions:{s:data}},connection:{phase:'connected',streamState:data.connected?'open':'closed'}}),store:{isRunning:()=>true,activityStatus:()=>({type:data.status}),isPiSession:()=>false}}));
+vi.mock('../src/state/store',()=>({useAppState:()=>({chat:{sessions:{s:data}},connection:{phase:'connected',streamState:data.connected?'open':'closed'}}),useAppSelector:(select:any)=>select({chat:{sessions:{s:data}},connection:{phase:'connected',streamState:data.connected?'open':'closed'}}),store:{isRunning:()=>true,activityStatus:()=>({type:data.status}),isPiSession:()=>false}}));
 import {AssistantTurnView,UserMessageView} from '../src/components/render';
 let root:Root|undefined;
 afterEach(()=>{if(root)act(()=>root!.unmount());root=undefined;document.body.innerHTML='';data.parts={};data.partsByMessage={};data.status='busy';data.connected=true;vi.unstubAllGlobals();});
@@ -94,4 +94,23 @@ it('a correction renders as a labelled compact note, ordinary user messages stay
  expect(el.querySelector('.user-message-steering')).not.toBeNull();expect(el.textContent).toContain('Уточнение');expect(el.textContent).not.toContain('hidden guidance');
  parts('u',[{text:'Новая задача'}]);act(()=>root!.render(createElement(UserMessageView,{message})));
  expect(el.querySelector('.user-message-steering')).toBeNull();expect(el.textContent).not.toContain('Уточнение');
+});
+it('does not parse or mount folded historical steps until opened, then preserves their local state',()=>{
+ parts('a',[{text:'```js\nconst hidden = 1;\n```'}]);parts('b',[{text:'Final'}]);
+ mount([message('a'),message('b','stop')]);
+ expect(document.querySelector('.turn-step .md')).toBeNull();
+ act(()=>toggle().click());
+ expect(document.querySelector('.turn-step .code-block')).not.toBeNull();
+ act(()=>(document.querySelector('[aria-label="Изменить копию кода"]') as HTMLButtonElement).click());
+ const editor=document.querySelector('textarea');
+ act(()=>toggle().click());act(()=>toggle().click());
+ expect(document.querySelector('textarea')).toBe(editor);
+});
+it('does not serialize a large tool input while its card is closed',()=>{
+ const serialize=vi.fn(()=>({command:'large data'}));
+ parts('a',[{type:'tool',tool:'bash',state:{status:'completed',input:{toJSON:serialize},output:'PASS'}}]);
+ mount([message('a')],true);
+ expect(serialize).not.toHaveBeenCalled();
+ act(()=>(document.querySelector('.tool .fold-head') as HTMLButtonElement).click());
+ expect(serialize).toHaveBeenCalledOnce();expect(document.querySelector('.fold-body')?.textContent).toContain('large data');
 });

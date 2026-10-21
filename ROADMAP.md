@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## Conversation UI performance (0.2.92)
+
+- [x] Select message presentation by actual part identities rather than global state; retain same-tick mutable reducer updates and stop background-chat repainting of unaffected answers. Memoize unchanged turn props.
+- [x] Mount folded historical step bodies on first disclosure, preserve visited step/editor state, and defer tool-input serialization until its card is open.
+- [x] Cancel obsolete history reads on navigation without aborting agents. Show cached cross-directory chat immediately, preserve latest selection during metadata load.
+- [x]66 focused behavior checks and isolated real Chromium before/after:30 historical steps, median965ms→8.3ms,7920→60 DOM nodes,30 background events→0 answer commits. Live text/disclosure verified. Fixture measurements, not whole native app latency.
+- [ ] Canonical release and served packet verification.
+
 ## Migrated session directory identity (0.2.91)
 
 - [x] Access-policy and browser session hooks recognize existing filesystem aliases by real directory identity; retain exact session IDs, scoped API calls, root-policy inheritance/revocation and foreign-directory rejection. Update acknowledgements also validate ID/directory.

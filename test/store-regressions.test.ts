@@ -697,3 +697,29 @@ it('a pending compaction blocks a racing manual prompt without clearing its draf
  expect(await store.sendPrompt('keep my task')).toBe(false);expect(store.getDraft()).toBe('keep my task');expect(prompt).not.toHaveBeenCalled();
  finish();await pending;
 });
+it('switching chats cancels only the obsolete history read, preserving active agent state',async()=>{
+ store.state={...store.state,activeSessionId:null,directory:'/test/A',sessions:[session('a'),session('b')]};
+ let obsolete:AbortSignal|undefined;
+ const messages=vi.spyOn(store.client,'messages').mockImplementation((id:any,opts:any)=>{
+   if(id==='b')return Promise.resolve({messages:[]});
+   obsolete=opts.signal;
+   return new Promise((_,reject)=>opts.signal.addEventListener('abort',()=>reject(new DOMException('cancelled','AbortError')),{once:true}));
+ });
+ const abort=vi.spyOn(store.client,'abort').mockResolvedValue(undefined);
+ const first=store.selectSession('a');await flush();expect(obsolete?.aborted).toBe(false);
+ await store.selectSession('b');await first;
+ expect(obsolete?.aborted).toBe(true);expect(store.state.activeSessionId).toBe('b');
+ expect(store.state.ui.historyError).toBeNull();expect(abort).not.toHaveBeenCalled();expect(messages).toHaveBeenCalledTimes(2);
+});
+it('shows a cached target immediately while project metadata is still loading, and respects a newer selection',async()=>{
+ const {emptySessionChat}=await import('../src/state/chatReducer');
+ const cached=emptySessionChat();store.state.chat.sessions.cached=cached;
+ let ready!:(value:any)=>void;
+ vi.spyOn(store.client,'providers').mockImplementation(()=>new Promise(resolve=>{ready=resolve;}));
+ const opening=store.openChat(session('cached','/test/B'));
+ expect(store.state.directory).toBe('/test/B');expect(store.state.activeSessionId).toBe('cached');
+ expect(store.state.chat.sessions.cached).toBe(cached);expect(store.state.ui.runtimeLoading).toBe(true);
+ await store.selectSession('newer');
+ ready({all:[],connected:[],default:{}});await opening;
+ expect(store.state.activeSessionId).toBe('newer');
+});

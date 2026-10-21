@@ -676,6 +676,7 @@ class Store {
   private statusSequence = 0;
   private statusVersions = new Map<string, number>();
   private historyGeneration = 0;
+  private historyAbort: AbortController | null = null;
   private hostGeneration = 0;
   private workspacePromise: Promise<boolean> | null = null;
   private promptQueue = new PromptQueueController({
@@ -722,6 +723,9 @@ class Store {
 
   private invalidateSelection(): void {
     this.selectionGeneration++;
+    this.historyGeneration++;
+    this.historyAbort?.abort();
+    this.historyAbort = null;
     if (this.submissions.cancel()) this.patchUi({ sending: false });
   }
 
@@ -1337,7 +1341,7 @@ class Store {
 
   async setDirectory(
     directory: string | null,
-    opts: { restoreSession?: boolean } = {},
+    opts: { restoreSession?: boolean; sessionId?: string } = {},
   ): Promise<void> {
     this.invalidateSelection();
     const gen = ++this.directoryGeneration;
@@ -1350,15 +1354,17 @@ class Store {
       directory,
       sessions: [],
       archivedSessions: [],
-      activeSessionId:
-        directory && opts.restoreSession
-          ? s.prefs.lastSessionByDir[directory] || null
-          : null,
+      activeSessionId: directory
+        ? opts.sessionId ?? (opts.restoreSession ? s.prefs.lastSessionByDir[directory] || null : null)
+        : null,
       statuses: {},
       connection: { ...s.connection, statusError: null },
       prefs: {
         ...s.prefs,
         selectedDirectory: directory,
+        lastSessionByDir: directory && opts.sessionId
+          ? { ...s.prefs.lastSessionByDir, [directory]: opts.sessionId }
+          : s.prefs.lastSessionByDir,
         expandedProjects: directory && !this.isProjectlessDirectory(directory) && !opts.restoreSession
           ? { ...s.prefs.expandedProjects, [directory]: true } : s.prefs.expandedProjects,
         newChatMode:
@@ -1402,7 +1408,7 @@ class Store {
     void this.configureSharedTools().catch(error=>{if(gen===this.directoryGeneration)this.patchUi({toast:errText(error)});});
     this.startEventStream(directory, gen);
     this.startPiStream(directory, gen);
-    if (opts.restoreSession && this.state.activeSessionId) {
+    if ((opts.restoreSession || opts.sessionId) && this.state.activeSessionId) {
       const restored = this.state.activeSessionId;
       if (!this.state.chat.sessions[restored])
         await this.loadHistory(restored, directory);
@@ -1494,6 +1500,9 @@ class Store {
   }
 
   async loadHistory(sessionId: string, directory: string): Promise<void> {
+    this.historyAbort?.abort();
+    const controller = new AbortController();
+    this.historyAbort = controller;
     const gen = this.directoryGeneration,
       request = ++this.historyGeneration;
     const journal: ServerEvent[] = [];
@@ -1505,6 +1514,7 @@ class Store {
       ).messages(sessionId, {
         directory,
         limit: 200,
+        signal: controller.signal,
       });
       if (
         gen !== this.directoryGeneration ||
@@ -1566,6 +1576,7 @@ class Store {
       }
     } finally {
       this.historyJournals.delete(journal);
+      if (this.historyAbort === controller) this.historyAbort = null;
       if (
         gen === this.directoryGeneration &&
         request === this.historyGeneration
@@ -1629,10 +1640,15 @@ class Store {
 
   async openChat(session: Session): Promise<void> {
     const generation = this.connectionGeneration;
-    if (session.directory !== this.state.directory)
-      await this.setDirectory(session.directory);
+    let selection = this.selectionGeneration;
+    if (session.directory !== this.state.directory) {
+      const switching = this.setDirectory(session.directory, { sessionId: session.id });
+      selection = this.selectionGeneration;
+      await switching;
+    }
     // setDirectory may have been superseded by a user's later selection.
-    if (generation === this.connectionGeneration && this.state.directory === session.directory) {
+    if (generation === this.connectionGeneration && selection === this.selectionGeneration
+      && this.state.directory === session.directory) {
       this.rememberActivitySession(session);
       await this.selectSession(session.id);
     }

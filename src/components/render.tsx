@@ -1,5 +1,6 @@
+import { partsPresentation } from '../chat/presentation';
 import { executionEvidence, executionLabel, type ExecutionEvidence } from '../chat/execution';
-import { lazy, Suspense, memo, useEffect, useId, useState } from "react";
+import { lazy, Suspense, memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import { attachmentParts } from '../attachments/archive';
 import type {
   AssistantMessage,
@@ -9,7 +10,7 @@ import type {
   Session,
   UserMessage,
 } from "../api/types";
-import { store, useAppState } from "../state/store";
+import { store, useAppState, useAppSelector } from "../state/store";
 import { Markdown } from "./Markdown";
 import { CopyButton } from "./CopyButton";
 import { sessionContext } from "../state/taskContext";
@@ -91,12 +92,6 @@ export const ToolPartView = memo(function ToolPartView({
       {running && <span className="tool-state-run"> — {executionLabel(evidence)}</span>}
     </>
   );
-  const input =
-    st.input === undefined
-      ? ""
-      : typeof st.input === "string"
-        ? st.input
-        : JSON.stringify(st.input, null, 2);
   return (
     <Fold
       label={label}
@@ -105,6 +100,20 @@ export const ToolPartView = memo(function ToolPartView({
       right={dur ? <span className="tool-duration">{dur}</span> : undefined}
       defaultOpen={st.status === "error"}
     >
+      <ToolDetails state={st} />
+    </Fold>
+  );
+});
+
+// Fold does not mount its children while closed: avoid serializing large tool inputs on navigation.
+function ToolDetails({state: st}: {state: NonNullable<MessagePart['state']>}) {
+  const input =
+    st.input === undefined
+      ? ""
+      : typeof st.input === "string"
+        ? st.input
+        : JSON.stringify(st.input, null, 2);
+  return <>
       {input && (
         <>
           <div style={{ color: "var(--text-faint)", marginBottom: 3 }}>
@@ -129,9 +138,8 @@ export const ToolPartView = memo(function ToolPartView({
           </pre>
         </>
       ) : null}
-    </Fold>
-  );
-});
+  </>;
+}
 
 export function PartView({ part, evidence }: { part: MessagePart; evidence?: ExecutionEvidence }) {
   switch (part.type) {
@@ -170,16 +178,13 @@ export function PartView({ part, evidence }: { part: MessagePart; evidence?: Exe
   }
 }
 
-function messageParts(
-  s: ReturnType<typeof useAppState>,
-  sessionId: string,
-  messageId: string,
-): MessagePart[] {
-  const slot = s.chat.sessions[sessionId];
-  if (!slot) return [];
-  return (slot.partsByMessage[messageId] ?? [])
-    .map((p) => slot.parts[p])
-    .filter(Boolean);
+function usePartsPresentation(sessionId: string, messageIds: readonly string[]) {
+  const select = useMemo(() => partsPresentation(sessionId, messageIds,
+    () => store.activityStatus(sessionId)?.type,
+    s => store.isPiSession(sessionId) ? store.engineReady("pi")
+      : s.connection.phase === "connected" && s.connection.streamState === "open" && !s.connection.statusError,
+  ), [sessionId, messageIds]);
+  return useAppSelector(select);
 }
 
 export const AssistantMessageView = memo(function AssistantMessageView({
@@ -189,13 +194,12 @@ export const AssistantMessageView = memo(function AssistantMessageView({
   sessionId: string;
   message: AssistantMessage;
 }) {
-  const s = useAppState();
-  const parts = visibleParts(messageParts(s, sessionId, message.id));
-  const status = store.activityStatus(sessionId);
-  const connected = store.isPiSession(sessionId) ? store.engineReady("pi")
-    : s.connection.phase === "connected" && s.connection.streamState === "open" && !s.connection.statusError;
+  const ids = useMemo(() => [message.id], [message.id]);
+  const snapshot = usePartsPresentation(sessionId, ids);
+  const parts = visibleParts(snapshot.parts);
+  const { status, connected } = snapshot;
   const terminal = !!message.time.completed && !["tool-calls", "tool_calls"].includes(message.finish ?? "");
-  const evidence = executionEvidence(terminal, status?.type === "busy" || status?.type === "retry", connected);
+  const evidence = executionEvidence(terminal, status === "busy" || status === "retry", connected);
   const running = !message.time.completed && evidence === "active";
   const errText = message.error ? describeMessageError(message.error) : null;
   const finishBad =
@@ -231,26 +235,28 @@ export const AssistantMessageView = memo(function AssistantMessageView({
   );
 });
 
-/** A turn owns one footer. Keep step nodes mounted and in order as streaming becomes a final answer. */
-export function AssistantTurnView({sessionId, messages, active = false, partial = false, progressState, progressKey}: {
+/** A turn owns one footer. Mount folded history on demand; preserve visited step state. */
+export const AssistantTurnView = memo(function AssistantTurnView({sessionId, messages, active = false, partial = false, progressState, progressKey}: {
   sessionId: string; messages: AssistantMessage[]; active?: boolean; partial?: boolean;
   progressState?: Record<string, boolean>; progressKey?: string;
 }) {
-  const s = useAppState(), regionId = useId();
+  const regionId = useId();
+  const ids = useMemo(() => messages.map(m => m.id), [messages]);
+  const snapshot = usePartsPresentation(sessionId, ids);
+  const visited = useRef(new Set<string>());
   const last = messages[messages.length - 1];
-  const parts = messageParts(s, sessionId, last.id);
+  const parts = snapshot.parts.filter(p => p.messageID === last.id);
   const hasFinal = finalAnswer(last, parts);
   // Only history opened after completion starts folded. Never collapse a reader's live progress.
   const [expanded, setExpanded] = useState(() => (progressKey ? progressState?.[progressKey] : undefined) ?? (!last.summary && (active || !hasFinal)));
   useEffect(() => { if (progressState && progressKey) progressState[progressKey] = expanded; }, [progressState, progressKey, expanded]);
   const progress = hasFinal ? messages.slice(0, -1) : messages;
-  const allParts = messages.flatMap(m => messageParts(s, sessionId, m.id));
+  const allParts = snapshot.parts;
   const actions = allParts.filter(p => p.type === 'tool').length;
   const errors = allParts.filter(p => p.type === 'tool' && p.state?.status === 'error').length;
   const metrics = turnMetrics(messages);
   const terminal = !!last.time.completed && last.finish !== 'tool-calls' && last.finish !== 'tool_calls';
-  const connected = store.isPiSession(sessionId) ? store.engineReady("pi")
-    : s.connection.phase === "connected" && s.connection.streamState === "open" && !s.connection.statusError;
+  const connected = snapshot.connected;
   const confirmedActive = active && connected;
   const label = last.summary ? 'Сжатие контекста' : confirmedActive ? 'Работаю' : active ? 'Ожидаю подтверждения состояния' : 'Ход работы';
   const toggle = () => {
@@ -271,9 +277,11 @@ export function AssistantTurnView({sessionId, messages, active = false, partial 
         const isFinal = hasFinal && m.id === last.id;
         // Message failures and output limits must remain visible even if the user folded progress.
         const problem = !!m.error || (!!m.finish && !['stop','end_turn','stop_sequence','tool-calls','tool_calls'].includes(m.finish));
+        const visible = isFinal || expanded || problem;
+        if (visible) visited.current.add(m.id);
         return <div key={m.id} id={`${regionId}-${m.id}`} data-message-id={m.id} className={isFinal ? `turn-answer${progress.length ? ' after-progress' : ''}` : 'turn-step'}
           hidden={!isFinal && !expanded && !problem}>
-          <AssistantMessageView sessionId={sessionId} message={m} />
+          {(visible || visited.current.has(m.id)) && <AssistantMessageView sessionId={sessionId} message={m} />}
         </div>;
       })}
     </div>
@@ -287,12 +295,19 @@ export function AssistantTurnView({sessionId, messages, active = false, partial 
       </div></details>
     </div>}
   </section>;
+}, (a, b) => a.sessionId === b.sessionId && a.active === b.active && a.partial === b.partial
+  && a.progressState === b.progressState && a.progressKey === b.progressKey
+  && a.messages.length === b.messages.length && a.messages.every((m, i) => m === b.messages[i]));
+
+function MessageAttachmentViewer({sessionId, initialKey, onClose}: {sessionId:string; initialKey:string; onClose:()=>void}) {
+  const s = useAppState();
+  return <AttachmentViewer files={sessionContext(s.chat.sessions[sessionId]).sources} initialKey={initialKey} onClose={onClose}/>;
 }
 
 export function UserMessageView({ message }: { message: UserMessage }) {
-  const s = useAppState();
   const [viewedFile,setViewedFile] = useState<string|null>(null);
-  const allParts = messageParts(s, message.sessionID, message.id);
+  const ids = useMemo(() => [message.id], [message.id]);
+  const allParts = usePartsPresentation(message.sessionID, ids).parts;
   const parts = allParts.filter(
     (p) => p.type === "text" && !p.synthetic && !p.ignored,
   );
@@ -307,7 +322,7 @@ export function UserMessageView({ message }: { message: UserMessage }) {
     {steering && <span className="steering-label">↳ Уточнение</span>}
     {text && <div className="msg-user">{text}</div>}
     {files.length > 0 && <div className="message-file-list">{files.map(file => <button className="message-file" key={file.id} onClick={()=>setViewedFile(file.id)}><AttachmentThumbnail file={{key:file.id,name:file.filename||"Вложение",mime:file.mime,url:file.url}}/>{file.filename || "Вложение"}</button>)}</div>}
-    {viewedFile && <AttachmentViewer files={sessionContext(s.chat.sessions[message.sessionID]).sources} initialKey={viewedFile} onClose={()=>setViewedFile(null)}/>}
+    {viewedFile && <MessageAttachmentViewer sessionId={message.sessionID} initialKey={viewedFile} onClose={()=>setViewedFile(null)}/>}
     <div className="message-footer"><MessageTimestamp value={message.time.created}/><CopyButton text={text} label="Копировать сообщение" compact/><MessageEdit message={message} text={text}/></div>
   </div>;
 }

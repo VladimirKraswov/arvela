@@ -1,3 +1,36 @@
+# Conversation UI performance (0.2.92)
+
+Message rendering previously subscribed to the entire app store. Stream reducer
+slots are mutable, so a naive slot-reference selector would lose updates. New
+presentation selectors compare actual immutable part values and status/connection
+primitives. They see same-tick deltas/removal/disconnect while leaving unrelated
+message parts stable. Turn memoization compares message identities and all public
+props. Newly opened folded history keeps lightweight anchors and mounts heavy
+step bodies on disclosure; visited bodies remain mounted to preserve editor/fold
+state. Closed tool cards defer JSON serialization to their mounted details.
+
+Navigation aborts obsolete GET history requests, never agent execution. Cross-
+directory cached target is selected synchronously before runtime metadata awaits;
+selection-generation guard prevents late metadata from reopening an older choice.
+Uncached history still follows the existing scoped stream/startup reconciliation.
+66 focused behavior tests pass including state/routing, folded progress, hidden
+input serialization, mutable-slot/background deltas, cancelled history reads and
+cached navigation/latest-selection races. Existing fold/anchor/live/errors tests
+remain intact. No user session, browser action, prompt or inference was replayed.
+
+Isolated Chromium/Vite fixture uses actual components, a test-owned external
+store, actual reducer events and original2317864 render source as baseline:
+30 long historical steps + final answer,3 cold/remount samples. Before
+[1188,964.9,700.1]ms /7920 DOM nodes; after[72.1,7.5,8.3]ms /60 nodes.
+30 actual background chat deltas:30 answer commits/306ms before,0 commits/1.9ms
+after. Updated visible answer text still renders;30 step code blocks mount on
+expansion and fold again. First diagnostic fixture import needed its relative
+lazy path normalized; final clean run passes without page errors. Test scripts,
+JSON and screenshot are in ignored.local/ui-performance-092; own servers/browser
+closed in finally. Numbers describe this dev-browser fixture, not all native
+navigation or CPU/engine responsiveness. macOS WebKit/Windows/Linux live owner
+acceptance remains separate. Canonical publication pending.
+
 # Migrated session directory identity (0.2.91)
 
 The affected projectless session still records its original opencode-desktop/chats
