@@ -1,5 +1,12 @@
 # Enki roadmap
 
+## Engine extension cache invalidation (0.2.93)
+
+- [x] Materialize policy/browser hooks and relative dependencies in one immutable content-addressed graph. Native catalog supplies current paths and verified retired aliases/revisions; no arbitrary prefix/name deletion.
+- [x] Both browser/shared config writers replace duplicate managed plugins and preserve foreign plugins/permissions. Migrate global and project layers before checking effective loaded configuration, then reload only idle scoped instance before connecting tools.
+- [x]65 focused frontend tests and native graph ownership/digest/tamper/alias test pass. Actual installed engine metadata-only isolated probe confirms same-path module stays stale after dispose, immutable URL loads new code. No owner prompts/replay/instance/server actions.
+- [ ] Canonical release and exact Hub packet verification.
+
 ## Conversation UI performance (0.2.92)
 
 - [x] Select message presentation by actual part identities rather than global state; retain same-tick mutable reducer updates and stop background-chat repainting of unaffected answers. Memoize unchanged turn props.

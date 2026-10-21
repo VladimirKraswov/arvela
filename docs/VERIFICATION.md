@@ -1,3 +1,38 @@
+# Engine extension cache invalidation (0.2.93)
+
+Owner installed0.2.92 and on-disk policy already contains the directory alias fix,
+but stack line23 still comes from the old policy. Effective config contains both
+legacy opencode-desktop and canonical enki mutable policy URLs, plus the old
+mutable browser hook. Bun caches these modules beyond instance disposal.
+
+Metadata-only isolated probe against actual1.18.18 server: temporary plugin sets
+a config marker, GET experimental/tool/ids initializes extensions. Rewriting the
+same file then disposing ONLY that test directory leaves old marker; changing
+module URL then disposing loads fresh marker. Config hook completion is async:
+first observation ran too early, bounded marker polling corrected the probe.
+Final output: samePathAfterDispose=enki-probe-old,
+immutablePathAfterDispose=enki-probe-fresh. No session/prompt/inference/tool calls;
+test-only instance disposed and directory removed in finally. Owner instances,
+server, browser and configs have not been changed or restarted.
+
+New native module stages a bounded locked immutable graph of policy, execution
+feedback, browser session identity and browser before-hook under SHA256 of all
+filenames/content. Any dependency change changes all module URLs. Existing
+immutable content is verified and tampering rejected. Previous revisions are
+retired only if their on-disk digest is valid; app-root aliases require actual
+canonical identity. No unrelated same-name files or plugins are removed.
+
+Browser/shared JSONC writers migrate verified managed entries once, preserving
+foreign plugins/order/comments/permissions. Both config layers are written before
+checking loaded effective config; presence of new URL alone is insufficient if
+old managed URLs remain. Only idle selected-directory instance is disposed;
+busy/unconfirmed work is not interrupted. Scoped MCP connections reconnect after
+reload. Existing legacy mutable materialization remains for old-client support.
+65 focused frontend tests and native graph digest/alias/idempotency/tamper test
+pass. Native test first found missing Debug derive, now fixed. Native update
+required; no owner activation performed. Windows/Linux live acceptance separate.
+Canonical publication pending.
+
 # Conversation UI performance (0.2.92)
 
 Message rendering previously subscribed to the entire app store. Stream reducer

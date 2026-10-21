@@ -348,3 +348,24 @@ it('still blocks unsafe config writes and never softens a changed workspace into
  request.mockImplementation(async(method:string)=>{if(method==='POST'){current=false;throw Error('transport');}return {};});
  await expect(configureShared({endpoint:'changed-workspace',directory:'/work',current:()=>current,request},invoke as any)).rejects.toThrow('Рабочее пространство изменилось');
 });
+it('migrates both config layers before refreshing a cached old module and leaves busy scopes alone',async()=>{
+ for(const busy of [false,true]){
+  const c={...catalog(),registry:emptyRegistry(),accessPluginPath:'/immutable/access-policy.mjs',retiredAccessPluginPaths:['/legacy/access-policy.mjs']};
+  const writes=new Set<string>();let disposed=false;
+  const invoke=vi.fn(async(name:string,args:any)=>{
+   if(name==='shared_catalog')return c;
+   if(name==='read_opencode_config')return {content:'{"plugin":["file:///legacy/access-policy.mjs"]}'};
+   if(name==='write_opencode_config'){writes.add(args.scope);return {};}
+   return c;
+  });
+  const request=vi.fn(async(_method:string,path:string)=>{
+   if(path==='/config'){expect([...writes].sort()).toEqual(['global','project']);return {plugin:disposed?['file:///immutable/access-policy.mjs']:['file:///immutable/access-policy.mjs','file:///legacy/access-policy.mjs']};}
+   if(path==='/session/status')return busy?{running:{type:'busy'}}:{};
+   if(path==='/instance/dispose'){disposed=true;return {};}
+   throw Error('Unexpected '+path);
+  });
+  const pending=configureShared({endpoint:'layer-'+busy,directory:'/project',current:()=>true,request:request as any},invoke as any);
+  if(busy)await expect(pending).rejects.toThrow('завершения');else await pending;
+  expect(disposed).toBe(!busy);
+ }
+});

@@ -1,3 +1,4 @@
+import { managedPlugins, type ManagedPluginPaths } from '../util/managedPlugins';
 import { useSyncExternalStore } from "react";
 import { isNative } from "../native/platform";
 import { isAbsoluteLocalPath } from "../util/paths";
@@ -10,7 +11,7 @@ import { browserEnvironment, type BrowserEnvironment } from "./environment";
 
 export const BROWSER_MCP = "desktop_browser";
 export interface BrowserPreferences { enabled?: boolean; nodeProgram?: string; mode?: "fast" | "human"; taskEffort?: "low" | "medium"; environment?: Partial<BrowserEnvironment> }
-export interface BrowserStatus {
+export interface BrowserStatus extends ManagedPluginPaths {
   supported: boolean; installed: boolean; running: boolean; browserOpen?: boolean;
   command: string; nodeProgram: string | null; skillPath: string; runtimePath: string;
   profilePath: string; version: string | null; error?: string | null;
@@ -87,10 +88,8 @@ export function browserConfig(source: string, status: BrowserStatus, enabled: bo
   if (value.plugin !== undefined && (!Array.isArray(value.plugin) || !value.plugin.every(p => typeof p === "string")))
     throw new Error("Проверьте plugin в конфигурации OpenCode.");
   const plugins = (value.plugin ?? []) as string[];
-  const normalized = status.runtimePath.replace(/\\/g, "/").replace(/\/$/, "");
-  const plugin = normalized.startsWith("//") ? `file:${encodeURI(normalized)}/opencode-session-plugin.mjs`
-    : `file://${normalized.startsWith("/") ? "" : "/"}${encodeURI(normalized).replace(/#/g,"%23").replace(/\?/g,"%3F")}/opencode-session-plugin.mjs`;
-  if (enabled && !plugins.includes(plugin)) content = updateConfig(content, ["plugin"], [...plugins, plugin]);
+  const next = managedPlugins(plugins, {...status, browserPluginPath: status.browserPluginPath ?? `${status.runtimePath.replace(/\\/g, "/").replace(/\/$/, "")}/opencode-session-plugin.mjs`}, {access:false,browser:enabled});
+  if (JSON.stringify(next) !== JSON.stringify(plugins)) content = updateConfig(content, ["plugin"], next);
   return { content, config };
 }
 

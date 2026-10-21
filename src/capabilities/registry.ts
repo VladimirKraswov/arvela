@@ -1,3 +1,4 @@
+import { managedPlugins, pluginFileUri, type ManagedPluginPaths } from '../util/managedPlugins';
 import { parseConfig, updateConfig, remoteMcpUrl } from "../state/configEditor";
 import { isAbsoluteLocalPath } from "../util/paths";
 import { sameAppExecutable } from "../util/appExecutable";
@@ -36,7 +37,7 @@ export interface Skill {
   engines: string[];
   error: string | null;
 }
-export interface Catalog {
+export interface Catalog extends ManagedPluginPaths {
   key: string;
   content: string;
   registry: Registry;
@@ -126,11 +127,7 @@ function owned(value: unknown, key: string, id: string, executable: string) {
     return false;
   return sameAppExecutable(v.command[0], executable);
 }
-export function accessPluginUri(path: string) {
-  const normalized = path.replace(/\\/g, "/");
-  const encoded = encodeURI(normalized).replace(/#/g, "%23").replace(/\?/g, "%3F");
-  return normalized.startsWith("//") ? `file:${encoded}` : `file://${normalized.startsWith("/") ? "" : "/"}${encoded}`;
-}
+export const accessPluginUri = pluginFileUri;
 /** Reserved entries only. Foreign MCPs, comments, plugins and permissions survive. */
 export function sharedOpenCodeConfig(source: string, catalog: Catalog) {
   const config = parseConfig(source),
@@ -159,9 +156,8 @@ export function sharedOpenCodeConfig(source: string, catalog: Catalog) {
     const plugins = config.plugin;
     if (plugins !== undefined && (!Array.isArray(plugins) || plugins.some(p => typeof p !== "string")))
       throw new Error("Проверьте plugin в OpenCode.");
-    const plugin = accessPluginUri(catalog.accessPluginPath);
-    if (!((plugins ?? []) as string[]).includes(plugin))
-      content = updateConfig(content, ["plugin"], [...((plugins ?? []) as string[]), plugin]);
+    const next = managedPlugins((plugins ?? []) as string[], catalog, {access:true,browser:false});
+    if (JSON.stringify(next) !== JSON.stringify(plugins ?? [])) content = updateConfig(content, ["plugin"], next);
   }
   const entries: Record<string, unknown> = {};
   for (const s of registry.servers) {

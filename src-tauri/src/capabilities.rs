@@ -141,7 +141,8 @@ pub struct Document {
     pub skills: Vec<Skill>,
     pub runtime_ready: bool,
     pub command: String,
-    pub access_plugin_path: String,
+    #[serde(flatten)]
+    pub plugins: crate::agent_plugins::Catalog,
     pub scope_directory: Option<String>,
     pub source_health: BTreeMap<String, bool>,
     pub scan_limited: bool,
@@ -457,7 +458,7 @@ fn document(scope: &str, directory: Option<&str>) -> Result<Document, String> {
             .map_err(|_| "Путь приложения недоступен")?
             .display()
             .to_string(),
-        access_plugin_path: root.join("access-policy.mjs").display().to_string(),
+        plugins: crate::agent_plugins::ensure()?,
         scope_directory,
         source_health: effective
             .sources

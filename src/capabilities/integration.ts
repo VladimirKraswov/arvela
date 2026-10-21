@@ -1,3 +1,4 @@
+import { managedPlugins } from '../util/managedPlugins';
 import { isNative } from "../native/platform";
 import { accessPluginUri, sharedOpenCodeConfig, type Catalog, type Scope } from "./registry";
 export async function capabilityNative<T>(
@@ -67,7 +68,8 @@ export async function configureShared(
   if (flights.has(key)) return flights.get(key)!;
   const work = (async () => {
     const issues = new Map<string, {id: string; name: string}>();
-    // Refresh the scoped policy before attaching any global MCP connections.
+    // Migrate both files before reloading: the effective engine config merges global and project plugins.
+    const prepared: {scope:Scope;catalog:Catalog;entries:Record<string,unknown>}[] = [];
     for (const scope of ["project", "global"] as const) {
       if (!o.current()) throw new Error("Рабочее пространство изменилось.");
       let catalog = await invoke<Catalog>("shared_catalog", {
@@ -87,12 +89,18 @@ export async function configureShared(
         scope === "project" ? o.directory : null,
         invoke,
       );
-      catalog = next.catalog;
+      prepared.push({scope,catalog:next.catalog,entries:next.entries});
+    }
+    // Refresh scoped policy before attaching any global MCP connections.
+    for (const {scope,catalog,entries} of prepared) {
+      if (!o.current()) throw new Error("Рабочее пространство изменилось.");
       if (scope === "project" && catalog.accessPluginPath) {
         const plugin = accessPluginUri(catalog.accessPluginPath);
         const loaded = async () => {
           const config = await o.request("GET", "/config", { query: { directory: o.directory }, timeoutMs: 10000 });
-          return Array.isArray(config.plugin) && config.plugin.includes(plugin);
+          return Array.isArray(config.plugin) && config.plugin.every(p => typeof p === 'string')
+            && config.plugin.includes(plugin)
+            && JSON.stringify(managedPlugins(config.plugin, catalog, {access:true,browser:false})) === JSON.stringify(config.plugin);
         };
         if (!(await loaded())) {
           const statuses = await o.request("GET", "/session/status", { query: { directory: o.directory }, timeoutMs: 10000 });
@@ -109,7 +117,7 @@ export async function configureShared(
         if (!o.current()) throw new Error("Рабочее пространство изменилось.");
         const name = `mesh_${s.id.replace(/-/g, "_")}`,
           cache = `${key}/${name}`,
-          config = next.entries[name],
+          config = entries[name],
           fingerprint = JSON.stringify([config, s]);
         if (connected.get(cache) === fingerprint) continue;
         if (!s.enabled) {

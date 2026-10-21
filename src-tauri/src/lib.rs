@@ -1,3 +1,4 @@
+mod agent_plugins;
 mod asr;
 mod attachments;
 pub mod browser;

@@ -171,6 +171,8 @@ impl OwnedBrowser {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BrowserStatus {
+    #[serde(flatten)]
+    pub plugins: crate::agent_plugins::Catalog,
     pub supported: bool,
     pub installed: bool,
     pub running: bool,
@@ -198,6 +200,7 @@ fn status(configured: Option<&str>) -> Result<BrowserStatus, String> {
     let health = gateway::health(&root).ok().map(|(_, value)| value);
     let installed = installed_at(&current);
     Ok(BrowserStatus {
+        plugins: crate::agent_plugins::ensure()?,
         supported: cfg!(any(
             target_os = "macos",
             target_os = "linux",
