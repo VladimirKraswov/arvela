@@ -45,7 +45,11 @@ NATIVE_COMPACTION_PASS. The first fixture mistakenly selected a user.summary
 (diff metadata) instead of assistant.summary; corrected and reran, earlier failed
 fixture assertions are not acceptance. All own servers/test data cleaned up.
 
-Canonical release, signed packets and source/hot byte verification pending.
+Canonical0.2.97/runtime79006a5 passed1055 frontend/6optional skips,149 native/
+3ignored,77Hub/3ASR/11publisher and build/architecture/bundle/fmt/strictClippy.
+Receipt.local/releases/0.2.97-stable.json, served head and both signed packet
+verification pass;21 changed source/19hot files byte-exact. Nonempty native
+fingerprint equals0.2.96, compatible hot UI packet is available.
 Client application remains separate; Windows/Linux live GUI not claimed.
 
 # Dictation tails and MCP notifications (0.2.96)

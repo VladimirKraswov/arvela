@@ -7,7 +7,7 @@
 - [x] Preserve drafts/history on failure and cancellation; whole-transition locks cover manual, queued and scheduled dispatch through destination readiness. Check source availability, pinned compaction role, authoritative busy/permission state and navigation identity.
 - [x] Recover an already switched oversized chat via «Сжать сейчас»; explain failures in Russian and display transfer stages. Do not count summarization input as the resulting working context.
 - [x] Installed1.18.18 isolated fixture: one synthetic previous-model request, auto:false, completed summary, original user history retained. No owner prompts/GPU. Focused regressions/build/architecture pass.
-- [ ] Canonical release, head and both served packet verification.
+- [x] Canonical0.2.97/runtime79006a5:1055 frontend/149 native/77 Hub/3 ASR/11 publisher and all gates pass. Head/both signed packets verified,21 changed source/19 hot files byte-exact; native fingerprint equals0.2.96. Activation separate.
 
 ## Dictation tails and MCP outage notices (0.2.96)
 
