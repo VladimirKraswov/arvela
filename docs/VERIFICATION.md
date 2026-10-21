@@ -31,7 +31,7 @@ reload. Existing legacy mutable materialization remains for old-client support.
 65 focused frontend tests and native graph digest/alias/idempotency/tamper test
 pass. Native test first found missing Debug derive, now fixed. Native update
 required; no owner activation performed. Windows/Linux live acceptance separate.
-Canonical publication pending.
+Canonical0.2.93/runtimec93b446 passed1020 frontend tests (6 optional skips),148 native tests (3 optional skips),77 Hub tests and publisher/build/architecture/budget/fmt/strict Clippy. Receipt.local/releases/0.2.93-stable.json; served head and both signed packets byte-exact17 changed source/19 hot files. Native fingerprint changed: source/native update required. Owner activation/current-session recovery after apply remains unverified.
 
 # Conversation UI performance (0.2.92)
 

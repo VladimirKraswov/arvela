@@ -5,7 +5,7 @@
 - [x] Materialize policy/browser hooks and relative dependencies in one immutable content-addressed graph. Native catalog supplies current paths and verified retired aliases/revisions; no arbitrary prefix/name deletion.
 - [x] Both browser/shared config writers replace duplicate managed plugins and preserve foreign plugins/permissions. Migrate global and project layers before checking effective loaded configuration, then reload only idle scoped instance before connecting tools.
 - [x]65 focused frontend tests and native graph ownership/digest/tamper/alias test pass. Actual installed engine metadata-only isolated probe confirms same-path module stays stale after dispose, immutable URL loads new code. No owner prompts/replay/instance/server actions.
-- [ ] Canonical release and exact Hub packet verification.
+- [x] Canonical0.2.93/runtimec93b446 release, served head and both signed packets verified:17 changed source/19 hot files byte-exact;1020 frontend/148 native/77 Hub tests and all release gates pass. Native update required; owner activation separate.
 
 ## Conversation UI performance (0.2.92)
 
