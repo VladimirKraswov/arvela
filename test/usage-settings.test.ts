@@ -3,19 +3,52 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
+const HOUR = 3600_000;
+const NOW = Date.parse("2026-10-21T12:00:00Z");
+
 const mock = vi.hoisted(() => ({
-  scan: vi.fn(),
-  client: { usageSessionsPage: vi.fn(), messages: vi.fn() },
   state: { connection: { phase: "connected" }, prefs: { activeHost: "local", piSessions: {} } },
+  sources: [] as unknown[],
+  sessionCalls: 0,
+  pending: null as null | (() => void),
 }));
-vi.mock("../src/state/store", () => ({ useAppState: () => mock.state, store: { get state() { return mock.state; }, client: mock.client, piInstalled: false } }));
-vi.mock("../src/usage/metrics", () => ({ scanUsage: mock.scan }));
+vi.mock("../src/state/store", () => ({
+  useAppState: () => mock.state,
+  store: { get state() { return mock.state; }, piInstalled: false },
+}));
+vi.mock("../src/usage/sources", () => ({
+  usageSources: () => mock.sources,
+}));
 import { UsageSettings } from "../src/components/UsageSettings";
+
+const message = (id: string, time: number, tokens: Record<string, unknown>) => ({
+  info: { id, role: "assistant", providerID: "local", modelID: "flash", time: { created: time, completed: time }, tokens },
+  parts: [],
+});
 
 let root: Root;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.clearAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  mock.sessionCalls = 0;
+  mock.pending = null;
+  mock.sources = [
+    {
+      engine: "OpenCode",
+      sessions: async () => {
+        mock.sessionCalls++;
+        if (mock.pending) await new Promise<void>(resolve => { mock.pending = resolve; });
+        return [{ id: "s1", title: "s1", directory: "/p", time: { created: 0, updated: NOW, archived: null } }];
+      },
+      messages: async () => ({
+        messages: [
+          message("m1", NOW - 2 * HOUR, { total: 60, input: 5, output: 15, cache: { read: 40, write: 0 } }),
+          message("m2", NOW - 20 * 24 * HOUR, { total: 90, input: 5, output: 5, cache: { read: 80, write: 0 } }),
+        ],
+      }),
+    },
+  ];
   const node = document.createElement("div");
   document.body.append(node);
   root = createRoot(node);
@@ -23,32 +56,37 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   document.body.innerHTML = "";
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
-
-it("shows measured model totals and switches periods from the settings page", async () => {
-  mock.scan.mockResolvedValue({
-    totals: { total: 150, input: 10, output: 20, cacheRead: 120, cacheWrite: 0, other: 0, reasoning: 5, replies: 2 },
-    models: [{ key: "OpenCode-local-flash", engine: "OpenCode", provider: "local", model: "flash", sessions: 1, total: 150, input: 10, output: 20, cacheRead: 120, cacheWrite: 0, other: 0, reasoning: 5, replies: 2 }],
-    days: [], sessionsScanned: 1, sessionsFound: 1, failures: [], generatedAt: Date.now(),
+const norm = () => (document.body.textContent ?? "").replace(/[\u00a0\u202f]/g, " ");
+const press = (label: string) =>
+  act(async () => {
+    [...document.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent === label)!.click();
   });
+
+it("shows measured model totals and filters periods without re-reading history", async () => {
   await act(async () => root.render(createElement(UsageSettings)));
-  expect(document.body.textContent).toContain("flash");
-  expect(document.body.textContent).toContain("150");
-  expect(document.body.textContent).toContain("80% — повторное чтение кэша");
-  const week = [...document.querySelectorAll("button")].find(button => button.textContent === "7 дней")!;
-  await act(async () => week.click());
-  expect(mock.scan.mock.calls.at(-1)?.[1]).toBe("7d");
+  expect(norm()).toContain("flash");
+  expect(norm()).toContain("150");
+  expect(norm()).toContain("80% — повторное чтение кэша");
+  expect(mock.sessionCalls).toBe(1);
+  await press("7 дней");
+  // The new window shows only the recent replies…
+  expect(norm()).toContain("60");
+  expect(norm()).not.toContain("150");
+  // …and the switch never re-reads a single session.
+  expect(mock.sessionCalls).toBe(1);
+  await press("Всё время");
+  expect(norm()).toContain("150");
+  expect(mock.sessionCalls).toBe(1);
 });
 
 it("cancels a long history scan without displaying a fabricated total", async () => {
-  mock.scan.mockImplementation(() => new Promise(() => {}));
+  mock.pending = () => {};
   await act(async () => root.render(createElement(UsageSettings)));
-  expect(document.body.textContent).toContain("Загружаю список сессий");
-  const signal: AbortSignal = mock.scan.mock.calls[0][2];
-  const cancel = [...document.querySelectorAll("button")].find(button => button.textContent === "Отменить")!;
-  await act(async () => cancel.click());
-  expect(signal.aborted).toBe(true);
-  expect(document.body.textContent).toContain("Расчёт отменён");
-  expect(document.body.textContent).not.toContain("Всего токенов");
+  expect(norm()).toContain("Загружаю список сессий");
+  await press("Отменить");
+  expect(norm()).toContain("Расчёт отменён");
+  expect(norm()).not.toContain("Всего токенов");
 });

@@ -17,11 +17,13 @@ mod migration;
 mod model_credentials;
 mod paths;
 pub mod pi;
+mod pricing;
 mod process;
 mod sound;
 mod storage_info;
 mod tray;
 mod updates;
+mod usage_store;
 pub mod workshop;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -131,6 +133,10 @@ pub fn run() {
             pi::pi_close,
             pi::pi_sessions,
             storage_info::session_storage,
+            pricing::fetch_price_book,
+            pricing::fetch_usd_rate,
+            usage_store::read_usage_file,
+            usage_store::write_usage_file,
             pi::pi_live_sessions,
             pi::pi_resume_sessions,
             pi::pi_shared_inventory,

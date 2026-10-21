@@ -2799,6 +2799,13 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .usage-day > span { display: block; width: 100%; max-width: 26px; background: var(--accent-fill); opacity: .72; border-radius: 4px 4px 0 0; }
 .usage-day small { color: var(--text-faint); font-size: .62rem; white-space: nowrap; }
 .usage-note { margin: 25px 0 0; font-size: .8rem; line-height: 1.55; }
+.usage-money-totals { display: flex; flex-wrap: wrap; gap: 12px 36px; }
+.usage-money-totals > div { display: flex; flex-direction: column; gap: 4px; }
+.usage-money-totals small, .usage-money-totals span { color: var(--text-dim); font-size: .8rem; }
+.usage-money-totals strong { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 1.15rem; }
+.money-spent { color: var(--err); }
+.money-saved { color: var(--ok); }
+.usage-prices { margin: 14px 0 0; color: var(--text-dim); font-size: .8rem; line-height: 1.6; overflow-wrap: anywhere; }
 @media (max-width: 1000px) {
   .settings-screen { grid-template-columns: 225px minmax(0, 1fr); }
   .settings-page { padding-left: 24px; padding-right: 24px; }

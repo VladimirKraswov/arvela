@@ -88,7 +88,8 @@ export const SETTING_HELP_TOPICS = [
   "Адрес MCP",
   "computer.control",
   "agent.control",
-  "usage.period"
+  "usage.period",
+  "usage.money"
 ] as const;
 export type SettingHelpTopic = typeof SETTING_HELP_TOPICS[number];
 const known = new Set<string>(SETTING_HELP_TOPICS);
