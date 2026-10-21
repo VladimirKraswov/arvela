@@ -21,8 +21,7 @@ import {
   type MoneySnapshot,
   type PriceBook,
 } from "./money";
-import type { UsageSource } from "./metrics";
-import type { UsagePeriod, UsageReport } from "./metrics";
+import { periodStart, type UsageSource, type UsagePeriod, type UsageReport } from "./metrics";
 
 export const DAY_MS = 24 * 3600 * 1000;
 
@@ -41,13 +40,15 @@ async function native<T>(command: string, args?: Record<string, unknown>): Promi
   return (await import("@tauri-apps/api/core")).invoke<T>(command, args);
 }
 
-async function readStored<T>(name: string): Promise<Stored<T> | null> {
+async function readStored<T>(name: string): Promise<Stored<T | null> | null> {
   const stored = await native<StoredFileDto | null>("read_usage_file", { name });
   if (!stored) return null;
   try {
     return { value: JSON.parse(stored.content) as T, sha: stored.sha };
   } catch {
-    return null;
+    // Keep the sha of the unreadable file so the next write can replace it
+    // instead of being permanently blocked by the CAS guard.
+    return { value: null, sha: stored.sha };
   }
 }
 
@@ -115,19 +116,18 @@ export async function computeUsage(
     notes.push(...fresh?.notes ?? []);
   }
   let settledLedger = ledger;
-  let cacheSaved = true;
+  let storageSaved = true;
   if (snapshot) {
     const settle = settleLedger(refresh.cache, snapshot, ledger, now);
     if (settle.changed) {
       settledLedger = settle.ledger;
-      cacheSaved = await writeStored(LEDGER_FILE, settledLedger, storedLedger?.sha ?? null);
+      storageSaved = await writeStored(LEDGER_FILE, settledLedger, storedLedger?.sha ?? null);
     }
   }
   const report = reportFromCache(refresh.cache, period, now, refresh.failures);
   let money: MoneyView | null = null;
   if (snapshot) {
     const totals = moneyTotals(refresh.cache, snapshot, settledLedger, now);
-    const { periodStart } = await import("./metrics");
     money = {
       snapshot,
       spentRub: totals.spentRub,
@@ -139,7 +139,7 @@ export async function computeUsage(
   } else {
     notes.push("Курс доллара недоступен — денежные суммы скрыты до следующей проверки.");
   }
-  if (!cacheSaved) notes.push("Файл данных использования обновлялся параллельно; показаны свежие данные из этой сессии.");
+  if (!storageSaved) notes.push("Файл данных использования обновлялся параллельно; показаны свежие данные из этой сессии.");
   return { report, money, notes, cache: refresh.cache, ledger: settledLedger, snapshot };
 }
 

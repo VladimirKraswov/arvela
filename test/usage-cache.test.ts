@@ -129,6 +129,12 @@ describe("refreshUsageCache", () => {
       factOf({ info: { id: "y", role: "assistant", time: { created: 1 }, tokens: { total: 0, input: 0, output: 0, cache: {} } } } as never, "s1", "OpenCode"),
     ).toBeNull();
   });
+
+  it("drops replies without a usable timestamp so they cannot form a phantom day", () => {
+    expect(
+      factOf({ info: { id: "z", role: "assistant", time: { created: 0, completed: null }, tokens: { total: 100, input: 10, output: 10, cache: {} } } } as never, "s1", "OpenCode"),
+    ).toBeNull();
+  });
 });
 
 describe("reportFromCache", () => {

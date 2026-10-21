@@ -45,8 +45,10 @@ export function factOf(message: MessageResponse, sessionID: string, engine: Usag
   const classified = input + output + cacheRead + cacheWrite;
   const total = Math.max(finite(tokens.total), classified);
   if (!total) return null;
+  const t = info.time.completed ?? info.time.created;
+  if (!t) return null; // a reply without a usable timestamp cannot be bucketed
   return {
-    t: info.time.completed ?? info.time.created,
+    t,
     sk: `${engine}\u0000${info.providerID || "Неизвестный провайдер"}\u0000${info.modelID || "Неизвестная модель"}`,
     sid: sessionID,
     c: [total, input, output, cacheRead, cacheWrite, total - classified, Math.min(output, finite(tokens.reasoning))],
