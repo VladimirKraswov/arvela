@@ -1,3 +1,14 @@
+# Enki icon (0.2.103)
+
+New imagegen raster master and Tauri-derived desktop icons replace the old E.
+Favicon previously referenced a missing legacy PNG; now uses the same master.
+Inspected generated 32/128px PNGs and the extracted macOS ICNS 128px image;
+glyph remains distinct. PNG dimensions, six Windows ICO entries, ICNS container
+length and release version consistency pass. Tauri CLI preserved transparent
+corners. UI/favicon use a 256px/73KB derivative rather than the 1.86MB master.
+`npm run build` passes. Canonical Hub release verification pending; native
+activation is separate from publication.
+
 # Hub recovery and error diagnostics (0.2.102)
 
 Owner repeatedly could not send: «Библиотека недоступна или сертификат не

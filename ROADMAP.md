@@ -1,5 +1,11 @@
 # Enki roadmap
 
+## Water glyph app icon (0.2.103)
+
+- [x] New gold water/cuneiform-inspired glyph on a lapis tile, generated as a transparent raster master. Replace sidebar, favicon and all desktop native icon formats from the same master; retire obsolete E vector.
+- [x] Inspect 32/128px PNGs and extracted macOS ICNS; validate Windows ICO entries, PNG dimensions and release versions. Keep UI/favicons at 256px instead of loading the 1.86MB master.
+- [ ] Pass canonical release gates, publish and verify Hub head plus both signed packets. Native activation remains separate.
+
 ## Hub reconnection and expired reservations (0.2.102)
 
 - [x] Typed native transport failures distinguish timeout, network, TLS, interrupted responses and HTTP status without exposing raw URLs, credentials or response text. TLS/auth/validation conflicts never retry.
