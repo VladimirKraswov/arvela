@@ -6,8 +6,9 @@ Inspected generated 32/128px PNGs and the extracted macOS ICNS 128px image;
 glyph remains distinct. PNG dimensions, six Windows ICO entries, ICNS container
 length and release version consistency pass. Tauri CLI preserved transparent
 corners. UI/favicon use a 256px/73KB derivative rather than the 1.86MB master.
-`npm run build` passes. Canonical Hub release verification pending; native
-activation is separate from publication.
+`npm run build` passes. Canonical0.2.103/runtime547981d:1089 frontend/159 native/77 Hub/3 ASR/11 publisher and all gates pass. Receipt .local/releases/0.2.103-stable.json; served head and both signed packets verified,28 changed source files (all icon containers/master/UI PNG) and19 hot files byte-exact. Native fingerprint fb636127… changed: native update required for Dock/tray/launcher. Publication complete; owner installation separate, active agents preserved.
+Independent byte verifier initially exceeded Node default1MB stdout buffer on
+the1.86MB ICNS; explicit12MB maxBuffer fixed the diagnostic and all bytes match.
 
 # Hub recovery and error diagnostics (0.2.102)
 

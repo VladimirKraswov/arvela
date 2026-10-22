@@ -4,7 +4,7 @@
 
 - [x] New gold water/cuneiform-inspired glyph on a lapis tile, generated as a transparent raster master. Replace sidebar, favicon and all desktop native icon formats from the same master; retire obsolete E vector.
 - [x] Inspect 32/128px PNGs and extracted macOS ICNS; validate Windows ICO entries, PNG dimensions and release versions. Keep UI/favicons at 256px instead of loading the 1.86MB master.
-- [ ] Pass canonical release gates, publish and verify Hub head plus both signed packets. Native activation remains separate.
+- [x] Canonical0.2.103/runtime547981d:1089 frontend/159 native/77 Hub/3 ASR/11 publisher and all gates pass. Receipt .local/releases/0.2.103-stable.json; served head and both signed packets verified,28 changed source files (all icon containers/master/UI PNG) and19 hot files byte-exact. Native fingerprint fb636127… changed: native update required for Dock/tray/launcher. Publication complete; owner installation separate, active agents preserved.
 
 ## Hub reconnection and expired reservations (0.2.102)
 
