@@ -6,7 +6,7 @@
 - [x] Bound automatic reconnect to three attempts with cancellable backoff; preserve profile identity and retry only reads/status or prepare with the SAME idempotency key. Never retry an agent prompt or unkeyed mutation. Show reconnect attempt in the model status.
 - [x] Recover explicitly expired inactive leases/keys once before dispatch; preserve active reservations and distinguish busy/routing conflicts from ticket expiry.
 - [x] Owner-authorized macOS LAN permission refresh returned installed Enki from connection failure to an authenticated HTTP409 response; obsolete lease bug reproduced in code/tests. Rust standalone probe still denied LAN, distinct executable identity; no certificate bypass.
-- [ ] Full release gates, actual packets and installed client verification.
+- [x] Canonical0.2.102/runtime3487913:1089 frontend/159 native/77 Hub/3 ASR/11 publisher and all gates pass. Head/both signed packets verified,18 changed source/19 hot files byte-exact. Existing installed client resumed owner work after permission refresh; new native update remains unapplied while that work is active.
 
 ## Safe transfer to a smaller model (0.2.97)
 

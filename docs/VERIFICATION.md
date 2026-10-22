@@ -33,7 +33,17 @@ status shows the attempt while the original request/draft remains pending.
 
 26 focused frontend regressions and build pass;2 native tests pass. Actual Hub
 already has persisted device+requestKey idempotency, with lost-ack regressions.
-Full canonical release and installed client acceptance pending.
+Canonical0.2.102/runtime3487913 passed1089 frontend/6optional skips,159 native/
+3ignored,77Hub/3ASR/11publisher and build/architecture/bundle/fmt/strictClippy.
+Receipt.local/releases/0.2.102-stable.json, head and both signed packets verified:
+18 changed source/19 hot files byte-exact. Native fingerprint changed; source/native
+installation is required, hot UI alone cannot decode legacy transport failures.
+Installed old client resumed Quake2 work after the owner-approved permission
+refresh (authoritative session busy and fresh assistant tool execution; no owner
+prompt submitted by this operator). Native activation deferred to preserve this
+new active work. Two CUA attempts to reopen settings timed out; main-process
+sample showed normal AppKit event waiting, not proof of an application deadlock.
+No installation/restart or owner agent termination was performed.
 
 # Context transfer from a larger model (0.2.97)
 
