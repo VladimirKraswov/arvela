@@ -172,6 +172,15 @@ it("workspace preparation guards double Enter and cannot send after a project sw
   expect(store.client.prompt).not.toHaveBeenCalled();
   expect(store.state.prefs.projectlessDirectories).toBeUndefined();
 });
+it("returns a new chat workspace before its unrelated session index finishes loading", async () => {
+  const pending = defer();
+  vi.spyOn(store.client, "listSessions").mockReturnValue(pending.promise);
+  const ready = await store.ensureChatWorkspace();
+  expect(ready).toBe(true);
+  expect(store.state.directory).toBe("/home/test/chats/one");
+  expect(store.state.ui.workspacePreparing).toBe(false);
+  pending.resolve([]);
+});
 it("a workspace failure preserves the unassigned draft and never falls back to HOME", async () => {
   store.setDraft("keep me");
   native.prepareChat.mockRejectedValue(new Error("disk unavailable"));

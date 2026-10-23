@@ -1,4 +1,5 @@
 //! Scoped HTTPS client; device secrets never cross the WebView boundary on read.
+pub mod device_publish;
 mod errors;
 mod outbox;
 pub mod retrieval;

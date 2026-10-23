@@ -1,0 +1,25 @@
+[Unit]
+Description=Enki isolated release signing (paired owner devices)
+After=local-fs.target
+[Service]
+User=enki-release-signer
+Group=enki-hub
+EnvironmentFile=/etc/enki-release-signer/service.env
+ExecStart=/usr/bin/python3 /opt/enki-hub/release_signer.py --key /etc/enki-release-signer/release.key --public /etc/enki-release-signer/release.pub --hub-uid ${ENKI_HUB_UID}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+RuntimeDirectory=enki-release-signer
+RuntimeDirectoryMode=0750
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/run/enki-release-signer
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=yes
+MemoryMax=512M
+TasksMax=8
+[Install]
+WantedBy=multi-user.target

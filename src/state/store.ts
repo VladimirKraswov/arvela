@@ -1733,7 +1733,14 @@ class Store {
           },
         }));
         const nextGen = this.directoryGeneration + 1;
-        await this.setDirectory(workspace.directory);
+        // Selecting the new directory updates state synchronously, while its
+        // session index, runtime metadata and event streams hydrate in the
+        // background. Browser-first chat must not wait for those unrelated
+        // reads before it can create its scoped agent session.
+        void this.setDirectory(workspace.directory).catch((error) => {
+          if (nextGen === this.directoryGeneration && backend === this.backend)
+            this.patchUi({ sendError: errText(error) });
+        });
         return nextGen === this.directoryGeneration && backend === this.backend;
       } catch (e) {
         if (gen === this.directoryGeneration && backend === this.backend)

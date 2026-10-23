@@ -11,6 +11,9 @@ import importlib.util
 _memory_spec = importlib.util.spec_from_file_location('enki_memory', Path(__file__).with_name('memory.py'))
 _memory_module = importlib.util.module_from_spec(_memory_spec)
 _memory_spec.loader.exec_module(_memory_module)
+_device_spec = importlib.util.spec_from_file_location('enki_device_updates', Path(__file__).with_name('device_updates.py'))
+_device_module = importlib.util.module_from_spec(_device_spec)
+_device_spec.loader.exec_module(_device_module)
 _release_spec = importlib.util.spec_from_file_location('enki_releases', Path(__file__).with_name('releases.py'))
 _release_module = importlib.util.module_from_spec(_release_spec)
 _release_spec.loader.exec_module(_release_module)
@@ -433,6 +436,12 @@ class Hub:
     def api(self, method, path, query, actor, data):
         if path.startswith('/api/model-services/'):
             return self.model_services.api(method, path.removeprefix('/api/model-services/'), actor, data)
+        if path == '/api/updates/device' and method == 'POST':
+            def authorize():
+                with self.connection() as c:
+                    if not c.execute('SELECT id FROM devices WHERE id=? AND revoked=0',(actor['id'],)).fetchone():
+                        raise Fault(401,'Ключ устройства отозван. Публикация отменена.')
+            return _device_module.publish(self.releases, actor, data, authorize)
         if path == '/api/updates' or path.startswith('/api/updates/'):
             return self.releases.api(method, path, actor, data)
         if path == '/api/memory/retrieve' and method == 'POST':
@@ -636,10 +645,11 @@ class Handler(BaseHTTPRequestHandler):
             if self.command=='POST':
                 size=int(self.headers.get('Content-Length','0'))
                 limit = MAX_BODY
-                if path == '/api/updates':
+                if path in ('/api/updates', '/api/updates/device'):
                     self.close_connection=True
                     # Authenticate *before* accepting a large release body.
-                    self.server.hub.admin(self.actor())
+                    actor = self.actor()
+                    if path == '/api/updates':self.server.hub.admin(actor)
                     release_slot=self.server.release_upload.acquire(False)
                     if not release_slot:raise Fault(429,'Публикация уже выполняется.')
                     limit = _release_module.MAX_UPLOAD

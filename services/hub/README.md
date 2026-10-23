@@ -78,3 +78,15 @@ Authenticated `/api/memory` shares explicit UUID projects, owner-approved fact/r
 ## Enki migration
 
 The service and canonical code/data/TLS paths use `enki-hub`. Legacy path and unit aliases preserve existing clients, private gateway paths and backup jobs. The existing numerical service identity and legacy Unix account are retained on upgraded hosts; fresh installations create enki-hub. The previously pinned TLS certificate and IP endpoint are unchanged; its old DNS SAN `arvela-hub.local` remains a compatibility address until an explicit certificate rotation. Historical evaluation source snapshots remain immutable.
+
+## Owner-device application publication (0.2.104)
+
+All enrolled non-revoked owner devices may POST /api/updates/device. Candidates
+carry full source/UI snapshots and local-check attestations. Hub validates paths,
+size, identity, six versions and native fingerprint; isolated release_signer.py
+uses the existing pinned key through a Unix socket restricted to the Hub UID.
+The HTTP user cannot read that key; uploaded code is never executed. Recheck
+revocation/CAS before exposing head. Keys grant app release authority, not other
+admin APIs. Signatures remain verified by clients; private key is now held by a
+trusted online signer. Deploy device_updates.py/release_signer.py with server.py
+and releases.py, plus deploy/enki-release-signer.service/install-signer.sh.

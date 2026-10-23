@@ -49,28 +49,50 @@ export function BrowserPresence() {
   }, []);
   useEffect(() => {
     if (!isNative()) return;
-    let cancelled = false, wasOpen = false;
+    let cancelled = false, wasOpen = false, selectionReady = false;
     let timer: ReturnType<typeof setTimeout>;
     const engine = store.engineIdFor(), session = app.activeSessionId;
     const key = JSON.stringify([app.prefs.workspaceKey ?? app.prefs.endpoint, app.directory, engine, session]);
+    const selection = local && app.directory && session
+      ? { directory: app.directory, engine, sessionId: session }
+      : { directory: null, engine: null, sessionId: null };
+    const stillSelected = () => store.state.activeSessionId === session
+      && store.state.directory === app.directory
+      && store.state.prefs.endpoint === app.prefs.endpoint
+      && store.state.prefs.workspaceKey === app.prefs.workspaceKey
+      && store.engineIdFor() === engine;
     if (store.state.ui.browserOpen) store.setUi({ browserOpen: false });
     const poll = async () => {
       try {
-        // Reconcile again after service startup/restart. Selection is presentation-only.
-        await browserNative("browser_session", local && app.directory && session
-          ? { directory: app.directory, engine, sessionId: session }
-          : { directory: null, engine: null, sessionId: null });
-        if (cancelled) return;
+        if (!selectionReady) {
+          if (!stillSelected()) return;
+          await browserNative("browser_session", selection);
+          if (cancelled || !stillSelected()) return;
+          selectionReady = true;
+        }
+        if (cancelled || !stillSelected()) return;
         if (!local || !session) return;
-        const s = await browserNative<{ browserOpen: boolean; monitorOpen?: boolean; scopeKey?:string; scope?: {engine:string;sessionID:string} }>("browser_presence");
-        if (cancelled) return;
+        let s = await browserNative<{ browserOpen: boolean; monitorOpen?: boolean; scopeKey?:string; scope?: {engine:string;sessionID:string} }>("browser_presence");
+        if (cancelled || !stillSelected()) return;
+        // A daemon restart or a late agent-side selection can leave the shared
+        // service on another chat. Reconcile only on mismatch, never on every
+        // health tick; a stale effect is guarded against the live store state.
+        if ((s.scope?.engine !== engine || s.scope?.sessionID !== session) && stillSelected()) {
+          await browserNative("browser_session", selection);
+          if (cancelled || !stillSelected()) return;
+          s = await browserNative("browser_presence");
+          if (cancelled || !stillSelected()) return;
+        }
         const ours = s.scope?.engine === engine && s.scope?.sessionID === session;
         if (s.browserOpen && ours && !wasOpen) {
           if (s.monitorOpen) presentations.set(key, "monitor");
           else if (presentations.get(key) === "monitor") await browserNative("browser_monitor", { action: "detach", scopeKey:s.scopeKey });
           else if (presentations.get(key) !== "hidden") store.setUi({ browserOpen: true });
         }
-        if ((!s.browserOpen || !ours) && store.state.ui.browserOpen) store.setUi({ browserOpen: false });
+        // A toolbar open can reveal the panel before the native browser has
+        // finished starting. Only auto-hide after observing an open browser
+        // for this session; otherwise the first poll races setup.
+        if (wasOpen && (!s.browserOpen || !ours) && store.state.ui.browserOpen) store.setUi({ browserOpen: false });
         wasOpen = !!s.browserOpen && ours;
       } catch { /* An unavailable service does not reveal another chat's browser. */ }
       if (!cancelled) timer = setTimeout(() => void poll(), 1500);
@@ -371,7 +393,7 @@ export function BrowserPanel() {
           if (e.key.length === 1 && !e.altKey) { e.preventDefault(); input("text", { text: e.key }); }
           else if (NAV_KEYS.includes(e.key)) { e.preventDefault(); input("key", { key: e.key }); }
         }}>
-        {frame?.image ? <img ref={image} src={`data:image/jpeg;base64,${frame.image}`} alt={frame.title || "Страница Chromium"} draggable={false} onLoad={() => { if (frame) decoded(frame); }}/> : <p>Откройте браузер кнопкой в верхней панели или задайте адрес страницы.</p>}
+        {frame?.image ? <img ref={image} src={`data:image/jpeg;base64,${frame.image}`} alt={frame.title || "Страница Chromium"} draggable={false} onLoad={() => { if (frame) decoded(frame); }}/> : <p>{app.ui.browserOpen ? "Запускаю встроенный браузер…" : "Откройте браузер кнопкой в верхней панели или задайте адрес страницы."}</p>}
         {cursor && frame?.width && frame?.height && <div className={`browser-agent-cursor ${cursor.owner}`} style={{ left: `${cursor.x / frame.width * 100}%`, top: `${cursor.y / frame.height * 100}%` }} aria-label={cursor.owner === "agent" ? "Курсор агента" : "Курсор пользователя"}><span>➤</span><small>{cursor.owner === "agent" ? "Агент" : "Вы"}</small></div>}
       </div></div>
       <footer><span className={`browser-status-dot${locked ? " busy" : ""}`}/><span role="status">{scrolling ? "Обновляю после прокрутки…" : resizing ? "Подстраиваю страницу…" : changingMode ? "Меняю режим…" : frame?.busy ? "Агент действует…" : working ? "Выполняю…" : mode === "human" ? "Эмуляция · мышь и клавиатура" : "Быстрый · точные действия"}</span><span className="browser-viewport">{frame?.width && `${frame.width} × ${frame.height}`}</span></footer>

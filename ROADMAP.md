@@ -1,5 +1,12 @@
 # Enki roadmap
 
+## Device publication and Windows browser fixes (0.2.104)
+
+- [x] Review/adopt six Windows source/test files; add stale-presence response guard. 92 focused frontend tests pass. Supplied installer SHA256 matches report; Windows execution is contributor evidence, not a Mac acceptance claim.
+- [x] Add paired-device publication with isolated Unix-socket signer; no client signing/admin key. Server validates source versions/fingerprint; compare-and-swap protects concurrent releases and revoked keys are checked again before commit.
+- [x] Cross-platform release command retains all local gates, verifies actual bytes and pinned minisign signatures; missing operator config selects device path. Native CLI keeps installed device key in vault. Workshop context/runtime explain this path.
+- [ ] Complete full canonical gates, live device-authorized release and both-packet verification; record deployment/revocation/cleanup and push main.
+
 ## Water glyph app icon (0.2.103)
 
 - [x] New gold water/cuneiform-inspired glyph on a lapis tile, generated as a transparent raster master. Replace sidebar, favicon and all desktop native icon formats from the same master; retire obsolete E vector.

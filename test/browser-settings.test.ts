@@ -6,10 +6,11 @@ import type { BrowserSetup, BrowserStatus } from "../src/browser/integration";
 
 const fake = vi.hoisted(() => ({
   state: {} as any, setup: {} as BrowserSetup, native: true, host: null as object | null,
-  invoke: vi.fn(), configureBrowser: vi.fn(), setBrowserSettings: vi.fn(), setUi: vi.fn(),
+  invoke: vi.fn(), configureBrowser: vi.fn(), ensureChatWorkspace: vi.fn(), createSessionNow: vi.fn(), setBrowserSettings: vi.fn(), setUi: vi.fn(),
 }));
 vi.mock("../src/state/store", () => ({ useAppState: () => fake.state, store: {
   currentHost: () => fake.host, configureBrowser: fake.configureBrowser,
+  ensureChatWorkspace: fake.ensureChatWorkspace, createSessionNow: fake.createSessionNow,
   get state() { return fake.state; }, engineIdFor: () => "opencode",
   setBrowserSettings: fake.setBrowserSettings, setUi: fake.setUi,
 } }));
@@ -35,12 +36,14 @@ beforeEach(() => {
   fake.invoke.mockImplementation(async (command: string) => {
     if (command === "browser_status") return status;
     if (command === "browser_start") return status;
-    if (command === "browser_session") return {result:{scopeKey:"fixture-key",scope:{engine:"opencode",sessionID:"ses_test"}}};
+    if (command === "browser_session") return {result:{scopeKey:"fixture-key",scope:{engine:"opencode",sessionID:fake.state.activeSessionId ?? "ses_test"}}};
     if (command === "browser_open") return { ...status, browserOpen: true };
     if (command === "browser_stop") return { ...status, running: false, browserOpen: false };
     throw new Error(`Unexpected command: ${command}`);
   });
   fake.configureBrowser.mockResolvedValue(undefined);
+  fake.ensureChatWorkspace.mockResolvedValue(true);
+  fake.createSessionNow.mockImplementation(async () => ({id:"ses_test",directory:fake.state.directory}));
   const node = document.createElement("div"); document.body.append(node); root = createRoot(node);
 });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ""; vi.unstubAllGlobals(); });
@@ -134,7 +137,8 @@ it("does not open from the toolbar after configuration reports an MCP error", as
   await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Открыть браузер агента"]')!.click());
   expect(fake.configureBrowser).toHaveBeenCalledOnce();
   expect(opens()).toHaveLength(0);
-  expect(fake.setUi).toHaveBeenCalledExactlyOnceWith({ toast: "Браузер: MCP не подключён" });
+  expect(fake.setUi).toHaveBeenNthCalledWith(1, { browserOpen: true });
+  expect(fake.setUi).toHaveBeenLastCalledWith({ toast: "Браузер: MCP не подключён" });
   expect(document.querySelector<HTMLButtonElement>("button")!.disabled).toBe(false);
 });
 
@@ -144,10 +148,28 @@ it("waits for toolbar configuration, prevents duplicate clicks, and opens a blan
   const control = document.querySelector<HTMLButtonElement>('[aria-label="Открыть браузер агента"]')!;
   await act(async () => control.click());
   expect(control.disabled).toBe(true); expect(control.textContent).toContain("Открываю"); expect(opens()).toHaveLength(0);
+  expect(fake.setUi).toHaveBeenCalledWith({browserOpen:true});
   await act(async () => control.click()); expect(fake.configureBrowser).toHaveBeenCalledOnce();
   await act(async () => pending.resolve());
   expect(opens()).toEqual([["browser_open", { url: null, nodeProgram: "/opt/homebrew/bin/node",scopeKey:"fixture-key" }]]);
   expect(control.disabled).toBe(false); expect(fake.setUi).toHaveBeenCalledWith({ browserOpen: true });
+});
+
+it("creates an empty scoped chat and opens the browser before any model turn", async () => {
+  fake.state.activeSessionId = null;
+  fake.state.directory = null;
+  fake.ensureChatWorkspace.mockImplementation(async () => { fake.state.directory = "/test/browser-workspace"; return true; });
+  fake.createSessionNow.mockImplementation(async (title: string) => {
+    expect(title).toBe("Браузер");
+    fake.state.activeSessionId = "ses_browser";
+    return {id:"ses_browser",directory:fake.state.directory};
+  });
+  await mount(BrowserButton);
+  await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="Открыть браузер агента"]')!.click());
+  expect(fake.ensureChatWorkspace).toHaveBeenCalledOnce();
+  expect(fake.createSessionNow).toHaveBeenCalledOnce();
+  expect(fake.invoke).toHaveBeenCalledWith("browser_open", expect.objectContaining({url:null,scopeKey:"fixture-key"}));
+  expect(fake.setUi).toHaveBeenCalledWith({browserOpen:true});
 });
 
 it("reads numeric diagnostics on demand without navigating or fetching session history", async () => {

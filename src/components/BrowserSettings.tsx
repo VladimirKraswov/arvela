@@ -107,14 +107,39 @@ export function BrowserButton() {
   const enabled = browserEnabled(app.prefs);
   return <button className="icon-btn browser-button" aria-label="Открыть браузер агента" title={browserButtonTitle(local, native, enabled, setup.phase)} disabled={busy || !local || !native || !enabled} onClick={() => {
     setBusy(true);
-    const current = () => store.state.activeSessionId === app.activeSessionId && store.state.directory === app.directory && store.state.prefs.endpoint === app.prefs.endpoint;
+    let sessionId = app.activeSessionId;
+    let directory = app.directory;
+    const engine = store.engineIdFor();
+    const current = () => store.state.activeSessionId === sessionId && store.state.directory === directory
+      && store.state.prefs.endpoint === app.prefs.endpoint && store.engineIdFor() === engine
+      && store.state.prefs.workspaceKey === app.prefs.workspaceKey;
     // A failed setup is retried from scratch: clicking again after fixing
     // Node.js or the network must not replay the cached failure.
-    void store.configureBrowser(browserSetupSnapshot().phase === "error").then(() => {
+    void (async () => {
+      // The toolbar is available before the first model turn. Browser sessions
+      // are scoped to a real agent session, so materialize an empty one instead
+      // of making the user send a prompt just to reveal Chromium.
+      if (!sessionId) {
+        if (!directory) {
+          if (!await store.ensureChatWorkspace()) throw new Error("Не удалось подготовить чат для браузера.");
+          directory = store.state.directory;
+        }
+        if (!directory) throw new Error("Не выбрана рабочая папка для браузера.");
+        const created = await store.createSessionNow("Браузер");
+        if (!created) throw new Error("Не удалось создать чат для браузера.");
+        sessionId = created.id;
+        directory = created.directory;
+        if (!current()) throw new Error("Выбран другой чат; браузер не открыт.");
+      }
+      // Reveal the side panel as soon as this browser has a real session scope.
+      // Runtime setup may still be downloading/attaching tools; that must not
+      // make the toolbar appear to do nothing while the user waits.
+      store.setUi({ browserOpen: true });
+      await store.configureBrowser(browserSetupSnapshot().phase === "error");
       const setup = browserSetupSnapshot();
       if (setup.phase === "error") throw new Error(setup.error || "Инструменты браузера не подключены.");
-      return openSessionBrowser({directory:app.directory, engine:store.engineIdFor(), sessionId:app.activeSessionId},current,null,browserNodeProgram(app.prefs));
-    }).then(() => { if (current()) store.setUi({ browserOpen: true }); })
-      .catch(error => { if (current()) store.setUi({ toast: `Браузер: ${message(error)}` }); }).finally(() => setBusy(false));
+      await openSessionBrowser({directory, engine, sessionId},current,null,browserNodeProgram(app.prefs));
+      if (current()) store.setUi({ browserOpen: true });
+    })().catch(error => { if (current()) store.setUi({ toast: `Браузер: ${message(error)}` }); }).finally(() => setBusy(false));
   }}><Icon name="browser" size={17}/><span>{busy ? "Открываю…" : "Браузер"}</span></button>;
 }

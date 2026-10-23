@@ -1,3 +1,23 @@
+# Paired-device release and Windows browser review (0.2.104)
+
+Imported six source/test files from the supplied Windows0.2.103 browser package.
+Contributor reports1091 tests/Windows NSIS/install/live example.com success;
+we do not count that report as a new Windows acceptance run. Supplied installer
+SHA25607af54188572559327a829dab5cb34c794e4335ae381491cf39fc68d152dea6b matches.
+New review regression rejects stale presence after selection changes.92 focused
+browser/workspace/workshop tests pass. Source/UI/native/release gates and live
+paired-device publication pending. No owner prompts, model work or app restart.
+
+Hub now accepts device-authenticated unsigned source/UI candidates, validates
+portable bounded files, six manifest versions, app identity and recomputed native
+fingerprint. Separate user/socket signer validates again and checks the declared
+pinned public key against its configured key, then uses minisign and verifies its
+own signatures. Uploaded code never executes on Hub. Local tests are device
+attestations; all enrolled owner-device keys now grant release authority, but no
+other admin API. Revocation and channel CAS rechecked after signing. HTTP service
+cannot read signer key. Existing offline/operator path remains compatible; central
+signer is online and trusted. Fresh local source compilation/install stays separate.
+
 # Enki icon (0.2.103)
 
 New imagegen raster master and Tauri-derived desktop icons replace the old E.

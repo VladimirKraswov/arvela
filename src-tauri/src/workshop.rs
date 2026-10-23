@@ -132,7 +132,7 @@ fn prepare(root: &Path, candidate: Option<&str>) -> Result<Workspace, String> {
         &root.join("WORKSPACE.json"),
         &serde_json::to_string_pretty(&workspace).map_err(|e| e.to_string())?,
     )?;
-    write(&root.join("RUNTIME.json"), &json!({"nativeVersion":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"hubEndpoint":crate::hub::workshop_endpoint(),"releaseCommand":"npm run release:local -- stable","instructionsSource":"src-tauri/resources/workshop/AGENTS.md"}).to_string())?;
+    write(&root.join("RUNTIME.json"), &json!({"nativeVersion":env!("CARGO_PKG_VERSION"),"platform":std::env::consts::OS,"hubEndpoint":crate::hub::workshop_endpoint(),"releaseCommand":"npm run release:local -- stable","nativeExecutable":std::env::current_exe().ok(),"publication":"paired-device-or-local-operator","instructionsSource":"src-tauri/resources/workshop/AGENTS.md"}).to_string())?;
     Ok(workspace)
 }
 #[tauri::command]

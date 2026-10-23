@@ -5,6 +5,11 @@ pub fn run_cli() {
             eprintln!("{e}");
             std::process::exit(1);
         }
+    } else if std::env::args().nth(1).as_deref() == Some("--hub-release") {
+        if let Err(e) = crate::hub::device_publish::cli() {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
     } else if std::env::args().nth(1).as_deref() == Some("--hub-update-status") {
         if let Err(e) = crate::hub_updates::cli_status() {
             eprintln!("{e}");

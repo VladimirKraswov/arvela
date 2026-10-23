@@ -71,26 +71,18 @@ class Releases:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def validate(self, envelope, kind):
-        if not isinstance(envelope, dict) or set(envelope) != {'payload', 'signature'}:
-            self.error('Нужен подписанный пакет обновления.')
+    def validate_unsigned(self, payload, kind):
         try:
-            if not isinstance(envelope['payload'], str) or len(envelope['payload']) > MAX_PAYLOAD * 4 // 3 + 4:
+            if not isinstance(payload, str) or len(payload) > MAX_PAYLOAD * 4 // 3 + 4:
                 self.error('Пакет слишком велик.', 413)
-            raw = base64.b64decode(envelope['payload'], validate=True)
+            raw = base64.b64decode(payload, validate=True)
             if len(raw) > MAX_PAYLOAD:
                 self.error('Пакет слишком велик.', 413)
-            if not isinstance(envelope['signature'], str) or len(envelope['signature']) > 8192:
-                raise ValueError()
-            signature = base64.b64decode(envelope['signature'], validate=True).decode()
             packet = json.loads(raw)
             if (not isinstance(packet, dict) or packet.get('schemaVersion') != 1
                     or packet.get('kind') != kind or not HASH.fullmatch(packet.get('nativeFingerprint', ''))):
                 raise ValueError()
             version_key(packet['version'])
-            if not any(line.startswith('trusted comment: ') and 'version:' + packet['version'] in line.split('\t')
-                       for line in signature.splitlines()):
-                raise ValueError()
             files = packet['files']
             if not isinstance(files, dict) or not 1 <= len(files) <= 4000 or len({p.lower() for p in files}) != len(files):
                 raise ValueError()
@@ -99,7 +91,7 @@ class Releases:
                 if not safe_path(name) or not isinstance(value, str):
                     raise ValueError()
                 parts = name.lower().split('/')
-                if any(p in ('.git', '.local', 'node_modules', 'target') or p == '.env' or p.startswith('.env.') for p in parts):
+                if any(p in ('.git', '.local', '.pi', 'node_modules', 'target') or p == '.env' or p.startswith('.env.') for p in parts):
                     raise ValueError()
                 data = base64.b64decode(value, validate=True)
                 total += len(data)
@@ -112,7 +104,22 @@ class Releases:
                 raise ValueError()
             return raw, packet
         except (ValueError, TypeError, KeyError, UnicodeError):
-            self.error('Некорректный пакет или подпись обновления.')
+            self.error('Некорректный пакет обновления.')
+
+    def validate(self, envelope, kind):
+        if not isinstance(envelope, dict) or set(envelope) != {'payload', 'signature'}:
+            self.error('Нужен подписанный пакет обновления.')
+        raw, packet = self.validate_unsigned(envelope.get('payload'), kind)
+        try:
+            if not isinstance(envelope['signature'], str) or len(envelope['signature']) > 8192:
+                raise ValueError()
+            signature = base64.b64decode(envelope['signature'], validate=True).decode()
+            if not any(line.startswith('trusted comment: ') and 'version:' + packet['version'] in line.split('\t')
+                       for line in signature.splitlines()):
+                raise ValueError()
+        except (ValueError, TypeError, KeyError, UnicodeError):
+            self.error('Некорректная подпись обновления.')
+        return raw, packet
 
     def head(self, channel):
         if channel not in ('stable', 'preview'):
@@ -224,6 +231,7 @@ class Releases:
                     self.error('Версия должна быть новее опубликованной.', 409)
                 head = {'available': True, 'version': hot['version'], 'nativeFingerprint': hot['nativeFingerprint'],
                         'notes': str(hot.get('notes', ''))[:4000], 'artifacts': artifacts}
+                if data.get('_devicePublication'):head['publication']=data['_devicePublication']
                 head['revision'] = hashlib.sha256(json.dumps(head, sort_keys=True).encode()).hexdigest()
                 if shutil.disk_usage(self.root).free < 256 * 1024 * 1024 + sum(a['bytes'] * 2 for a in artifacts.values()):
                     self.error('На сервере недостаточно места для обновления.', 507)

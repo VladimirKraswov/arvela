@@ -38,7 +38,8 @@ export function operatorEnvironment(file=operatorFile()) {
     TAURI_SIGNING_PRIVATE_KEY_PATH:config.signingKeyFile,
     TAURI_SIGNING_PRIVATE_KEY_PASSWORD:config.signingPasswordFile?privateFile(config.signingPasswordFile).trimEnd():''};
 }
-export function releaseWithOperator(channel,run,credentials) {
+export function releaseWithOperator(channel,run,credentials,mode='operator') {
+  if(!['operator','device'].includes(mode))throw Error('Use operator or device publication');
   if(!['stable','preview'].includes(channel))throw Error('Use stable or preview');
   run('git',['diff','--exit-code']);
   for(const args of [['test'],['run','build'],['run','check:architecture'],['run','check:bundle'],['run','test:releases']])run('npm',args);
@@ -47,7 +48,8 @@ export function releaseWithOperator(channel,run,credentials) {
   for(const args of [['fmt','--check'],['test'],['clippy','--all-targets','--','-D','warnings']])
     run('cargo',[...args.slice(0,1),'--manifest-path','src-tauri/Cargo.toml',...args.slice(1)]);
   // Only the publisher receives credentials, and only after all gates passed.
-  run('node',['scripts/releases/publish.mjs',channel],credentials());
+  if(mode==='device')run('node',['scripts/releases/device.mjs',channel]);
+  else run('node',['scripts/releases/publish.mjs',channel],credentials());
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const root=path.resolve(import.meta.dirname,'../..');
@@ -66,7 +68,9 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
       };
       const clean=spawnSync('git',['status','--porcelain'],{cwd:root,encoding:'utf8'});
       if(clean.status!==0||clean.stdout.trim())throw Error('Commit reviewed changes before release:local');
-      releaseWithOperator(process.argv[2]??'stable',run,()=>operatorEnvironment(file));
+      const configured=file??operatorFile();
+      if(!fs.existsSync(configured)&&!process.env.ENKI_RELEASE_MODE)process.env.ENKI_RELEASE_MODE='device';
+      releaseWithOperator(process.argv[2]??'stable',run,()=>operatorEnvironment(file),process.env.ENKI_RELEASE_MODE??'operator');
     }
   } catch { console.error('Release stopped. Check failed gate output or private operator.json/credential permissions; no publication is claimed.');process.exitCode=1; }
 }

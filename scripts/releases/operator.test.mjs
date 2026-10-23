@@ -33,3 +33,10 @@ test('operator migration preserves private bytes and old absolute credential pat
   assert.throws(()=>operatorFile(root));assert.equal(fs.readFileSync(current,'utf8'),'fixture');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('paired-device mode runs all gates without ever reading operator credentials',()=>{
+ const calls=[];releaseWithOperator('stable',(p,a)=>calls.push({p,a}),()=>{throw Error('must not read signing/admin credentials');},'device');
+ assert.deepEqual(calls.at(-1),{p:'node',a:['scripts/releases/device.mjs','stable']});
+ assert(calls.some(x=>x.p==='cargo'&&x.a.includes('clippy')));
+ assert(calls.some(x=>x.a.includes('services/hub/tests')));
+});

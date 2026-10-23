@@ -101,6 +101,39 @@ it("Shift+Tab leaves the page projection instead of being sent to the page", asy
 it("reveals once when the agent starts Chromium, not on every health tick", async () => {
   await mount(BrowserPresence); expect(fake.setUi).toHaveBeenCalledExactlyOnceWith({ browserOpen: true });
   await act(async () => vi.advanceTimersByTimeAsync(4500)); expect(fake.setUi).toHaveBeenCalledOnce();
+  expect(fake.invoke.mock.calls.filter(([name]) => name === "browser_session")).toHaveLength(1);
+});
+it("reconciles a browser daemon that is still scoped to the previous chat", async () => {
+  const previous = { ...frame.scope, sessionID: "ses_previous" };
+  fake.invoke.mockImplementation(async command => command === "browser_presence"
+    ? { browserOpen: true, scope: fake.invoke.mock.calls.filter(([name]) => name === "browser_session").length < 2 ? previous : frame.scope }
+    : undefined);
+  await mount(BrowserPresence);
+  expect(fake.invoke.mock.calls.filter(([name]) => name === "browser_session")).toHaveLength(2);
+  expect(fake.setUi).toHaveBeenCalledWith({ browserOpen: true });
+});
+it("selects the newly active chat when the browser panel follows a session switch", async () => {
+  let selected = "ses_test";
+  fake.invoke.mockImplementation(async (command, args) => {
+    if (command === "browser_session") selected = args.sessionId;
+    return command === "browser_presence" ? { browserOpen: true, scope: { ...frame.scope, sessionID: selected } } : undefined;
+  });
+  await mount(BrowserPresence);
+  fake.state = { ...fake.state, activeSessionId: "ses_next" };
+  await mount(BrowserPresence);
+  expect(fake.invoke.mock.calls.filter(([name]) => name === "browser_session")).toEqual([
+    ["browser_session", { directory: "/test", engine: "opencode", sessionId: "ses_test" }],
+    ["browser_session", { directory: "/test", engine: "opencode", sessionId: "ses_next" }],
+  ]);
+});
+it("ignores a presence response arriving after the selected chat changed", async () => {
+  let finish!:(value:unknown)=>void;
+  fake.invoke.mockImplementation(async command => command === "browser_presence"
+    ? new Promise(resolve => { finish=resolve; }) : undefined);
+  await mount(BrowserPresence);
+  fake.state={...fake.state,activeSessionId:"ses_next"};
+  await act(async()=>finish({browserOpen:true,scope:frame.scope}));
+  expect(fake.setUi).not.toHaveBeenCalledWith({browserOpen:true});
 });
 it("drops queued old inputs and ignores their late error after a connection change",async()=>{
  let reject!:(reason:Error)=>void;
