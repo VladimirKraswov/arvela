@@ -6,7 +6,7 @@ import path from 'node:path';
 import https from 'node:https';
 import {execFileSync} from 'node:child_process';
 import {publishAndVerify} from './verify.mjs';
-import {nativeFingerprint,snapshot,hash,validateVersions} from './packet.mjs';
+import {nativeFingerprint,snapshot,snapshotGit,hash,validateVersions} from './packet.mjs';
 const root=path.resolve(import.meta.dirname,'../..');
 const channel=process.argv[2]??'stable';if(!['stable','preview'].includes(channel))throw Error('Use stable or preview');
 const run=(program,args)=>execFileSync(program,args,{cwd:root,stdio:'inherit',timeout:40*60000});
@@ -30,7 +30,7 @@ const sourceNames=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'
 const uiNames=[];function walk(p){for(const e of fs.readdirSync(p,{withFileTypes:true})){const q=path.join(p,e.name);if(e.isDirectory())walk(q);else uiNames.push(path.relative(path.join(root,'dist'),q).split(path.sep).join('/'));}}walk(path.join(root,'dist'));
 const work=fs.mkdtempSync(path.join(os.tmpdir(),'enki-publish-'));fs.chmodSync(work,0o700);
 try{
-  const envelopes={};for(const [kind,files]of [['hot',snapshot(path.join(root,'dist'),uiNames)],['source',snapshot(root,sourceNames)]]){
+  const envelopes={};for(const [kind,files]of [['hot',snapshot(path.join(root,'dist'),uiNames)],['source',snapshotGit(root,sourceNames)]]){
     const payload=Buffer.from(JSON.stringify({schemaVersion:1,kind,version,nativeFingerprint:fp,notes:setting('RELEASE_NOTES')??'',files}));
     if(payload.length>24*1048576)throw Error('Encoded payload exceeds limit');
     const file=path.join(work,`${kind}.json`);fs.writeFileSync(file,payload,{mode:0o600});

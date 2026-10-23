@@ -36,3 +36,14 @@ test('device publication recovers lost acknowledgment once, verifies both packet
   await assert.rejects(publishDevice(f.root,'stable',transport));assert(!fs.existsSync(path.join(f.root,'.local/releases/1.2.3-stable.json')));assert.equal(posts,1);
  }finally{fs.rmSync(f.root,{recursive:true,force:true});}
 });
+
+import {snapshotGit,validateVersions} from './packet.mjs';
+test('Windows CRLF checkouts preserve manifest validation and canonical committed source bytes',()=>{
+ const f=repository();try{
+  execFileSync('git',['config','core.autocrlf','true'],{cwd:f.root});
+  for(const n of ['src-tauri/Cargo.toml','src-tauri/Cargo.lock']){const file=path.join(f.root,n);fs.writeFileSync(file,fs.readFileSync(file,'utf8').replaceAll('\n','\r\n'));}
+  validateVersions(f.root,'1.2.3');
+  const files=snapshotGit(f.root,['src-tauri/Cargo.toml','src-tauri/Cargo.lock']);
+  for(const n of Object.keys(files)){const canonical=execFileSync('git',['show','HEAD:'+n],{cwd:f.root});assert(Buffer.from(files[n],'base64').equals(canonical));assert(!canonical.includes(Buffer.from('\r\n')));}
+ }finally{fs.rmSync(f.root,{recursive:true,force:true});}
+});

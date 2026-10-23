@@ -1,7 +1,7 @@
 // Publish with a paired device identity. No release signing/admin key on clients.
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import https from 'node:https';
 import crypto from 'node:crypto';import {execFileSync} from 'node:child_process';import {fileURLToPath} from 'node:url';
-import {snapshot,nativeFingerprint,validateVersions,hash} from './packet.mjs';import {privateFile} from './operator.mjs';
+import {snapshot,snapshotGit,nativeFingerprint,validateVersions,hash} from './packet.mjs';import {privateFile} from './operator.mjs';
 export const CHECKS=['frontend','build','architecture','bundle','publisher','hub','asr','rust-fmt','rust-test','rust-clippy'];
 export function verifyEnvelope(envelope,digest,version,wrappedPublic){
  const raw=Buffer.from(envelope.payload,'base64');if(hash(raw)!==digest)throw Error('Downloaded release digest mismatch');
@@ -44,7 +44,7 @@ export async function publishDevice(root,channel,transport=deviceTransport()){
  const names=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(n=>n&&!n.startsWith('.pi/')&&!n.startsWith('.local/'));
  const ui=[];function walk(p){for(const e of fs.readdirSync(p,{withFileTypes:true})){const q=path.join(p,e.name);if(e.isDirectory())walk(q);else ui.push(path.relative(path.join(root,'dist'),q).split(path.sep).join('/'));}}walk(path.join(root,'dist'));
  const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();const body={channel,expectedRevision:null,validation:{checks:CHECKS,platform:process.platform,commit}};const digests={};
- for(const [kind,files] of [['source',snapshot(root,names)],['hot',snapshot(path.join(root,'dist'),ui)]]){const raw=Buffer.from(JSON.stringify({schemaVersion:1,kind,version,nativeFingerprint:fp,notes:'',files}));if(raw.length>24*1048576)throw Error('Encoded release payload too large');body[kind]=raw.toString('base64');digests[kind]=hash(raw);}
+ for(const [kind,files] of [['source',snapshotGit(root,names)],['hot',snapshot(path.join(root,'dist'),ui)]]){const raw=Buffer.from(JSON.stringify({schemaVersion:1,kind,version,nativeFingerprint:fp,notes:'',files}));if(raw.length>24*1048576)throw Error('Encoded release payload too large');body[kind]=raw.toString('base64');digests[kind]=hash(raw);}
  let head=await transport.head(channel);body.expectedRevision=head.revision;
  const matches=h=>h.version===version&&h.nativeFingerprint===fp&&['source','hot'].every(k=>h.artifacts?.[k]?.digest===digests[k]);
  if(!matches(head)){
