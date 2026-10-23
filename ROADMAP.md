@@ -5,7 +5,7 @@
 - [x] Review/adopt six Windows source/test files; add stale-presence response guard. 92 focused frontend tests pass. Supplied installer SHA256 matches report; Windows execution is contributor evidence, not a Mac acceptance claim.
 - [x] Add paired-device publication with isolated Unix-socket signer; no client signing/admin key. Server validates source versions/fingerprint; compare-and-swap protects concurrent releases and revoked keys are checked again before commit.
 - [x] Cross-platform release command retains all local gates, verifies actual bytes and pinned minisign signatures; missing operator config selects device path. Native CLI keeps installed device key in vault. Workshop context/runtime explain this path.
-- [ ] Complete full canonical gates, live device-authorized release and both-packet verification; record deployment/revocation/cleanup and push main.
+- [x] Canonical0.2.104/runtime63396dc:1094 frontend/6 skips,160 native/3 ignored,83 Hub,3 ASR,15 publisher; build/architecture194/bundle/fmt/strictClippy all pass. Published through an ordinary paired device (admin API403 confirmed), central minisign signer and pinned key. Receipt .local/releases/0.2.104-stable.json; live head and both signed packets verified,36 changed source/19 hot files byte-exact. Native actual-packet acceptance/tamper/version tests pass for BOTH source and hot envelopes. Native fingerprint changed from0.2.103: native update required; application installation remains separate. Temporary device revoked(HTTP401), provisioning key/config copies removed; root-owned deployed Hub modules match reviewed SHA256 and HTTP cannot read signer key.
 
 ## Water glyph app icon (0.2.103)
 

@@ -9,8 +9,13 @@ unchanged isolated test passed. Select ENKI_RELEASE_TEST_WORKERS=1 for canonical
 retry, preserving assertions/timeouts. Signer comments are deterministic for the
 same payload/version so interrupted staging can reuse immutable envelopes.
 New review regression rejects stale presence after selection changes.92 focused
-browser/workspace/workshop tests pass. Source/UI/native/release gates and live
-paired-device publication pending. No owner prompts, model work or app restart.
+browser/workspace/workshop tests pass. Canonical0.2.104/runtime63396dc:1094 frontend/6 skips,160 native/3 ignored,83 Hub,3 ASR,15 publisher; build/architecture194/bundle/fmt/strictClippy all pass. Published through an ordinary paired device (admin API403 confirmed), central minisign signer and pinned key. Receipt .local/releases/0.2.104-stable.json; live head and both signed packets verified,36 changed source/19 hot files byte-exact. Native actual-packet acceptance/tamper/version tests pass for BOTH source and hot envelopes. Native fingerprint changed from0.2.103: native update required; application installation remains separate.
+Temporary paired key revoked, HTTP401 verified; temporary signing-key copies on Mac/PVE and
+device config/key removed. Real signer key retained only in its protected service
+directory and original private operator store. Hub/signer active; root-owned deployed
+modules match reviewed source SHA256; HTTP user cannot read signer key. Socket
+0660 with Hub group, peer UID check. Native application not installed/restarted;
+no owner prompts or GPU work. Windows build of0.2.104 not executed here.
 
 Hub now accepts device-authenticated unsigned source/UI candidates, validates
 portable bounded files, six manifest versions, app identity and recomputed native
