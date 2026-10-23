@@ -41,8 +41,11 @@ export function operatorEnvironment(file=operatorFile()) {
 export function releaseWithOperator(channel,run,credentials,mode='operator') {
   if(!['operator','device'].includes(mode))throw Error('Use operator or device publication');
   if(!['stable','preview'].includes(channel))throw Error('Use stable or preview');
+  const workers=process.env.ENKI_RELEASE_TEST_WORKERS;
+  if(workers!==undefined&&!['1','2'].includes(workers))throw Error('Release test workers must be1or2');
+  const tests=workers?['test','--','--maxWorkers='+workers]:['test'];
   run('git',['diff','--exit-code']);
-  for(const args of [['test'],['run','build'],['run','check:architecture'],['run','check:bundle'],['run','test:releases']])run('npm',args);
+  for(const args of [tests,['run','build'],['run','check:architecture'],['run','check:bundle'],['run','test:releases']])run('npm',args);
   run(process.platform==='win32'?'py':'python3', [...(process.platform==='win32'?['-3']:[]),'-m','unittest','discover','-s','services/hub/tests']);
   run(process.platform==='win32'?'py':'python3', [...(process.platform==='win32'?['-3']:[]),'-m','unittest','discover','-s','services/asr/tests']);
   for(const args of [['fmt','--check'],['test'],['clippy','--all-targets','--','-D','warnings']])

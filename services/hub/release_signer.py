@@ -1,5 +1,5 @@
 """Local signing only: no network listener, shell, builds or uploaded-code execution."""
-import argparse,base64,json,os,socket,struct,subprocess,tempfile,time
+import argparse,base64,json,os,socket,struct,subprocess,tempfile
 from pathlib import Path
 import device_updates
 from releases import Releases
@@ -22,7 +22,7 @@ def sign_candidate(data,key,public):
             raw=base64.b64decode(data[kind],validate=True);file=Path(tmp)/(kind+'.json');file.write_bytes(raw);file.chmod(0o600)
             # Tauri wraps a standard minisign signature in base64. The trusted
             # version comment is mandatory to native clients. Key never in argv.
-            comment='timestamp:'+str(int(time.time()))+'\tfile:'+kind+'.json\tversion:'+packets[kind]['version']
+            comment='file:'+kind+'.json\tversion:'+packets[kind]['version']
             subprocess.run(['minisign','-S','-s',key,'-m',str(file),'-t',comment,'-q'],input=b'\n',capture_output=True,check=True,timeout=30)
             subprocess.run(['minisign','-V','-p',public,'-m',str(file),'-q'],capture_output=True,check=True,timeout=15)
             result[kind]=dict(payload=data[kind],signature=base64.b64encode(Path(str(file)+'.minisig').read_bytes()).decode())

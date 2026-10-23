@@ -4,6 +4,10 @@ Imported six source/test files from the supplied Windows0.2.103 browser package.
 Contributor reports1091 tests/Windows NSIS/install/live example.com success;
 we do not count that report as a new Windows acceptance run. Supplied installer
 SHA25607af54188572559327a829dab5cb34c794e4335ae381491cf39fc68d152dea6b matches.
+Initial full run hit chat-window timing under concurrent workers(10.75s);
+unchanged isolated test passed. Select ENKI_RELEASE_TEST_WORKERS=1 for canonical
+retry, preserving assertions/timeouts. Signer comments are deterministic for the
+same payload/version so interrupted staging can reuse immutable envelopes.
 New review regression rejects stale presence after selection changes.92 focused
 browser/workspace/workshop tests pass. Source/UI/native/release gates and live
 paired-device publication pending. No owner prompts, model work or app restart.
