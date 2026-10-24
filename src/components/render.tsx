@@ -1,3 +1,4 @@
+import {turnImageResults} from "../images/results";
 import { partsPresentation } from '../chat/presentation';
 import { executionEvidence, executionLabel, type ExecutionEvidence } from '../chat/execution';
 import { lazy, Suspense, memo, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -21,6 +22,7 @@ import { exactTime, messageTime } from "../chat/time";
 import { describeMessageError, isModelConnectionError } from "../chat/errors";
 import { ModelConnectionCheck } from "./ModelConnectionCheck";
 export { Markdown } from "./Markdown";
+const GeneratedImages = lazy(() => import("./GeneratedImages"));
 const OutputLimitNotice = lazy(() => import("./OutputLimitNotice"));
 
 function MessageTimestamp({value}:{value:number}) {
@@ -105,6 +107,7 @@ export const ToolPartView = memo(function ToolPartView({
     >
       <ToolDetails state={st} />
     </Fold>
+
   );
 });
 
@@ -255,6 +258,7 @@ export const AssistantTurnView = memo(function AssistantTurnView({sessionId, mes
   useEffect(() => { if (progressState && progressKey) progressState[progressKey] = expanded; }, [progressState, progressKey, expanded]);
   const progress = hasFinal ? messages.slice(0, -1) : messages;
   const allParts = snapshot.parts;
+  const generated = turnImageResults(allParts);
   const actions = allParts.filter(p => p.type === 'tool').length;
   const errors = allParts.filter(p => p.type === 'tool' && p.state?.status === 'error').length;
   const metrics = turnMetrics(messages);
@@ -288,6 +292,7 @@ export const AssistantTurnView = memo(function AssistantTurnView({sessionId, mes
         </div>;
       })}
     </div>
+    {generated.length>0 && <div className="turn-generated-results"><Suspense fallback={<p>Изображения готовы…</p>}>{generated.map((result,i)=><GeneratedImages key={result.images[0]?.url??i} result={result}/>)}</Suspense></div>}
     {terminal && <div className="message-footer turn-footer">
       {!!answerText(parts).trim() && <CopyButton text={answerText(parts)} label={last.summary ? "Копировать сводку" : hasFinal ? "Копировать весь ответ" : "Копировать незавершённый ответ"} compact />}
       <MessageTimestamp value={last.time.completed!} />

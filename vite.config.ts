@@ -7,6 +7,11 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
+  // Keep React's shared runtime stable when adding lazy settings/result panels.
+  // Rolldown otherwise moves the same already-required bytes between entry chunks.
+  build: { rolldownOptions: { output: { codeSplitting: { groups: [
+    {name: "react-vendor", test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/, priority: 20},
+  ] } } } },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

@@ -10,6 +10,7 @@ pub mod entry;
 mod hosts;
 pub mod hub;
 pub mod hub_updates;
+mod images;
 mod journal;
 mod lifecycle;
 mod local_server;
@@ -74,6 +75,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             asr::transcribe_audio,
+            images::image_settings,
+            images::image_asset,
+            images::image_probe,
             journal::operation_journal,
             lifecycle::own_work,
             lifecycle::quit_report,

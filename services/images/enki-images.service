@@ -1,0 +1,32 @@
+[Unit]
+Description=Enki resident CPU image generation (OpenVINO LCM)
+After=network-online.target
+[Service]
+User=enki-images
+Group=enki-images
+WorkingDirectory=/opt/enki-images
+Environment=IMAGE_MODEL_DIR=/opt/enki-images/model-int8
+Environment=IMAGE_STATE_DIR=/var/lib/enki-images/jobs
+Environment=IMAGE_CACHE_DIR=/var/lib/enki-images/cache
+Environment=IMAGE_TOKEN_FILE=/etc/enki-images/token
+Environment=IMAGE_THREADS=12
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/enki-images/venv/bin/python /opt/enki-images/server.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+CPUQuota=1200%
+CPUWeight=20
+CPUAffinity=20-31
+Nice=10
+MemoryMax=16G
+TasksMax=128
+StateDirectory=enki-images
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/enki-images
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+[Install]
+WantedBy=multi-user.target

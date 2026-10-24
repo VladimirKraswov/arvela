@@ -3179,3 +3179,7 @@ button.message-file{display:inline-flex;align-items:center;gap:10px;color:var(--
 .schedule-dialog { width:min(680px,90vw); max-height:85vh; overflow:auto; background:var(--bg-raised); color:var(--text); border:1px solid var(--border); border-radius:16px; padding:22px; }
 .schedule-dialog::backdrop { background:#0008; }
 .schedule-dialog .context-task p { overflow-wrap:anywhere; white-space:pre-wrap; }
+
+.generated-images{margin:12px 0;max-width:760px}.generated-images-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.generated-image-preview{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:12px;min-height:160px;cursor:pointer}.generated-image-preview img{width:100%;max-width:256px;aspect-ratio:1;object-fit:contain;border-radius:8px}.generated-images>small{display:block;margin-top:8px;color:var(--text-dim)}
+
+.image-generation-settings .setting-control>input[type=checkbox]{width:auto}

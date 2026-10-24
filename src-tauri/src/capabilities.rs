@@ -4,6 +4,7 @@ pub mod quality;
 mod skills;
 use skills::{scan, SkillSource};
 mod authoring;
+mod image_generation;
 pub mod project_map;
 mod schedules;
 mod web_search;
@@ -63,6 +64,14 @@ const FILES: &[(&str, &str)] = &[
         include_str!("../resources/shared/stdio-command.mjs"),
     ),
     ("proxy.mjs", include_str!("../resources/shared/proxy.mjs")),
+    (
+        "image-generation.mjs",
+        include_str!("../resources/shared/image-generation.mjs"),
+    ),
+    (
+        "image-generation-core.mjs",
+        include_str!("../resources/shared/image-generation-core.mjs"),
+    ),
     (
         "web-search-core.mjs",
         include_str!("../resources/shared/web-search-core.mjs"),
@@ -547,6 +556,7 @@ pub async fn shared_catalog(
         authoring::ensure(&root()?)?;
         web_search::ensure(&root()?)?;
         schedules::ensure(&root()?)?;
+        image_generation::ensure(&root()?)?;
         document(&scope, directory.as_deref())
     })
     .await
@@ -752,6 +762,7 @@ pub fn pi_support(directory: &Path) -> Result<(String, Vec<String>, Option<PathB
     authoring::ensure(&root)?;
     web_search::ensure(&root)?;
     schedules::ensure(&root)?;
+    image_generation::ensure(&root)?;
     let registry = effective(&root, &key)?;
     let skills = registry
         .sources
@@ -837,6 +848,10 @@ fn proxy_command(
         command.arg("inspect");
     }
     command.env_remove("MESH_MCP_BEARER");
+    command.env_remove("ENKI_IMAGE_API_KEY");
+    if id == "enki-images" {
+        command.env("ENKI_IMAGE_API_KEY", crate::images::load_api_key()?);
+    }
     if server.bearer {
         let (project, _) = read_at(&root, key)?;
         let origin = if project.servers.iter().any(|s| s.id == id) {

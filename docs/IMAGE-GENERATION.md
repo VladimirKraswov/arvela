@@ -1,0 +1,24 @@
+# Images and materials in Enki
+
+Settings → **Изображения**: enabled switch, provider, base API URL, model, OS-vault API key and read-only connection check. Each field has a help modal. Source defaults contain only the LAN endpoint/model, no secret. Local operator provisioning can place a private0600 `image-api.bootstrap` beside `image-generation.json`; installed Enki imports it into its own OS vault on first use and removes the temporary file. Existing keys are preserved. This is not a release credential and must never enter Git/Hub packets.
+
+The owner device is provisioned for CPU Inference. Other devices set their own API/key; arbitrary HTTPS or private-LAN HTTP APIs are supported. `Enki CPU` offers jobs, progress, cancellation, icon/material bundles. `OpenAI-compatible` uses base`/v1`, `/images/generations`, n1 and b64_json PNG response; default image size1024 vs512 for Enki CPU. Use the dimensions actually supported by that provider. Vendor-specific APIs may need an adapter; the generic adapter never fetches untrusted response URLs. Material/icon bundle helpers require the Enki provider; other APIs may be used one image at a time.
+
+Shared MCP **enki-images / «Генерация изображений»**, OpenCode and Pi:
+
+- `generate_image`: start drawing;
+- `generate_icon_pack`:1–8 subjects with shared style, palette and background;
+- `generate_material`: texture + aligned normal/height/roughness/metallic and opposite lighting previews;
+- `image_status`: readiness/progress, bounded20s wait;
+- `get_images`: retrieve ready/partial results; `include_vision=true` only if the current model supports image input;
+- `cancel_image`: cancel without deleting finished files.
+
+The model should call these tools for raster-generation requests, retrieve and show the actual output, and visually inspect it when capable. A returned text description is not an image. Tool descriptions require honest review and bound corrective generations. No separate autonomous agent loop or regex intent interceptor is added. Non-Vision models get file references/previews without incompatible image-input blocks by default; Vision gets actual PNG blocks when requested. Never claim visual review without seeing those pixels.
+
+Results are saved without overwriting files in the agent workspace `.enki/generated-images/<job>/`: PNG,256px previews, ZIP, manifest. Permission/cancellation remain with the selected engine. Keys are injected privately into the tool process, never into prompts. Key changes take effect on reconnection; existing work is not aborted to change settings. Use the API that created an old job to retrieve it.
+
+Generated cards remain visible when “Ход работы” is collapsed; duplicate retrievals do not duplicate images. Only visible/nearby thumbnails load; full PNGs load on click into the existing viewer. PNG dimensions/bytes and generated-file paths are bounded. When an agent's file is on another device, Enki may fetch the exact job/file from its configured authenticated Enki API, never from a tool-supplied remote URL. Remote retrieval requires that device's API configuration and the service's retained result.
+
+Materials: ask “Создай текстуру камня с normal map, высотой и roughness; OpenGL, рельеф6, покажи под боковым светом.” Height is an approximation, roughness/metallic are explicit scalar values. See [CPU service](../services/images/README.md) for conventions, limitations, deployment and tests. The agent should use linear/non-color imports for data maps and choose the engine's OpenGL/DirectX convention.
+
+Native update required for settings commands and shared runtime. A UI-only activation cannot install the native reader, OS vault integration or shared tool files. Publication does not interrupt active agents; install through the normal idle native-update flow. Windows/Linux live qualification remains separate from Mac/browser and CPU API acceptance.

@@ -1,0 +1,2 @@
+# Versions used for the CPU acceptance run; no CUDA or PyTorch runtime.
+-r requirements.lock

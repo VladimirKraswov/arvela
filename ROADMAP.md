@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## CPU images and material maps (0.2.108)
+
+- [x] Dedicated authenticated resident OpenVINO LCM CPU worker in CT201; bounded durable jobs, idempotency/progress/cancel/partial recovery, private nginx route; ASR preserved.
+- [x] Configurable image API/provider/model with OS-vault key, per-setting help and read-only probe; shared OpenCode/Pi image/icon/material tools, real Vision blocks on request. Inline results remain visible outside folded work; bounded lazy previews and remote exact-job retrieval.
+- [x] Matched16-bit height/tangent normal OpenGL or DirectX/scalar roughness and metallic, opposite light previews, tile-edge tests and ZIP/manifest. Height is explicitly approximate.10 service tests, actual CPU/MCP/ZIP and pixel review; frontend/native/full release gates follow.
+- [ ] Canonical gates, verified Hub stable108 receipt/head/both packets and main push.
+
+
 ## Session wake-ups and activity indicators (0.2.107)
 
 - [x] Agent-facing scoped schedule MCP shared by OpenCode/Pi; once/repeat, stable create keys, bounded durable scheduling, cancel/list/pause/resume without changing the visible chat. Native Windows loopback control transport, Unix socket retained.

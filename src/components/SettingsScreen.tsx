@@ -7,7 +7,7 @@ import { CapabilitiesSettings } from "./CapabilitiesSettings";
 import { ModelServicesSettings } from "./ModelServicesSettings";
 import { ModelCatalogSettings } from "./ModelCatalogSettings";
 import { BrowserSettings } from "./BrowserSettings";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { version as appVersion } from "../../package.json";
 import { store, useAppState } from "../state/store";
 import { DEFAULT_BASE_URL, isAllowedBaseUrl } from "../api/client";
@@ -23,6 +23,7 @@ import { Markdown } from "./Markdown";
 import { DEFAULT_HELPER_ENDPOINT, helperHealth, validHelperEndpoint, type HelperHealth } from "../attachments/helper";
 import { detectLocalOpenCode } from "../native/localServer";
 
+const ImageGenerationSettings = lazy(() => import("./ImageGenerationSettings"));
 export const SETTINGS_SECTIONS = [
   { id: "updates", title: "Обновления", group: "Приложение", icon: "settings", description: "Версии и резервные копии", keywords: "stable preview резервные восстановление обновление" },
   { id: "skillQuality", title: "Качество навыков", group: "Общие возможности", icon: "file", description: "Сравнение версий и откат навыков", keywords: "skill тест испытания baseline candidate" },
@@ -30,6 +31,7 @@ export const SETTINGS_SECTIONS = [
   { id: "engines", title: "Обзор агентов", group: "Агенты", icon: "chat", description: "OpenCode и Pi: возможности и отдельные настройки", keywords: "engine движок агент Pi OpenCode модель" },
   { id: "appearance", title: "Внешний вид", group: "Приложение", icon: "sun", description: "Тема, основной цвет, размеры шрифтов и ширина чата", keywords: "оформление акцент интерфейс текст код межстрочный интервал светлая тёмная" },
   { id: "usage", title: "Использование", group: "Приложение", icon: "monitor", description: "Расход токенов по моделям и дням", keywords: "метрики статистика токены модель кэш расход" },
+  { id: "images", title: "Изображения", group: "Общие возможности", icon: "file", description: "Генерация изображений и наборов иконок", keywords: "CPU OpenVINO API картинки рисование текстуры icons" },
   { id: "voice", title: "Диктовка", group: "Приложение", icon: "mic", description: "Распознавание речи, модель и язык", keywords: "голос микрофон ASR GigaAM ключ API" },
   { id: "hub", title: "Облачная библиотека", group: "Общие возможности", icon: "file", description: "Общие пакеты, история и метрики устройств", keywords: "облако hub синхронизация история устройства" },
   { id: "capabilities", title: "Навыки и инструменты", group: "Общие возможности", icon: "file", description: "Общий каталог навыков и MCP для OpenCode и Pi", keywords: "skills tools MCP источники инструменты общие Pi" },
@@ -101,6 +103,7 @@ export function SettingsScreen() {
   const [qualityDirty,setQualityDirty]=useState(false),[qualityVisited,setQualityVisited]=useState(false);
   useEffect(()=>{if(section === "skillQuality")setQualityVisited(true);},[section]);
   const [capabilitiesDirty,setCapabilitiesDirty] = useState(false), [capabilitiesVisited,setCapabilitiesVisited] = useState(false);
+  const [imagesVisited,setImagesVisited]=useState(false),[imagesDirty,setImagesDirty]=useState(false);
   const [hubVisited, setHubVisited] = useState(false), [hubDirty, setHubDirty] = useState(false);
   const [piVisited, setPiVisited] = useState(false), [piDirty, setPiDirty] = useState(false);
   const [engineDirty, setEngineDirty] = useState(false), [leave, setLeave] = useState<"close" | "hosts" | null>(null);
@@ -119,10 +122,10 @@ export function SettingsScreen() {
   const localDirty = endpointDirty || programDirty;
   const voiceDirty = JSON.stringify(asr) !== JSON.stringify(s.prefs.asr ?? defaultAsr) || key !== savedKey;
   const helperDirty = helper !== (s.prefs.helperEndpoint ?? DEFAULT_HELPER_ENDPOINT);
-  const dirty = qualityDirty || hubDirty || capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
+  const dirty = imagesDirty || qualityDirty || hubDirty || capabilitiesDirty || engineDirty || piDirty || localDirty || voiceDirty || helperDirty;
   const exit = (target: "close" | "hosts") => { store.setUi({ settingsOpen: false, ...(target === "hosts" ? { hostDialogOpen: true } : {}) }); };
   const requestExit = (target: "close" | "hosts") => { if (connecting) return; if (dirty) setLeave(target); else exit(target); };
-  const navigate = (id: Section) => { if (id === "hub") setHubVisited(true); if (id === "pi") setPiVisited(true); if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
+  const navigate = (id: Section) => { if(id === "images") setImagesVisited(true); if (id === "hub") setHubVisited(true); if (id === "pi") setPiVisited(true); if (id === "capabilities") setCapabilitiesVisited(true); setSection(id); setQuery(""); setError(""); setNotice(""); if (isEngine(id)) { setEngineVisited(true); setEngineSection(id); } content.current?.scrollTo(0, 0); };
   useEffect(() => { if (leave) { content.current?.scrollTo(0, 0); stay.current?.focus(); } }, [leave]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -183,6 +186,7 @@ export function SettingsScreen() {
         </>}
         {section === "appearance" && <AppearanceSettings/>}
         {section === "usage" && <UsageSettings/>}
+        {imagesVisited && <div hidden={section !== "images"}><Suspense fallback={<p>Загрузка настроек…</p>}><ImageGenerationSettings onDirtyChange={setImagesDirty}/></Suspense></div>}
         {section === "voice" && <>
           <p className="settings-intro">Диктовка распознаёт речь и добавляет текст в черновик сообщения.</p>
           <Group title="Распознавание речи"><Row title="URL распознавания" description="Полный адрес ASR API, совместимого с OpenAI."><input aria-label="URL распознавания" spellCheck={false} value={asr.endpoint} onChange={e => { setAsr({ ...asr, endpoint: e.target.value }); setKey(getAsrKey(e.target.value)); }}/></Row><Row title="Модель"><input aria-label="Модель ASR" value={asr.model} onChange={e => setAsr({ ...asr, model: e.target.value })}/></Row><Row title="Язык" description="Например, ru. Пустое значение — автоматический выбор."><input aria-label="Язык ASR" value={asr.language} onChange={e => setAsr({ ...asr, language: e.target.value })}/></Row><Row title="API-ключ" description="Только если сервис требует авторизацию. Хранится до закрытия приложения."><input aria-label="API-ключ ASR" type="password" autoComplete="off" placeholder="Необязательно" value={key} onChange={e => setKey(e.target.value)}/></Row></Group>
