@@ -38,7 +38,7 @@ it("does not request OpenCode children for Pi and cancels stale child responses 
  await act(async()=>resolve([{id:"child",parentID:"s",directory:"/project",title:"stale",time:{}}]));expect(document.body.textContent).not.toContain("stale");
 });
 it("saving a recurrence retains its chat, agent and reasoning model without starting inference",async()=>{
- await mount();await click("Добавить повторяющееся задание");
+ await mount();await click("Добавить таймер");
  await act(async()=>{
   const inputs=document.querySelectorAll("input");const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!;
   setter.call(inputs[0],"CI check");inputs[0].dispatchEvent(new Event("input",{bubbles:true}));
