@@ -5,7 +5,7 @@
 - [x] Agent-facing scoped schedule MCP shared by OpenCode/Pi; once/repeat, stable create keys, bounded durable scheduling, cancel/list/pause/resume without changing the visible chat. Native Windows loopback control transport, Unix socket retained.
 - [x] Global schedule list; fixed status slots and title ellipsis; shared frame clock survives recent-row moves without individual CSS animation restarts, honors reduced motion and visibility.
 - [x] Native maintenance retires only this process’s tracked idle server, checking all session directories/PTYs/interactions before an update. Current owner-approved old-server recovery completed; both interrupted chats resumed.
-- [ ] Canonical gates and verified Hub delivery.
+- [x] Canonical1112 frontend/6 skips,164 native/3 ignored,83 Hub,3 ASR,15 publisher; build/architecture197/bundle/fmt/strictClippy pass. Stable0.2.107 receipt, served head and both pinned signatures verified;38 changed source and19 hot files byte-exact. Native installation separate.
 
 ## Hooded Enki mascot (0.2.106)
 
