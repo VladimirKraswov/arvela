@@ -3,7 +3,7 @@
 ## Hooded Enki mascot (0.2.106)
 
 - [x] Apply the owner-selected transparent mascot to sidebar/favicon and every desktop Tauri icon from the same raster master. Native update required for Dock/tray/launchers.
-- [ ] Canonical release checks and verified Hub delivery.
+- [x] Canonical1100 frontend/6 skips,160 native/3 ignored,83 Hub,3 ASR,15 publisher; build/architecture194/bundle/fmt/strictClippy pass. Hub stable0.2.106 receipt; both downloaded pinned signatures verified,26 changed source/19 hot files byte-exact. Native fingerprint changed; owner installation separate. Actual built UI and32/128px/ICNS previews checked.
 
 ## Device publication and Windows browser fixes (0.2.104)
 
