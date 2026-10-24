@@ -87,7 +87,7 @@ export function createImages({configFile,cwd=process.cwd(),fetcher=fetch,token=(
    }
    if(state.status==='completed')await save(args.job_id,'manifest.json',await request(c,route+'/files/manifest.json','GET',undefined,signal));
    const archive=state.status==='completed'?await save(args.job_id,'images.zip',await request(c,route+'/files/images.zip','GET',undefined,signal)):undefined;
-   return {enkiImages:1,status:state.status,images,archive,vision,model:state.model??c.model,inference:state.inference,note:'PNG и ZIP сохранены в .enki/generated-images. Растровые изображения. Для материала: высота приближена по яркости, normal/height/roughness/metallic импортировать как linear/non-color; соглашение normal указано в manifest.json. relight — проверочное освещение; прозрачность, точная геометрия и отсутствие видимого повтора не гарантируются. Проверьте результат.'};
+   return {enkiImages:1,status:state.status,images,archive,vision,model:state.model??c.model,inference:state.inference,note:'PNG и ZIP сохранены в .enki/generated-images. Растровые изображения. Для материала: источник высоты и метод указаны в manifest.json (процедурный рельеф или приближение по яркости); normal/height/roughness/metallic импортировать как linear/non-color; соглашение normal указано в manifest.json. relight — проверочное освещение; прозрачность, точная геометрия и отсутствие видимого повтора не гарантируются. Проверьте результат.'};
   }
   throw Error('Неизвестный инструмент');
  };

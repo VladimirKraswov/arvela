@@ -58,4 +58,21 @@ class JobTests(unittest.TestCase):
   state=self.jobs.get(jid);self.assertEqual(state['status'],'completed');self.assertEqual(len(state['files']),8)
   with zipfile.ZipFile(Path(self.tmp.name)/jid/'images.zip') as archive:
    self.assertIsNone(archive.testzip());manifest=json.loads(archive.read('manifest.json'));self.assertEqual(manifest['material']['convention'],'directx');self.assertIn('linear',manifest['color_spaces']['normal.png']);self.assertIn('relight-right.png',archive.namelist())
+ def test_procedural_material_is_reported_honestly_and_exports_authored_relief(self):
+  import threading,time,json
+  from runtime import ImageRuntime
+  self.jobs.generate=ImageRuntime()
+  req=module.Request(prompt='regular red bricks',width=256,height=256,material=module.Material(surface='brick',tileable=True))
+  accepted=self.jobs.submit(req,'recipe');self.assertEqual(accepted['model'],'procedural-brick-v1');self.assertEqual(accepted['steps'],0)
+  threading.Thread(target=self.jobs.run,daemon=True).start();deadline=time.monotonic()+3
+  while self.jobs.pending.unfinished_tasks and time.monotonic()<deadline:time.sleep(.01)
+  state=self.jobs.get(accepted['id']);self.assertEqual(state['status'],'completed');self.assertEqual(len(state['files']),8)
+  manifest=json.loads((Path(self.tmp.name)/accepted['id']/'manifest.json').read_text())
+  self.assertEqual(manifest['height_source'],'authored procedural relief');self.assertEqual(manifest['inference']['model'],'procedural-brick-v1')
+ def test_pre_recipe_idempotency_key_survives_added_auto_default(self):
+  import hashlib,json
+  legacy='{"prompt":"brick","model":"enki-image-auto","width":512,"height":512,"steps":4,"seed":42,"material":{"strength":4.0,"blur":1.0,"roughness":0.7,"metallic":0.0,"convention":"opengl","tileable":false,"invert_height":false},"items":[]}'
+  self.jobs.db.execute('INSERT INTO jobs VALUES(?,?,?,?,?)',('old','before-upgrade',hashlib.sha256(legacy.encode()).hexdigest(),legacy,json.dumps({'id':'old','status':'completed'})));self.jobs.db.commit()
+  req=module.Request(prompt='brick',width=512,height=512,material=module.Material(metallic=0))
+  self.assertEqual(self.jobs.submit(req,'before-upgrade')['id'],'old');self.assertTrue(self.jobs.pending.empty())
 if __name__=='__main__':unittest.main()

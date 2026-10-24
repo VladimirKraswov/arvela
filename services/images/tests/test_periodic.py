@@ -1,8 +1,11 @@
 import unittest
+import tempfile
+import json
+from pathlib import Path
 import numpy as np
 import openvino as ov
 from openvino import opset13 as ops
-from periodic import circular_convolutions
+from periodic import circular_convolutions, prepare_periodic
 
 class Periodic(unittest.TestCase):
     def test_convolution_uses_neighboring_tile_not_black_border(self):
@@ -22,3 +25,21 @@ class Periodic(unittest.TestCase):
         m = ov.Model([c], [p]); circular_convolutions(m)
         f = ov.Core().compile_model(m, 'CPU')
         np.testing.assert_array_equal(f([np.ones((1, 1, 8, 8), np.float32)])[0], np.full((1, 1, 4, 4), 9))
+
+    def test_periodic_cache_invalidates_when_tokenizer_or_encoder_binding_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'source';source.mkdir()
+            (source/'model_index.json').write_text('{}')
+            for name in ('unet','vae_decoder'):
+                part=source/name;part.mkdir()
+                p=ops.parameter([1,1,8,8],np.float32)
+                c=ops.convolution(p,np.ones((1,1,3,3),np.float32),[1,1],[1,1],[1,1],[1,1])
+                ov.serialize(ov.Model([c],[p]),part/'openvino_model.xml')
+            encoder=source/'text_encoder';encoder.mkdir()
+            (encoder/'openvino_model.xml').write_text('binding-v1')
+            cache=Path(directory)/'cache';prepare_periodic(source,cache)
+            first=json.loads((cache/'periodic.json').read_text())['source']
+            (encoder/'openvino_model.xml').write_text('binding-v2')
+            prepare_periodic(source,cache)
+            self.assertNotEqual(json.loads((cache/'periodic.json').read_text())['source'],first)
+            self.assertEqual((cache/'text_encoder/openvino_model.xml').read_text(),'binding-v2')

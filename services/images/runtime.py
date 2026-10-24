@@ -3,6 +3,7 @@ import gc
 import math
 import os
 from pathlib import Path
+from procedural import resolve_surface, generate_surface
 
 PROFILES = {
     'sdxl-lightning': {'folder': 'sdxl-lightning', 'steps': 2, 'guidance': 0.0, 'title': 'SDXL Lightning'},
@@ -43,6 +44,14 @@ class ImageRuntime:
         self.key = None
 
     def __call__(self, prompt, body, callback):
+        surface = resolve_surface(body.material.surface, prompt) if body.material else None
+        phase = getattr(callback, 'phase', lambda *a, **kw: None)
+        if surface:
+            phase('generating', 'Создаю процедурный PBR-материал · ' + surface, inference={
+                'model': 'procedural-' + surface + '-v1', 'steps': 0,
+                'width': body.width, 'height': body.height,
+                'tile_method': 'procedural-periodic-v1', 'height_source': 'authored procedural relief'})
+            return generate_surface(surface, body.width, body.height, body.seed)
         import openvino_genai as genai
         from PIL import Image
         from periodic import prepare_periodic
@@ -50,7 +59,6 @@ class ImageRuntime:
         profile = PROFILES[model]
         tileable = bool(body.material and body.material.tileable)
         key = (model, tileable)
-        phase = getattr(callback, 'phase', lambda *a, **kw: None)
         if self.key != key:
             self.pipeline = None
             self.key = None

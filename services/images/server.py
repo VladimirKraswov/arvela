@@ -20,6 +20,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from runtime import PROFILES, resolve_profile
+from procedural import resolve_surface
 MODEL = "enki-image-auto"
 
 class Material(BaseModel):
@@ -31,9 +32,11 @@ class Material(BaseModel):
     convention: str = 'opengl'
     tileable: bool = False
     invert_height: bool = False
+    surface: str = 'auto'
     @model_validator(mode="after")
     def validate_material(self):
         if self.convention not in ('opengl','directx'): raise ValueError('convention: opengl/directx')
+        if self.surface not in ('auto','image','brick','granite'): raise ValueError('surface: auto/image/brick/granite')
         return self
 
 class Request(BaseModel):
@@ -86,7 +89,8 @@ class Jobs:
     def submit(self,body,key):
         if not key or len(key)>160: raise HTTPException(400,'Нужен Idempotency-Key (до 160 символов)')
         if not self.ready: raise HTTPException(503,'Модель загружается' if not self.load_error else 'Модель не загрузилась; проверьте журнал сервиса')
-        raw=body.model_dump_json(); fingerprint=hashlib.sha256(raw.encode()).hexdigest()
+        # Adding an optional recipe must not invalidate old accepted request keys.
+        raw=body.model_dump_json(exclude={'material':{'surface'}} if body.material and body.material.surface=='auto' else None); fingerprint=hashlib.sha256(raw.encode()).hexdigest()
         with self.lock:
             row=self.db.execute('SELECT id,fingerprint FROM jobs WHERE key=?',(key,)).fetchone()
             if row:
@@ -97,7 +101,9 @@ class Jobs:
             if count>=200: raise HTTPException(507,'Хранилище изображений заполнено; удалите старые задания')
             if self.pending.full(): raise HTTPException(429,'Очередь генерации заполнена. Повторите позже с тем же ключом')
             selected=resolve_profile(body.model,body.prompt,body.material is not None)
-            actual_steps=PROFILES[selected]['steps'] or body.steps
+            recipe=resolve_surface(body.material.surface,body.prompt) if body.material else None
+            actual_steps=0 if recipe else PROFILES[selected]['steps'] or body.steps
+            if recipe:selected='procedural-'+recipe+'-v1'
             jid=str(uuid.uuid4());state={'id':jid,'status':'queued','created':time.time(),'completed':0,'total':len(body.items) or 1,'step':0,'steps':actual_steps,'files':[],'width':body.width,'height':body.height,'model':selected}
             self.db.execute('INSERT INTO jobs VALUES(?,?,?,?,?)',(jid,key,fingerprint,raw,json.dumps(state)));self.db.commit()
             self.pending.put_nowait((jid,body));return state
@@ -143,7 +149,8 @@ class Jobs:
                         image.save(folder/'image-01.png')
                         files=[{'name':'image-01.png','label':'basecolor','seed':body.seed,'mime':'image/png'}]
                         self.update(jid,completed=1,files=files)
-                        maps=make_material(image,**body.material.model_dump())
+                        params=body.material.model_dump();params.pop('surface')
+                        maps=make_material(image,**params,height_map=image.info.get('enki_height'))
                         files=[]
                         for name,output in maps.items():
                             output.save(folder/name)
@@ -155,7 +162,7 @@ class Jobs:
                     self.update(jid,completed=index+1,files=files)
                 inference=self.get(jid).get('inference')
                 manifest={'model':inference['model'] if inference else body.model,'engine':'OpenVINO GenAI CPU','request':body.model_dump(),'inference':inference,'files':files,'transparency':False,'vision_review':'pending: inspect returned images with a vision-capable agent'}
-                if body.material: manifest.update(material=body.material.model_dump(),height_source='Approximation from the base image luminance; not measured or recovered geometry',color_spaces={'image-01.png':'sRGB color','normal.png':'linear / non-color tangent normal','height.png':'linear 16-bit height','roughness.png':'linear roughness, NOT glossiness','metallic.png':'linear metallic'},preview='relight.png and relight-right.png use the selected normal convention under opposite side lights; tile-preview.png shows repetition when enabled')
+                if body.material: manifest.update(material=body.material.model_dump(),height_source=inference.get('height_source') if inference and inference.get('height_source') else 'Approximation from the base image luminance; not measured or recovered geometry',color_spaces={'image-01.png':'sRGB color','normal.png':'linear / non-color tangent normal','height.png':'linear 16-bit height','roughness.png':'linear roughness, NOT glossiness','metallic.png':'linear metallic'},preview='relight.png and relight-right.png use the selected normal convention under opposite side lights; tile-preview.png shows repetition when enabled')
                 (folder/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
                 with zipfile.ZipFile(folder/'images.zip','w',compression=zipfile.ZIP_DEFLATED) as archive:
                     for name in [f['name'] for f in files]+['manifest.json']: archive.write(folder/name,name)
@@ -182,7 +189,7 @@ def create_app(jobs,token,load=None):
         yield
     app=FastAPI(title='Enki CPU Images',lifespan=lifespan,dependencies=[Depends(auth)])
     @app.get('/health')
-    def health(): return {'status':'ready' if jobs.ready else 'error' if jobs.load_error else 'loading','model':MODEL,'models':list(PROFILES),'engine':'OpenVINO GenAI CPU','queue':jobs.pending.qsize(),'max_items':8,'max_pixels':1048576}
+    def health(): return {'status':'ready' if jobs.ready else 'error' if jobs.load_error else 'loading','model':MODEL,'models':list(PROFILES),'material_surfaces':['auto','image','brick','granite'],'engine':'OpenVINO GenAI CPU','queue':jobs.pending.qsize(),'max_items':8,'max_pixels':1048576}
     @app.post('/jobs',status_code=202)
     def submit(body:Request,idempotency_key:str=Header(default='')): return jobs.submit(body,idempotency_key)
     @app.get('/jobs/{jid}')

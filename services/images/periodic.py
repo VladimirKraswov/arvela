@@ -49,7 +49,10 @@ def prepare_periodic(source, cache):
     source, cache = Path(source), Path(cache)
     marker = cache / 'periodic.json'
     fingerprint = hashlib.sha256(b''.join((source / part).read_bytes() for part in
-        ('model_index.json', 'unet/openvino_model.xml', 'vae_decoder/openvino_model.xml')) +
+        ('model_index.json', 'unet/openvino_model.xml', 'vae_decoder/openvino_model.xml',
+         'text_encoder/openvino_model.xml', 'text_encoder_2/openvino_model.xml',
+         'tokenizer/openvino_tokenizer.xml', 'tokenizer_2/openvino_tokenizer.xml',
+         'tokenizer/tokenizer_config.json', 'tokenizer_2/tokenizer_config.json') if (source / part).exists()) +
         ((source / 'enki-model.json').read_bytes() if (source / 'enki-model.json').exists() else b'')).hexdigest()
     if marker.exists() and json.loads(marker.read_text()).get('version') == VERSION and json.loads(marker.read_text()).get('source') == fingerprint:
         return cache
