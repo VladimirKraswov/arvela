@@ -21,7 +21,7 @@ it.each([
   expect(() => normalizeEnvironment(value)).toThrow();
 });
 it("maps compatibility/privacy to real Chromium options without insecure launch flags", () => {
-  expect(environmentOptions({engine:"chrome", display:"window", locale:"en-us", timezone:"Europe/Moscow", protectWebRTC:true, doNotTrack:true, serviceWorkers:"block", colorScheme:"dark", reducedMotion:"reduce"})).toEqual({
+  expect(environmentOptions({engine:"chrome", display:"window", reduceAutomationSignals:false, locale:"en-us", timezone:"Europe/Moscow", protectWebRTC:true, doNotTrack:true, serviceWorkers:"block", colorScheme:"dark", reducedMotion:"reduce"})).toEqual({
     headless:false, chromiumSandbox:true, channel:"chrome", locale:"en-US", timezoneId:"Europe/Moscow",
     colorScheme:"dark", reducedMotion:"reduce", serviceWorkers:"block", permissions:[],
     extraHTTPHeaders:{DNT:"1"}, args:["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"],
@@ -46,11 +46,17 @@ it("hides automation signals without disabling security", () => {
   for (const unsafe of ["--no-sandbox", "--disable-web-security", "--disable-extensions"]) expect(options.args).not.toContain(unsafe);
 });
 it("keeps the stock launch when the automation-signal reduction is off", () => {
-  const options = environmentOptions({});
+  const options = environmentOptions({reduceAutomationSignals:false});
   expect(options).not.toHaveProperty("ignoreDefaultArgs");
   expect(options).not.toHaveProperty("deviceScaleFactor");
   expect(options).not.toHaveProperty("channel");
   expect(options.args).toEqual([]);
+});
+it("hides automation signals by default so new profiles are not obviously automated", () => {
+  const options = environmentOptions({});
+  expect(options.ignoreDefaultArgs).toEqual(["--enable-automation"]);
+  expect(options.channel).toBe("chromium");
+  expect(options.args).toContain("--disable-blink-features=AutomationControlled");
 });
 it("never overrides an installed Chrome or a visible window with the chromium channel", () => {
   expect(environmentOptions({reduceAutomationSignals:true, engine:"chrome"}).channel).toBe("chrome");

@@ -2747,6 +2747,24 @@ button:focus-visible, [tabindex]:focus-visible { outline-color: var(--accent); }
 .settings-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 22px 0; }
 .settings-muted { color: var(--text-dim); font-size: .86rem; line-height: 1.5; }
 .settings-inline-error { color: var(--err); font-size: .86rem; margin: 0 0 14px; }
+.browser-profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 14px 0 16px; }
+.browser-profile { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 13px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-raised); }
+.browser-profile:hover:not(:disabled) { border-color: var(--border-strong); }
+.browser-profile.is-active { border-color: var(--accent); background: var(--accent-soft); }
+.browser-profile:disabled { opacity: .6; cursor: default; }
+.browser-profile strong { font-size: .94rem; font-weight: 600; }
+.browser-profile-summary { color: var(--text-dim); font-size: .82rem; line-height: 1.45; }
+.browser-profile-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+.browser-profile-badge { font-size: .71rem; padding: 2px 7px; border-radius: 999px; background: var(--bg-sunken); color: var(--text-dim); border: 1px solid var(--border); }
+.browser-profile.is-active .browser-profile-badge { background: var(--bg-raised); }
+.browser-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; padding: 13px 15px; margin: 0 0 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-sunken); }
+.browser-summary-row { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.browser-summary-row span { color: var(--text-faint); font-size: .76rem; }
+.browser-summary-row strong { font-size: .88rem; font-weight: 500; line-height: 1.35; }
+.browser-group-title { margin: 0; padding: 16px 0 0; border-top: 1px solid var(--border); font-size: .76rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-faint); }
+.browser-group-title:first-child { padding-top: 0; border-top: none; }
+.browser-env-card { padding-top: 17px; }
+.browser-hint { color: var(--text-dim); font-size: .84rem; line-height: 1.45; margin: 8px 0 0; }
 .appearance-preview { margin: 30px 0 0; }
 .preview-chat { padding: 22px; border: 1px solid var(--border); border-radius: 14px; font-size: var(--chat-font-size, 14px); }
 .preview-label { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: .86rem; margin-bottom: 15px; }

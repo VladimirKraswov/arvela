@@ -3,7 +3,7 @@
 export const environmentDefaults = Object.freeze({
   engine: 'chromium', display: 'embedded', storage: 'persistent', locale: '', timezone: '',
   colorScheme: 'system', reducedMotion: 'no-preference', serviceWorkers: 'allow',
-  doNotTrack: false, protectWebRTC: false, reduceAutomationSignals: false, actionDelayMs: 0,
+  doNotTrack: false, protectWebRTC: false, reduceAutomationSignals: true, actionDelayMs: 0,
 });
 export function normalizeEnvironment(input = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid browser preferences');

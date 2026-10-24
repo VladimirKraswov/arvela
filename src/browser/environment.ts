@@ -15,7 +15,7 @@ export interface BrowserEnvironment {
 export const browserEnvironmentDefaults: BrowserEnvironment = {
   engine: "chromium", display: "embedded", storage: "persistent", locale: "", timezone: "",
   colorScheme: "system", reducedMotion: "no-preference", serviceWorkers: "allow",
-  doNotTrack: false, protectWebRTC: false, reduceAutomationSignals: false, actionDelayMs: 0,
+  doNotTrack: false, protectWebRTC: false, reduceAutomationSignals: true, actionDelayMs: 0,
 };
 export function browserEnvironment(value?: Partial<BrowserEnvironment>): BrowserEnvironment {
   return { ...browserEnvironmentDefaults, ...value };
