@@ -1,12 +1,13 @@
 # Иконка Enki
 
 Канонический растровый исходник — [src/assets/enki-icon-master.png](../src/assets/enki-icon-master.png).
-Золотой знак соединяет мотив клинописи и двух потоков воды на лазуритной
-скруглённой плитке. Это современная интерпретация имени Энки, а не историческая надпись.
-Рисунок создан встроенным imagegen; прозрачность за пределами плитки сохранена.
-Боковая панель и браузерная вкладка используют уменьшенную 256px копию
-src/assets/enki-icon.png (73 КБ), чтобы не загружать полный мастер; нативные
-размеры, Windows ICO/Appx и macOS ICNS получены штатным Tauri CLI.
+Персонаж Enki — робот в тёмно-синем капюшоне с голубыми светящимися глазами,
+угловатыми боковыми модулями и прозрачным фоном. Владелец выбрал этот
+самостоятельный рисунок по мотивам предоставленного референса.
+Рисунок создан встроенным imagegen; прозрачность вокруг персонажа сохранена.
+Боковая панель и favicon используют уменьшенную 256px копию
+src/assets/enki-icon.png; нативные PNG, Windows ICO/Appx и macOS ICNS
+получены из того же мастера штатным Tauri CLI.
 
 ## Воспроизведение упаковки
 
@@ -23,4 +24,4 @@ cp .local/enki-icons/128x128@2x.png src/assets/enki-icon.png
 
 ## Промпт генерации
 
-Use case: logo-brand. Create one finished square desktop application icon for Enki, an AI coding assistant named after the Sumerian deity of wisdom and fresh water. A premium, exceptionally clean, memorable emblem: a single bold warm-gold abstract cuneiform-inspired water glyph, subtly suggesting an E and two flowing streams, centered on a deep lapis-blue rounded-square tile. Strong sculptural silhouette, a restrained satin-gold highlight and subtle dimensional blue depth, elegant modern macOS app-icon craft. Glyph occupies about 62 percent of tile width, thick forms and generous negative space so it is instantly readable at 32 pixels. Tile occupies 90 percent of square canvas, evenly centered, transparent outside rounded corners. Straight-on orthographic view. No words, letters as typography, captions, borders, tiny details, drop shadow outside tile, watermark, mockup, or surrounding scene. This is a modern interpretation, not an archaeological inscription. Produce the actual icon alone, 1024 by 1024.
+Use case: logo-brand. Create an original premium mascot emblem for Enki, an AI desktop application. Input image is THEME REFERENCE ONLY: do not duplicate its character, pose, hood geometry or headphone design. A friendly mysterious little robotic intelligence wearing a sculpted midnight-navy hood, smooth obsidian visor with two luminous cyan expressive eyes. Distinct original design: slightly rounded pentagonal hood opening with folded cheek edges, calm curious eyes instead of angry slashes, subtle asymmetric hood fold, compact small angular ear modules instead of large circular headphones, tiny restrained cyan circuit accents. Clean centered head-and-shoulders bust facing straight ahead, symmetrical overall silhouette, all visible within square canvas with generous safe margin. Polished stylized 3D logo render, crisp deliberate contours, restrained materials and highlights, large readable shapes suitable for a 32px app icon. Deep navy and electric cyan, no extraneous scene. Genuine transparent background outside the mascot. No text, no letters, no watermark, no border, no surrounding tile, no tiny busy details, no weapons. One finished mascot emblem only, not a presentation sheet.

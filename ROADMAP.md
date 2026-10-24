@@ -1,5 +1,10 @@
 # Enki roadmap
 
+## Hooded Enki mascot (0.2.106)
+
+- [x] Apply the owner-selected transparent mascot to sidebar/favicon and every desktop Tauri icon from the same raster master. Native update required for Dock/tray/launchers.
+- [ ] Canonical release checks and verified Hub delivery.
+
 ## Device publication and Windows browser fixes (0.2.104)
 
 - [x] Review/adopt six Windows source/test files; add stale-presence response guard. 92 focused frontend tests pass. Supplied installer SHA256 matches report; Windows execution is contributor evidence, not a Mac acceptance claim.
