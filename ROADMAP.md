@@ -1,5 +1,13 @@
 # Enki roadmap
 
+## CPU image quality and periodic texture inference (0.2.109)
+
+- [x] Quality/explicit-draft profiles, native SDXL inference resolution, exact distilled sampling, style preservation, one resident CPU pipeline and honest loading status.
+- [x] Circular UNet AND VAE convolutions; wrapped resizing/derivatives; remove destructive border crossfades. Matched tokenizer/CLIP integer input compatibility without changing model values.
+- [x] Actual CPU visual comparison: SDXL illustrated portrait58.72s including load, periodic stone85.86s; rejected the misleading anime export (realistic result88.74s). Target12 CPU threads; benchmark peak16.1GiB, no swap. Deployed with exclusive idle-job guard and rollback; ASR process preserved.18 backend checks pass.
+- [x] Actual Enki ordinary anime request: sharp2D portrait shown/opened in chat, Vision review and two bounded corrections. Exact eye/clothing color binding still failed; no claim of perfect prompt adherence.
+- [ ] Actual Enki new material acceptance and canonical Hub publication.
+
 ## CPU images and material maps (0.2.108)
 
 - [x] Dedicated authenticated resident OpenVINO LCM CPU worker in CT201; bounded durable jobs, idempotency/progress/cancel/partial recovery, private nginx route; ASR preserved.

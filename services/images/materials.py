@@ -4,15 +4,9 @@ from PIL import Image
 
 def make_material(image, strength=4.0, blur=1.0, roughness=0.7, metallic=0.0, convention='opengl', tileable=False, invert_height=False):
     rgb=np.asarray(image.convert('RGB'),dtype=np.float32)/255.0
-    if tileable:
-        # Match opposite boundary pixels, tapering only a narrow edge band.
-        # This reduces seams, but does not remove repeated visual features.
-        h,w=rgb.shape[:2];band=max(8,min(w,h)//8)
-        x=np.arange(w,dtype=np.float32);weight=np.clip(1-x/band,0,1)-np.clip(1-(w-1-x)/band,0,1)
-        rgb+=.5*(rgb[:,-1,:]-rgb[:,0,:])[:,None,:]*weight[None,:,None]
-        y=np.arange(h,dtype=np.float32);weight=np.clip(1-y/band,0,1)-np.clip(1-(h-1-y)/band,0,1)
-        rgb+=.5*(rgb[-1,:,:]-rgb[0,:,:])[None,:,:]*weight[:,None,None]
-        rgb=np.clip(rgb,0,1)
+    # Tileable inputs are generated with circular convolutions in BOTH UNet and
+    # VAE. Border crossfades used to paint visible bands/squares into the albedo.
+    # Preserve those model pixels; periodic neighbors need not be identical pixels.
     linear=np.where(rgb<=.04045,rgb/12.92,((rgb+.055)/1.055)**2.4)
     height=linear@np.array([.2126,.7152,.0722],dtype=np.float32)
     low,high=np.percentile(height,[2,98]);height=np.clip((height-low)/max(float(high-low),1e-6),0,1)
@@ -26,15 +20,15 @@ def make_material(image, strength=4.0, blur=1.0, roughness=0.7, metallic=0.0, co
             height=np.fft.ifft2(np.fft.fft2(padded)*np.exp(-2*np.pi*np.pi*blur*blur*(fx*fx+fy*fy))).real[pad:-pad,pad:-pad]
     if invert_height:height=1-height
     if tileable:
-        edge=(height[0]+height[-1])*.5;height[0]=edge;height[-1]=edge
-        edge=(height[:,0]+height[:,-1])*.5;height[:,0]=edge;height[:,-1]=edge
-        core=height[:-1,:-1]
-        dx=np.pad((np.roll(core,-1,axis=1)-np.roll(core,1,axis=1))*.5,((0,1),(0,1)),mode='wrap')
-        dy=np.pad((np.roll(core,-1,axis=0)-np.roll(core,1,axis=0))*.5,((0,1),(0,1)),mode='wrap')
+        dx=(np.roll(height,-1,axis=1)-np.roll(height,1,axis=1))*.5
+        dy=(np.roll(height,-1,axis=0)-np.roll(height,1,axis=0))*.5
     else:dy,dx=np.gradient(height)
     # Image rows grow downward; OpenGL tangent V grows upward.
     normals=np.stack([-dx*strength,dy*strength,np.ones_like(height)],axis=-1)
     normals/=np.linalg.norm(normals,axis=-1,keepdims=True)
+    # FFT roundoff around a mathematically flat derivative must not flip the
+    # encoded neutral channel between 127 and 128 after a cyclic translation.
+    normals[np.abs(normals)<1e-10]=0
     if convention=='directx':normals[:,:,1]*=-1
     elif convention!='opengl':raise ValueError('normal convention')
     normal=Image.fromarray(np.rint(np.clip(normals*.5+.5,0,1)*255).astype(np.uint8))

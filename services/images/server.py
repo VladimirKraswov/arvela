@@ -19,7 +19,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-MODEL = "lcm-dreamshaper-v7"
+from runtime import PROFILES, resolve_profile
+MODEL = "enki-image-auto"
 
 class Material(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -39,18 +40,20 @@ class Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
     prompt: str = Field(min_length=1, max_length=2000)
     model: str = MODEL
-    width: int = Field(default=512, ge=256, le=832)
-    height: int = Field(default=512, ge=256, le=832)
+    width: int = Field(default=1024, ge=256, le=1536)
+    height: int = Field(default=1024, ge=256, le=1536)
     steps: int = Field(default=4, ge=2, le=8)
     seed: int = Field(default=42, ge=0, le=2147483647)
     material: Material | None = None
     items: list[str] = Field(default_factory=list, max_length=8)
     @model_validator(mode="after")
     def validate_request(self):
-        if not self.prompt.strip() or self.model != MODEL:
-            raise ValueError("Нужны непустой prompt и модель lcm-dreamshaper-v7")
-        if self.width % 8 or self.height % 8 or self.width*self.height > 640000:
-            raise ValueError("Размеры кратны 8; не больше 640000 пикселей")
+        if not self.prompt.strip(): raise ValueError("Нужен непустой prompt")
+        resolve_profile(self.model, self.prompt, self.material is not None)
+        if self.width % 8 or self.height % 8 or self.width*self.height > 1048576:
+            raise ValueError("Размеры кратны 8; не больше 1048576 пикселей")
+        if self.model == 'lcm-dreamshaper-v7' and self.width*self.height > 640000:
+            raise ValueError('Черновая LCM: не больше 640000 пикселей')
         if self.material and self.items: raise ValueError("Материал создаётся из одной согласованной текстуры")
         if any(not s.strip() or len(s)>160 for s in self.items):
             raise ValueError("Элементы набора: от 1 до 160 символов")
@@ -93,7 +96,9 @@ class Jobs:
             count=self.db.execute('SELECT count(*) FROM jobs').fetchone()[0]
             if count>=200: raise HTTPException(507,'Хранилище изображений заполнено; удалите старые задания')
             if self.pending.full(): raise HTTPException(429,'Очередь генерации заполнена. Повторите позже с тем же ключом')
-            jid=str(uuid.uuid4());state={'id':jid,'status':'queued','created':time.time(),'completed':0,'total':len(body.items) or 1,'step':0,'steps':body.steps,'files':[],'width':body.width,'height':body.height,'model':MODEL}
+            selected=resolve_profile(body.model,body.prompt,body.material is not None)
+            actual_steps=PROFILES[selected]['steps'] or body.steps
+            jid=str(uuid.uuid4());state={'id':jid,'status':'queued','created':time.time(),'completed':0,'total':len(body.items) or 1,'step':0,'steps':actual_steps,'files':[],'width':body.width,'height':body.height,'model':selected}
             self.db.execute('INSERT INTO jobs VALUES(?,?,?,?,?)',(jid,key,fingerprint,raw,json.dumps(state)));self.db.commit()
             self.pending.put_nowait((jid,body));return state
     def prune(self):
@@ -120,6 +125,12 @@ class Jobs:
                     if time.monotonic()-started>1200: raise TimeoutError('job deadline')
                     if not cancelled: self.update(jid,step=step+1,steps=steps)
                     return cancelled
+                def phase(name, detail, **extra):
+                    if self.get(jid)['status'] == 'cancelled': raise InterruptedError('cancelled')
+                    if 'inference' in extra:
+                        extra.update(model=extra['inference']['model'], steps=extra['inference']['steps'])
+                    self.update(jid, phase=name, detail=detail, **extra)
+                progress.phase = phase
                 files=[]
                 for index,item in enumerate(body.items or ['']):
                     if self.get(jid)['status']=='cancelled': break
@@ -142,12 +153,13 @@ class Jobs:
                         name=f'image-{index+1:02d}.png'; image.save(folder/name)
                         files.append({'name':name,'label':item or body.prompt,'seed':body.seed,'mime':'image/png'})
                     self.update(jid,completed=index+1,files=files)
-                manifest={'model':MODEL,'engine':'OpenVINO GenAI CPU','request':body.model_dump(),'files':files,'transparency':False,'vision_review':'pending: inspect returned images with a vision-capable agent'}
+                inference=self.get(jid).get('inference')
+                manifest={'model':inference['model'] if inference else body.model,'engine':'OpenVINO GenAI CPU','request':body.model_dump(),'inference':inference,'files':files,'transparency':False,'vision_review':'pending: inspect returned images with a vision-capable agent'}
                 if body.material: manifest.update(material=body.material.model_dump(),height_source='Approximation from the base image luminance; not measured or recovered geometry',color_spaces={'image-01.png':'sRGB color','normal.png':'linear / non-color tangent normal','height.png':'linear 16-bit height','roughness.png':'linear roughness, NOT glossiness','metallic.png':'linear metallic'},preview='relight.png and relight-right.png use the selected normal convention under opposite side lights; tile-preview.png shows repetition when enabled')
                 (folder/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
                 with zipfile.ZipFile(folder/'images.zip','w',compression=zipfile.ZIP_DEFLATED) as archive:
                     for name in [f['name'] for f in files]+['manifest.json']: archive.write(folder/name,name)
-                if self.get(jid)['status']!='cancelled': self.update(jid,status='completed',finished=time.time(),seconds=round(time.monotonic()-started,2))
+                if self.get(jid)['status']!='cancelled': self.update(jid,status='completed',phase='completed',detail='Изображения и архив готовы',finished=time.time(),seconds=round(time.monotonic()-started,2))
             except Exception:
                 if self.get(jid)['status']!='cancelled': self.update(jid,status='error',detail='Ошибка генерации. Готовые файлы сохранены. Проверьте журнал сервиса; задание автоматически не повторяется.')
                 import logging;logging.exception('Image worker failed for job %s',jid)
@@ -170,7 +182,7 @@ def create_app(jobs,token,load=None):
         yield
     app=FastAPI(title='Enki CPU Images',lifespan=lifespan,dependencies=[Depends(auth)])
     @app.get('/health')
-    def health(): return {'status':'ready' if jobs.ready else 'error' if jobs.load_error else 'loading','model':MODEL,'engine':'OpenVINO GenAI CPU','queue':jobs.pending.qsize(),'max_items':8,'max_pixels':640000}
+    def health(): return {'status':'ready' if jobs.ready else 'error' if jobs.load_error else 'loading','model':MODEL,'models':list(PROFILES),'engine':'OpenVINO GenAI CPU','queue':jobs.pending.qsize(),'max_items':8,'max_pixels':1048576}
     @app.post('/jobs',status_code=202)
     def submit(body:Request,idempotency_key:str=Header(default='')): return jobs.submit(body,idempotency_key)
     @app.get('/jobs/{jid}')
@@ -214,13 +226,11 @@ def create_app(jobs,token,load=None):
 if __name__=='__main__':
     import uvicorn
     from PIL import Image
-    pipeline=None
+    from runtime import ImageRuntime
     def load():
-        global pipeline
-        import openvino_genai as genai
-        pipeline=genai.Text2ImagePipeline(os.environ['IMAGE_MODEL_DIR'],'CPU',INFERENCE_NUM_THREADS=int(os.getenv('IMAGE_THREADS','12')),NUM_STREAMS=1,INFERENCE_PRECISION_HINT='f32',CACHE_DIR=os.getenv('IMAGE_CACHE_DIR','/var/lib/enki-images/cache'))
-    def generate(prompt,body,callback):
-        return Image.fromarray(pipeline.generate(prompt,width=body.width,height=body.height,num_inference_steps=body.steps,guidance_scale=8.0,rng_seed=body.seed,callback=callback).data[0])
-    jobs=Jobs(os.getenv('IMAGE_STATE_DIR','/var/lib/enki-images/jobs'),generate)
+        root=Path(os.getenv('IMAGE_MODELS_DIR','/opt/enki-images/models'))
+        if any(not (root / p['folder'] / 'model_index.json').exists() for p in PROFILES.values() if p['folder']):
+            raise RuntimeError('Quality models are not installed')
+    jobs=Jobs(os.getenv('IMAGE_STATE_DIR','/var/lib/enki-images/jobs'),ImageRuntime())
     token=Path(os.environ['IMAGE_TOKEN_FILE']).read_text().strip()
     uvicorn.run(create_app(jobs,token,load),host='127.0.0.1',port=18084,log_level='warning')

@@ -33,6 +33,21 @@ it('keeps one visible set of generated images after repeated tool retrievals',()
  expect(turnImageResults([{state:{output}},{state:{output}},{state:{output:'unrelated'}}])).toHaveLength(1);
 });
 
+it('defaults quality jobs to native-size output and keeps LCM an explicit draft',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'enki-image-quality-'));try{
+  const config=path.join(dir,'settings.json');const bodies:any[]=[];
+  const run=createImages({configFile:config,cwd:dir,fetcher:async(url:string,o:any)=>{if(url.endsWith('/health'))return new Response('{"status":"ready"}');bodies.push(JSON.parse(o.body));return new Response('{"id":"j","status":"queued"}')}});
+  for(const model of ['enki-image-auto','lcm-dreamshaper-v7']){
+   await fs.writeFile(config,JSON.stringify({enabled:true,provider:'enki',model,endpoint:'http://127.0.0.1/api'}));
+   await run('generate_image',{prompt:'anime portrait',request_key:model});
+  }
+  expect(bodies.map(b=>[b.model,b.width,b.height])).toEqual([['enki-image-auto',1024,1024],['lcm-dreamshaper-v7',512,512]]);
+  await fs.writeFile(config,JSON.stringify({enabled:true,provider:'enki',model:'enki-image-auto',endpoint:'http://127.0.0.1/api'}));
+  await expect(run('generate_image',{prompt:'x',request_key:'large',width:1536,height:1536})).rejects.toThrow();
+  expect(bodies).toHaveLength(2);
+ }finally{await fs.rm(dir,{recursive:true,force:true})}
+});
+
 it('accepts only the bounded material map names and keeps their previews visible',()=>{
  const base='file:///tmp/.enki/generated-images/01234567-1234-1234-1234-123456789abc/';
  expect(imageResult(JSON.stringify({enkiImages:1,status:'completed',images:[{name:'normal.png',url:base+'normal.png',previewUrl:base+'preview-normal.png'}]}))?.images[0].name).toBe('normal.png');

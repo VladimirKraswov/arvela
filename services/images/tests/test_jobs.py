@@ -21,11 +21,14 @@ class JobTests(unittest.TestCase):
   with self.assertRaises(module.HTTPException) as cm:self.jobs.submit(module.Request(prompt='a'),'overflow')
   self.assertEqual(cm.exception.status_code,429)
   jid=self.jobs.pending.queue[0][0];self.assertEqual(self.jobs.cancel(jid)['status'],'cancelled')
+ def test_accepted_job_reports_actual_distilled_steps_not_requested_draft_steps(self):
+  state=self.jobs.submit(module.Request(prompt='anime portrait',steps=8),'quality-steps')
+  self.assertEqual(state['model'],'sdxl-lightning');self.assertEqual(state['steps'],2)
  def test_restart_marks_interrupted_without_replaying(self):
   jid=self.jobs.submit(module.Request(prompt='a'),'key')['id'];other=module.Jobs(self.tmp.name,None)
   self.assertEqual(other.get(jid)['status'],'interrupted');self.assertTrue(other.pending.empty())
  def test_rejects_sizes_and_items_before_work(self):
-  for params in [{'width':801},{'width':832,'height':832},{'items':['']},{'prompt':' '}]:
+  for params in [{'width':801},{'width':1536,'height':1536},{'model':'lcm-dreamshaper-v7','width':832,'height':832},{'model':'unknown'},{'items':['']},{'prompt':' '}]:
    with self.assertRaises(ValueError):module.Request(**({'prompt':'valid'}|params))
  def test_auth_and_traversal(self):
   app=module.create_app(self.jobs,'x'*32);client=TestClient(app)

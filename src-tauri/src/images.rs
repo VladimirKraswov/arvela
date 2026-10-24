@@ -15,7 +15,7 @@ impl Default for Settings {
             enabled: false,
             provider: "enki".into(),
             endpoint: "http://192.168.31.59:8080/api/images".into(),
-            model: "lcm-dreamshaper-v7".into(),
+            model: "enki-image-auto".into(),
         }
     }
 }
@@ -102,6 +102,62 @@ fn read() -> Result<Settings, String> {
     validate(&s)?;
     Ok(s)
 }
+
+/// One-time upgrade of OUR former factory LCM endpoint. Explicit custom models
+/// and APIs remain untouched; after the marker, choosing the draft is respected.
+pub(crate) fn migrate_quality_default_at(root: &std::path::Path) -> Result<(), String> {
+    let marker = root.join("image-quality-v1.json");
+    let config = root.join("image-generation.json");
+    let backup = root.join("image-generation.before-quality-v1.json");
+    for p in [&marker, &config, &backup] {
+        if p.is_symlink() {
+            return Err("Миграция генератора не поддерживает ссылки".into());
+        }
+    }
+    if marker.exists() {
+        return Ok(());
+    }
+    if config.exists() {
+        if fs::metadata(&config)
+            .map_err(|_| "Настройки недоступны")?
+            .len()
+            > 16384
+        {
+            return Err("Слишком большие настройки генератора".into());
+        }
+        let old = fs::read_to_string(&config).map_err(|_| "Настройки недоступны")?;
+        let mut s: Settings =
+            serde_json::from_str(&old).map_err(|_| "Повреждены настройки генератора")?;
+        validate(&s)?;
+        if s.provider == "enki"
+            && s.endpoint == Settings::default().endpoint
+            && s.model == "lcm-dreamshaper-v7"
+        {
+            if backup.exists() {
+                if fs::metadata(&backup)
+                    .map_err(|_| "Копия настроек недоступна")?
+                    .len()
+                    > 16384
+                {
+                    return Err("Резервная копия генератора слишком велика".into());
+                }
+                if fs::read_to_string(&backup).map_err(|_| "Копия настроек недоступна")? != old
+                {
+                    return Err("Резервная копия генератора отличается; настройки сохранены".into());
+                }
+            } else {
+                crate::config::write_at(&backup, "", &old)?;
+            }
+            s.model = "enki-image-auto".into();
+            crate::config::write_at(
+                &config,
+                &old,
+                &serde_json::to_string_pretty(&s).map_err(|_| "Некорректные настройки")?,
+            )?;
+        }
+    }
+    crate::config::write_at(&marker, "", "{\"version\":1}")
+}
 #[tauri::command]
 pub async fn image_settings(
     window: tauri::WebviewWindow,
@@ -149,6 +205,68 @@ pub async fn image_settings(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn quality_migration_is_restart_safe_and_respects_explicit_draft_afterwards() {
+        let root = std::env::temp_dir().join(format!(
+            "enki-quality-migration-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let s = Settings {
+            model: "lcm-dreamshaper-v7".into(),
+            ..Settings::default()
+        };
+        let old = serde_json::to_string(&s).unwrap();
+        // Simulate a crash after saving the backup, before the CAS/marker.
+        fs::write(root.join("image-generation.json"), &old).unwrap();
+        fs::write(root.join("image-generation.before-quality-v1.json"), &old).unwrap();
+        migrate_quality_default_at(&root).unwrap();
+        let updated: Settings =
+            serde_json::from_str(&fs::read_to_string(root.join("image-generation.json")).unwrap())
+                .unwrap();
+        assert_eq!(updated.model, "enki-image-auto");
+        assert_eq!(
+            fs::read_to_string(root.join("image-generation.before-quality-v1.json")).unwrap(),
+            old
+        );
+        fs::write(root.join("image-generation.json"), &old).unwrap();
+        migrate_quality_default_at(&root).unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("image-generation.json")).unwrap(),
+            old
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn quality_migration_preserves_custom_api() {
+        let root = std::env::temp_dir().join(format!(
+            "enki-quality-custom-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let s = Settings {
+            endpoint: "https://example.com/images".into(),
+            model: "lcm-dreamshaper-v7".into(),
+            ..Settings::default()
+        };
+        let old = serde_json::to_string(&s).unwrap();
+        fs::write(root.join("image-generation.json"), &old).unwrap();
+        migrate_quality_default_at(&root).unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("image-generation.json")).unwrap(),
+            old
+        );
+        assert!(!root
+            .join("image-generation.before-quality-v1.json")
+            .exists());
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn endpoints() {
         let mut s = Settings::default();

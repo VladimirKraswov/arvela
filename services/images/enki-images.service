@@ -1,11 +1,12 @@
 [Unit]
-Description=Enki resident CPU image generation (OpenVINO LCM)
+Description=Enki CPU image generation (OpenVINO SDXL quality profiles)
 After=network-online.target
 [Service]
 User=enki-images
 Group=enki-images
 WorkingDirectory=/opt/enki-images
 Environment=IMAGE_MODEL_DIR=/opt/enki-images/model-int8
+Environment=IMAGE_MODELS_DIR=/opt/enki-images/models
 Environment=IMAGE_STATE_DIR=/var/lib/enki-images/jobs
 Environment=IMAGE_CACHE_DIR=/var/lib/enki-images/cache
 Environment=IMAGE_TOKEN_FILE=/etc/enki-images/token
@@ -19,7 +20,7 @@ CPUQuota=1200%
 CPUWeight=20
 CPUAffinity=20-31
 Nice=10
-MemoryMax=16G
+MemoryMax=32G
 TasksMax=128
 StateDirectory=enki-images
 NoNewPrivileges=true

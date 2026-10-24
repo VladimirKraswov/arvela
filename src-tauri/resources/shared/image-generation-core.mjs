@@ -56,8 +56,8 @@ export function createImages({configFile,cwd=process.cwd(),fetcher=fetch,token=(
    if(typeof args.prompt!=='string'||!args.prompt.trim()||args.prompt.length>2000||typeof args.request_key!=='string'||!args.request_key||args.request_key.length>160)throw Error('Нужны короткий prompt и стабильный request_key');
    const items=name==='generate_icon_pack'?args.items:[];
    if(!Array.isArray(items)||items.length>8||name==='generate_icon_pack'&&!items.length||items.some(s=>typeof s!=='string'||!s.trim()||s.length>160))throw Error('В наборе должно быть от 1 до 8 кратких описаний');
-   const width=args.width??(c.provider==='enki'?512:1024),height=args.height??(c.provider==='enki'?512:1024),steps=args.steps??4,seed=args.seed??42;
-   if(![width,height,steps,seed].every(Number.isInteger)||width<256||height<256||width>2048||height>2048||width%8||height%8||c.provider==='enki'&&(width>832||height>832||width*height>640000)||steps<2||steps>8||seed<0||seed>2147483647)throw Error('Некорректные размеры, число шагов или seed');
+   const width=args.width??(c.provider==='enki'&&c.model==='lcm-dreamshaper-v7'?512:1024),height=args.height??(c.provider==='enki'&&c.model==='lcm-dreamshaper-v7'?512:1024),steps=args.steps??4,seed=args.seed??42;
+   if(![width,height,steps,seed].every(Number.isInteger)||width<256||height<256||width>2048||height>2048||width%8||height%8||c.provider==='enki'&&(width>1536||height>1536||width*height>1048576||c.model==='lcm-dreamshaper-v7'&&width*height>640000)||steps<2||steps>8||seed<0||seed>2147483647)throw Error('Некорректные размеры, число шагов или seed');
    if(c.provider==='openai'){
     if(name==='generate_material')throw Error('Материалы с normal/height-картами требуют провайдера Enki CPU');
     if(items.length)throw Error('Пакеты иконок требуют провайдера Enki; для другого API вызывайте generate_image по одному');
@@ -87,7 +87,7 @@ export function createImages({configFile,cwd=process.cwd(),fetcher=fetch,token=(
    }
    if(state.status==='completed')await save(args.job_id,'manifest.json',await request(c,route+'/files/manifest.json','GET',undefined,signal));
    const archive=state.status==='completed'?await save(args.job_id,'images.zip',await request(c,route+'/files/images.zip','GET',undefined,signal)):undefined;
-   return {enkiImages:1,status:state.status,images,archive,vision,model:c.model,note:'PNG и ZIP сохранены в .enki/generated-images. Растровые изображения. Для материала: высота приближена по яркости, normal/height/roughness/metallic импортировать как linear/non-color; соглашение normal указано в manifest.json. relight — проверочное освещение; прозрачность, точная геометрия и отсутствие видимого повтора не гарантируются. Проверьте результат.'};
+   return {enkiImages:1,status:state.status,images,archive,vision,model:state.model??c.model,inference:state.inference,note:'PNG и ZIP сохранены в .enki/generated-images. Растровые изображения. Для материала: высота приближена по яркости, normal/height/roughness/metallic импортировать как linear/non-color; соглашение normal указано в manifest.json. relight — проверочное освещение; прозрачность, точная геометрия и отсутствие видимого повтора не гарантируются. Проверьте результат.'};
   }
   throw Error('Неизвестный инструмент');
  };

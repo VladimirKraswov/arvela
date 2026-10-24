@@ -18,11 +18,18 @@ class Materials(unittest.TestCase):
   np.testing.assert_array_equal(gl[:,:,0],dx[:,:,0]);np.testing.assert_array_equal(gl[:,:,2],dx[:,:,2]);self.assertTrue(np.all(abs(gl[:,:,1]+dx[:,:,1]-255)<=1))
   self.assertGreater(gl[16,16,1],128);self.assertLess(dx[16,16,1],128)
   n=gl/255*2-1;self.assertLess(np.max(abs(np.linalg.norm(n,axis=-1)-1)),.01)
- def test_tile_edges_and_package_maps_match_dimensions(self):
+ def test_periodic_material_preserves_albedo_without_painting_border_bands(self):
   rng=np.random.default_rng(42);image=Image.fromarray(rng.integers(0,255,(64,64,3),dtype=np.uint8))
   maps=module.make_material(image,tileable=True)
-  a=np.asarray(maps['image-01.png']).astype(int)
-  self.assertLessEqual(np.max(abs(a[:,0]-a[:,-1])),1);self.assertLessEqual(np.max(abs(a[0]-a[-1])),1)
-  normal=np.asarray(maps['normal.png']);np.testing.assert_array_equal(normal[:,0],normal[:,-1]);np.testing.assert_array_equal(normal[0],normal[-1])
+  # Old tests forced identical border pixels, allowing a destructive crossfade.
+  # Circular inference now supplies the tile; derivation must preserve its pixels.
+  np.testing.assert_array_equal(np.asarray(maps['image-01.png']),np.asarray(image))
   for name,img in maps.items():self.assertEqual(img.size,(128,128) if name=='tile-preview.png' else (64,64))
+ def test_periodic_normals_are_translation_equivariant_across_both_borders(self):
+  x=np.arange(64);a=np.rint(128+60*np.sin(x[None,:]*2*np.pi/64)+40*np.cos(x[:,None]*2*np.pi/64)).astype(np.uint8)
+  source=Image.fromarray(a).convert('RGB')
+  normal=np.asarray(module.make_material(source,tileable=True)['normal.png'])
+  shifted=Image.fromarray(np.roll(np.asarray(source),(17,23),(0,1)))
+  got=np.asarray(module.make_material(shifted,tileable=True)['normal.png'])
+  np.testing.assert_array_equal(got,np.roll(normal,(17,23),(0,1)))
 if __name__=='__main__':unittest.main()
