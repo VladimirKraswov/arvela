@@ -7,7 +7,8 @@
 - [x] Actual CPU visual comparison: SDXL illustrated portrait58.72s including load, periodic stone85.86s; rejected the misleading anime export (realistic result88.74s). Target12 CPU threads; benchmark peak16.1GiB, no swap. Deployed with exclusive idle-job guard and rollback; ASR process preserved.18 backend checks pass.
 - [x] Actual Enki ordinary anime request: sharp2D portrait shown/opened in chat, Vision review and two bounded corrections. Exact eye/clothing color binding still failed; no claim of perfect prompt adherence.
 - [x] Live neural brick generation failed regular masonry geometry; explicit procedural brick/granite recipes now produce periodic albedo and authored aligned height instead of pretending that diffusion is exact. CPU proofs0.886/0.834s;24 backend tests include legacy idempotency and cache invalidation.
-- [ ] Actual Enki procedural material acceptance and canonical Hub publication.
+- [x] Actual ordinary Enki request: procedural brick eight-card set, normal/16-bit height, valid9-entry ZIP, full2×2 viewer and folded-progress visibility; authored source verified in manifest. Installed108 generic tool prose still mislabeled height as luminance-derived;109 metadata/inference output corrects that description (history preserved).
+- [x] Canonical1120 frontend/6 skips,171 native/3 ignored,83 Hub,3 ASR,15 publisher; build/architecture200/bundle/fmt/strictClippy pass. Stable0.2.109 receipt, served head and both pinned signatures verified;29 changed source and20 hot files byte-exact. CPU7 deployed modules equal committed bytes;24 backend tests pass. New native package offered separately; current108 already uses the upgraded CPU service without interrupting owner agents.
 
 ## CPU images and material maps (0.2.108)
 
