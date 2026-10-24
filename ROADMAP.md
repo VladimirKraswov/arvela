@@ -8,6 +8,8 @@
 - [x] Canonical1119 frontend/6 skips,169 native/3 ignored,83 Hub,3 ASR,15 publisher; build/architecture200/bundle/fmt/strictClippy pass. Stable0.2.108 receipt, served head and both pinned signatures verified;33 changed source and20 hot files byte-exact. CPU deployed server/materials SHA256 equal Git source;10 backend tests and real6-tool MCP/PNG/ZIP/Vision acceptance pass. Native installation separate; owner agents preserved.
 
 
+- [x] Installed 0.2.108 through the signed Hub source-build/update flow on Mac. Real Enki chat with an ordinary Russian material request: Qwen Flash Next Medium selected material/status/retrieval tools, received Vision pixels, performed two bounded corrections and finished without tool errors. Eight visible cards survive folded progress; full normal-map viewer opens. Final ZIP has eight PNGs plus manifest and passes CRC validation (seven maps at 512×512; tile preview 768×768). CPU LCM tiling/repetition and luminance-derived height remain documented quality limits.
+
 ## Session wake-ups and activity indicators (0.2.107)
 
 - [x] Agent-facing scoped schedule MCP shared by OpenCode/Pi; once/repeat, stable create keys, bounded durable scheduling, cancel/list/pause/resume without changing the visible chat. Native Windows loopback control transport, Unix socket retained.
