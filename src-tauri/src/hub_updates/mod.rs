@@ -379,6 +379,10 @@ pub async fn hub_update(
                 return Err("Подключение Hub изменилось. Установка отменена.".into());
             }
             let plan = state.build.prepared(&c.digest)?;
+            // Do not carry a child engine's TCC attribution into a moved old bundle.
+            tauri::async_runtime::spawn_blocking(crate::local_server::stop_owned_idle)
+                .await
+                .map_err(|e| e.to_string())??;
             install::launch(plan)?;
             std::mem::forget(_maintenance);
             // Exact owned agents have been checked idle. Exit preserves all

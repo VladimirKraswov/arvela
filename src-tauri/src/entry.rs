@@ -33,7 +33,9 @@ pub fn run_cli() {
             eprintln!("{error}");
             std::process::exit(1);
         }
-    } else if std::env::args().nth(1).as_deref() == Some("--agent-mcp") {
+    } else if std::env::args().nth(1).as_deref() == Some("--agent-mcp")
+        || std::env::args().nth(1).as_deref() == Some("--schedule-mcp")
+    {
         if let Err(error) = crate::control::mcp_main() {
             eprintln!("{error}");
             std::process::exit(1);

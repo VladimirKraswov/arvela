@@ -5,6 +5,7 @@ mod skills;
 use skills::{scan, SkillSource};
 mod authoring;
 pub mod project_map;
+mod schedules;
 mod web_search;
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
@@ -545,6 +546,7 @@ pub async fn shared_catalog(
         }
         authoring::ensure(&root()?)?;
         web_search::ensure(&root()?)?;
+        schedules::ensure(&root()?)?;
         document(&scope, directory.as_deref())
     })
     .await
@@ -749,6 +751,7 @@ pub fn pi_support(directory: &Path) -> Result<(String, Vec<String>, Option<PathB
     let root = root()?;
     authoring::ensure(&root)?;
     web_search::ensure(&root)?;
+    schedules::ensure(&root)?;
     let registry = effective(&root, &key)?;
     let skills = registry
         .sources

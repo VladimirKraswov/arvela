@@ -49,3 +49,32 @@ Real isolated Chromium acceptance passed: global health succeeds while scoped re
 Final Mac 0.2.37 app and DMG built; strict codesign/usage descriptions and DMG CRC verified. Installed final executable equals build SHA256 `cfd4fcf945d6985b93b00fc3f928edabb7c57d85b162b6b77a3a4dcfd2be4530`; previous 0.2.36 and intermediate 0.2.37 bundles retained privately. Native Desktop control reports connected/open streams/no project error. Existing OpenCode PID 40352 is unchanged: GPU Mesh session list, status and provider requests all return 200. No task/inference replay, server stop, GPU reassignment, OS permission changes, Git push or release publication occurred in this task. Existing server was launched from Codex during prior recovery; its successful reads do not certify a fresh GUI-launched server's TCC access. No Windows/Linux live verification.
 
 Two browser-parser Node tests and offline evaluation self-check passed. Stable release signing remains an external prerequisite; graceful handling is installed, permanent OS permission preservation is not claimed. Private diagnostic logs and original TCC output are not published.
+
+## 0.2.107 — конфликт живого сервера со старым bundle после обновления
+
+24 октября TCC прямо зафиксировал чередование двух cdhash: текущая Enki и
+OpenCode, запущенный копией `.Enki-previous-33813.app`. После выдачи Documents
+доступа одной подписи запрос второй снова заменял запись. Это объясняет повторы
+при переходах между чатами; внутренний «Полный доступ» не управляет TCC.
+
+С разрешения владельца обе активные сессии штатно остановлены через Enki,
+проверены 66 папок сессий и отсутствие PTY/вопросов/разрешений в остановленных
+чатах, затем завершён строго проверенный старый процесс сервера. Новый сервер
+запущен через интерфейс текущей Enki (родитель — текущий процесс приложения).
+Владелец подтвердил один системный запрос. Обе сессии возобновлены в тех же
+чатах с прежними моделями через штатный Enki dispatch, новые ответы подтверждены.
+История/конфигурация/TCC-база не переписывались.
+
+При следующем обслуживании 0.2.107 завершает только idle-серверы, запущенные
+этим процессом Enki: удерживается живой Child, проверяются PID слушателя,
+статусы **всех папок сессий**, PTY, разрешения и вопросы. Проверка без directory
+не доказывает простой всего сервера. Неполный список, ошибка или таймаут
+откладывают установку. Обычное скрытие в трей не останавливает сервер. Внешние
+серверы не присваиваются приложению и не завершаются автоматически.
+
+При переходе с более старого установщика ещё может потребоваться однократный
+перезапуск старого внешнего сервера с отдельным разрешением владельца.
+Устойчивую идентичность между разными ad hoc-сборками это не создаёт:
+Developer ID по-прежнему необходим для гарантии сохранения системных разрешений
+между обновлениями. Не применяется поддельный designated requirement, сброс TCC
+или широкая выдача прав.

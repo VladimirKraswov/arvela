@@ -1,5 +1,12 @@
 # Enki roadmap
 
+## Session wake-ups and activity indicators (0.2.107)
+
+- [x] Agent-facing scoped schedule MCP shared by OpenCode/Pi; once/repeat, stable create keys, bounded durable scheduling, cancel/list/pause/resume without changing the visible chat. Native Windows loopback control transport, Unix socket retained.
+- [x] Global schedule list; fixed status slots and title ellipsis; shared frame clock survives recent-row moves without individual CSS animation restarts, honors reduced motion and visibility.
+- [x] Native maintenance retires only this process’s tracked idle server, checking all session directories/PTYs/interactions before an update. Current owner-approved old-server recovery completed; both interrupted chats resumed.
+- [ ] Canonical gates and verified Hub delivery.
+
 ## Hooded Enki mascot (0.2.106)
 
 - [x] Apply the owner-selected transparent mascot to sidebar/favicon and every desktop Tauri icon from the same raster master. Native update required for Dock/tray/launchers.

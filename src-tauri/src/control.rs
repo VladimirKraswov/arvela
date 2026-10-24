@@ -25,8 +25,11 @@ use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(unix)]
 use std::os::unix::{
     fs::{OpenOptionsExt, PermissionsExt},
-    net::{UnixListener, UnixStream},
+    net::{UnixListener as ControlListener, UnixStream as ControlStream},
 };
+
+#[cfg(not(unix))]
+use std::net::{TcpListener as ControlListener, TcpStream as ControlStream};
 
 const EVENT: &str = "agent-control://command";
 const PROTOCOL: u32 = 1;
@@ -175,7 +178,7 @@ pub fn agent_control_status(
         .map(|runtime| runtime.is_some())
         .unwrap_or(false);
     Ok(AgentControlStatus {
-        supported: cfg!(unix) && transport,
+        supported: transport,
         ready: control.ready.load(Ordering::Acquire),
         command: std::env::current_exe()
             .map_err(|e| e.to_string())?
@@ -204,23 +207,38 @@ pub fn agent_control_complete(
 
 fn random_token() -> Result<String, String> {
     let mut bytes = [0u8; 32];
-    fs::File::open("/dev/urandom")
-        .and_then(|mut f| f.read_exact(&mut bytes))
-        .map_err(|e| format!("cannot create control token: {e}"))?;
+    getrandom::fill(&mut bytes).map_err(|e| format!("cannot create control token: {e}"))?;
     Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 
-#[cfg(unix)]
 pub fn start(app: AppHandle) -> Result<(), String> {
     let root = crate::paths::app_data_dir()?.join("agent-control");
+    if root.is_symlink() {
+        return Err("Control directory must not be a symbolic link".into());
+    }
     fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
     fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
     let socket = root.join(format!("desktop-{}.sock", std::process::id()));
     let descriptor = root.join("control.json");
+    #[cfg(unix)]
     if socket.exists() {
         fs::remove_file(&socket).map_err(|e| e.to_string())?;
     }
-    let listener = UnixListener::bind(&socket).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    let listener = ControlListener::bind(&socket).map_err(|e| e.to_string())?;
+    #[cfg(not(unix))]
+    let listener =
+        ControlListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).map_err(|e| e.to_string())?;
+    #[cfg(not(unix))]
+    let socket = PathBuf::from(
+        listener
+            .local_addr()
+            .map_err(|e| e.to_string())?
+            .to_string(),
+    );
+    #[cfg(unix)]
     fs::set_permissions(&socket, fs::Permissions::from_mode(0o600)).map_err(|e| e.to_string())?;
     let token = random_token()?;
     let data = serde_json::to_vec_pretty(&Descriptor {
@@ -231,13 +249,11 @@ pub fn start(app: AppHandle) -> Result<(), String> {
     })
     .map_err(|e| e.to_string())?;
     let temp = root.join(format!("control-{}.tmp", std::process::id()));
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .mode(0o600)
-        .open(&temp)
-        .map_err(|e| e.to_string())?;
+    let mut options = OpenOptions::new();
+    options.create_new(true).write(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file = options.open(&temp).map_err(|e| e.to_string())?;
     file.write_all(&data).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
     fs::rename(&temp, &descriptor).map_err(|e| e.to_string())?;
@@ -282,15 +298,7 @@ pub fn start(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(not(unix))]
-pub fn start(_app: AppHandle) -> Result<(), String> {
-    // Agent Control still requires the private Unix-socket transport. It is an
-    // optional integration, so lack of parity must not prevent Windows startup.
-    Ok(())
-}
-
-#[cfg(unix)]
-fn handle_connection(mut stream: UnixStream, app: AppHandle) {
+fn handle_connection(mut stream: ControlStream, app: AppHandle) {
     if let Err(error) = stream.set_read_timeout(Some(READ_TIMEOUT)) {
         let _ = writeln!(stream, "{}", json!({"ok":false,"error":error.to_string()}));
         return;
@@ -386,7 +394,10 @@ pub fn shutdown(app: &AppHandle) {
         return;
     };
     if let Some(files) = runtime.take() {
+        #[cfg(unix)]
         let _ = fs::remove_file(files.socket);
+        #[cfg(not(unix))]
+        let _ = files.socket;
         let current_is_ours = fs::read(&files.descriptor)
             .ok()
             .and_then(|data| serde_json::from_slice::<Descriptor>(&data).ok())
@@ -401,7 +412,6 @@ fn descriptor_path() -> Result<PathBuf, String> {
     Ok(crate::paths::app_data_dir()?.join("agent-control/control.json"))
 }
 
-#[cfg(unix)]
 fn call_desktop(method: &str, params: Value) -> Result<Value, String> {
     let descriptor: Descriptor =
         serde_json::from_slice(&fs::read(descriptor_path()?).map_err(|_| {
@@ -414,7 +424,15 @@ fn call_desktop(method: &str, params: Value) -> Result<Value, String> {
             descriptor.protocol
         ));
     }
-    let mut stream = UnixStream::connect(&descriptor.socket_path)
+    #[cfg(not(unix))]
+    if !descriptor
+        .socket_path
+        .parse::<std::net::SocketAddr>()
+        .is_ok_and(|a| a.ip() == std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))
+    {
+        return Err("control endpoint must be loopback".into());
+    }
+    let mut stream = ControlStream::connect(&descriptor.socket_path)
         .map_err(|e| format!("cannot connect to Enki: {e}"))?;
     stream
         .set_read_timeout(Some(COMMAND_TIMEOUT + Duration::from_secs(5)))
@@ -441,13 +459,9 @@ fn call_desktop(method: &str, params: Value) -> Result<Value, String> {
     }
 }
 
-#[cfg(not(unix))]
-fn call_desktop(_method: &str, _params: Value) -> Result<Value, String> {
-    Err("agent control is currently supported on macOS and Linux".into())
-}
-
 fn tools() -> Value {
     json!([
+      {"name":"desktop_schedule","description":"Manage user-authorized wake-ups in an explicit Enki session, without selecting or interrupting it. For monitoring use repeat and choose a sensible interval; once for a delayed task. Use a stable request_key to prevent duplicates. Never claim a timer is saved until this tool succeeds. List/delete timers when asked to stop watching. All times are Unix milliseconds. Requires running Enki (including tray); no execution after full quit.","inputSchema":{"type":"object","properties":{"action":{"type":"string","enum":["list","create","remove","pause","resume"]},"directory":{"type":"string"},"session_id":{"type":"string"},"id":{"type":"string"},"title":{"type":"string","maxLength":120},"prompt":{"type":"string","maxLength":20000},"minutes":{"type":"integer","minimum":1,"maximum":10080},"mode":{"type":"string","enum":["once","repeat"]},"run_at":{"type":"number"},"request_key":{"type":"string","maxLength":128},"provider_id":{"type":"string"},"model_id":{"type":"string"}},"required":["action","directory","session_id"],"additionalProperties":false}},
       {"name":"desktop_status","description":"Read Enki connection, visible workspace/chat, engine/model, run state and pending user interactions.","inputSchema":{"type":"object","properties":{},"additionalProperties":false}},
       {"name":"desktop_projects","description":"Refresh and list projects known to the connected Enki instance.","inputSchema":{"type":"object","properties":{"refresh":{"type":"boolean","default":true}},"additionalProperties":false}},
       {"name":"desktop_select","description":"Select a project directory and optionally open one of its sessions in the visible desktop UI.","inputSchema":{"type":"object","properties":{"directory":{"type":"string"},"session_id":{"type":"string"}},"required":["directory"],"additionalProperties":false}},
@@ -470,6 +484,7 @@ fn tools() -> Value {
 
 fn tool_method(name: &str) -> Option<&'static str> {
     Some(match name {
+        "desktop_schedule" => "schedule",
         "desktop_status" => "status",
         "desktop_projects" => "projects",
         "desktop_select" => "select",
@@ -492,16 +507,19 @@ fn tool_method(name: &str) -> Option<&'static str> {
 }
 
 fn mcp_response(message: Value) -> Option<Value> {
+    mcp_response_scoped(message, false)
+}
+fn mcp_response_scoped(message: Value, schedules_only: bool) -> Option<Value> {
     let id = message.get("id").cloned();
     let method = message.get("method").and_then(Value::as_str)?;
     match method {
-        "initialize" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"enki-control","version":env!("CARGO_PKG_VERSION")},"instructions":"Control the running Enki through its visible state. Send once, then wait/read. Never auto-approve permissions or invent answers to user questions."}})),
+        "initialize" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":if schedules_only {"enki-schedules"} else {"enki-control"},"version":env!("CARGO_PKG_VERSION")},"instructions":if schedules_only {"Manage user-authorized session wake-ups only. Use explicit directory/session_id and stable request_key. Choose once for delayed tasks, repeat for monitoring. List before creating; remove when asked to stop or when monitoring completes. Do not create follow-up timers from a scheduled wake-up without new human authorization. Never claim creation before tool success."} else {"Control the running Enki through its visible state. Send once, then wait/read. Never auto-approve permissions or invent answers to user questions."}}})),
         "ping" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{}})),
-        "tools/list" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"tools":tools()}})),
+        "tools/list" => id.map(|id| json!({"jsonrpc":"2.0","id":id,"result":{"tools": if schedules_only { Value::Array(tools().as_array().unwrap().iter().filter(|t| t["name"] == "desktop_schedule").cloned().collect()) } else { tools() }}})),
         "tools/call" => id.map(|id| {
             let name = message.pointer("/params/name").and_then(Value::as_str).unwrap_or("");
             let args = message.pointer("/params/arguments").cloned().unwrap_or_else(|| json!({}));
-            match tool_method(name).ok_or_else(|| format!("unknown tool: {name}")).and_then(|method| call_desktop(method, args)) {
+            match tool_method(name).filter(|method| !schedules_only || *method == "schedule").ok_or_else(|| format!("unknown tool: {name}")).and_then(|method| call_desktop(method, args)) {
                 Ok(result) => json!({"jsonrpc":"2.0","id":id,"result":{"content":[{"type":"text","text":serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())}],"structuredContent":result}}),
                 Err(error) => json!({"jsonrpc":"2.0","id":id,"result":{"isError":true,"content":[{"type":"text","text":error}]}}),
             }
@@ -512,12 +530,17 @@ fn mcp_response(message: Value) -> Option<Value> {
 }
 
 pub fn mcp_main() -> Result<(), String> {
+    let schedules_only = std::env::args().nth(1).as_deref() == Some("--schedule-mcp");
     let stdout = Mutex::new(io::stdout());
     for line in io::stdin().lock().lines().map_while(Result::ok) {
         let Ok(message) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
-        let Some(response) = mcp_response(message) else {
+        let Some(response) = (if schedules_only {
+            mcp_response_scoped(message, true)
+        } else {
+            mcp_response(message)
+        }) else {
             continue;
         };
         let mut out = stdout.lock().map_err(|_| "stdout is unavailable")?;
@@ -531,6 +554,21 @@ pub fn mcp_main() -> Result<(), String> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn scheduling_endpoint_only_exposes_schedule_and_refuses_other_control_tools() {
+        let listed = mcp_response_scoped(json!({"id":1,"method":"tools/list"}), true).unwrap();
+        let tools = listed["result"]["tools"].as_array().unwrap();
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0]["name"], "desktop_schedule");
+        for name in ["desktop_send", "desktop_reply_permission", "desktop_stop"] {
+            let response = mcp_response_scoped(
+                json!({"id":2,"method":"tools/call","params":{"name":name,"arguments":{}}}),
+                true,
+            )
+            .unwrap();
+            assert_eq!(response["result"]["isError"], true);
+        }
+    }
     #[test]
     fn mcp_lists_bounded_desktop_tools() {
         let response = mcp_response(json!({"jsonrpc":"2.0","id":1,"method":"tools/list"})).unwrap();

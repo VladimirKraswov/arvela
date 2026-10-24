@@ -2,6 +2,7 @@
 export interface ScheduledTask {
   id: string; server: string; directory: string; sessionID: string; engine: string;
   title: string; prompt: string; minutes: number;
+  mode?: "once" | "repeat"; runAt?: number; requestKey?: string;
   model: { providerID: string; modelID: string; variant?: string | null }; agent?: string;
   enabled: boolean; nextAt: number; lastAt?: number;
   state: "ready" | "waiting" | "dispatching" | "sent" | "error"; detail?: string;
@@ -67,6 +68,9 @@ export function validTask(value: unknown): value is ScheduledTask {
   return bounded(t.id, 128) && bounded(t.server, 4096) && bounded(t.directory, 4096) && bounded(t.sessionID, 512)
     && ["opencode", "pi"].includes(t.engine) && bounded(t.title, 120) && bounded(t.prompt, 20000)
     && Number.isInteger(t.minutes) && t.minutes >= 1 && t.minutes <= MAX_MINUTES
+    && (t.mode === undefined || ["once", "repeat"].includes(t.mode))
+    && (t.runAt === undefined || Number.isFinite(t.runAt) && t.runAt >= 0)
+    && (t.requestKey === undefined || bounded(t.requestKey, 128))
     && !!t.model && typeof t.model === "object" && bounded(t.model.providerID, 512) && bounded(t.model.modelID, 512)
     && (t.model.variant == null || bounded(t.model.variant, 512)) && (t.agent == null || bounded(t.agent, 512))
     && typeof t.enabled === "boolean" && Number.isFinite(t.nextAt) && t.nextAt >= 0
@@ -79,6 +83,7 @@ function normalizeTask(t: ScheduledTask): ScheduledTask {
   return {
     id: t.id, server: t.server, directory: t.directory, sessionID: t.sessionID, engine: t.engine,
     title: t.title, prompt: t.prompt, minutes: t.minutes,
+    ...(t.mode ? {mode:t.mode} : {}), ...(t.runAt !== undefined ? {runAt:t.runAt} : {}), ...(t.requestKey ? {requestKey:t.requestKey} : {}),
     model: { providerID: t.model.providerID, modelID: t.model.modelID, ...(t.model.variant !== undefined ? { variant: t.model.variant } : {}) },
     ...(t.agent != null ? { agent: t.agent } : {}),
     enabled: t.enabled, nextAt: t.nextAt, ...(t.lastAt !== undefined ? { lastAt: t.lastAt } : {}),
@@ -139,7 +144,7 @@ export class TaskScheduler {
     const next = this.tasks.map(t => {
       if (t.state === "dispatching") { changed = true; return { ...t, enabled: false, state: "error" as const, detail: INTERRUPTED }; }
       // A late relaunch never produces a burst of missed prompts.
-      if (t.nextAt < now) { changed = true; return { ...t, nextAt: now + t.minutes * MINUTE }; }
+      if (t.nextAt < now && t.mode !== "once") { changed = true; return { ...t, nextAt: now + t.minutes * MINUTE }; }
       return t;
     });
     if (changed) try { this.settle(next); } catch { /* status() reports the storage failure */ }
@@ -153,8 +158,15 @@ export class TaskScheduler {
 
   add(input: NewScheduledTask, now = Date.now()) {
     this.fresh();
-    const candidate = { ...input, id: crypto.randomUUID(), enabled: true, nextAt: now + input.minutes * MINUTE, state: "ready" as const };
+    const candidate = { ...input, id: crypto.randomUUID(), enabled: true, nextAt: input.runAt ?? now + input.minutes * MINUTE, state: "ready" as const };
     if (!validTask(candidate)) throw new Error("Проверьте название, текст и интервал задания.");
+    if (input.requestKey) {
+      const existing=this.tasks.find(t=>t.server===input.server && t.directory===input.directory && t.sessionID===input.sessionID && t.requestKey===input.requestKey);
+      if(existing) {
+        if(existing.title!==input.title || existing.prompt!==input.prompt || existing.minutes!==input.minutes || existing.mode!==input.mode || existing.runAt!==input.runAt || JSON.stringify(existing.model)!==JSON.stringify(input.model) || existing.engine!==input.engine || existing.agent!==input.agent) throw new Error("Этот ключ таймера уже использован с другими параметрами.");
+        return existing;
+      }
+    }
     if (this.tasks.length >= TASK_LIMIT) throw new Error(`Можно сохранить до ${TASK_LIMIT} заданий. Удалите ненужные.`);
     const task = normalizeTask(candidate);
     this.persist([...this.tasks, task]);
@@ -239,7 +251,7 @@ export class TaskScheduler {
       if (intent === "remove") return [];
       let next: ScheduledTask;
       switch (outcome.kind) {
-        case "sent": next = { ...t, state: "sent", detail: undefined, lastAt: at, nextAt: at + t.minutes * MINUTE }; break;
+        case "sent": next = { ...t, state: "sent", enabled: t.mode === "once" ? false : t.enabled, detail: undefined, lastAt: at, nextAt: at + t.minutes * MINUTE }; break;
         case "waiting": next = { ...t, state: "waiting", detail: outcome.detail.slice(0, 2000) }; break;
         case "cancelled": next = { ...t, state: "ready", detail: undefined }; break;
         case "blocked": next = { ...t, enabled: false, state: "error", detail: outcome.detail }; break;

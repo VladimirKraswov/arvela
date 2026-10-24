@@ -218,6 +218,9 @@ pub fn request_exit(app: &tauri::AppHandle) -> bool {
             .build
             .shutdown();
         crate::pi::shutdown(&app);
+        if let Err(error) = crate::local_server::stop_owned_idle() {
+            eprintln!("Own OpenCode left running: {error}");
+        }
         for worker in workers {
             let _ = worker.join();
         }

@@ -35,7 +35,7 @@ it('queued file controls remove ZIP before Now and re-enable the send control',a
  const now=Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Скорректировать')!;
  expect(now.disabled).toBe(false);
  await act(async()=>{now.click();await vi.waitFor(()=>expect(prompt).toHaveBeenCalledTimes(1));});
- expect(prompt.mock.calls[0][2].parts).toEqual([expect.objectContaining({type:'text',text:'read project',metadata:{arvelaSteering:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaSteeringContext:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]);
+ expect(prompt.mock.calls[0][2].parts).toEqual([expect.objectContaining({type:'text',text:'read project',metadata:{arvelaSteering:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaSteeringContext:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{enkiSchedules:1}})]);
 });
 it('Now from the queue editor uses immediate removal and the latest text',async()=>{
  const {store,prompt}=await archiveComposer();
@@ -48,7 +48,7 @@ it('Now from the queue editor uses immediate removal and the latest text',async(
    expect(now.disabled).toBe(false);now.click();
    await vi.waitFor(()=>expect(prompt).toHaveBeenCalledTimes(1));
  });
- expect(prompt.mock.calls[0][2].parts).toEqual([expect.objectContaining({type:'text',text:'updated correction',metadata:{arvelaSteering:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaSteeringContext:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]);
+ expect(prompt.mock.calls[0][2].parts).toEqual([expect.objectContaining({type:'text',text:'updated correction',metadata:{arvelaSteering:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaSteeringContext:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{enkiSchedules:1}})]);
  expect(store.getQueueEdit()).toBeUndefined();
 });
 it('the actual running composer accepts files into the queue instead of blocking them',async()=>{

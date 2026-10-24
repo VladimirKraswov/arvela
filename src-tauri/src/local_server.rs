@@ -455,6 +455,131 @@ fn restart_with(raw: &str, binary_override: Option<&Path>, data_dir: &Path) -> R
     ensure_with(raw, binary_override, data_dir)
 }
 
+/// Before replacing the app bundle, retire ONLY children created by this process.
+/// Otherwise TCC attributes a surviving engine to the moved, old ad-hoc bundle.
+/// An external server is never adopted or killed by this maintenance path.
+pub(crate) fn stop_owned_idle() -> Result<(), String> {
+    let children = managed()
+        .lock()
+        .map_err(|_| "Реестр OpenCode недоступен")?
+        .iter()
+        .map(|(origin, child)| (origin.clone(), child.clone()))
+        .collect::<Vec<_>>();
+    if children.len() > 8 {
+        return Err("Слишком много локальных серверов OpenCode".into());
+    }
+    let client = reqwest::blocking::Client::builder()
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let shutdown_deadline = Instant::now() + Duration::from_secs(12);
+    for (origin, owned) in children {
+        let endpoint = parse_endpoint(&origin)?;
+        let mut child = owned.lock().map_err(|_| "Процесс OpenCode занят")?;
+        if child.try_wait().map_err(|e| e.to_string())?.is_some() {
+            continue;
+        }
+        if listener_pids(endpoint.port)? != vec![child.id()] {
+            return Err("Владелец порта OpenCode изменился; обновление отложено".into());
+        }
+        if !server_scopes_idle(&client, &origin, shutdown_deadline)? {
+            return Err("OpenCode работает или ждёт ответа; обновление отложено".into());
+        }
+        // Child handle and listener ownership are checked again after the reads.
+        if child.try_wait().map_err(|e| e.to_string())?.is_some() {
+            continue;
+        }
+        if listener_pids(endpoint.port)? != vec![child.id()] {
+            return Err("Процесс OpenCode изменился".into());
+        }
+        terminate_pid(child.id())?;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while child.try_wait().map_err(|e| e.to_string())?.is_none() {
+            if Instant::now() >= deadline {
+                return Err("OpenCode ещё завершается; обновление отложено".into());
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+    Ok(())
+}
+fn server_scopes_idle(
+    client: &reqwest::blocking::Client,
+    origin: &str,
+    deadline: Instant,
+) -> Result<bool, String> {
+    let read = |route: &str, directory: Option<&str>| -> Result<serde_json::Value, String> {
+        if Instant::now() >= deadline {
+            return Err("Проверка OpenCode не завершена; сервер сохранён".into());
+        }
+        let mut request = client.get(format!("{origin}{route}"));
+        if let Some(directory) = directory {
+            request = request.query(&[("directory", directory)]);
+        }
+        let response = request
+            .send()
+            .and_then(reqwest::blocking::Response::error_for_status)
+            .map_err(|_| "Не удалось проверить OpenCode; сервер сохранён")?;
+        if response
+            .headers()
+            .get("x-next-cursor")
+            .is_some_and(|v| !v.is_empty())
+        {
+            return Err("Список сессий неполон; сервер сохранён".into());
+        }
+        response
+            .json()
+            .map_err(|_| "Некорректный ответ OpenCode; сервер сохранён".into())
+    };
+    let rows = read(
+        "/experimental/session?roots=false&archived=false&limit=1000",
+        None,
+    )?;
+    let rows = rows
+        .as_array()
+        .ok_or("Не удалось перечислить области OpenCode")?;
+    let mut directories = std::collections::BTreeSet::new();
+    for row in rows {
+        let directory = row["directory"]
+            .as_str()
+            .filter(|d| !d.is_empty() && d.len() <= 4096)
+            .ok_or("Некорректная папка сессии OpenCode")?;
+        directories.insert(directory.to_string());
+    }
+    if directories.len() > 128 {
+        return Err("Слишком много областей OpenCode для безопасного перезапуска".into());
+    }
+    // The unscoped response alone misses running sessions in other instances.
+    for directory in std::iter::once(None).chain(directories.iter().map(|d| Some(d.as_str()))) {
+        let status = read("/session/status", directory)?;
+        if !status
+            .as_object()
+            .is_some_and(|m| m.values().all(|v| v["type"].as_str() == Some("idle")))
+        {
+            return Ok(false);
+        }
+        let mut values = vec![status];
+        for route in ["/pty", "/permission", "/question"] {
+            values.push(read(route, directory)?);
+        }
+        if !server_idle(&values) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+fn server_idle(values: &[serde_json::Value]) -> bool {
+    values.len() == 4
+        && values[0]
+            .as_object()
+            .is_some_and(|m| m.values().all(|v| v["type"].as_str() == Some("idle")))
+        && values[1..]
+            .iter()
+            .all(|v| v.as_array().is_some_and(Vec::is_empty))
+}
+
 fn restart_sync(raw: &str, program: Option<&str>) -> Result<(), String> {
     let configured = program.map(str::trim).filter(|value| !value.is_empty());
     let binary = match configured {
@@ -511,6 +636,72 @@ pub async fn detect_local_opencode(program: Option<String>) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn maintenance_does_not_confuse_idle_root_with_busy_other_directory() {
+        use std::io::{BufRead, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let worker = std::thread::spawn(move || {
+            for _ in 0..6 {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut reader = std::io::BufReader::new(&stream);
+                let mut first = String::new();
+                reader.read_line(&mut first).unwrap();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                }
+                let body = if first.contains("/experimental/session?") {
+                    r#"[{"directory":"/other"}]"#
+                } else if first.contains("/session/status?") {
+                    r#"{"running":{"type":"busy"}}"#
+                } else if first.contains("/session/status") {
+                    "{}"
+                } else {
+                    "[]"
+                };
+                write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",body.len(),body).unwrap();
+            }
+        });
+        let client = reqwest::blocking::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        assert!(!super::server_scopes_idle(
+            &client,
+            &origin,
+            Instant::now() + Duration::from_secs(10)
+        )
+        .unwrap());
+        worker.join().unwrap();
+    }
+    #[test]
+    fn maintenance_idle_is_fail_closed_for_runs_terminals_interactions_and_malformed_reads() {
+        use serde_json::json;
+        let ready = vec![json!({}), json!([]), json!([]), json!([])];
+        assert!(super::server_idle(&ready));
+        for index in 0..4 {
+            let mut busy = ready.clone();
+            busy[index] = if index == 0 {
+                json!({"s":{"type":"busy"}})
+            } else {
+                json!([{"id":"pending"}])
+            };
+            assert!(!super::server_idle(&busy));
+        }
+        let mut bad = ready.clone();
+        bad[0] = json!(null);
+        assert!(!super::server_idle(&bad));
+        assert!(!super::server_idle(&[]));
+    }
+
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;

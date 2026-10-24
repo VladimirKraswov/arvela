@@ -1,3 +1,4 @@
+import {scheduleCommand} from "../schedules/control";
 // Native agent-control bridge.
 //
 // Commands arrive through the private native socket/MCP adapter, but are
@@ -636,6 +637,7 @@ function conversation(sessionId: string, limit: number, maxChars: number) {
 async function execute(method: string, raw: unknown): Promise<unknown> {
   const params = object(raw ?? {});
   switch (method) {
+    case "schedule": return scheduleCommand(params);
     case "status":
       return status();
     case "projects":

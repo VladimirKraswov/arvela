@@ -1,6 +1,6 @@
 [package]
 name = "enki"
-version = "0.2.106"
+version = "0.2.107"
 description = "Desktop client for OpenCode and Pi"
 authors = ["Enki contributors"]
 edition = "2021"
@@ -46,6 +46,7 @@ semver = "1"
 rusqlite = { version = "0.38", features = ["bundled", "hooks"] }
 tauri-plugin-updater = "2"
 minisign-verify = "0.2.5"
+getrandom = "0.3"
 
 # Unix only, and only for process-*group* signalling: a Pi agent spawns language
 # servers, and killing just the direct child would orphan them.

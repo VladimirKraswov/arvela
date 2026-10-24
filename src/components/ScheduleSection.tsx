@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { store } from "../state/store";
 import { MAX_MINUTES, STORAGE_FAILED, type ScheduledTask, type TaskScheduler } from "../schedules/tasks";
 import { PI_BACKEND_ID } from "../agent/pi/backend";
@@ -14,22 +14,25 @@ export function intervalLabel(minutes: number): string {
 const modelLabel = (t: Pick<ScheduledTask, "model" | "agent">) =>
   [`${t.model.providerID}/${t.model.modelID}`, t.model.variant, t.agent && `агент ${t.agent}`].filter(Boolean).join(" · ");
 
-function statusLine(t: ScheduledTask, pending: "pause" | "remove" | undefined): string {
+export function statusLine(t: ScheduledTask, pending: "pause" | "remove" | undefined): string {
   if (pending) return pending === "remove" ? "Будет удалено после текущей проверки" : "Будет приостановлено после текущей проверки";
   if (t.state === "dispatching") return "Проверка чата и отправка…";
+  if (!t.enabled && t.mode === "once" && t.state === "sent") return "Выполнено: запрос передан агенту";
   if (!t.enabled) return t.state === "error" ? "Приостановлено" : "Приостановлено вручную";
   if (t.state === "waiting") return `${t.detail ?? "Ожидает"} · проверка повторяется`;
   return `Следующий запуск: ${time(t.nextAt)}`;
 }
 
 /** Recurring prompts of one chat. A schedule is an explicit user action; nothing is sent on save. */
-export function ScheduleSection({ scheduler, server, directory, sessionID }: {
-  scheduler: TaskScheduler; server: string; directory: string | null; sessionID: string | null;
+export function ScheduleSection({ scheduler, server, directory, sessionID, showAll = false }: {
+  scheduler: TaskScheduler; server: string; directory: string | null; sessionID: string | null; showAll?: boolean;
 }) {
+  const sectionId=useId();
   const all = useSyncExternalStore(scheduler.subscribe, scheduler.snapshot);
   const status = useSyncExternalStore(scheduler.subscribe, scheduler.status);
-  const tasks = all.filter(t => t.server === server && t.sessionID === sessionID && t.directory === directory);
+  const tasks = all.filter(t => showAll || t.server === server && t.sessionID === sessionID && t.directory === directory);
   const elsewhere = all.filter(t => t.enabled && t.server === server && t.sessionID !== sessionID).length;
+  const [mode, setMode] = useState<"once" | "repeat">("repeat");
   const [form, setForm] = useState(false), [title, setTitle] = useState(""), [prompt, setPrompt] = useState("");
   const [amount, setAmount] = useState(15), [unit, setUnit] = useState<(typeof UNITS)[number]["id"]>("min");
   const [error, setError] = useState("");
@@ -44,7 +47,7 @@ export function ScheduleSection({ scheduler, server, directory, sessionID }: {
     try {
       if (!sessionID || !directory || !model) throw new Error("Откройте чат и выберите модель.");
       if (!intervalValid) throw new Error("Интервал — целое число от 1 минуты до 7 дней.");
-      scheduler.add({ server, directory, sessionID, engine, title: title.trim(), prompt: prompt.trim(), minutes, model: { ...model }, agent });
+      scheduler.add({ server, directory, sessionID, engine, title: title.trim(), prompt: prompt.trim(), minutes, mode, model: { ...model }, agent });
       setForm(false); setTitle(""); setPrompt(""); setError("");
     } catch (e) { setError(e instanceof Error ? e.message : "Не удалось сохранить задание."); }
   };
@@ -53,22 +56,24 @@ export function ScheduleSection({ scheduler, server, directory, sessionID }: {
     catch (e) { setError(e instanceof Error && e.message === STORAGE_FAILED ? STORAGE_FAILED : "Не удалось сохранить расписание. Проверьте доступ к хранилищу приложения."); }
   };
 
-  return <section aria-labelledby="context-schedule-title">
+  return <section aria-labelledby={`${sectionId}-title`}>
     <div className="context-section-title">
-      <h3 id="context-schedule-title">Запланировано</h3>
-      <button className="icon-btn" aria-label="Добавить повторяющееся задание" aria-expanded={form} aria-controls="context-schedule-form"
+      <h3 id={`${sectionId}-title`}>Запланировано</h3>
+      <button className="icon-btn" aria-label="Добавить таймер" aria-expanded={form} aria-controls={`${sectionId}-form`}
         disabled={!sessionID || !directory || unavailable} onClick={() => { setForm(!form); setError(""); }}><Icon name="plus" size={16}/></button>
     </div>
     {unavailable && <p className="context-error" role="alert">{STORAGE_FAILED}</p>}
     {status.skipped > 0 && <p className="context-note" role="status">Не удалось прочитать сохранённых записей: {status.skipped}. Они отключены; исходные данные сохранены в резервной копии профиля Desktop.</p>}
-    {!tasks.length && !form && <p className="context-note">Повторяющихся заданий в этом чате нет</p>}
+    {!tasks.length && !form && <p className="context-note">Таймеров нет</p>}
     {tasks.length > 0 && <ul className="context-list">{tasks.map(t => {
       const pending = status.pending[t.id];
       // This window can withdraw its own attempt; another window's send must settle there.
       const foreign = t.state === "dispatching" && status.flight !== t.id;
       return <li className="context-task" key={t.id}>
-        <div className="context-row"><Icon name="clock" size={16}/><strong title={t.prompt}>{t.title}</strong><span>Каждые {intervalLabel(t.minutes)}</span></div>
+        <div className="context-row"><Icon name="clock" size={16}/><strong title={t.prompt}>{t.title}</strong><span>{t.mode === "once" ? "Один раз" : `Каждые ${intervalLabel(t.minutes)}`}</span></div>
         <small>{modelLabel(t)}</small>
+        {showAll && <small title={t.directory}>Чат: {t.sessionID} · {t.directory}{t.server !== server ? " · другое подключение" : ""}</small>}
+        <p className="context-note">{t.prompt}</p>
         <small>{statusLine(t, pending)}</small>
         {t.lastAt && <small>Последний запрос принят агентом: {time(t.lastAt)}. Результат — в истории чата.</small>}
         {t.state === "error" && t.detail && <p className="context-error">{t.detail}</p>}
@@ -80,8 +85,9 @@ export function ScheduleSection({ scheduler, server, directory, sessionID }: {
         </div>
       </li>;
     })}</ul>}
-    {form && <form id="context-schedule-form" className="context-task-form" onSubmit={e => { e.preventDefault(); addTask(); }}
+    {form && <form id={`${sectionId}-form`} className="context-task-form" onSubmit={e => { e.preventDefault(); addTask(); }}
       onKeyDown={e => { if (e.key === "Escape") { e.stopPropagation(); setForm(false); } }}>
+      <label>Режим<select value={mode} onChange={e => setMode(e.target.value as typeof mode)}><option value="repeat">Повторять</option><option value="once">Выполнить один раз</option></select></label>
       <label>Название<input autoFocus required maxLength={120} value={title} onChange={e => setTitle(e.target.value)} placeholder="Например, проверить CI"/></label>
       <label>Задание агенту<textarea required maxLength={20000} rows={4} value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Что нужно проверять или выполнять?"/></label>
       <div className="context-interval">
@@ -89,10 +95,10 @@ export function ScheduleSection({ scheduler, server, directory, sessionID }: {
         <label>Единица<select value={unit} onChange={e => setUnit(e.target.value as typeof unit)}>{UNITS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
       </div>
       <p className="context-note">
-        Модель: {model ? modelLabel({ model, agent }) : "не выбрана"}. Выполняется, пока приложение открыто.</p>
+        Модель: {model ? modelLabel({ model, agent }) : "не выбрана"}. Работает и в трее. После полного выхода проверки ждут открытия Enki; пропущенные повторы не накапливаются.</p>
       <button className="btn small" type="submit" disabled={!model || !intervalValid}>Сохранить расписание</button>
     </form>}
     {error && <p className="context-error" role="alert">{error}</p>}
-    {elsewhere > 0 && <p className="context-note">Ещё активных заданий в других чатах этого сервера: {elsewhere}. Они выполняются в фоне.</p>}
+    {!showAll && elsewhere > 0 && <p className="context-note">Ещё активных заданий в других чатах этого сервера: {elsewhere}. Они выполняются в фоне.</p>}
   </section>;
 }

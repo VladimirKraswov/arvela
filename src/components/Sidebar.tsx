@@ -1,10 +1,13 @@
+import {SessionSpinner} from "./SessionSpinner";
+import {taskScheduler} from "../schedules/tasks";
+import {ScheduleDialog} from "./ScheduleDialog";
 import { UpdateBadge } from "../updates/runtime";
 import { InformationDialog } from "./InformationDialog";
 import enkiMark from "../assets/enki-icon.png";
 import { modKeyLabel } from "../native/platform";
 import { ProjectActions, RemovedProjects } from "./ProjectActions";
 import { HostPicker, pickProjectFolder } from "./WorkspacePicker";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Session } from "../api/types";
 import { store, useAppSelector } from "../state/store";
 import { FloatingPopover } from "./FloatingPopover";
@@ -15,18 +18,21 @@ import { WORKSHOP_TITLE } from "../workshop/workspace";
 export const pickFolder = pickProjectFolder;
 
 function ActivityMark({ id, directory, pending = false }: { id: string; directory: string; pending?: boolean }) {
+  const scheduler=taskScheduler();
+  const tasks=useSyncExternalStore(scheduler.subscribe,scheduler.snapshot);
+  const server=store.state.prefs.workspaceKey??store.state.prefs.endpoint;
+  const timers=tasks.filter(t=>t.enabled&&t.server===server&&t.directory===directory&&t.sessionID===id);
   const status = store.activityStatus(id);
   if (status?.type === "busy" || status?.type === "retry") {
     const connection = store.state.connection;
     if (!store.isPiSession(id) && ((directory === store.state.directory && !!connection.statusError) || connection.phase !== "connected" || (connection.globalStreamState ?? connection.streamState) !== "open"))
       return <span className="pending-dot" role="status" aria-label="Нет свежего статуса задачи" title="Нет связи: выполнение пока не подтверждено">?</span>;
-    return <span className="session-spinner" role="status" aria-label="Задача выполняется" />;
+    return <SessionSpinner/>;
   }
-  if (pending || status?.type === "waiting")
-    return <span className="pending-dot" aria-label="Требуется ответ">!</span>;
-  if (store.isUnread(id))
-    return <span className="unread-dot" role="status" aria-label="Задача завершена, результат не прочитан" />;
-  return null;
+  if (pending || status?.type === "waiting" || store.state.chat.sessions[id]?.lastError || tasks.some(t=>t.server===server&&t.directory===directory&&t.sessionID===id&&t.state==="error"))
+    return <span className="pending-dot" aria-label="Требуется внимание" title="Проверьте ответ, ошибку или расписание чата">!</span>;
+  return <>{store.isUnread(id) && <span className="unread-dot" role="status" aria-label="Задача завершена, результат не прочитан" />}
+    {timers.length>0 && <span className="session-timer" role="status" aria-label="Запланировано пробуждение" title={timers.map(t=>`${t.title}: ${new Date(t.nextAt).toLocaleString("ru")}`).join("\n")}><Icon name="clock" size={14}/></span>}</>;
 }
 
 const sidebarSnapshot = (s: import('../state/types').AppState) => ({
@@ -38,6 +44,7 @@ const sidebarSnapshot = (s: import('../state/types').AppState) => ({
 });
 export function Sidebar() {
   const s = useAppSelector(sidebarSnapshot);
+  const [timersOpen,setTimersOpen]=useState(false);
   const [information,setInformation] = useState<Session|null>(null);
   const [archived, setArchived] = useState(false),
     [menu, setMenu] = useState<string | null>(null),
@@ -89,7 +96,7 @@ export function Sidebar() {
         >
           <Icon name="chat" size={15} />
           <span className="title">{sess.title}{recent && <small className="session-project">{store.isProjectlessDirectory(sess.directory) ? "Без проекта" : projectName(sess.directory)}</small>}</span>
-          <ActivityMark id={sess.id} directory={sess.directory} pending={pending.permissions.length + pending.questions.length > 0} />
+          <span className="session-indicators"><ActivityMark id={sess.id} directory={sess.directory} pending={pending.permissions.length + pending.questions.length > 0} /></span>
         </button>
         <button className="task-menu" aria-label={`Действия: ${sess.title}`} onClick={event=>{setMenuAnchor(event.currentTarget);setMenu(menu===rowKey?null:rowKey);}}><Icon name="dots" size={16}/></button>
         {menu === rowKey && (
@@ -174,12 +181,14 @@ export function Sidebar() {
       <div className="sidebar-host">
         <HostPicker compact />
       </div>
+      <button className="sidebar-timers" onClick={()=>setTimersOpen(true)}><Icon name="clock" size={16}/><span>Таймеры и наблюдение</span></button>
+      {timersOpen && <ScheduleDialog onClose={()=>setTimersOpen(false)}/>}
       <div className="workshop-entry">
         <button className={`workshop-button${s.activeSessionId === s.prefs.workshop?.session.id ? " active" : ""}`}
           aria-label={WORKSHOP_TITLE} aria-busy={openingWorkshop} disabled={openingWorkshop}
           onClick={async () => { setOpeningWorkshop(true); try { await store.openWorkshop(); } finally { setOpeningWorkshop(false); } }}>
           <Icon name="code" size={18}/><span className="workshop-title">{WORKSHOP_TITLE}</span>
-          {s.prefs.workshop && <ActivityMark id={s.prefs.workshop.session.id} directory={s.prefs.workshop.directory}/>}
+          {s.prefs.workshop && <span className="session-indicators"><ActivityMark id={s.prefs.workshop.session.id} directory={s.prefs.workshop.directory}/></span>}
           <Icon name="lock" size={12}/>
         </button>
       </div>
@@ -207,7 +216,7 @@ export function Sidebar() {
                 <Icon name="folder" size={17} />
                 <span className="project-name">{name}</span>
                 {!expanded && store.hasRunningInDirectory(dir) && (s.prefs.projectEngine?.[dir] === "pi" || s.connection.phase === "connected" && !(dir === s.directory && s.connection.statusError) && (s.connection.globalStreamState ?? s.connection.streamState) === "open"
-                  ? <span className="session-spinner" role="status" aria-label="В проекте выполняется задача" />
+                  ? <SessionSpinner label="В проекте выполняется задача"/>
                   : <span className="pending-dot" role="status" aria-label="Нет свежего статуса проекта">?</span>)}
                 {!expanded && store.hasUnreadInDirectory(dir) && <span className="unread-dot" role="status" aria-label="Есть непрочитанные результаты" />}
               </button>

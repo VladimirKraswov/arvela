@@ -104,7 +104,7 @@ it("the first projectless send creates an isolated workspace and routes the real
   expect(store.client.prompt).toHaveBeenCalledWith(
     "ses_chat",
     "/home/test/chats/one",
-    expect.objectContaining({ parts: [{ type: "text", text: "hello" },expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})] }),
+    expect.objectContaining({ parts: [{ type: "text", text: "hello" },expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{enkiSchedules:1}})] }),
   );
   expect(store.chatSessions().map((s: any) => s.id)).toEqual(["ses_chat"]);
   expect(store.projectDirectories()).not.toContain("/home/test/chats/one");
@@ -122,7 +122,7 @@ it("sends a file part with the prompt and removes only accepted attachments", as
   const [file] = await attachmentDrafts.add(scope, [new File(["hello"], "notes.txt", { type: "text/plain" })]);
   expect(await store.sendPrompt("review this", [file])).toBe(true);
   expect(store.client.prompt).toHaveBeenCalledWith("ses_file", "/project", expect.objectContaining({ parts: [
-    { type: "text", text: "review this" }, expect.objectContaining({ type: "file", mime: "text/plain", filename: "notes.txt" }),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}}),
+    { type: "text", text: "review this" }, expect.objectContaining({ type: "file", mime: "text/plain", filename: "notes.txt" }),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{enkiSchedules:1}}),
   ] }));
   expect(attachmentDrafts.snapshot(scope)).toEqual([]);
   expect(store.getDraft()).toBe("");
@@ -136,7 +136,7 @@ it('preserves first-send attachments while creating the projectless working dire
  const scope=attachmentScope(store.state.prefs.workspaceKey??store.state.prefs.endpoint,null,null);
  const [file]=await attachmentDrafts.add(scope,[new File(['hello'],'first.txt',{type:'text/plain'})]);
  expect(await store.sendPrompt('new chat with a file',[file])).toBe(true);
- expect(store.client.prompt).toHaveBeenCalledWith('ses_first_file','/home/test/chats/one',expect.objectContaining({parts:[{type:'text',text:'new chat with a file'},expect.objectContaining({type:'file',filename:'first.txt'}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}})]}));
+ expect(store.client.prompt).toHaveBeenCalledWith('ses_first_file','/home/test/chats/one',expect.objectContaining({parts:[{type:'text',text:'new chat with a file'},expect.objectContaining({type:'file',filename:'first.txt'}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaResponseLanguage:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{arvelaToolWorkflow:1}}),expect.objectContaining({type:'text',synthetic:true,metadata:{enkiSchedules:1}})]}));
  expect(attachmentDrafts.snapshot(scope)).toHaveLength(0);
 });
 it("keeps an attachment and text draft after a failed send", async () => {

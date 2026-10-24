@@ -2,7 +2,7 @@ import {inputBudget, transferSource, waitForSummary} from './contextTransfer';
 import {McpNotices} from '../capabilities/notices';
 import {applyGlobalPlugins} from '../api/configReload';
 import {refreshGlobalPolicy} from '../capabilities/globalPolicy';
-import { agentParts, steeringParts } from "../agent/promptPolicy";
+import { agentParts, steeringParts, scheduleWakeReminder } from "../agent/promptPolicy";
 import { prepareWorkshop, resolveWorkshop, isWorkshopSession, type WorkshopRecord } from "../workshop/workspace";
 import { ownWork } from "../operations/ownership";
 import { StreamNotifications, selectedSnapshot, shallowEqual } from "./notifications";
@@ -2482,7 +2482,7 @@ class Store {
         sending = true;
         await backend.prompt(task.sessionID, task.directory, {
           messageID, model: { providerID: task.model.providerID, modelID: task.model.modelID },
-          variant: task.model.variant ?? undefined, agent: task.agent, parts: agentParts(this.state.prefs.workshop, task.sessionID, task.directory, [{ type: "text", text: task.prompt }]),
+          variant: task.model.variant ?? undefined, agent: task.agent, parts: agentParts(this.state.prefs.workshop, task.sessionID, task.directory, [{ type: "text", text: task.prompt }, {type:"text",text:scheduleWakeReminder(task.sessionID,task.id),synthetic:true,metadata:{enkiScheduleWake:1}}]),
         });
         });
       } catch (error) {
